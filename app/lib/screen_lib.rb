@@ -1,0 +1,744 @@
+
+# -*- coding: utf-8 -*-
+#ScreenLib 
+# 2099/12/31を修正する時は　2100/01/01の修正も
+module ScreenLib 
+	extend self
+	class ScreenClass
+		attr_reader :screenCode
+		def initialize(screenCode)
+			@grid_columns_info = {"init_where_info" => {"filtered" => {}}}
+			@screenCode = screenCode
+			$proc_grp_code =  ActiveRecord::Base.connection.select_value("select usrgrp_code from r_persons where person_email = '#{$email}'")
+			if $proc_grp_code.nil?
+				p "add person to his or her email "
+				raise   ### 別画面に移動する　後で対応
+			end
+		end
+		def grid_columns_info
+			@grid_columns_info
+		end
+		def screenCode
+			@screenCode
+		end
+		
+		def proc_create_grid_editable_columns_info(params) 
+			req = params[:req]
+			grid_columns_info = Rails.cache.fetch('screenfield'+$proc_grp_code+screenCode+req) do
+				grid_columns_info = {}
+				###  ダブルコーティション　「"」は使用できない。 
+				sqlstr = "select * from  func_get_screenfield_grpname('#{$email}','#{screenCode}')"
+				screenwidth = 0
+				select_fields = ""
+				gridmessages_fields = ""  ### error messages
+				init_where_info = {}
+				dropdownlist = {}
+				sort_info = {}
+				nameToCode = {}
+				columns_info = []
+				hiddenColumns = []
+				if (req=='inlineedit7'|| req=="inlineadd7" )
+					columns_info << {:Header=>"confirm",
+									:accessor=>"confirm",
+									:id=>"",
+									:className=>"checkbox",
+									:width=>50
+									}
+					columns_info << {:Header=>"confirm_gridmessage",
+									:accessor=>"confirm_gridmessage",
+									:id=>"",
+									:className=>"gridmessage",
+									}
+					hiddenColumns << "confirm_gridmessage"
+				end		
+				ActiveRecord::Base.connection.select_all(sqlstr).each_with_index do |i,cnt|			
+					select_fields = 	select_fields + 	i["pobject_code_sfd"] + ','
+					if 	nameToCode[i["screenfield_name"]].nil?   ###nameToCode excelから取り込むときの表示文字からテーブル項目名への変換テーブル
+						nameToCode[i["screenfield_name"]] = i["pobject_code_sfd"]
+					else
+						if i["pobject_code_sfd"].split("_")[0] == screenCode.split("_")[1].chop
+							nameToCode[i["screenfield_name"]] = i["pobject_code_sfd"]  ###nameがテーブル項目しか登録されてない。
+						end
+					end
+					grid_columns_info["nameToCode"] = nameToCode
+					columns_info << {:Header=>"#{i["screenfield_name"]}",
+									:id=>"#{i["screenfield_id"]}",
+									:accessor=>"#{i["pobject_code_sfd"]}",
+									:filter=>case i["screenfield_type"]
+												when "select" 
+													"includes"
+												when "check"
+													"checkbox"
+												else 
+													"text"
+												end	,
+									:canFilter => if i["screenfield_type"] =~ /check/ then false else true end,
+									###widthが120以下だと右の境界線が消える。	
+									:width => if i["screenfield_width"].to_i < 80 then 80 else  i["screenfield_width"].to_i end,
+									##:style=>%Q%{"textAlign":#{if i["screenfield_type"] == "numeric" then "right" else "left" end}%, 
+									##:style=>{:textAlign=>if i["screenfield_type"] == "numeric" then "right" else "left" end}, 
+									:className=>if  (req==="inlineedit7" or req==="inlineadd7") and 
+													(i["screenfield_editable"] === "1" or i["screenfield_editable"] === "2" or i["screenfield_editable"] === "3") 
+														if i["screenfield_indisp"] === "1"  ###必須はyupでも
+															case i["screenfield_type"] 
+															when "select"
+																	"SelectEditableRequire"
+															when "check"
+																	"CheckEditableRequire"
+															when "numeric"
+																	"EditableRequire Numeric "
+															else
+																	"EditableRequire"
+															end
+														else
+															case i["screenfield_type"] 
+															when "select"
+																	"SelectEditable"
+															when "check"
+																	"CheckEditable"
+															when "numeric"
+																	"Editable Numeric "
+															else
+																	"Editable"
+															end
+														end
+												else	
+														case i["screenfield_type"]
+															when "select"
+																"SelectNonEditable"
+															when "check"
+																"CheckNonEditable"
+															when "numeric"
+																"NonEditable Numeric "
+															else
+																"NonEditable"
+														end
+												end	
+									}
+					if ((req==="inlineedit7" or req==="inlineadd7") and i["screenfield_editable"] === "1") or
+						(req==="inlineedit7"  and i["screenfield_editable"] === "2") or
+						( req==="inlineadd7" and i["screenfield_editable"] === "3") 
+						columns_info << {:Header=>"#{i["screenfield_name"]}_gridmessage",
+										:accessor=>"#{i["pobject_code_sfd"]}_gridmessage",
+										:id=>"#{i["pobject_code_sfd"]}_gridmessage",
+										:className=>"gridmessages"
+									}
+						gridmessages_fields << %Q% '' #{i["pobject_code_sfd"]}_gridmessage,%	
+						hiddenColumns << %Q%#{i["pobject_code_sfd"]}_gridmessage%	
+					end																
+					init_where_info[i["pobject_code_sfd"]] = i["screenfield_type"]	
+					if cnt == 0
+								init_where_info["filtered"] = i["screen_strwhere"]
+								grid_columns_info[:pageSizeList] = []
+								i["screen_rowlist"].split(",").each do |list|
+									grid_columns_info[:pageSizeList]  <<  list.to_i
+								end
+								if i["screen_strorder"] 
+									sort_info[:default] = i["screen_strorder"]
+								end	
+				 	end
+					if  i["screenfield_edoptvalue"]
+						dropdownlist[i["pobject_code_sfd"]] = i["screenfield_edoptvalue"]
+					end	
+					if   i["screenfield_hideflg"] == "0" 
+						screenwidth = screenwidth +  i["screenfield_width"].to_i
+					else
+						hiddenColumns << i["pobject_code_sfd"]
+					end
+				##end
+				end
+				grid_columns_info["columns_info"] = columns_info
+				grid_columns_info["hiddenColumns"] = hiddenColumns
+				grid_columns_info["yup"] = {}
+				grid_columns_info["yup"]["yupfetchcode"] = YupSchema.proc_create_yupfetchcode   screenCode
+				grid_columns_info["yup"]["yupcheckcode"] = YupSchema.create_yupcheckcode   screenCode
+
+				dropdownlist.each do |key,val|
+					tmpval="["
+					val.split(",").each do  |drop|
+					tmpval << %Q%{"value":"#{drop.split(":")[0]}","label":"#{drop.split(":")[1]}"},%
+					end
+					dropdownlist[key] = tmpval.chop + "]"
+				end	
+				grid_columns_info["dropdownlist"] = dropdownlist
+				if sort_info[:default]
+					ary_select_fields = select_fields.split(',')
+					sort_info = ControlFields.proc_detail_check_strorder sort_info,ary_select_fields
+				end	
+				grid_columns_info["init_where_info"] = init_where_info
+				grid_columns_info["sort_info"] = sort_info	
+				grid_columns_info["screenwidth"] = screenwidth	
+				if gridmessages_fields.size > 1
+					select_fields << gridmessages_fields
+				end
+				grid_columns_info["select_fields"] = select_fields.chop
+				grid_columns_info 
+			end
+			return grid_columns_info
+		end
+	
+		def proc_create_filteredstr(params) 
+			setParams = params.dup
+			if params[:filtered] 
+				where_info = grid_columns_info["init_where_info"]
+				if (where_info["filtered"]).size > 0
+					 where_str =   "  where " +	 where_info["filtered"] + "    and "
+				else
+					 where_str = "  where "	 
+				end	
+				JSON.parse(params[:filtered]).each  do |ff|  ##xparams gridの生
+					###ff = JSON.parse(strjson)
+					next if ff["value"].nil?
+					next if ff["value"] == ""
+					next if ff["value"] =~ /'/
+					next if ff["value"] == "null"
+	      			case where_info[ff["id"]]  ### where_info[i["pobject_code_sfd"].to_sym] = i["screenfield_type"]	
+					when nil
+						next
+		 			when /numeric/
+						if ff["value"] =~ /^<=/  or ff["value"] =~ /^>=/ or ff["value"]=~ /^!=/
+							next if ff["value"].size == 2 
+							next if ff["value"][2..-1] !~ /^[0-9]+$|^\.[0-9]+$|^[0-9]+\.[0-9]+$/
+							where_str << " #{ff["id"]} #{ff["value"][0..1]} #{ ff["value"][2..-1]}      AND "   
+						else
+							if ff["value"] =~ /^</   or  ff["value"] =~ /^>/	or  ff["value"] =~ /^=/
+								next if ff["value"].size == 1 
+								next if ff["value"][1..-1] !~ /^[0-9]+$|^\.[0-9]+$|^[0-9]+\.[0-9]+$/
+								where_str << " #{ff["id"]}  #{ff["value"][0]}  #{ ff["value"][1..-1]}      AND "   
+							else	
+								next if ff["value"]  !~ /^[0-9]+$|^\.[0-9]+$|^[0-9]+\.[0-9]+$/
+								where_str << " #{ff["id"]} = #{ff["value"]}     AND "
+							end	
+						end	
+				  	when /^date|^timestamp/
+						ff["value"] = ff["value"].gsub("-","/")
+		      			case  ff["value"].size
+			         	when 4
+					 		where_str << "to_char(#{ff["id"]},'yyyy') = '#{ff["value"]}'      							 AND "
+			         	when 5
+					 		where_str << "to_char(#{ff["id"]},'yyyy') #{ff["value"][0]} '#{ff["value"][1..-1]}'          AND "  if  ( ff["value"]=~ /^</   or ff["value"] =~ /^>/ )
+					 	when 6
+					 		where_str << "to_char(#{ff["id"]},'yyyy')  #{ff["value"][0..1]} '#{ff["value"][2..-1]}'      AND "  if   (ff["value"] =~ /^<=/  or ff["value"] =~ /^>=/ )
+			         	when 7
+					 		where_str << "to_char(#{ff["id"]},'yyyy/mm') = '#{ff["value"]}'                              AND "  if Date.valid_date?(ff["value"].split("/")[0].to_i,ff["value"].split("/")[1].to_i,01)
+			         	when 8
+					 		where_str << "to_char(#{ff["id"]},'yyyy/mm') #{ff["value"][0]} '#{ff["value"][1..-1]}'       AND "  if Date.valid_date?(ff["value"][1..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,01)  and ( ff["value"] =~ /^</   or  ff["value"] =~ /^>/ )
+                	 	when 9
+					 		where_str << "to_char(#{ff["id"]},'yyyy/mm')  #{ff["value"][0..1]} '#{ff["value"][2..-1]}'   AND "  if Date.valid_date?(ff["value"][1..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,01)   and (ff["value"] =~ /^<=/  or ff["value"]=~ /^>=/ )
+			         	when 10
+					 		where_str << "to_char(#{ff["id"]},'yyyy/mm/dd') = '#{ff["value"]}'                           AND "  if Date.valid_date?(ff["value"].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2].to_i)
+			         	when 11
+					 		where_str << "to_char(#{ff["id"]},'yyyy/mm/dd') #{ff["value"][0]} '#{ff["value"][1..-1]}'   AND "  if Date.valid_date?(ff["value"][1..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2].to_i)  and ( ff["value"] =~ /^</   or  ff["value"] =~ /^>/ )
+                	 	when 12
+					 		where_str << "to_char(#{ff["id"]},'yyyy/mm/dd')  #{ff["value"][0..1]} '#{ff["value"][2..-1]}' AND "  if Date.valid_date?(ff["value"][2..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2].to_i)   and (ff["value"] =~ /^<=/  or ff["value"]=~ /^>=/ )
+			         	when 16
+			            	if Date.valid_date?(ff["value"].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2][0..1].to_i)
+					 							hh = ff["value"].split(" ")[1][0..1]
+					 							mi = ff["value"].split(" ")[1][3..4]
+					 							delm = ff["value"].split(" ")[1][2.2]
+					 							if  Array(0..24).index(hh.to_i) and Array(0..60).index(mi.to_i) and delm ==":"
+					 								where_str << " to_char( #{ff["id"]},'yyyy/mm/dd hh24:mi') = '#{ff["value"]}'       AND "
+					 							end
+					 		end
+			        	when 17
+							if Date.valid_date?(ff["value"][1..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2][0..1].to_i)  and ( ff["value"] =~ /^</   or ff["value"] =~ /^>/ or  ff["value"] =~ /^=/ )
+										hh = ff["value"].split(" ")[1][0..1]
+										mi = ff["value"].split(" ")[1][3..4]
+										delm = ff["value"].split(" ")[1][2.2]
+										if  Array(0..24).index(hh.to_i) and Array(0..60).index(mi.to_i) and delm ==":"
+											where_str << " to_char( #{ff["id"]},'yyyy/mm/dd hh24:mi') #{ff["id"][0]} '#{ff["id"][1..-1]}'      AND "
+										end
+							end
+                		when 18
+			                if Date.valid_date?(j[2..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2][0..1].to_i)   and (ff["value"]=~ /^<=/  or ff["value"]=~ /^>=/ )
+												hh = ff["value"].split(" ")[1][0..1]
+												mi = ff["value"].split(" ")[1][3..4]
+												delm = ff["value"].split(" ")[1][2.2]
+												if  Array(0..24).index(hh.to_i) and Array(0..60).index(mi.to_i) and delm ==":"
+													where_str << " to_char( #{ff["id"]},'yyyy/mm/dd hh24:mi')  #{ff["id"][0..1]} '#{ff["id"][2..-1]}'      AND "
+												end
+							end
+						else
+							next						
+                		end ## ff["value"].size
+					when /char|text|select/
+						if  (ff["value"] =~ /^%/ or ff["value"] =~ /%$/ ) then 
+							where_str << " #{ff["id"]} like '#{ff["value"]}'     AND " if  ff["value"] != ""
+						elsif ff["value"] =~ /^<=/  or ff["value"] =~ /^>=/ then 
+							where_str << " #{ff["id"]} #{ff["id"][0..1]} '#{ff["id"][2..-1]}'     AND " if  ff["value"] != ""
+						elsif 	ff["value"] =~ /^</   or  ff["value"] =~ /^>/
+							where_str << " #{ff["id"]}   #{ff["value"][0]}  '#{ff["value"][1..-1]}'         AND "  if  ff["value"] != ""
+						elsif 	ff["value"] =~ /^!=/   
+							where_str << " #{ff["id"]}   #{ff["value"][0..1]}  '#{ff["value"][2..-1]}'         AND "  if  ff["value"] != ""
+						else
+							where_str << " #{ff["id"]} = '#{ff["value"]}'         AND "
+						end
+	      			##when "select"
+					##	where_str << " #{ff["id"]} = '#{ff["value"]}'         AND "
+        			end   ##show_data[:alltypes][i]
+        			tmpwhere = " #{ff["id"]} #{ff["value"]}    AND " if  ff["value"] =~/is\s*null/ or ff["value"]=~/is\s*not\s*null/
+	      			where_str << (tmpwhere||="")
+				end ### command_c.each  do |i,j|###
+				setParams[:where_str] = 	where_str[0..-7]
+			else
+				if grid_columns_info["init_where_info"]["filtered"]
+				  if grid_columns_info["init_where_info"]["filtered"].size > 1
+					setParams[:where_str] = " where " + grid_columns_info["init_where_info"]["filtered"] 
+				  end
+				end   
+				###@where_info["filtered"] screen sort 規定値
+				setParams[:filtered]="[]"
+			end
+			setParams[:pageIndex] = params[:pageIndex].to_f
+			setParams[:pageSize] = params[:pageSize].to_f
+			setParams[:disableFilters] = false
+			return setParams
+		end	
+
+		def proc_search_blk(params) 
+			grid_columns_info = proc_create_grid_editable_columns_info(params)  ###return grid_columns_info
+			setParams = proc_create_filteredstr(params) 
+			where_str = setParams[:where_str]
+			strsorting = ""
+			if setParams[:sortBy]  and   setParams[:sortBy] != "" ###: {id: "itm_name", desc: false}
+				sortBy = JSON.parse(setParams[:sortBy])
+				sortBy.each do |sortKey|
+					strsorting = " order by " if strsorting == ""
+					strsorting << %Q% #{sortKey["id"]} #{if sortKey["desc"]  == false then " asc " else "desc" end} ,%
+				end	
+				if strsorting == ""
+					strsorting = " order by id desc "
+				else
+					strsorting << " id desc "
+				end
+			else
+				strsorting = "  order by id desc "
+				setParams[:sortBy] = "[]"
+			end
+			strsql = "select #{grid_columns_info["select_fields"]} 
+						from (SELECT ROW_NUMBER() OVER (#{strsorting}) ,#{grid_columns_info["select_fields"]}
+													 FROM #{screenCode} #{if where_str == '' then '' else where_str end } ) x
+														where ROW_NUMBER > #{(setParams[:pageIndex])*setParams[:pageSize] } 
+														and ROW_NUMBER <= #{(setParams[:pageIndex] + 1)*setParams[:pageSize] } 
+																  "
+			pagedata = ActiveRecord::Base.connection.select_all(strsql)
+			if where_str =~ /where/ 
+				strsql = "SELECT count(*) FROM #{screenCode} #{where_str}"
+			else
+				strsql = "SELECT count(*) FROM #{screenCode.split("_")[1]} "
+			end  ###fillterがあるので、table名は抽出条件に合わず使用できない。
+			totalCount = ActiveRecord::Base.connection.select_value(strsql)
+			setParams[:pageCount] = (totalCount.to_f/setParams[:pageSize]).ceil
+			setParams[:totalCount] = totalCount.to_f
+			return grid_columns_info,pagedata,setParams 
+		end	
+
+		def proc_add_empty_data(params) ###新規追加画面の初期値
+			grid_columns_info = proc_create_grid_editable_columns_info(params)   ###return grid_columns_info
+			num = params[:pageSize].to_f
+			setParams = parms.dup
+			columns_info = grid_columns_info["columns_info"]
+			pagedata = []
+			until num <= 0 do
+				temp ={}
+				columns_info.each do |cell|
+					temp[cell[:accessor]] = ""
+					next if cell[:accessor] == "id" 
+					next if cell[:accessor] =~ /_id/
+					if cell[:className] =~ /Editable/
+						if cell[:className] =~ /Numeric/
+							temp[cell[:accessor]] = "0"
+						end
+						case cell[:accessor]
+						when /_expiredate/
+							temp[cell[:accessor]] = "2099-12-31"
+						when /_isudate|_rcptdate|_cmpldate/
+							temp[cell[:accessor]] = Time.now.strftime("%Y/%m/%d")
+						when /pobject_objecttype_tbl/
+							temp[cell[:accessor]] = "tbl"
+						when /opeitm_processseq|opeitm_priority/	
+							temp[cell[:accessor]] = "999"
+						when /mkprdpurord_priority|mkprdpurord_processseq/	
+							temp[cell[:accessor]] = "0"
+						when /person_code_chrg/	
+							temp[cell[:accessor]] = $person_code_chrg
+						when /prjno_code/	
+							temp[cell[:accessor]] = "0"
+						end
+					end
+					case screenCode
+					when "r_mkprdpurords"
+						case cell[:accessor]
+						when /loca_code_|itm_code_|person_code_chrg/	
+							temp[cell[:accessor]] = "dummy"
+						when /mkprdpurord_starttime_|mkprdpurord_duedate_/
+							temp[cell[:accessor]] = "2099/12/31"  
+						end
+					when /audfld_pobjects|r_fieldcodes/
+						case cell[:accessor]
+						when /pobject_objecttype/	
+						temp[cell[:accessor]] = "tbl_field"
+						end
+					end
+				end	
+				pagedata << temp
+				num = num - 1
+			end
+			setParams[:pageCount] = 1
+			setParams[:pageIndex] = 0
+			setParams[:filtered]="[]"
+			setParams[:sort]="[]"
+			return grid_columns_info,pagedata,setParams		
+		end	   ## proc_strwhere
+
+  		def  proc_pdfwhere pdfscript,command_c
+	    	reports_id = pdfscript[:id]
+	    	viewname = command_c[:sio_viewname]
+        	tmpwhere = proc_strwhere command_c
+        	case  params[:initprnt]
+            when  "1"  then
+	            tmpwhere <<  if tmpwhere.size > 1 then " and " else " where " end
+	            tmpwhere << "   not exists (select 1 from HisOfRprts x
+                                   where lower(tblname) = '#{viewname}' and #{viewname.split('_')[1].chop}_id = recordid
+				                and reports_id = #{reports_id}) "
+			end
+        	case  params[:afterprnt]
+            	when  "1"  then
+	            tmpwhere <<  if tmpwhere.size > 1 then " and " else " where " end
+	            tmpwhere << " exists (select 1 from  (select max(updated_at) updated_at ,recordid
+     							       from HisOfRprts x where reports_id = #{reports_id}
+     								   group by reports_id,recordid )
+								   where id = recordid and  #{viewname.split("_")[1].chop}_updated_at > updated_at )"
+			end
+        	if params[:whoupdate] == '1' then
+	        	tmpwhere <<  if tmpwhere.size > 1 then " and " else " where " end
+	        	tmpwhere << " person_code_upd = '#{$person_code_chrg}'"
+        	end
+        	if pdfscript[:pobject_code_rep] =~ /order_list/ then
+	        	tmpwhere <<  if tmpwhere.size > 1 then " and " else " where " end
+	        	tmpwhere << "  #{pdfscript[:pobject_code_view].split('_')[1].chop}_confirm  in('1','5')  "   ##order_listの時は確定又は確認済しか印刷しない
+        	end
+        	##if params[:
+        	return tmpwhere
+    	end
+
+		def create_download_columns_info    ###screenCodeはinitializeでset
+			download_columns_info = {}
+			###download_columns_info = Rails.cache.fetch('download'+$proc_grp_code+screenCode) do
+				###  ダブルコーティション　「"」は使用できない。 
+				sqlstr = "select * from  func_get_screenfield_grpname('#{$email}','#{screenCode}')"
+				ActiveRecord::Base.connection.select_all(sqlstr).each do |i|
+					if i["screenfield_hideflg"] == "0"
+						contents = []
+						contents << i["pobject_code_sfd"] ###
+						contents << i["screenfield_name"] ###
+						contents <<  if i["screenfield_indisp"] == "1"
+							 			"00bfff"  ##rgb(125, 177, 245)
+									else
+										if i["screenfield_editable"] == "1"	
+											"87ceeb"  ## rgb(200, 220, 245);
+										else
+											"ffffff"
+										end
+									end	###value: "Blue",  style: {fill: {patternType: "solid", fgColor: {rgb: "FF0000FF"}}}
+						contents << 	if i["screenfield_type"] == "nemeric"
+										"right"
+								else
+										"left"
+								end
+						contents << i["screenfield_type"]   ###未使用
+						download_columns_info[i["pobject_code_sfd"]] = contents
+					end	
+				end
+			###end
+			return download_columns_info  ### [{key=>name,color,type},・・・]
+		end
+	
+		def proc_download_data_blk(params)
+			download_columns_info = create_download_columns_info 
+			grid_columns_info = proc_create_grid_editable_columns_info(params)  ###return grid_columns_info
+			setParams = proc_create_filteredstr(params) 
+			downloadFields = ""
+			download_columns_info.each do |key,val|
+					downloadFields << key + ","
+			end
+			strsql = "select #{downloadFields.chop} from  #{screenCode}
+							 #{if setParams[:where_str] == '' then '' else setParams[:where_str]   end }  limit 10000	  "
+			pagedata = []
+			ActiveRecord::Base.connection.select_all(strsql).each do |rec|
+				pg = {}
+				rec.each do |key,val|
+					case val.class.to_s
+					when "Date"   ### case val.class  when Date　だと拾えない 
+						pg[key] = val.to_s
+					when "Time"
+						pg[key] = val.strftime("%Y-%m-%d %H:%M:%S")
+					when "NilClass"
+						pg[key] = ""
+					else
+						pg[key] = val
+					end 
+				end
+				pagedata << pg
+			end
+			return download_columns_info,pagedata.count, pagedata
+		end	
+
+		def proc_create_upload_editable_columns_info req
+			grid_columns_info = Rails.cache.fetch('screenfield'+$proc_grp_code+screenCode) do
+				###  ダブルコーティション　「"」は使用できない。 
+			sqlstr = "select * from  func_get_screenfield_grpname('#{$email}','#{screenCode}')"
+			columns_info = []
+			page_info = {}
+			where_info = {}
+			select_fields = ""
+			gridmessages_fields = ""  ### error messages
+			dropdownlist = {}
+			sort_info = {}
+			screenwidth = 0
+			nameToCode = {}
+			columns_info << {:Header=>"confirm",
+									:accessor=>"confirm",
+									:show=>true,
+									:filtered=>false,
+									:id=>"",
+									:className=>"checkbox",
+									:width=>50
+									}
+			columns_info << {:Header=>"confirm_gridmessage",
+									:accessor=>"confirm_gridmessage",
+									:show=>false,
+									:filtered=>false,
+									:id=>"",
+									:className=>"gridmessage",
+									}
+			ActiveRecord::Base.connection.select_all(sqlstr).each_with_index do |i,cnt|				
+					select_fields = 	select_fields + 	i["pobject_code_sfd"] + ','
+					if 	nameToCode[i["screenfield_name"]].nil?   ###nameToCode excelから取り込むときの表示文字からテーブル項目名への変換テーブル
+						nameToCode[i["screenfield_name"]] = i["pobject_code_sfd"]
+					else
+						if i["pobject_code_sfd"].split("_")[0] == screenCode.split("_")[1].chop
+							nameToCode[i["screenfield_name"]] = i["pobject_code_sfd"]  ###nameがテーブル項目しか登録されてない。
+						end
+					end
+					columns_info << {:Header=>"#{i["screenfield_name"]}",
+									:accessor=>"#{i["pobject_code_sfd"]}",
+									:show=>if  i["screenfield_hideflg"] == "0" then true else false end,
+									:filtered=>true,
+									:width => i["screenfield_width"].to_i,
+									:id=>"#{i["screenfield_id"]}",
+									##:style=>%Q%{"textAlign":#{if i["screenfield_type"] == "numeric" then "right" else "left" end}%, 
+									:style=>{:textAlign=>if i["screenfield_type"] == "numeric" then "right" else "left" end}, 
+									:className=>if ((req==="editabletablereq" or req==="inlineaddreq") and i["screenfield_editable"] === "1") or
+													(req==="editabletablereq"  and i["screenfield_editable"] === "2") or
+													( req==="inlineaddreq" and i["screenfield_editable"] === "3") 
+													if  i["screenfield_type"] == "select" 
+															"renderSelectEditable"
+													else
+														if i["screenfield_type"] == "check" 
+																		"checkbox"
+														else		
+															if	(i["screenfield_indisp"] === "1" or i["screenfield_indisp"] === "2")
+																			"renderEditableRequired"
+															else
+																			"renderEditable"
+															end
+														end
+													end				  
+												else	
+													if  i["screenfield_type"] == "select" 
+																	"renderSelectNonEditable"
+													else	
+														if i["screenfield_type"] == "check" 
+																		""
+												   		else
+																		"renderNonEditable"
+														end
+													end
+												end	
+									}
+					if ((req==="editabletablereq" or req==="inlineaddreq") and i["screenfield_editable"] === "1") or
+						(req==="editabletablereq"  and i["screenfield_editable"] === "2") or
+						( req==="inlineaddreq" and i["screenfield_editable"] === "3") 
+						columns_info << {:Header=>"#{i["screenfield_name"]}_gridmessage",
+										:accessor=>"#{i["pobject_code_sfd"]}_gridmessage",
+										:show=>false,
+										:filtered=>false,
+										:width => 10,
+										:id=>"#{i["screenfield_id"]}_gridmessage",
+										:className=>"gridmessages"
+									}
+						gridmessages_fields << %Q% '' #{i["pobject_code_sfd"]}_gridmessage,%	
+					end																
+					where_info[i["pobject_code_sfd"].to_sym] = 	i["screenfield_type"]	
+					if cnt == 0
+								where_info[:filtered] = i["screen_strwhere"]
+								###page_info[:sizePerPage] = i["screen_rows_per_page"].to_i
+								page_info[:pageNo] = 1
+								page_info[:sizePerPageList] = []
+								i["screen_rowlist"].split(",").each do |list|
+									page_info[:sizePerPageList]  <<  list.to_i
+								end
+								if i["screen_strorder"] 
+									sort_info[:default] = i["screen_strorder"]
+								end	
+				 	end
+					if  i["screenfield_edoptvalue"]
+						dropdownlist[i["pobject_code_sfd"]] = i["screenfield_edoptvalue"]
+					end	
+					if   i["screenfield_hideflg"] == "0" 
+						screenwidth = screenwidth +  i["screenfield_width"].to_i
+					end
+				##end
+			end	
+			if (req==="inlineaddreq")
+				columns_info << {:Header=>"confirm",
+									:accessor=>"confirm",
+									:show=>true,
+									:filtered=>false,
+									:id=>"",
+									:className=>"checkbox",
+									:width=>50
+									}
+			end	
+			yup={}
+			yup[:yupfetchcode] = YupSchema.proc_create_yupfetchcode screenCode   
+			yup[:yupcheckcode]  = YupSchema.create_yupcheckcode screenCode   
+			dropdownlist.each do |key,val|
+				tmpval="["
+				val.split(",").each do  |drop|
+					tmpval << %Q%{"value":"#{drop.split(":")[0]}","label":"#{drop.split(":")[1]}"},%
+				end
+				dropdownlist[key] = tmpval.chop + "]"
+			end	
+			if sort_info[:default]
+				ary_select_fields = select_fields.split(',')
+				sort_info = ControlFields.proc_detail_check_strorder sort_info,ary_select_fields
+			end	 
+			page_info[:screenwidth] = screenwidth	
+			if gridmessages_fields.size > 1
+				select_fields << gridmessages_fields
+			end
+			grid_columns_info = [columns_info,page_info,where_info,select_fields.chop,yup,dropdownlist,sort_info,nameToCode]
+			end
+		end
+
+		def proc_confirm_screen(params)
+			grid_columns_info = proc_create_grid_editable_columns_info(params)
+			tblnamechop = screenCode.split("_")[1].chop
+			yup_fetch_code = grid_columns_info["yup"]["yupfetchcode"]
+			yupcheckcode = grid_columns_info["yup"]["yupcheckcode"]
+			parse_linedata = JSON.parse(params[:linedata])
+			addfield = {}
+			setParams = params.dup
+			setParams[:err] = ""
+			parse_linedata.each do |field,val|
+			  if yup_fetch_code[field] 
+				##setParams["fetchcode"] = %Q%{"#{field}":"#{val}"}%  ###clientのreq='fetch_request'で利用
+				if setParams[:parse_linedata]["id"] == ""  ###tableのユニークid
+					setParams[:parse_linedata]["aud"]= "add" 
+				end  
+				setParams["fetchview"] = yup_fetch_code[field]
+				setParams = ControlFields.proc_chk_fetch_rec setParams  
+				if setParams[:err] != ""  
+				  setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
+				  setParams[:parse_linedata][:confirm] = false 
+				  setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
+				  break
+				end
+			  end
+			  if setParams[:err] == ""
+				if yupcheckcode[field] 
+				  setParams = ControlFields.proc_judge_check_code setParams,field,yupcheckcode[field]  
+				  if setParams[:err] != ""
+					setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
+					setParams[:parse_linedata][:confirm] = false 
+					setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
+					break
+				  end
+				end
+			  end    
+			end	
+			if  setParams[:err] == ""
+				blk =  RorBlkCtl::BlkClass.new(screenCode)
+				command_c = blk.command_init
+			  	parse_linedata = setParams[:parse_linedata].dup
+			  	parse_linedata.each do |key,val|
+					if key.to_s =~ /_id/ and val == ""   and tblnamechop == key.to_s.split("_")[0] and
+						key.to_s !~ /_gridmessage$/ and  key.to_s !~ /_person_id_upd$/ and  key.to_s != "#{tblnamechop}_id"
+						setParams[:parse_linedata][:confirm_gridmessage] = " key #{key.to_s} missing"
+						setParams[:parse_linedata][:confirm] = false 
+						setParams[:err] = "error  key #{key.to_s} missing"
+						break
+				  	else
+						command_c[key] = setParams[:parse_linedata][key]
+				  	end
+			  	end 
+			  	### セカンドkeyのユニークチェック
+			 	 err = ControlFields.proc_blkuky_check screenCode.split("_")[1],setParams[:parse_linedata]
+			  	err.each do |key,recs|
+					recs.each do |rec|
+						if command_c["id"] != rec["id"]
+							setParams[:err] = " error #{key} already exist "
+							setParams[:parse_linedata][("confirm_gridmessage").to_sym] = setParams[:err] 
+							setParams[:parse_linedata][:confirm] = false 
+						end  
+					end	
+			  	end	
+			end
+			if  setParams[:err] == "" and screenCode =~ /tblfields/
+					strsql =  %Q%  select screenfield_seqno,pobject_code_sfd from r_screenfields  
+						  where screenfield_expiredate > current_date and 
+						  id in (select id from r_screenfields where pobject_code_scr = '#{screenCode}') and
+						  pobject_code_sfd in('screenfield_starttime','screenfield_duedate','screenfield_qty','screenfield_qty_case')
+			  %
+			  seqchkfields ={}
+			  recs = ActiveRecord::Base.connection.select_all(strsql)
+			  recs.each do |rec|
+				seqchkfields[rec["pobject_code_sfd"]] = rec["screenfield_seqno"]
+			  end  
+			  seqchkfields[setParams[:parse_linedata]["pobject_code_sfd"]] = setParams[:parse_linedata]["screenfield_seqno"]
+			  if (seqchkfields["screenfield_starttime"]||="99999") <  (seqchkfields["screenfield_duedate"]||="0")
+				setParams[:err] =  " starttime seqno > duedate seqno  "
+				setParams[:parse_linedata][("confirm_gridmessage").to_sym] = setParams[:err] 
+				setParams[:parse_linedata][:confirm] = false 
+			  else
+				if (seqchkfields["screenfield_qty_case"]||="99999") <  (seqchkfields["screenfield_qty"]||="0")
+					setParams[:err] =  " qty_case seqno > qty seqno  "  ###画面表示順　　包装単位の計算ため
+					setParams[:parse_linedata][("confirm_gridmessage").to_sym] = setParams[:err] 
+					setParams[:parse_linedata][:confirm] = false 
+				end
+			  end
+			end
+			if  setParams[:err] == ""
+			  if command_c["id"] == "" or  command_c["id"].nil?   ### add画面で同一lineで二度"enter"を押されたとき errorにしない
+				  ###  追加後エラーに気づいたときエラーしないほうが，操作性がよい
+				  command_c[:sio_classname] = "_add_grid_line_data"
+			  else         
+				  command_c[:sio_classname] = "_edit_update_grid_line_data"
+			  end
+			  blk.proc_create_src_tbl(command_c) ##
+			  setParams,command_c = blk.proc_add_update_table(setParams)
+			  if command_c[:sio_result_f]  == "9"
+				setParams[:parse_linedata][:confirm] = false  
+				err_message = command_c[:sio_message_contents].split(":")[1][0..100] + 
+							  command_c[:sio_errline].split(":")[1][0..100]  
+				setParams[:parse_linedata][("confirm_gridmessage").to_sym] = err_message
+			  else
+				setParams[:parse_linedata][:id] = command_c["id"]
+				setParams[:parse_linedata][(tblnamechop+"_id").to_sym] = command_c[tblnamechop+"_id"]
+				setParams[:parse_linedata][:confirm] = true  
+				setParams[:parse_linedata][("confirm_gridmessage").to_sym] = "done"
+				ArelCtl.proc_materiallized tblnamechop+"s"
+			  end
+			end 
+			return setParams
+		end
+
+
+  
+		def undefined
+		  nil
+		end
+	end  
+end   ##module ScreenLib

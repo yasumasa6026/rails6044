@@ -1,0 +1,238 @@
+/*
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+*/
+
+.app {
+  margin: 1rem;
+}
+
+a {
+  color: #08c;
+}
+
+.renderEditable {
+  font-size: 16px;
+  display: block;
+  border-radius: 0.5px;
+  background-color:  rgb(200, 220, 245);
+}
+
+
+.renderEditableRequired {
+  padding: 1px 1px;
+  font-size: 16px;
+  display: block;
+  border-radius: 0.5px;
+  border: 0.5px solid rgb(120, 160, 247);
+  background-color:  rgb(125, 177, 245);
+}
+
+
+.renderEditableError {
+  border: 0.5px solid #ccc;
+  background-color:  rgb(243, 24, 35);
+}
+
+.renderEditableInput {
+  border: 0.5px solid #ccc;
+  background-color:  rgb(222, 248, 172);
+}
+
+.renderEditableNotChange {
+  border: 0.5px solid #ccc;
+  background-color:  rgb(149, 238, 238);
+}
+
+.renderEditableResult {
+  border: 0.5px solid #ccc;
+  background-color:  rgb(107, 245, 148);
+}
+
+/* 表示の時のcss*/
+.renderNonEditable {
+  padding: 0.5px 0.5px;
+  font-size: 16px;
+  display: block;
+  border-radius: 0.5px;
+  color:  rgb(0, 0, 0);
+}
+
+.renderNonEditableSelect {
+  padding: 0.1px 0.1px;
+  font-size: 12px;
+  display: block;
+  border-radius: 0.1px;
+  border: 0.1px solid rgb(238, 248, 239);
+  background-color:  rgb(107, 245, 148);
+}
+
+.oddclass {
+  background-color:  rgb(211, 224, 240);
+}
+
+.evenclass {
+  background-color:  rgb(240, 217, 175);
+}
+
+.setInputMarkClass {
+  border: 3px solid #0def;
+  background-color: #5F81f5;
+}
+
+
+.ReactTable {
+  padding: 0.5px 0.5px;
+  border-radius: 0.5px;
+  overflow:hidden;
+  color:  rgb(0, 0, 0);
+}
+div.rt-td {
+  border: 1px solid rgb(19, 18, 18);
+  height: 33px;  /*テーブルの文字の表示の高さ */
+}
+.rt-th {
+  overflow:hidden; 
+}
+
+/* 表の縦線がfilterと表の明細とで異なることへの対応 画面ごとにサイズを変えないとみぎにくうはくができる*/
+/*
+.rt-thead{
+  width:6000px;
+  overflow:hidden;
+}
+.rt-tbody{
+  width:6100px;
+  overflow:hidden;
+}
+*/
+
+.-header{
+  height: 30px;
+  background-color: rgb(189, 189, 189);
+  border: 0.9px solid rgb(19, 18, 18);
+}
+
+
+.rt-th.rt-resizable-header.-cursor-pointer{
+  height: 30px;
+   border: 0.9px solid rgb(240, 230, 230);
+}
+
+
+.checkboxNonEditable {
+	-webkit-appearance: checkbox;
+	appearance: checkbox;
+}
+
+/*
+.renderSelect {
+  background-color:  rgb(200, 220, 245);
+}
+*/
+/* 表示の時のcss*/
+.renderSelectNonEditable { 
+	height: 2em;
+  font-size: 16px;
+	padding: 0.1rem;
+	border-top: 0.1px solid #666666;
+}
+.renderSelectEditable{
+	height: 2em;
+  font-size: 16px;
+	padding: 0.1rem;
+	border-top: 0.1px solid #666666;
+  background-color:  rgb(160, 199, 247);
+}
+
+select{
+	height: 1.8em;
+  font-size: 16px;
+	padding: 0.1rem;
+	border-top: 0.1px solid #666666;
+}
+
+label {
+  font-weight: bold;
+  display: block;
+  margin-bottom: .5rem;
+}
+
+
+button {
+  max-width: 1800px;
+  max-height: 30px;
+  margin: 5px 0;
+  padding: 12px 10px;
+  border-style: none;
+  border-radius: 5px;
+  background-color: #08c;
+  box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.15);
+  font-size: 17px;
+  font-weight: 300;
+  color: #fff;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+button:disabled {
+  opacity: .5;
+  cursor: not-allowed !important;
+}
+
+button + button {
+  margin-left: .5rem;
+  margin-left: .0rem;
+}
+
+button.outline {
+  background-color: #eee;
+  border: 1px solid #aaa;
+  color: #555;
+}
+
+button.-btn {
+  width:150px;
+}
+
+
+  
+.react-tabs--selected_custom_head {
+  background: rgb(30, 221, 116);
+}
+
+ul.react-tabs_tab_list {
+  margin: 0px;
+}
+
+
+.react-tooltip-lite {
+  min-width: 100px;
+  background: #333;
+  color: red;
+}
+
+
+/* 下記のwidth以外では prev nectボタンがコントロールできない。*/
+.-pagination{
+  width:1200px
+}
+div.-center{
+  width:330px
+}
+
+div.-next{
+  width:170px
+}
