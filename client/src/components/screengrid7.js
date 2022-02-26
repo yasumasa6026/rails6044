@@ -48,50 +48,50 @@ const cellFontSize = (column,para) =>{
 }
 
 const AutoCell = ({
-  value: initialValue,
-  row: { index,values },
-  column: { id, className },  //id field_code
-  setData, data, // This is a custom function that we supplied to our table instance
-  row,params, updateParams,dropDownList,yup,handleScreenRequest,handleFetchRequest,
-  params:{req},buttonflg,loading,  //useTableへの登録が必要
-  }) => {
-  const [value, setValue] = useState(initialValue)
-  const [newClassName, setNewClassName] = useState(className)
-  const [newReadOnly, setNewReadOnly] = useState(false)
-  const inputRef = useRef()
-  const setFieldsByonChange = (e) => {
-    if(e.target){
-      //initialValue = (e.target.value||"")  他の項目に移動すると、入力内容が消える。
-        setValue(e.target.value)
-        updateMyData(index, id, e.target.value ) //dataの内容が更新されない。但しとると、画面に入力内容が表示されない。
-        inputRef.current = true
-      }   
-  }
-  const setFieldsByonFocus = (e) => {//
-      inputRef.current = false
-      if(e.target){
-         if(e.target.value===null||e.target.value===""||e.target.value===undefined){
-            //initialValue = setInitailValueForAddFunc(id,row,・・・　画面表示されない。
-            values[id] = setInitailValueForAddFunc(id,row,className,params.screenCode)
-          }else{
-            values[id] = e.target.value
-          }
-          if(values[id]){
-              //setValue(values[id])
-              updateMyData(index, id, values[id])
-              fetch_check(id,index, yup, data, updateParams, params, handleFetchRequest,loading,updateMyData)
-          }
+    value: initialValue,
+    row: { index,values },
+    column: { id, className },  //id field_code
+    setData, data, // This is a custom function that we supplied to our table instance
+    row,params, updateParams,dropDownList,yup,handleScreenRequest,handleFetchRequest,
+    params:{req},buttonflg,loading,  //useTableへの登録が必要
+    }) => {
+        const [value, setValue] = useState(initialValue)
+        const [newClassName, setNewClassName] = useState(className)
+        const [newReadOnly, setNewReadOnly] = useState(false)
+        const inputRef = useRef()
+        const setFieldsByonChange = (e) => {
+            if(e.target){
+                //initialValue = (e.target.value||"")  他の項目に移動すると、入力内容が消える。
+                setValue(e.target.value)
+                updateMyData(index, id, e.target.value ) //dataの内容が更新されない。但しとると、画面に入力内容が表示されない。
+                inputRef.current = true
+            }   
+        } 
+    const setFieldsByonFocus = (e) => {//
+        inputRef.current = false
+        if(e.target){
+            if(e.target.value===null||e.target.value===""||e.target.value===undefined){
+                //initialValue = setInitailValueForAddFunc(id,row,・・・　画面表示されない。
+                values[id] = setInitailValueForAddFunc(id,row,className,params.screenCode)
+            }else{
+                values[id] = e.target.value
+            }
+            if(values[id]){
+                //setValue(values[id])
+                updateMyData(index, id, values[id])
+                fetch_check(id,index, yup, data, updateParams, params, handleFetchRequest,loading,updateMyData)
+            }
          // e.target.value||undefinedにすると日付チェックの時splitでエラーが発生
        }  
-  }
+    }
   
-  const setFieldsByonBlur = (e) => {
-      if(inputRef.current === false&&buttonflg === "inlineedit7"){
-          let updateRow = { [id]: e.target.value}
-          onFieldValite(updateRow, id, params.screenCode)  //clientでのチェック
-          let msg_id = `${id}_gridmessage`
-          updateMyData(index, msg_id, updateRow[msg_id])}
-      else{
+    const setFieldsByonBlur = (e) => {
+        if(inputRef.current === false&&buttonflg === "inlineedit7"){
+            let updateRow = { [id]: e.target.value}
+            onFieldValite(updateRow, id, params.screenCode)  //clientでのチェック
+            let msg_id = `${id}_gridmessage`
+            updateMyData(index, msg_id, updateRow[msg_id])}
+        else{
             let updateRow = { [id]: e.target.value}
             onFieldValite(updateRow, id, params.screenCode)  //clientでのチェック
             let msg_id = `${id}_gridmessage`
@@ -99,50 +99,50 @@ const AutoCell = ({
                 fetch_check(id,index, yup, data, updateParams, params, handleFetchRequest,loading,updateMyData)
             }else{
               updateMyData(index, msg_id, updateRow[msg_id])}
-      }    
-  }
+            }    
+    }
   
-  useEffect(() => {
-    setValue(initialValue)
-  }, [initialValue])
+    useEffect(() => {
+        setValue(initialValue)
+        }, [initialValue])
 
-  let onFieldValite = (updateRow, field, screenCode) =>{  // yupでは　2019/12/32等がエラーにならない
+    let onFieldValite = (updateRow, field, screenCode) =>{  // yupでは　2019/12/32等がエラーにならない
         let schema = fieldSchema(field, screenCode)
         yupErrCheck(schema,field,updateRow)
         if(updateRow[field+"_gridmessage"]==="ok"){
             onBlurFunc7(screenCode, updateRow, field)
           }
         return updateRow
-  }
-
-  const onLineValite = (tgrow,index,data,params) => {
-    let screenSchema = Yup.object().shape(yupschema[params.screenCode])
-    let updateRow = {}
-    Object.keys(screenSchema.fields).map((field) => {
-       updateRow[field] = tgrow[field] 
-      return updateRow  //更新可能項目のみをセレクト
-    })  
-    yupErrCheck(screenSchema,"confirm",updateRow)
-    if (updateRow["confirm_gridmessage"] === "doing") {
-      let newrow = {}
-      Object.keys(data[index]).map((key,idx)=>{  //複数key対応
-       if(/_gridmessage/.test(key)){}
-         else{newrow[key]=data[index][key]}
-         return null
-       }
-      )
-      updateParams([{ linedata: JSON.stringify(newrow)}, { index: index },
-                        { req: "confirm7" }])
-      handleScreenRequest(params,data)
-    }else{
-      let msg_id = "confirm_gridmessage"
-      updateMyData(index, msg_id, " error " + updateRow[msg_id])
-      msg_id = `${updateRow["errPath"]}_gridmessage`
-      updateMyData(index, msg_id, " error " + updateRow[msg_id])
-      setClassFunc(updateRow["errPath"],row,className,req)
-      updateMyData(index, "confirm", false)
     }
-  }
+
+    const onLineValite = (tgrow,index,data,params) => {
+        let screenSchema = Yup.object().shape(yupschema[params.screenCode])
+        let updateRow = {}
+        Object.keys(screenSchema.fields).map((field) => {
+        updateRow[field] = tgrow[field] 
+        return updateRow  //更新可能項目のみをセレクト
+        })  
+        yupErrCheck(screenSchema,"confirm",updateRow)
+        if (updateRow["confirm_gridmessage"] === "doing") {
+            let newrow = {}
+            Object.keys(data[index]).map((key,idx)=>{  //複数key対応
+            if(/_gridmessage/.test(key)){}
+            else{newrow[key]=data[index][key]}
+            return null
+            }
+            ) 
+            updateParams([{ linedata: JSON.stringify(newrow)}, { index: index },
+                        { req: "confirm7" }])
+            handleScreenRequest(params,data)
+        }else{
+            let msg_id = "confirm_gridmessage"
+            updateMyData(index, msg_id, " error " + updateRow[msg_id])
+            msg_id = `${updateRow["errPath"]}_gridmessage`
+            updateMyData(index, msg_id, " error " + updateRow[msg_id])
+            setClassFunc(updateRow["errPath"],row,className,req)
+            updateMyData(index, "confirm", false)
+        }
+    }
   //id,row,className,req  autocellで指定が必要
    useEffect(()=>setNewClassName(()=>row.values&&setClassFunc(id,row,className,req)),
                                     [row.values[id+"_gridmessage"]])
@@ -200,7 +200,7 @@ const AutoCell = ({
             />)}
         </Tooltip>)
     case /SelectEditable/.test(className):
-      return (<select
+        return (<select
           value={value||""}
           onChange={e => {
             setFieldsByonChange(e)
@@ -212,7 +212,8 @@ const AutoCell = ({
             </option>
           ))}
         </select>
-      )
+    )
+
     case /CheckEditable/.test(className):
       return <input  type="checkbox" 
       onChange={e => {
@@ -245,6 +246,36 @@ const AutoCell = ({
     default:
       return <input value={initialValue || ""} readOnly />
   }
+}
+
+
+const DefaultColumnFilter = ({
+    column:{ filterValue, setFilter, preFilteredRows, id} ,
+    dropDownList,column
+    }) => {
+            if(dropDownList&&column.filter==="includes"){  
+                return (<select
+                    value={filterValue||""}
+                    onChange={e => {
+                        setFilter(e.target.value || "")
+                    }}
+                  >
+                    {JSON.parse(dropDownList[id]).map((option, i) => (
+                      <option key={i} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>)
+            }
+            else{return (
+                <input
+                value={filterValue||""}
+                onChange={e => {  // onBlur can not use
+                setFilter(e.target.value || "")
+                    }
+                }
+                />
+            )}
 }
  
 //serverデータとのチェック又はserverデータの検索
@@ -539,78 +570,31 @@ const GridTable = ({
 
   
 
-  const ColumnHeader = ({
-    column ,
-  }) => {
-    return (
-      <span></span>
-    )
-  }
-  
-  const DefaultColumnFilter = ({
-    column:{filterValue,setFilter,filter, id,  } ,column,
-    dropDownList,
-  }) => {
-    switch(filter){
-      case "text": 
+    const ColumnHeader = ({
+        column ,
+        }) => {
         return (
-        <input
-          value={filterValue||""}
-          onChange={e => {  // onBlur can not use
-          setFilter(e.target.value || "")
-          }
-          }
-        />
+            <span></span>
         )
-      case "includes":  
-        return (
-           <select
-             value={filterValue}
-             onChange={e => {
-               setFilter(e.target.value )
-             }}
-           >
-             <option value={""}></option>
-             {dropDownList&&JSON.parse(dropDownList[id]).map((option, i) => (
-               <option key={i} value={option.value}>
-                 {option.label}
-               </option>
-             ))}
-           </select>
-         )
-      default:
-        return (
-        <input
-          value={filterValue||""}
-          onChange={e => {  // onBlur can not use
-          setFilter(e.target.value || "")
-          }
-          }
-        />
-        )
-      }
-  }
+    }
 
-  const defaultColumn = useMemo(
-    () => ({
-      Header: ColumnHeader,
-      //minWidth: 30,
-      //width: 150, // width is used for both the flex-basis and flex-grow
-      //maxWidth: 1500,
-      Filter: DefaultColumnFilter,
-      Cell: AutoCell,
-    }),
-    []
-  )
+    const defaultColumn = useMemo(
+        () => ({
+        Header: ColumnHeader,
+        Filter: DefaultColumnFilter,
+        Cell: AutoCell,
+        }),
+        []
+    )
  
-  const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    rows,
-     prepareRow, 
-    toggleAllRowsSelected,   
-    setAllFilters,setSortBy,
+    const {
+        getTableProps,
+        getTableBodyProps,
+        headerGroups,
+        rows,
+        prepareRow, 
+        toggleAllRowsSelected,   
+        setAllFilters,setSortBy,
     //setHiddenColumns,// to set the `hiddenColumns` state for the entire table.
     //setHiddenColumns,   //pageCount,//page,
     //canPreviousPage, canNextPage,
@@ -619,30 +603,30 @@ const GridTable = ({
     //setPageSize, //Instance Properties This function sets state.pageSize to the new value. already prepare
     //gotoPage,//toggleSortBy,
     //clearSortBy,
-    state:{filters,sortBy}  //:{controlledPageIndex,controlledPageSize},  //hiddenColumns,}
-  } = useTable(
-    {
-      columns,
-      data,
-      params,updateParams,dropDownList,yup,buttonflg,loading,setData,
-      defaultColumn,
-      manualPagination: false,
-      manualFilters: true,
-      manualSortBy: true,
-      disableMultiSort: false,
-      autoResetSortBy: true,
-      disableFilters,
-      initialState: {hiddenColumns:hiddenColumns,
+        state:{filters,sortBy}  //:{controlledPageIndex,controlledPageSize},  //hiddenColumns,}
+    } = useTable(
+        {
+            columns,
+            data,
+            params,updateParams,dropDownList,yup,buttonflg,loading,setData,
+            defaultColumn,
+            manualPagination: false,
+            manualFilters: true,
+            manualSortBy: true,
+            disableMultiSort: false,
+            autoResetSortBy: true,
+            disableFilters,
+            initialState: {hiddenColumns:hiddenColumns,
                       sortBy:params.sortBy===undefined?[]:JSON.parse(params.sortBy).map((sort)=>{return sort})
                     },
     //  autoResetPage: !skipReset,
     //  autoResetSelectedRows: !skipReset,
-      //updateMyData,   //pageCount: controlledPageCount,
-      //filterTypes,
-    handleFetchRequest,handleScreenRequest,
+    //  updateMyData,   //pageCount: controlledPageCount,
+    //        filterTypes,
+            handleFetchRequest,handleScreenRequest,
      // initialState: { controlledPageIndex: 0, controlledPageSize: 0, },
     },
-    useFilters, // useFilters!
+    useFilters, //
     useSortBy,  //The useSortBy plugin hook must be placed after the useFilters plugin hook!
     useBlockLayout,
     useResizeColumns,
@@ -664,8 +648,8 @@ const GridTable = ({
               style: {
                       backgroundColor: 'gray'
                      },
-              onKeyUp: (e) =>  //filter
-                     {  // filterv sortでの検索しなおし
+              onKeyUp: (e) =>  //
+                     {  // filter sortでの検索しなおし
                       if (e.key === "Enter" &&(params.disableFilters===false) )
                           { 
                             updateParams([{filtered:JSON.stringify(filters)},{sortBy:JSON.stringify(sortBy)}])
@@ -685,9 +669,9 @@ const GridTable = ({
                   <span>
                     {column.isSorted ? column.isSortedDesc ? '↓' : '↑' : ''}
                   </span>
-                  <span>
-                   {column.canFilter ? column.render('Filter') : null}
-                  </span>
+                  {column.canFilter&&<span>
+                   {column.render('Filter') }
+                  </span> }
                   <span {...column.getResizerProps()}   className={`resizer ${column.isResizing ? 'isResizing' : ''}`}> 
                   </span>
                 </th>

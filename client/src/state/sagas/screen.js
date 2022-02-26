@@ -5,9 +5,7 @@ import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_LINEEDIT, FETCH_RESULT, FETCH_FAIL
         SECONDFETCH_FAILURE,MKSHPINSTS_SUCCESS,MKSHPACTS_RESULT,CONFIRMALL_SUCCESS,
         }
          from '../../actions'
-import {getLoginState} from '../reducers/auth'
 import {getButtonState} from '../reducers/button'
-//import { ReactReduxContext } from 'react-redux';
 
 function screenApi({params ,url,headers} ) {
   
@@ -50,11 +48,11 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
             case 'viewtablereq7':
             case 'inlineedit7':
             case 'inlineadd7':
-              if(params.second===true){
-                return yield put({ type:SECONDSCREEN_SUCCESS7, payload:response})}
-              else{
-                return yield put({ type:SCREEN_SUCCESS7, payload: response })   
-              }      
+                  if(params.second===true){
+                    return yield put({ type:SECONDSCREEN_SUCCESS7, payload:response})}
+                    else{
+                    return yield put({ type:SCREEN_SUCCESS7, payload: response })   
+                    }      
             case "confirm7":
               data[params.index] = {...response.data.linedata}
               params.req = buttonState.buttonflg

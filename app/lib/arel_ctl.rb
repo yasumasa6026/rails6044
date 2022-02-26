@@ -77,8 +77,7 @@ module ArelCtl
 		if reqparams["seqno"].nil?
 			reqparams["seqno"] = []
 		end	
-		reqparams["seqno"] << processreqs_id  ###class UploadsController で使用
-
+		reqparams["seqno"] << processreqs_id  ###
 		strsql = %Q&
 			insert into processreqs(
 						contents,remark,
@@ -304,4 +303,46 @@ module ArelCtl
 		end
 	end
 
+	def proc_insert_linktbls(src,base)
+		linktbls_seq = ArelCtl.proc_get_nextval("linktbls_seq")
+		strsql = %Q&
+				insert into linktbls(id,trngantts_id,
+					srctblname,srctblid,
+					tblname,tblid,qty_src,amt_src,
+					created_at,
+					updated_at,
+					update_ip,persons_id_upd,expiredate,remark)
+				values(#{linktbls_seq},#{src["trngantts_id"]},
+					'#{src["tblname"]}',#{src["tblid"]}, 
+					'#{base["tblname"]}',#{base["tblid"]},#{base["qty_src"]} ,#{base["amt_src"]} , 
+					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					' ',#{$person_code_chrg||=0},'2099/12/31','')
+				&
+		ActiveRecord::Base.connection.insert(strsql)
+	end
+
+	def proc_insert_alloctbls(rec_alloc)
+		rec_alloc["alloctbls_id"] = ArelCtl.proc_get_nextval("alloctbls_seq")
+		strsql = %Q&
+		insert into alloctbls(id,
+							srctblname,srctblid,
+							trngantts_id,
+							qty_sch,qty,qty_stk,
+							qty_linkto_alloctbl,
+							created_at,
+							updated_at,
+							update_ip,persons_id_upd,expiredate,remark,allocfree)
+					values(#{rec_alloc["alloctbls_id"]},
+							'#{rec_alloc["tblname"]}',#{rec_alloc["tblid"]},
+							#{rec_alloc["trngantts_id"]},
+							#{rec_alloc["qty_sch"]},#{rec_alloc["qty"]},#{rec_alloc["qty_stk"]},
+							#{rec_alloc["qty_linkto_alloctbl"]},
+							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+							' ','0','2099/12/31','#{rec_alloc["remark"]}','#{rec_alloc["allocfree"]}')
+		&
+		ActiveRecord::Base.connection.insert(strsql)
+		return rec_alloc
+	end
 end

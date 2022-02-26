@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_01_24_104007) do
+ActiveRecord::Schema.define(version: 2022_02_14_052418) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -750,6 +750,13 @@ ActiveRecord::Schema.define(version: 2022_01_24_104007) do
     t.string "contents", limit: 4000
     t.index ["pobjects_id_fld", "id"], name: "fieldcodes_pobjects_id_fld", unique: true
     t.index ["pobjects_id_fld"], name: "fieldcodes_uky10", unique: true
+  end
+
+  create_table "importexcels", force: :cascade do |t|
+    t.string "title"
+    t.string "filename"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
   end
 
   create_table "inamts", id: :decimal, precision: 38, force: :cascade do |t|

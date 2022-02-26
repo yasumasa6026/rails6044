@@ -91,7 +91,7 @@ module GanttChart
 			tblid = ord["srctblid"]
 			tblname = ord["srctblname"]
 		end	
-		retuen tblname,tblid
+		return tblname,tblid
 	end
         ##dp_id = 0
         ##@bgantts.sort.each  do|key,value|    ###set depends

@@ -336,7 +336,7 @@ module Operation
 		end
 		###
 		#数量・納期の変更がないときは何もしない。
-		retuen chng_flg
+		return chng_flg
 	end
 
 	def base_sch_alloc_update(base_alloc)   ###purschs,prdschs
@@ -542,13 +542,11 @@ module Operation
 								end
 		###insts,replyinputs,dlvs,replyinputs,acts,retsはtrnganttsは作成しない。
 		proc_insert_trngantts(@gantt)  ###@ganttの内容をセット
-		stkinout = proc_insert_alloctbls(stkinout)
+		stkinout = ArelCtl.proc_insert_alloctbls(stkinout)
 		case @tblname	
 		when /^purords|^prdords/
 			stkinout["qty_free"] = @tbldata["qty"]
-			###debugger if @gantt["processseq_trn"].to_i == 990 
 			free_ordtbl_alloc_to_sch(stkinout)
-			###debugger if @gantt["processseq_trn"].to_i == 990 
 			if @gantt["qty_handover"]  > 0
 				@reqparams["segment"]  = "mkschs"   ###構成展開
 				###mkschで子部品の出庫、消費も行う		
@@ -641,7 +639,7 @@ module Operation
 		stkinout["qty_linkto_alloctbl"] = 0
 		stkinout["remark"] =  " line #{__LINE__} #{Time.now} "
 		stkinout["allocfree"]  =  "alloc" 
-		proc_insert_alloctbls(stkinout)
+		ArelCtl.proc_insert_alloctbls(stkinout)
 	 	###proc_mk_instks_rec stkinout,"add"
 		###元(top)がordsの時のみ子のschsをords等に引き当てる。
 		if @orgtblname =~ /^custschs|^custords|^purords|^prdords/   ###データはxxxschsのデータのみ　
@@ -714,49 +712,6 @@ module Operation
 		&
 		ActiveRecord::Base.connection.insert(strsql)
 		return
-	end
-
-	def proc_insert_linktbls(src,base)
-		linktbls_seq = ArelCtl.proc_get_nextval("linktbls_seq")
-		strsql = %Q&
-				insert into linktbls(id,trngantts_id,
-					srctblname,srctblid,
-					tblname,tblid,qty_src,amt_src,
-					created_at,
-					updated_at,
-					update_ip,persons_id_upd,expiredate,remark)
-				values(#{linktbls_seq},#{src["trngantts_id"]},
-					'#{src["tblname"]}',#{src["tblid"]}, 
-					'#{base["tblname"]}',#{base["tblid"]},#{base["qty_src"]} ,#{base["amt_src"]} , 
-					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-					' ',#{$person_code_chrg||=0},'2099/12/31','')
-				&
-		ActiveRecord::Base.connection.insert(strsql)
-	end
-
-	def proc_insert_alloctbls(rec_alloc)
-		rec_alloc["alloctbls_id"] = ArelCtl.proc_get_nextval("alloctbls_seq")
-		strsql = %Q&
-		insert into alloctbls(id,
-							srctblname,srctblid,
-							trngantts_id,
-							qty_sch,qty,qty_stk,
-							qty_linkto_alloctbl,
-							created_at,
-							updated_at,
-							update_ip,persons_id_upd,expiredate,remark,allocfree)
-					values(#{rec_alloc["alloctbls_id"]},
-							'#{rec_alloc["tblname"]}',#{rec_alloc["tblid"]},
-							#{rec_alloc["trngantts_id"]},
-							#{rec_alloc["qty_sch"]},#{rec_alloc["qty"]},#{rec_alloc["qty_stk"]},
-							#{rec_alloc["qty_linkto_alloctbl"]},
-							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-							' ','0','2099/12/31','#{rec_alloc["remark"]}','#{rec_alloc["allocfree"]}')
-		&
-		ActiveRecord::Base.connection.insert(strsql)
-		return rec_alloc
 	end
 
 	def schstbl_alloc_to_freetbl  sch
@@ -1078,7 +1033,7 @@ module Operation
 					"trngantts_id" => src["trngantts_id"],"qty_linkto_alloctbl" => 0,
 					"qty_sch" => 0,"qty" => base["qty"],"qty_stk" => base["qty_stk"] ,"allocfree" => "alloc",
 					"remark" => "Operation line #{__LINE__} #{Time.now}" }
-			proc_insert_alloctbls(alloc)
+			ArelCtl.proc_insert_alloctbls(alloc)
 		end
 		###qty_src 引き当て先元リンク数,
 		###src 引当もと旧のリンク数,###数量変更はsrcの相手側
@@ -1166,7 +1121,7 @@ module Operation
 			rec_alloc = {"tblname" => "custords","tblid" => rec["ord_id"],"trngantts_id" => rec["trngantts_id"],
 							"qty_sch" => 0,"qty" => alloc_qty,"qty_stk" => 0,"qty_linkto_alloctbl" => 0,
 							"remark" => "line #{__LINE__} #{Time.now}","allocfree" => "alloc"}
-			proc_insert_alloctbls(rec_alloc)
+			ArelCtl.proc_insert_alloctbls(rec_alloc)
 			### custschs在庫減
 			prev_stkinout["duedate"] = rec["prev_duedate"].to_date - 1  ###稼働日・輸送日の考慮要
 			prev_stkinout["qty_sch"] = alloc_qty * -1

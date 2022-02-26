@@ -2,7 +2,7 @@
 import {takeEvery} from 'redux-saga/effects'
 
 import {LOGIN_REQUEST,SIGNUP_REQUEST,MENU_REQUEST,FETCH_REQUEST,
-        SCREENINIT_REQUEST,SCREEN_REQUEST,EXCELCSVIMPORT_REQUEST,
+        SCREENINIT_REQUEST,SCREEN_REQUEST,IMPORTEXCEL_REQUEST,
         SECONDSCREEN_REQUEST,CONFIRMALL_REQUEST,
         GANTTCHART_REQUEST,BUTTONLIST_REQUEST,
         DOWNLOAD_REQUEST, YUP_REQUEST,TBLFIELD_REQUEST,
@@ -19,7 +19,7 @@ import {ScreenSaga} from './screen'//
 import {ButtonListSaga} from './buttonlist'
 import {GanttChartSaga} from './ganttchart'
 import {TblfieldSaga} from './tblfield'
-import {ExcelCsvImportSaga} from './excelcsvimport'
+import {ImportExcelSaga} from './importexcel'
 import {ProtectSaga} from './protect'
 
 export function * sagas () {
@@ -37,6 +37,6 @@ export function * sagas () {
   yield takeEvery(YUP_REQUEST,TblfieldSaga)  //yupの作成　Tblfieldと同じdef
   yield takeEvery(TBLFIELD_REQUEST,TblfieldSaga)
   yield takeEvery(GANTTCHART_REQUEST,GanttChartSaga)
-  yield takeEvery(EXCELCSVIMPORT_REQUEST,ExcelCsvImportSaga)
+  yield takeEvery(IMPORTEXCEL_REQUEST,ImportExcelSaga)
   yield takeEvery(INPUTFIELDPROTECT_REQUEST,ProtectSaga)
 }

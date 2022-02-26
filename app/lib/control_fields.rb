@@ -4,7 +4,7 @@ module ControlFields
 	extend self	
 		
 	def  proc_chk_fetch_rec params  
-		params[:err] = ""
+		params[:err] = nil
 		fetch_data,keys,screendata = get_fetch_rec params
 	  	if @findstatus
 			if @mainviewflg   ##@mainviewflg = true 自分自身の登録
@@ -289,7 +289,7 @@ module ControlFields
 				params[:err] =  "error   --->view or field  #{linedata["screenfield_paragraph"]}　not find "
 			else	
 				checkstatus = true
-				params[:err] =  ""
+				params[:err] =  nil
 			end
 		else	
 			if linedata["screenfield_paragraph"]
@@ -315,7 +315,7 @@ module ControlFields
 				rec = ActiveRecord::Base.connection.select_one(strsql)
 				if rec
 					checkstatus = true
-					params[:err] = ""
+					params[:err] = nil
 				else
 					checkstatus = false
 					params[:err] =  "error   --->view or field  #{linedata["screenfield_paragraph"]}　not find "
@@ -421,7 +421,7 @@ module ControlFields
 	 			chng_qty ||= 0.0  ###すでに次の状態に変化した数値
 	 			if chng_qty.to_f <= linedata[symqty].to_f
 	 				checkstatus = true
-	 				params[:err] =  ""
+	 				params[:err] =  nil
 	 			else
 	 				checkstatus = false
 	 				params[:err] =  "error   ---> qty must be >= #{chng_qty} "
@@ -452,7 +452,7 @@ module ControlFields
 	 				checkstatus = false
 	 				params[:err] =  "error   ---> loca_code_to must be >= #{rec["loca_code_to"]} "
 				 else
-					params[:err] =  ""
+					params[:err] =  nil
 	 			end 
 	 		end
 	 	end
@@ -474,7 +474,7 @@ module ControlFields
 					new_value = ActiveRecord::Base.connection.select_value(strsql)
 			end
 		if old_value == new_value
-					params[:err] = "" 
+					params[:err] = nil
 			else	
 					params[:err] =  "error   ---> #{field} can not change because #{view} already used "
 		end

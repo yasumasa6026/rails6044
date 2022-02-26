@@ -6,7 +6,7 @@ export  function yupErrCheckBatch(lines,screenCode)
 {
     let Yup = require('yup')
     let screenSchema = Yup.object().shape(yupschema[screenCode])
-    let importdataCheckMaster = []
+    let importexcel = []
     let importErrorCheckMaster = false
     let tblnamechop = screenCode.split("_")[1].slice(0, -1)
     lines.map((line,inx) => {
@@ -43,14 +43,15 @@ export  function yupErrCheckBatch(lines,screenCode)
         }else{
             if(line["aud"]==="aud"){
                 }else{
-                    line[`confirm`] = "missing aud--> add OR update OR delete "
+                    line[`${tblnamechop}_confirm_gridmessage`] = "missing aud--> add OR update OR delete "
+                    line[`confirm`] = false
                     importErrorCheckMaster = true
             }   
         }  
-        importdataCheckMaster.push(line) 
-        return {importdataCheckMaster,importErrorCheckMaster}
+        importexcel.push(line) 
+        return {importexcel,importErrorCheckMaster}
     })
-    return {importdataCheckMaster,importErrorCheckMaster}
+    return {importexcel,importErrorCheckMaster}
 }  
 
 

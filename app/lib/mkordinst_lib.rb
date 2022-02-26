@@ -216,7 +216,7 @@ module MkordinstLib
 			            "qty_sch" => 0,"qty" => command_c[symqty],"qty_stk" => 0,
 					    "qty_linkto_alloctbl" => gantt["qty_require"],"remark" => "Mkordinst_lib line:#{__LINE__} ",
 					    "allocfree" => if gantt["qty_free"] > 0 then "free" else "alloc" end }
-			Operation.proc_insert_alloctbls(alloctbl)
+			ArelCtl.proc_insert_alloctbls(alloctbl)
 			###元のxxxschs trngantts
 			strsql = %Q&
 			        select gantt.id trngantts_id,* from trngantts gantt
@@ -235,7 +235,7 @@ module MkordinstLib
 			            "qty_sch" => 0,"qty" => schtrn["qty_require"],"qty_stk" => 0,
 					    "qty_linkto_alloctbl" => 0,"remark" => "Mkordinst_lib line:#{__LINE__} ",
 					    "allocfree" => "alloc" }
-				Operation.proc_insert_alloctbls(alloctbl)
+				ArelCtl.proc_insert_alloctbls(alloctbl)
 				update_src_alloc = %Q&
 								update alloctbls set  qty_linkto_alloctbl = qty_linkto_alloctbl + #{schtrn["qty_require"]},
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),

@@ -21,7 +21,7 @@ const authreducer =  (state= initialValues , actions) =>{
   switch (actions.type) {
 
     case LOGINFORM_REQUEST:
-      return {...state,
+      return {
         isSubmitting:false,
         isSignUp:false,
       }
@@ -45,7 +45,7 @@ const authreducer =  (state= initialValues , actions) =>{
         }
   
     case SIGNUP_REQUEST:
-      return {...state,
+      return {
         isSubmitting:true,
         isSignUp:true,
         message: [{ body: 'signining in...', time: new Date() }],

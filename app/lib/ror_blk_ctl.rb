@@ -516,7 +516,7 @@ module RorBlkCtl
 				"tblid" => gantt["tblid"],
 				"qty_src" =>gantt["qty_sch"].to_f + gantt["qty"].to_f + gantt["qty_stk"].to_f }
 		###
-		Operation.proc_insert_linktbls(src,base)
+		ArelCtl.proc_insert_linktbls(src,base)
 		###
 		strsql = %Q&
 				update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl + #{base["qty_src"]},
@@ -529,7 +529,7 @@ module RorBlkCtl
 				"tblid" => gantt["tblid"],"allocfree" => "alloc",
 				"qty_sch" => gantt["qty_sch"],"qty" => gantt["qty"] ,"qty_stk" => gantt["qty_stk"],
 				"qty_linkto_alloctbl" => 0,	"remark" => "ror_blkctl(line #{__LINE__} #{Time.now})"}
-		Operation.proc_insert_alloctbls(src)
+		ArelCtl.proc_insert_alloctbls(src)
 
 		###在庫の修正はOperation.proc_trnganttsで実施
 	end

@@ -9,36 +9,39 @@ module Api
         strsql = "select person_code_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
         $person_code_chrg = ActiveRecord::Base.connection.select_value(strsql)
  
-        screen = ScreenLib::ScreenClass.new(params[:screenCode])
+        screen = ScreenLib::ScreenClass.new(params)
         #####    
-            grid_columns_info = {}
             case params[:req] 
             when 'menureq'   ###大項目
-              if Rails.env == "development" 
-                  strsql = "select * from func_get_screen_menu('#{$email}')"
-              else
-                  strsql = "select * from func_get_screen_menu('#{$email}') and pobject_code_sgrp <'S'"
-              end      
-              recs = ActiveRecord::Base.connection.select_all(strsql)
-              render json:  recs , status: :ok 
+                sgrp_menue = Rails.cache.fetch('sgrp_menue'+$email) do
+                    if Rails.env == "development" 
+                        strsql = "select * from func_get_screen_menu('#{$email}')"
+                    else
+                        strsql = "select * from func_get_screen_menu('#{$email}') and pobject_code_sgrp <'S'"
+                    end      
+                    sgrp_menue = ActiveRecord::Base.connection.select_all(strsql)
+                end
+              render json:  sgrp_menue , status: :ok 
 
             when 'bottunlistreq'  ###大項目内のメニュー
-                strsql = "select pobject_code_scr_ub screen_code,button_code,button_contents,button_title
+                screenList = Rails.cache.fetch('screenList'+$email) do
+                    strsql = "select pobject_code_scr_ub screen_code,button_code,button_contents,button_title
                         from r_usebuttons u
                         inner join r_persons p on u.screen_scrlv_id_ub = p.person_scrlv_id
                                    and p.person_email = '#{$email}' 
                         where usebutton_expiredate > current_date
                         order by pobject_code_scr_ub,button_seqno"
-                recs = ActiveRecord::Base.connection.select_all(strsql)
-                render json:  recs , status: :ok
+                    screenList = ActiveRecord::Base.connection.select_all(strsql)
+                end
+                render json:  screenList , status: :ok
             
             when 'viewtablereq7','inlineedit7'
-              grid_columns_info,pagedata,reqparams = screen.proc_search_blk(params)   ###:pageInfo ,:yup -->menu7から未使用
-              render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
+              pagedata,reqparams = screen.proc_search_blk(params)   ###:pageInfo ,:yup -->menu7から未使用
+              render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
              
             when 'inlineadd7'
-              grid_columns_info,pagedata,reqparams = screen.proc_add_empty_data  ### nil filtered sorting
-              render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}               
+              pagedata,reqparams = screen.proc_add_empty_data  ### nil filtered sorting
+              render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}               
                 
             when "fetch_request"
                 reqparams = params.dup   ### ControlFields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
@@ -48,8 +51,8 @@ module Api
                 render json: {:params=>reqparams}   
 
             when "check_request"  
-                grid_columns_info = screen.proc_create_grid_editable_columns_info(reqparams)
-                reqparams[:parse_linedata] = JSON.parse(reqparams[:linedata])
+                reqparams = params.dup
+                reqparams[:parse_lined0ata] = JSON.parse(params[:linedata])
                 JSON.parse(params[:checkcode]).each do |sfd,yupcheckcode|
                   reqparams = ControlFields.proc_judge_check_code reqparams,sfd,yupcheckcode
                 end
@@ -76,9 +79,9 @@ module Api
                 reqparams[:pageSize] ||= 100
                 req = reqparams[:req] = "inlineedit7"
                 screenCode = reqparams[:screenCode] = "foract_shpinsts"   ###shpinstsがshpactsに変わるため
-                grid_columns_info = screen.proc_create_grid_editable_columns_info(reqparams)
-                pagedata = Shipment.proc_mkshpacts params,grid_columns_info
-                render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}  
+                screen.proc_create_grid_editable_columns_info(reqparams)
+                pagedata = Shipment.proc_mkshpacts params,screen.grid_columns_info
+                render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}  
             
             when 'refshpacts'
                 reqparams[:where_str] ||= ""
@@ -87,9 +90,9 @@ module Api
                 reqparams[:pageSize] ||= 100
                 req = reqparams[:req] = "'viewtablereq7'"
                 screenCode = reqparams[:screenCode] = "r_shpacts"   ###shpinstsがshpactsに変わるため
-                grid_columns_info,reqparams = screen.proc_create_grid_editable_columns_info(reqparams)
+                reqparams = screen.proc_create_grid_editable_columns_info(reqparams)
                 pagedata = Shipment.proc_refshpacts reqparams
-                render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
+                render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
   
             when 'confirm_all'  ###チェック済が条件
                 case screen.screenCode

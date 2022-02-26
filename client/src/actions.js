@@ -35,15 +35,6 @@ export const BUTTONFLG_REQUEST = 'BUTTONFLG_REQUEST'
 export const BUTTON_RESET = 'BUTTON_RESET'
 export const GANTT_RESET = 'GANTT_RESET'
 
-export const IMPORT_REQUEST = 'IMPORT_REQUEST'
-export const UPLOADLIST_REQUEST = 'UPLOADLIST_REQUEST'
-export const UPLOAD_SUCCESS = 'UPLOAD_SUCCESS'
-export const UPLOADLIST_SUCCESS = 'UPLOADLIST_SUCCESS'
-export const CHANGEUPLOADABLE_REQUEST = 'CHANGEUPLOADABLE_REQUEST'
-export const CHANGEUNUPLOAD_REQUEST = 'CHANGEUNUPLOAD_REQUEST'
-export const EXCELTOJSON_SUCCESS = 'EXCELTOJSON_SUCCESS'
-export const UPLOADFORFIELDSET_REQUEST = 'UPLOADFORFIELDSET_REQUEST'
-
 export const DOWNLOAD_REQUEST = 'DOWNLOAD_REQUEST'
 export const DOWNLOAD_SUCCESS = 'DOWNLOAD_SUCCESS'
 export const DOWNLOAD_FAILURE = 'DOWNLOAD_FAILURE'
@@ -67,8 +58,9 @@ export const SECONDFETCH_FAILURE = 'SECONDFETCH_FAILURE'
 export const SECONDSCREEN_LINEEDIT = 'SECONDSCREEN_LINEEDIT'
 export const SECONDSCREEN_PARAMS_SET = 'SECONDSCREEN_PARAMS_SET'
 
-export const EXCELCSVIMPORT_REQUEST = 'EXCELCSVIMPORT_REQUEST'
-export const SETRESULTS_SUCCESS = 'SETRESULTS_SUCCESS'
+export const IMPORTEXCEL_REQUEST = 'IMPORTEXCEL_REQUEST'
+export const IMPORTEXCEL_SUCCESS = 'IMPORTEXCEL_SUCCESS'
+export const IMPORTEXCEL_FAILURE = 'IMPORTEXCEL_FAILURE'
 
 export const INPUTFIELDPROTECT_REQUEST = 'INPUTFIELDPROTECT_REQUEST'
 export const INPUTPROTECT_RESULT = 'INPUTPROTECT_RESULT'
@@ -207,34 +199,6 @@ export const ButtonFlgRequest = (buttonflg,params) => ({
   payload: { buttonflg,params}
 })
 
-export const ChangeUploadableRequest = (isUpload) => ({
-  type: CHANGEUPLOADABLE_REQUEST,
-  payload: {isUpload}
-})
-
-export const ChangeUnUploadRequest = (isUpload) => ({
-  type: CHANGEUNUPLOAD_REQUEST,
-  payload: {isUpload}
-})
-
-export const ImportRequest = () => ({
-  type: IMPORT_REQUEST,
-})
-
-export const UploadSuccess = (imageFromController) => ({
-  type: UPLOAD_SUCCESS,
-  payload: {imageFromController}
-})
-
-export const UploadListRequest = (values) => ({
-  type: UPLOADLIST_REQUEST,
-  payload: { values }
-})
-
-export const UploadListSuccess = (uploadlists) => ({
-  type: UPLOADLIST_SUCCESS,
-  payload: { uploadlists}
-})
 
 export const FetchRequest = (params,data,loading) => ({
   type: FETCH_REQUEST,
@@ -317,19 +281,20 @@ export const GanttReset = () => ({
   type:  GANTT_RESET,
 })
 
-export const uploadForFieldSetRequest = (jsonfilename,screenCode) => ({
-  type:  UPLOADFORFIELDSET_REQUEST,
-  payload:{jsonfilename,screenCode}
+
+export const ImportExcelRequest = ({excelfile,nameToCode,params}) => ({
+  type: IMPORTEXCEL_REQUEST,  // 
+  payload: {excelfile,nameToCode,params,}
 })
 
-export const ExcelCsvImportRequest = (payload) => ({
-  type: EXCELCSVIMPORT_REQUEST,  // sagaはExcelCsvImportRequestと同じものを使用
-  payload: {excelfile:payload.excelfile,
-            nameToCode:payload.nameToCode,
-            screenCode:payload.screenCode,}
+
+export const ImportExcelSuccess = (payload) => ({
+  type: IMPORTEXCEL_SUCCESS,  // 
+  payload: {idx:payload.idx}
 })
 
-export const EditUploadResult = (message) => ({
-  type: EXCELTOJSON_SUCCESS,
-  payload: { message}
+
+export const ImportExcelFailure = (payload) => ({
+  type: IMPORTEXCEL_FAILURE,  // 
+  payload: {importError:payload.importError}
 })

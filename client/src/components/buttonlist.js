@@ -2,13 +2,13 @@ import React from 'react'
 import { connect } from 'react-redux'
 import { Tab, Tabs, TabList,TabPanel , } from 'react-tabs'
 import ScreenGrid7 from './screengrid7.js'
-import Upload from './upload.js'
+import ImportExcel from './importexcel.js'
 import Download from './download'
 import GanttChart from './ganttchart'
 import "react-tabs/style/react-tabs.css"
 import {Button} from '../styles/button'
 import "../index.css"
-import {ScreenRequest,DownloadRequest,ImportRequest,GanttChartRequest,GanttReset,
+import {ScreenRequest,DownloadRequest,ImportExcelRequest,GanttChartRequest,GanttReset,
         //ScreenInitRequest,
         ButtonFlgRequest,
         YupRequest,TblfieldRequest,ResetRequest, //MkShpinstsResult,
@@ -54,7 +54,7 @@ import {ScreenRequest,DownloadRequest,ImportRequest,GanttChartRequest,GanttReset
         }
         
         {buttonflg==="ganttchart"&&<GanttChart second={false} />}
-        {buttonflg==='import'&&<Upload/>}
+        {buttonflg==='import'&&<ImportExcel/>}
         {(buttonflg==='mkshpacts'||buttonflg==='refshpacts')&&second_columns_info&&
                                   <div><ScreenGrid7 second={true} /></div> }
         {buttonflg==="export"&&downloadloading==="done"?<Download/>:downloadloading==="doing"?<p>please wait </p>:""}
@@ -133,8 +133,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
               return  dispatch(DownloadRequest(params)) //
          
           case "import":
-              params= {...params,req:"import",disableFilters:true}
-              return  dispatch(ImportRequest(params)) //
+              return   //画面表示のみ
 
           case "mkshpinsts":
               params= {...params,req:"mkshpinsts",disableFilters:false}

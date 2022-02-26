@@ -21,10 +21,21 @@ gem 'puma', '~> 4.1'
 
 # Reduces boot times through caching; required in config/boot.rb
 gem 'bootsnap', '>= 1.4.2', require: false
-gem 'activestorage'
+###gem 'activestorage'
 
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin AJAX possible
-# gem 'rack-cors'
+###ブラウザには、セキュリティの観点から異なるオリジン間でのアクセスを制限する仕組みが備わっています。
+### 例えば、https://aaa.example.comというオリジンからhttps://mysite.comにXMLHttpRequestで通信しようとした場合、
+###ブラウザに以下のエラーメッセージが表示されます。
+###Access to XMLHttpRequest at 'https://mysite.com' from origin 'https://aaa.example.com' has been blocked by CORS policy:
+###               No 'Access-Control-Allow-Origin' header is present on the requested resource.
+###アプリケーションによっては、別のオリジン間でデータのやりとりをしたいケースもあるため、
+###  この制約を部分的に解除する仕組みのことをCORS (Cross-Origin Resource Sharing)と呼びます。
+gem 'rack-cors'
+
+###CarrierWaveとは、ファイルのアップロード機能を簡単に追加する事が出来るgemです
+###CarrierWaveは、アップロードしたファイルの保存先はデフォルトでpublic/uploadsですが、外部のストレージ(例: Amazon S3)にも設定する事が出来ます。
+gem 'carrierwave'
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
@@ -50,7 +61,6 @@ gem 'dotenv-rails'
 ## sudo apt-get install build-essential libcurl4-openssl-dev
 ## gem install ovirt-engine-sdk -v '4.3.0' --source 'https://rubygems.org/'
 ##gem 'fog'
-##gem 'carrierwave'
 gem 'json'
 
 ###https://www.nopio.com/blog/upload-files-with-rails-active-storage/

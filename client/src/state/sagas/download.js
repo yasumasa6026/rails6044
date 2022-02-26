@@ -1,4 +1,4 @@
-import { call, put, select } from 'redux-saga/effects'
+import { call, put, } from 'redux-saga/effects'
 import axios         from 'axios'
 import {DOWNLOAD_SUCCESS,DOWNLOAD_FAILURE,}  from '../../actions'
 
@@ -6,7 +6,10 @@ import ExcelJS from 'exceljs'
 import {saveAs} from "file-saver"
 
 
-function screenApi({params,token,client,uid}) {
+function screenApi({params}) {
+  let token = params.token       
+  let client = params.client         
+  let uid = params.uid 
   let url = 'http://localhost:3001/api/menus7'
   const headers = {'access-token':token,'client':client,'uid':uid }
 
@@ -23,12 +26,9 @@ function writeBuffer(workbook) {
   return buffer
 }
 
-export function* DownloadSaga({ payload: {params}  }) {
-  let token = params.token       
-  let client = params.client         
-  let uid = params.uid 
+export function* DownloadSaga({ payload: {params}}) {
 
-  let response  = yield call(screenApi,{params ,token,client,uid} )
+  let response  = yield call(screenApi,{params } )
   let message
   switch (response.status) {
     case 200:  
@@ -51,6 +51,7 @@ export function* DownloadSaga({ payload: {params}  }) {
           
           let  buffer = yield call(writeBuffer,workbook)
           const fileType =  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8'
+
           const fileExtension = '.xlsx'
           
           const blob = new Blob([buffer], {type: fileType})
@@ -68,3 +69,4 @@ export function* DownloadSaga({ payload: {params}  }) {
            message = `${response.status} : Something went wrong ${response.statusText}`}
            yield put({ type: DOWNLOAD_FAILURE, errors: message })
  }
+ 

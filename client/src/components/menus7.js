@@ -111,6 +111,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
       getScreen : (screenCode, screenName,view_name, params) =>{
         titleNameSet(screenName)
         params= { ...params,screenName:  (screenName||""),disableFilters:false,
+                          filtered:[],where_str:"",
                          screenCode:screenCode,pageIndex:0,pageSize:20,
                          req:"viewtablereq7",viewName:view_name} 
         dispatch(ScreenInitRequest(params,null))}   //data:null
