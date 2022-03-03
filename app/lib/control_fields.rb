@@ -281,7 +281,7 @@ module ControlFields
 		return params 
 	end	
 
-	def check_paragraph params,item,yupcheckcode ### item,yupcheckcode 未使用
+	def check_paragraph params,item,yupcheckcode ### proc_judge_check_codeからcallされる。
 		linedata = params[:parse_linedata]
 		if linedata["screenfield_paragraph"] == ""
 			if linedata["pobject_code_sfd"] =~ /_code/ and params[:screenCode].split("_")[1].chop == linedata["pobject_code_sfd"].split("_"[0])

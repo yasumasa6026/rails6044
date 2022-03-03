@@ -12,7 +12,7 @@ module Api
                 params[:message] = " yup schema created " 
                 render json:{:params=>params} 
               when 'createTblViewScreen'  ### blktbs tblfields 
-                messages,modifysql = TblField.proc_blktbs params
+                messages,modifysql,status,errmsg = TblField.proc_blktbs params
 		            $tblfield_materiallized.each do |view|
 				            strsql = %Q%select 1 from pg_catalog.pg_matviews pm 
 				                  where matviewname = '#{view}' %
@@ -30,6 +30,8 @@ module Api
                 foo.puts messages
                 foo.close
                 params[:messages] = 	messages 
+                params[:status] = 	status  
+                params[:errmsg] = 	errmsg 
                 render json:{:params=>params}  
               when 'createUniqueIndex'  ### createUniqueIndex
                 messages,sql = TblField.createUniqueIndex params

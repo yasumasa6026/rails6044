@@ -7,7 +7,7 @@ export function  setProtectFunc(field,row){
             else{readOnly=true}     
             break   
         case "screenfield_dataprecision":
-            if(row.values.screenfield_ftype==="numeric") {readOnly=false}
+            if(row.values.screenfield_type==="numeric") {readOnly=false}
             else{readOnly=true}      
             break      
         case "fieldcode_datascale":
@@ -15,7 +15,7 @@ export function  setProtectFunc(field,row){
             else{readOnly=true}        
             break    
         case "screenfield_datascale":
-            if(row.values.screenfield_ftype==="numeric") {readOnly=false}
+            if(row.values.screenfield_type==="numeric") {readOnly=false}
             else{readOnly=true}         
             break   
         case "fieldcode_fieldlength":
@@ -23,7 +23,7 @@ export function  setProtectFunc(field,row){
             else{readOnly=true}         
             break   
         case "screenfield_edoptmaxlength":
-            if(row.values.screenfield_ftype==="varchar"||row.values.screenfield_ftype==="char"){readOnly=false}
+            if(row.values.screenfield_type==="varchar"||row.values.screenfield_ftype==="char"){readOnly=false}
             else{readOnly=true}      
             break      
         default:  readOnly = false

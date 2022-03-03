@@ -33,6 +33,7 @@ module ScreenLib
 				sqlstr = "select * from  func_get_screenfield_grpname('#{$email}','#{screenCode}')"
 				screenwidth = 0
 				select_fields = ""
+				select_row_fields = ""
 				gridmessages_fields = ""  ### error messages
 				init_where_info = {"filtered" => {}}
 				dropdownlist = {}
@@ -57,7 +58,14 @@ module ScreenLib
 					hiddenColumns << "confirm_gridmessage"
 				end		
 				ActiveRecord::Base.connection.select_all(sqlstr).each_with_index do |i,cnt|			
-					select_fields = 	select_fields + 	i["pobject_code_sfd"] + ','
+					select_fields = 	select_fields + 
+											case i["screenfield_type"]
+											when "timestamp(6)" 
+												%Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd hh24:mi:ss') #{i["pobject_code_sfd"]}% + " ,"
+											else 												
+												i["pobject_code_sfd"] + " ,"
+											end		
+					select_row_fields = 	select_row_fields + i["pobject_code_sfd"] + " ,"
 					if 	nameToCode[i["screenfield_name"]].nil?   ###nameToCode excelから取り込むときの表示文字からテーブル項目名への変換テーブル
 						nameToCode[i["screenfield_name"]] = i["pobject_code_sfd"]
 					else
@@ -77,12 +85,6 @@ module ScreenLib
 												else 
 													"text"
 												end	,
-									# :Filter=>case i["screenfield_type"]
-									# 			when "select" 
-									# 				SelectColumnFilter
-									# 			else 
-									# 				DefaultColumnFilter
-									# 			end	,
 									###widthが120以下だと右の境界線が消える。	
 									:width => if i["screenfield_width"].to_i < 80 then 80 else  i["screenfield_width"].to_i end,
 									:className=>if  (req==="inlineedit7" or req==="inlineadd7") and 
@@ -146,8 +148,20 @@ module ScreenLib
 									sort_info[:default] = i["screen_strorder"]
 								end	
 				 	end
-					if  i["screenfield_edoptvalue"]
-						dropdownlist[i["pobject_code_sfd"]] = i["screenfield_edoptvalue"]
+					if  i["screenfield_type"] == "select"
+						if i["screenfield_edoptvalue"] 
+							if i["screenfield_edoptvalue"] =~ /\:/
+								dropdownlist[i["pobject_code_sfd"]] = i["screenfield_edoptvalue"]
+							else
+								Rails.logger.debug " selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
+								p " selectではedoptvalueにxxx:yyy,aaa:bbbは必須  "
+								raise
+							end
+						else
+							Rails.logger.debug " selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
+							p " selectではedoptvalueにxxx:yyy,aaa:bbbは必須  "
+							raise
+						end
 					end	
 					if   i["screenfield_hideflg"] == "0" 
 						screenwidth = screenwidth +  i["screenfield_width"].to_i
@@ -165,7 +179,7 @@ module ScreenLib
 				dropdownlist.each do |key,val|
 					tmpval="["
 					val.split(",").each do  |drop|
-					tmpval << %Q%{"value":"#{drop.split(":")[0]}","label":"#{drop.split(":")[1]}"},%
+						tmpval << %Q%{"value":"#{drop.split(":")[0]}","label":"#{drop.split(":")[1]}"},%
 					end
 					dropdownlist[key] = tmpval.chop + "]"
 				end	
@@ -181,6 +195,7 @@ module ScreenLib
 					select_fields << gridmessages_fields
 				end
 				@grid_columns_info["select_fields"] = select_fields.chop
+				@grid_columns_info["select_row_fields"] = select_row_fields.chop
 				@grid_columns_info
 			end
 		end
@@ -323,7 +338,7 @@ module ScreenLib
 				setParams[:sortBy] = "[]"
 			end
 			strsql = "select #{grid_columns_info["select_fields"]} 
-						from (SELECT ROW_NUMBER() OVER (#{strsorting}) ,#{grid_columns_info["select_fields"]}
+						from (SELECT ROW_NUMBER() OVER (#{strsorting}) ,#{grid_columns_info["select_row_fields"]}
 													 FROM #{screenCode} #{if where_str == '' then '' else where_str end } ) x
 														where ROW_NUMBER > #{(setParams[:pageIndex])*setParams[:pageSize] } 
 														and ROW_NUMBER <= #{(setParams[:pageIndex] + 1)*setParams[:pageSize] } 
@@ -498,7 +513,7 @@ module ScreenLib
 				init_where_info = {}
 				select_fields = ""
 				gridmessages_fields = ""  ### error messages
-				dropdownlist = {}
+				dropdownlist = {}   ###uploadでは未使用
 				sort_info = {}
 				screenwidth = 0
 				nameToCode = {}
@@ -582,13 +597,6 @@ module ScreenLib
 				yup={}
 				yup[:yupfetchcode] = YupSchema.proc_create_yupfetchcode screenCode   
 				yup[:yupcheckcode]  = YupSchema.create_yupcheckcode screenCode   
-				dropdownlist.each do |key,val|
-					tmpval="["
-					val.split(",").each do  |drop|
-						tmpval << %Q%{"value":"#{drop.split(":")[0]}","label":"#{drop.split(":")[1]}"},%
-					end
-					dropdownlist[key] = tmpval.chop + "]"
-				end	
 				if sort_info[:default]
 					ary_select_fields = select_fields.split(',')
 					sort_info = ControlFields.proc_detail_check_strorder sort_info,ary_select_fields
@@ -606,7 +614,7 @@ module ScreenLib
 			tblnamechop = screenCode.split("_")[1].chop
 			yup_fetch_code = grid_columns_info["yup"]["yupfetchcode"]
 			yupcheckcode = grid_columns_info["yup"]["yupcheckcode"]
-			parse_linedata = JSON.parse(params[:linedata])
+			parse_linedata = params[:parse_linedata].dup
 			addfield = {}
 			setParams = params.dup
 			setParams[:err] = nil
@@ -618,7 +626,7 @@ module ScreenLib
 				end  
 				setParams["fetchview"] = yup_fetch_code[field]
 				setParams = ControlFields.proc_chk_fetch_rec setParams  
-				if setParams[:err] != ""  
+				if setParams[:err] 
 				  setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
 				  setParams[:parse_linedata][:confirm] = false 
 				  setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
@@ -628,7 +636,7 @@ module ScreenLib
 			  if setParams[:err].nil?
 				if yupcheckcode[field] 
 				  setParams = ControlFields.proc_judge_check_code setParams,field,yupcheckcode[field]  
-				  if setParams[:err] != ""
+				  if setParams[:err]
 					setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
 					setParams[:parse_linedata][:confirm] = false 
 					setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
@@ -696,7 +704,7 @@ module ScreenLib
 				  command_c[:sio_classname] = "_edit_update_grid_line_data"
 			  end
 			  blk.proc_create_src_tbl(command_c) ##
-			  setParams,command_c = blk.proc_add_update_table(setParams)
+			  setParams,command_c = blk.proc_add_update_table(setParams,command_c)
 			  if command_c[:sio_result_f]  == "9"
 				setParams[:parse_linedata][:confirm] = false  
 				err_message = command_c[:sio_message_contents].split(":")[1][0..100] + 

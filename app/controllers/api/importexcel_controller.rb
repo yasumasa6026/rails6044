@@ -19,7 +19,7 @@ class ImportexcelController < ApplicationController
         ###@importexcel = Importexcel.new(params[:importexcel])
         ###if @importexcel.save
         tblname = params[:screenCode].split("_")[1]
-        $email = params[:email]
+        $email = params[:email]  ###tokenのuid  ===>uidはemailであること
         strsql = "select person_code_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
         $person_code_chrg = ActiveRecord::Base.connection.select_value(strsql)
         screen = ScreenLib::ScreenClass.new(params)

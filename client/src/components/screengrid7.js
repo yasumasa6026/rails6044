@@ -212,7 +212,7 @@ const AutoCell = ({
             </option>
           ))}
         </select>
-    )
+        )
 
     case /CheckEditable/.test(className):
       return <input  type="checkbox" 
@@ -225,7 +225,8 @@ const AutoCell = ({
     case /SelectNonEditable/.test(className):
       return (
         <select value={initialValue||""} disabled >
-        {JSON.parse(dropDownList[id]).map((option, i) => (
+        {
+          JSON.parse(dropDownList[id]).map((option, i) => (
           <option key={i} value={option.value} >
             {option.label} 
           </option>
@@ -253,7 +254,7 @@ const DefaultColumnFilter = ({
     column:{ filterValue, setFilter, preFilteredRows, id} ,
     dropDownList,column
     }) => {
-            if(dropDownList&&column.filter==="includes"){  
+            if(column.filter==="includes"){  
                 return (<select
                     value={filterValue||""}
                     onChange={e => {
@@ -669,7 +670,7 @@ const GridTable = ({
                   <span>
                     {column.isSorted ? column.isSortedDesc ? '↓' : '↑' : ''}
                   </span>
-                  {column.canFilter&&<span>
+                  {typeof(dropDownList)!=="undefined"&&column.canFilter&&<span>
                    {column.render('Filter') }
                   </span> }
                   <span {...column.getResizerProps()}   className={`resizer ${column.isResizing ? 'isResizing' : ''}`}> 
@@ -704,7 +705,7 @@ const GridTable = ({
                   return <td {...cell.getCellProps([{className:cell.column.className+" td "},
                                       getCellProps(cell) //font-sizeの調整
                   ])} >
-                    {cell.render('Cell') }
+                    {typeof(dropDownList)!=="undefined"&&cell.render('Cell') }
                     </td>
                 })}
               </tr>

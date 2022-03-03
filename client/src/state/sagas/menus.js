@@ -23,20 +23,32 @@ function MenuGetApi({token,client,uid}) {
 
 // MenuSaga({ payload: { token,client,uid} })  出し手と合わすこと
 export function* MenuSaga({ payload: {token,client,uid} }) {
-  let response   = yield call(MenuGetApi, ({token,client,uid} ) )
-  if(response.data){
+  try{
+      let response   = yield call(MenuGetApi, ({token,client,uid} ) )
       yield put({ type: MENU_SUCCESS, action: response.data })
       yield call(history.push,'/menus7')}
-  else{    
-      let message = `error ${response}`
-      if(response.error){
-      switch (response.status) {
-              case 500: message = 'Menu Internal Server Error'
-               break
-              case 401: message = 'Menu Invalid credentials'
-               break
-              default: message = `error status ${response.status}`}
-      yield put({ type: MENU_FAILURE, errors: message })
-      }  
-    }
- }      
+  catch(e){
+      let message 
+      switch (true) {
+        case /code.*500/.test(e): message = `${e}: Internal Server Error `
+            if(params.second===true){
+              return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+            }else{  
+              return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
+            }
+        case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized  ${e}`
+            if(params.second===true){
+                return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+            }else{  
+                return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
+            }
+        default:
+            message = ` Something went wrong ${e} `
+              if(params.second===true){
+                  return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+              }else{  
+                  return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
+            }
+        }
+  }  
+}      

@@ -148,12 +148,6 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
                 }  
             }  
             break  
-            case 500: message = `${response.status}: Internal Server Error ${response.statusText},${response.errore}`
-                    data[params.index]["confirm_gridmessage"] = message
-                    break
-            case 401: message = `${response.status}: Invalid credentials ${response.statusText},${response.errore}`
-                    data[params.index]["confirm_gridmessage"] = message
-                    break
             default:
                     data[params.index]["confirm_gridmessage"] = message
                     message = `${response.status}: Something went wrong ${response.statusText},${response.errore}`
@@ -165,13 +159,26 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
       }
     }
     catch(e){
-      message = ` Something went wrong ${e} `
-      if(params.index){data[params.index]["confirm_gridmessage"] = message}
-        else{}      
-      if(params.second===true){
-            return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
-      }else{  
-            return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
+      switch (true) {
+        case /code.*500/.test(e): message = `${e}: Internal Server Error `
+            if(params.second===true){
+              return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+            }else{  
+              return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
+            }
+        case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized  ${e}`
+            if(params.second===true){
+                return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+            }else{  
+                return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
+            }
+        default:
+            message = ` Something went wrong ${e} `
+              if(params.second===true){
+                  return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+              }else{  
+                  return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
+            }
       }
     }
   }

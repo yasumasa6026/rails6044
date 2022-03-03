@@ -8,14 +8,14 @@ import GanttChart from './ganttchart'
 import "react-tabs/style/react-tabs.css"
 import {Button} from '../styles/button'
 import "../index.css"
-import {ScreenRequest,DownloadRequest,ImportExcelRequest,GanttChartRequest,GanttReset,
+import {ScreenRequest,DownloadRequest,GanttChartRequest,GanttReset,
         //ScreenInitRequest,
         ButtonFlgRequest,
         YupRequest,TblfieldRequest,ResetRequest, //MkShpinstsResult,
         ConfirmAllRequest, } from '../actions'
 
  const  ButtonList = ({buttonListData,setButtonFlg,buttonflg,
-                        screenCode,data,params,downloadloading,disabled,
+                        screenCode,data,params,downloadloading,
                         second_columns_info,pareScreenCode,
                         message,messages //  editableflg,message
                       }) =>{
@@ -183,11 +183,11 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
               break
 
           case "crt_tbl_view_screen":
-              params= {req:"createTblViewScreen",screenCode:params.screenCode,disableFilters:false}
+              params = {...params,req:"createTblViewScreen",data:data}
               return  dispatch(TblfieldRequest(params)) //
 
           case "unique_index":
-              params= {req:"createUniqueIndex",screenCode:params.screenCode,disableFilters:false}
+              params= {...params,req:"createUniqueIndex",data:data}
               return  dispatch(TblfieldRequest(params)) 
           default:
             return 

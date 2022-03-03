@@ -1,0 +1,6 @@
+ --- create view script   r_bills 
+ --- create view script   r_custs 
+ --- create view script   r_custwhs 
+ --- create view script   r_custrcvplcs 
+ --- create view script   r_custschs 
+ --- create view script   r_custinsts 

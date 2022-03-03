@@ -9,21 +9,21 @@ class CreateOtherTableRecordJob < ApplicationJob
                             and not exists(select 1 from processreqs c where t.seqno = c.seqno and t.id > c.id
                                         and c.result_f != '1')
                             order by t.id limit 1 for update"
-            processreq = ActiveRecord::Base.connection.select_one(perform_strsql)
-            strsql = %Q% select email from persons where id = #{params["tbldata"]["persons_id_upd"]}
+            processreq = ActiveRecord::Base.connection.select_one(perform_strsql)            
+            params = JSON.parse(processreq["reqparams"])       
+            tbldata = JSON.parse(params["tbldata"])
+            strsql = %Q% select email from persons where id = #{tbldata["persons_id_upd"]}
                     %
             rec = ActiveRecord::Base.connection.select_one(strsql) ###
             $email = rec["email"]
             $person_code_chrg = rec["code"]
             until processreq.nil? do
-                    params = JSON.parse(processreq["reqparams"])
                     setParams = params.dup
                     gantt = params["gantt"]
                     tblname = gantt["tblname"]
                     tblid = gantt["tblid"]
                     paretblname = gantt["paretblname"]
                     paretblid = gantt["paretblid"]
-                    tbldata = params["tbldata"]
                     strsql = %Q%update processreqs set result_f = '5'  where id = #{processreq["id"]}
                     %
                     ActiveRecord::Base.connection.update(strsql)
@@ -164,10 +164,10 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 blk.proc_private_aud_rec(setPparams,command_c) ###create pur,prdschs
                                 if child["consumtype"] =~ /CON|MET/  ###出庫
                                         if tblname =~ /^prd/
-                                            child["locas_id_to"] = tbldata["loas_id_wrokplace"]
+                                            child["locas_id_to"] = tbldata["locas_id_wrokplace"]
                                             child["shelfnos_id_to"] = tbldata["shelfnos_id_fm"]
                                         else     
-                                            child["locas_id_to"] = tbldata["loas_id_suppier"]
+                                            child["locas_id_to"] = tbldata["locas_id_suppier"]
                                             child["shelfnos_id_to"] = tbldata["shelfnos_id_fm"]
                                         end
                                         if tblname =~ /schs$/
@@ -193,10 +193,10 @@ class CreateOtherTableRecordJob < ApplicationJob
                                             tbldata["starttime"] = tbldata["duedate"] + 3  ###親の作業後2日後元に戻す。
                                             child["shelfnos_id_to"] = child["shelfnos_id_fm"] 
                                             if tblname =~ /^prd/
-                                                child["locas_id_fm"] = tbldata["loas_id_wrokplace"]
+                                                child["locas_id_fm"] = tbldata["locas_id_wrokplace"]
                                                 child["shelfnos_id_fm"] = tbldata["shelfnos_id_fm"]
                                             else     
-                                                child["locas_id_fm"] = tbldata["loas_id_suppier"]
+                                                child["locas_id_fm"] = tbldata["locas_id_suppier"]
                                                 child["shelfnos_id_fm"] = tbldata["shelfnos_id_fm"]
                                             end
                                             Shipment.proc_create_shp(setParams) do   ###setParams 親のデータ
@@ -243,6 +243,8 @@ class CreateOtherTableRecordJob < ApplicationJob
                     %
                     ActiveRecord::Base.connection.update(strsql)
                     processreq = ActiveRecord::Base.connection.select_one(perform_strsql)
+                    params = JSON.parse(processreq["reqparams"])  
+                    tbldata = JSON.parse(params["tbldata"])
             end
         rescue
             ActiveRecord::Base.connection.rollback_db_transaction()
@@ -258,7 +260,7 @@ class CreateOtherTableRecordJob < ApplicationJob
             Rails.logger.debug"error rollback "
             Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
             Rails.logger.debug"error class #{self} : $!: #{$!} "
-            Rails.logger.debug"error class #{self} : setParams: #{setParams} "
+            Rails.logger.debug"error class #{self} : params: #{params} "
             if processreq
                 strsql = %Q%update processreqs set result_f = '9'  where seqno = #{pid} and id = #{processreq["id"]}
                 %

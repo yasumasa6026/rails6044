@@ -72,11 +72,14 @@ module ArelCtl
 		end
 	end
 	
-	def proc_processreqs_add reqparams,person_code_chrg
+	def proc_processreqs_add reqparams
 		processreqs_id = ArelCtl.proc_get_nextval("processreqs_seq")
 		if reqparams["seqno"].nil?
 			reqparams["seqno"] = []
 		end	
+		strsql = %Q%select id from persons where email = '#{$email}'
+		%
+		person_id = ActiveRecord::Base.connection.select_value(strsql)
 		reqparams["seqno"] << processreqs_id  ###
 		strsql = %Q&
 			insert into processreqs(
@@ -88,14 +91,13 @@ module ArelCtl
 						'','#{reqparams["remark"]}',
 						to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 						to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-						'',#{person_code_chrg},'#{JSON.generate(reqparams)}',
+						'',#{person_id},'#{reqparams.to_json}',
 						#{reqparams["seqno"][0]},#{processreqs_id},'0')
 		&
 		ActiveRecord::Base.connection.insert(strsql) 
 		return processreqs_id,reqparams
 	end
 
-	
 	def proc_createtable fmtbl,totbl,fmview,add_or_update  ###fmtbl:元のテーブル totbl:fmtblから自動作成するテーブル
 		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{$email}','r_#{totbl}')
 		%

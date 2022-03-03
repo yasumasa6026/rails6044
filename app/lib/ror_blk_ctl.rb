@@ -40,17 +40,16 @@ module RorBlkCtl
             	Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
           		Rails.logger.debug"error class #{self} : $!: #{$!} "
           		Rails.logger.debug"  command_c: #{command_c} "
+				setParams = params.dup
       	else
 				ActiveRecord::Base.connection.commit_db_transaction()
-				if setParams.size > 0   ###画面からの時はperform_later(setParams["seqno"][0])　seqnoは一つのみ。次の処理がないときはreqparams=nil
-					if setParams["seqno"].size > 0
-						if command_c["mkord_runtime"] 
-							CreateOtherTableRecordJob.set(wait: command_c["mkord_runtime"].to_f.hours).perform_later(setParams["seqno"][0])
-						else	
-							CreateOtherTableRecordJob.perform_later(setParams["seqno"][0])
-						end
+				if setParams["seqno"].size > 0
+					if command_c["mkord_runtime"] 
+						CreateOtherTableRecordJob.set(wait: command_c["mkord_runtime"].to_f.hours).perform_later(setParams["seqno"][0])
+					else	
+						CreateOtherTableRecordJob.perform_later(setParams["seqno"][0])
 					end
-				end	
+				end
       	ensure
 	  	end ##begin
         return setParams,command_c
@@ -96,11 +95,16 @@ module RorBlkCtl
 				end
 			end
 		end
+
+		setParams["seqno"] ||= []
+		setParams["child"] ||= {}
         case tblname
         when /^prd|^pur|^shp|^mk/
             ###次の処理
-        when /^custs$/
+        when /^custs$|^custrcvplcs$|^custwh$/
             return setParams 
+        when /^cust/
+            ###次の処理
         else 
             return setParams 
         end
@@ -114,8 +118,6 @@ module RorBlkCtl
 			gantt = {}
 			gantt["orgtblname"] = gantt["paretblname"] = tblname
 			gantt["orgtblid"] = gantt["paretblid"] =  @src_tbl[:id]	
-			setParams["seqno"] = []
-			setParams["child"] = {}
 			gantt["trngantts_id"] = ArelCtl.proc_get_nextval("trngantts_seq")
 			gantt["key"] = "00000"
 			gantt["mlevel"] = 0
@@ -160,10 +162,9 @@ module RorBlkCtl
 		gantt["tblname"] = tblname
 		gantt["tblid"] = tblid = @src_tbl[:id]		
 		setParams["classname"] = command_c[:sio_classname]
-		setParams["tbldata"] = @src_tbl.stringify_keys  
+		setParams["tbldata"] = @src_tbl.to_json
 		setParams["opeitm"] = opeitm.dup
 
-		###qty_sch qty qty_stk 
 		case tblname
 		when /^prdschs|^purschs|^custschs/
 			gantt["qty_sch"] = @src_tbl[:qty_sch]
@@ -641,7 +642,7 @@ module RorBlkCtl
 			 				"#{(val||="").to_s.gsub(",","")},"
 						when /timestamp|date/  ##db type
 							case (val||="").class.to_s  ### ruby type
-							when  /Time|Data/
+							when  /Time|Date/
 								case key.to_s
 			 					when "created_at","updated_at"
 			 						%Q& to_timestamp('#{val.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),&
@@ -696,7 +697,7 @@ module RorBlkCtl
 				"#{key.to_s} = #{val.to_s.gsub(",","")},"
 		   	when /timestamp|date/  ##db type
 			   case val.class.to_s  ### ruby type
-			   when  /Time|Data/
+			   when  /Time|Date/
 				   case key.to_s
 					when "created_at","updated_at"
 						%Q& #{key.to_s} =  to_timestamp('#{val.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),&

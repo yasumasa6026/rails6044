@@ -128,14 +128,18 @@ extend self
         		ActiveRecord::Base.connection.rollback_db_transaction()
             	Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
           		Rails.logger.debug"error class #{self} : $!: #{$!} "
-          		Rails.logger.debug"  command_c: #{command_c} "
+          		Rails.logger.debug"  params: #{params} "
+				status = "500"
+				errmsg = $!
       	else
 			if noerror
+				status = "200"
+				ergmsg = ""
 				ActiveRecord::Base.connection.commit_db_transaction()
 			end
       	ensure
 	  	end ##begin
-		return 	@messages,@modifysql
+		return 	@messages,@modifysql,status,errmsg
 	end
 
 	def delete_tblfields fields,columns  ###{ fields={field =>tblrecOfField}}  tblrecOfField ={fieldcode_ftype=>xx,fieldcode_dataprecision..}
@@ -489,7 +493,7 @@ extend self
 
 	def  add_pobject_record screenfield
 		blk = RorBlkCtl::BlkClass.new("r_pobjects")
-		command_c = blk.command_init
+		command_r = blk.command_init
 		command_r["id"] == ""
 		command_r[:sio_classname] = "_add_pobject_screenfield"
 		command_r["pobject_id"] = ""
@@ -497,11 +501,11 @@ extend self
 		command_r["pobject_code"] = screenfield
 		command_r["pobject_objecttype"] = "view_field"
 		command_r["pobject_expiredate"] = '2099/12/31'
-		blk.proc_create_src_tbl(command_c) ##
-		setParams,command_c = blk.proc_private_aud_rec({},command_c)
+		blk.proc_create_src_tbl(command_r) ##
+		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r[:sio_result_f] ==   "9"
 		 	@messages <<  "error  add_pobject_record #{screenfield}\n"
-			 @messages  << command_r[:sio_message_contents][0..200] + "\n"
+			@messages  << command_r[:sio_message_contents][0..200] + "\n"
 			@messages  << command_r[:sio_errline][0..200] 
 		end  
 		return command_r["id"]

@@ -1,16 +1,16 @@
 module Api
-  class Menus7Controller < ApplicationController
-      before_action :authenticate_api_user!
-      def index
-      end
-      def create
-        ###JSON.parseのエラー対応　要
-        $email = current_api_user[:email]
-        strsql = "select person_code_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
-        $person_code_chrg = ActiveRecord::Base.connection.select_value(strsql)
+    class Menus7Controller < ApplicationController
+        before_action :authenticate_api_user!
+        def index
+        end
+        def create
+            ###JSON.parseのエラー対応　要
+            $email = current_api_user[:email]
+            strsql = "select person_code_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
+            $person_code_chrg = ActiveRecord::Base.connection.select_value(strsql)
  
-        screen = ScreenLib::ScreenClass.new(params)
-        #####    
+            screen = ScreenLib::ScreenClass.new(params)
+            #####    
             case params[:req] 
             when 'menureq'   ###大項目
                 sgrp_menue = Rails.cache.fetch('sgrp_menue'+$email) do
@@ -40,7 +40,7 @@ module Api
               render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
              
             when 'inlineadd7'
-              pagedata,reqparams = screen.proc_add_empty_data  ### nil filtered sorting
+              pagedata,reqparams = screen.proc_add_empty_data(params)  ### nil filtered sorting
               render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}               
                 
             when "fetch_request"
@@ -52,7 +52,7 @@ module Api
 
             when "check_request"  
                 reqparams = params.dup
-                reqparams[:parse_lined0ata] = JSON.parse(params[:linedata])
+                reqparams[:parse_lineddata] = JSON.parse(params[:linedata])
                 JSON.parse(params[:checkcode]).each do |sfd,yupcheckcode|
                   reqparams = ControlFields.proc_judge_check_code reqparams,sfd,yupcheckcode
                 end
@@ -60,7 +60,9 @@ module Api
                 render json: {:params=>reqparams}   
 
             when "confirm7"
-                reqparams = screen.proc_confirm_screen
+                reqparams = params.dup   ### ControlFields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
+                reqparams[:parse_linedata] = JSON.parse(params[:linedata])
+                reqparams = screen.proc_confirm_screen(reqparams)
                 render json: {:linedata=> reqparams[:parse_linedata]}
 
             when 'download7'
@@ -102,9 +104,9 @@ module Api
                 end  
             else
               p "#{Time.now} : req-->#{req} not support "    
-          end   
-      end
-      def show
-      end
-  end    
+            end
+        end
+        def show
+        end
+    end    
 end
