@@ -3,7 +3,7 @@
 module YupSchema
 extend self
 
-    def create_schema   ### 全画面対象
+    def proc_create_schema   ### 全画面対象
         yupschema = "let Yup = require('yup')\n"
         yupschema << "export const yupschema = {\n"
         screencode = ""
@@ -68,24 +68,24 @@ extend self
             yupschema <<  "     }"
         return {:yupschema=>yupschema}           
     end 
-    def proc_create_yupfetchcode screencode       
-        yupfetchcode ={}
-        ActiveRecord::Base.connection.select_all(fetchcodesql(screencode)).each do |rec|   
+    def proc_create_fetchCode screencode       
+        fetchCode ={}
+        ActiveRecord::Base.connection.select_all(fetchCodesql(screencode)).each do |rec|   
             if rec["screenfield_paragraph"]  
-                yupfetchcode[rec["pobject_code_sfd"]] = rec["screenfield_paragraph"]
+                fetchCode[rec["pobject_code_sfd"]] = rec["screenfield_paragraph"]
             end    
         end 
 
-        return yupfetchcode           
+        return fetchCode           
     end  
-    def create_yupcheckcode screencode       
-        yupcheckcode ={}
-        ActiveRecord::Base.connection.select_all(checkcodesql(screencode)).each do |rec|   
+    def proc_create_checkCode screencode       
+        checkCode ={}
+        ActiveRecord::Base.connection.select_all(checkCodesql(screencode)).each do |rec|   
             if rec["screenfield_subindisp"]  
-                yupcheckcode[rec["pobject_code_sfd"]] = rec["screenfield_subindisp"]
+                checkCode[rec["pobject_code_sfd"]] = rec["screenfield_subindisp"]
             end    
         end 
-        return yupcheckcode           
+        return checkCode           
     end 
     private
     def strsql screencode
@@ -102,14 +102,14 @@ extend self
                     screenfield_dataprecision,screenfield_datascale
                     order by 	pobject_code_scr,pobject_code_sfd%
     end    
-    def fetchcodesql screencode
+    def fetchCodesql screencode
          %Q%select pobject_code_sfd,screenfield_paragraph
                     from r_screenfields
                     where trim(screenfield_paragraph) != '' and
                     screenfield_expiredate > current_date
                     #{if screencode then " and pobject_code_scr = '#{screencode}' " else "" end }%
     end     
-    def checkcodesql screencode
+    def checkCodesql screencode
          %Q%select pobject_code_sfd,screenfield_subindisp
                     from r_screenfields
                     where trim(screenfield_subindisp) != '' and screenfield_subindisp is not null and

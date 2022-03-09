@@ -495,7 +495,7 @@ module Operation
 		@gantt["starttime"]  =  @gantt["starttime_trn"]    
 		@gantt["duedate"]  =  @gantt["duedate_trn"]  
 
-		@tbldata = @reqparams["tbldata"]  
+		@tbldata = @reqparams["tbldata"].dup
 		@mkprdpurords_id = (@reqparams["mkprdpurords_id"]||=0)
 		@mkbillinsts_id = (@reqparams["mkbillinsts_id"]||=0)
 		
@@ -655,7 +655,7 @@ module Operation
 		return 
 	end
 
-	def proc_insert_trngantts(gantt) ##set_reqparams() ###@tblname,@tblid,@gantt・・・・セット
+	def proc_insert_trngantts(gantt) ## ###@tblname,@tblid,@gantt・・・・セット
 		strsql = %Q&
 		insert into trngantts(id,key,
 							orgtblname,orgtblid,paretblname,paretblid,
@@ -1094,7 +1094,7 @@ module Operation
 		strsql = %Q&
 					select (alloc.qty_sch - alloc.qty_linkto_alloctbl)  free_qty,
 							sch.id sch_id,alloc.trngantts_id trngantts_id,
-							ord.id ord_id,sch.dueday prev_duedate,sch.shelfnos_id_fm
+							ord.id ord_id,sch.duedate prev_duedate,sch.shelfnos_id_fm
 					from custschs sch
 						inner join alloctbls alloc on sch.id = alloc.srctblid
 						inner join custords ord on sch.opeitms_id = ord.opeitms_id and sch.custs_id = ord.custs_id

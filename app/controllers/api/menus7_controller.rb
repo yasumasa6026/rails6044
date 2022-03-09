@@ -36,7 +36,7 @@ module Api
                 render json:  screenList , status: :ok
             
             when 'viewtablereq7','inlineedit7'
-              pagedata,reqparams = screen.proc_search_blk(params)   ###:pageInfo ,:yup -->menu7から未使用
+              pagedata,reqparams = screen.proc_search_blk(params)   ###:pageInfo  -->menu7から未使用
               render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
              
             when 'inlineadd7'
@@ -44,23 +44,23 @@ module Api
               render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}               
                 
             when "fetch_request"
-                reqparams = params.dup   ### ControlFields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
+                reqparams = params.dup   ### CtlFields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
                 reqparams[:parse_linedata] = JSON.parse(params[:linedata])
-                reqparams = ControlFields.proc_chk_fetch_rec reqparams
+                reqparams = CtlFields.proc_chk_fetch_rec reqparams
                 ###xparams[:parse_linedata] = {}
                 render json: {:params=>reqparams}   
 
             when "check_request"  
                 reqparams = params.dup
                 reqparams[:parse_lineddata] = JSON.parse(params[:linedata])
-                JSON.parse(params[:checkcode]).each do |sfd,yupcheckcode|
-                  reqparams = ControlFields.proc_judge_check_code reqparams,sfd,yupcheckcode
+                JSON.parse(params[:checkcode]).each do |sfd,checkcode|
+                  reqparams = CtlFields.proc_judge_check_code reqparams,sfd,checkcode
                 end
                ### ?????????? reqparams[:parse_linedata] = {}
                 render json: {:params=>reqparams}   
 
             when "confirm7"
-                reqparams = params.dup   ### ControlFields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
+                reqparams = params.dup   ### CtlFields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
                 reqparams[:parse_linedata] = JSON.parse(params[:linedata])
                 reqparams = screen.proc_confirm_screen(reqparams)
                 render json: {:linedata=> reqparams[:parse_linedata]}

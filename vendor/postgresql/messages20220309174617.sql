@@ -1,0 +1,2 @@
+ --- create view script   r_mkprdpurords 
+ --- create view script   r_trngantts 

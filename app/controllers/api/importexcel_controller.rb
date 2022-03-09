@@ -23,7 +23,7 @@ class ImportexcelController < ApplicationController
         strsql = "select person_code_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
         $person_code_chrg = ActiveRecord::Base.connection.select_value(strsql)
         screen = ScreenLib::ScreenClass.new(params)
-        column_info,page_info,where_info,select_fields,yup,dropdownlist,sort_info,nameToCode = 
+        column_info,page_info,where_info,select_fields,fetch_check,dropdownlist,sort_info,nameToCode = 
                   screen.proc_create_upload_editable_columns_info "inlineaddreq" 
         
         strsql = "select	column_name from 	information_schema.columns 
@@ -53,8 +53,8 @@ class ImportexcelController < ApplicationController
         jparams = {}
         idx = 0
 
-  		yupfetchcode = YupSchema.proc_create_yupfetchcode screen.screenCode ##
-        yupcheckcode  = YupSchema.create_yupcheckcode screen.screenCode   
+  		fetchcode = YupSchema.proc_create_fetchcode screen.screenCode ##
+        checkcode  = YupSchema.proc_create_checkcode screen.screenCode   
         tblid = screen.screenCode.split("_")[1].chop + "_id"
         lines = params[:importData][:importexcel]
         lines.each do |linedata|
@@ -71,17 +71,17 @@ class ImportexcelController < ApplicationController
                 linedata.each do |field,val| ###confirmはfunction batchcheckで項目追加している。
                         ##エラーと最初のレコード(confirm="confirm")のname項目行を除く
                     jparams[:parse_linedata]["confirm"] = true
-                    if yupfetchcode[field] 
+                    if fetchcode[field] 
                         jparams[:fetchcode] = %Q%{"#{field}":"#{val}"}%
-                        jparams[:fetchview] = yupfetchcode[field]
-                        jparams = ControlFields.proc_chk_fetch_rec jparams
+                        jparams[:fetchview] = fetchcode[field]
+                        jparams = CtlFields.proc_chk_fetch_rec jparams
                         if jparams[:err].nil?
                                 jparams[:fetch_data].each do |fd,vl|
                                     jparams[:parse_linedata][fd] = vl
                                 end  
-                                if yupcheckcode[field] and val != ""
-                                    jparams["yupcheckcode"] = %Q%{"#{field}":"#{val}"}%
-                                    jparams = ControlFields.proc_judge_check_code jparams,field,yupcheckcode[field]
+                                if checkcode[field] and val != ""
+                                    jparams["checkcode"] = %Q%{"#{field}":"#{val}"}%
+                                    jparams = CtlFields.proc_judge_check_code jparams,field,checkcode[field]
                                     if jparams[:err]
                                         importError = true
                                         jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
@@ -106,7 +106,7 @@ class ImportexcelController < ApplicationController
                 blk =  RorBlkCtl::BlkClass.new(screen.screenCode)
                 command_c = blk.command_init.dup  ###blkukyはid以外でユニークを保証するkey
                 if parse_linedata["confirm"] == true    ###重複keyチェック
-                    err = ControlFields.proc_blkuky_check(screen.screenCode.split("_")[1],parse_linedata)
+                    err = CtlFields.proc_blkuky_check(screen.screenCode.split("_")[1],parse_linedata)
                     tblid = screen.screenCode.split("_")[1].chop + "_id"
                     err.each do |key,recs|
                         recs.each do |rec|

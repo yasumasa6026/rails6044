@@ -47,7 +47,6 @@ const mapDispatchToProps = dispatch => ({
 const mapStateToProps = state =>({
     excelfile:state.upload.excelfile?state.upload.excelfile:{name:""},
     message:state.upload.message,
-    yup:state.screen.yup,
     nameToCode:state.screen.grid_columns_info.nameToCode,
     params:state.screen.params,
     results:state.upload.results,

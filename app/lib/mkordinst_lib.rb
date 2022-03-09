@@ -5,7 +5,7 @@ module MkordinstLib
 	extend self
 	###mkordparams-->schsからordsを作成した結果
 	def proc_mkprdpurords reqparams,mkordparams  ###xxxschsからxxxordsを作成する。 trngantts:xxxschs= 1:1
-		### mkordsではxno_xxxschはセットしない。schsをまとめたり分割したりする機能のため
+		### mkprdpurordsではxno_xxxschはセットしない。schsをまとめたり分割したりする機能のため
 		@tbldata = reqparams["tbldata"].dup  ###tbldata -->テーブル項目　　viewではない。
 		@mkprdpurords_id = reqparams["mkprdpurords_id"]   
 		seqno = reqparams["seqno"].dup   
@@ -412,7 +412,7 @@ module MkordinstLib
 	end
 	
 	def proc_mkbillinsts reqparams,mkinstparams  ###xxxschsからxxxordsを作成する。 trngantts:xxxschs= 1:1
-		### mkordsではxno_xxxschはセットしない。schsをまとめたり分割したりする機能のため
+		### mkprdpurordsではxno_xxxschはセットしない。schsをまとめたり分割したりする機能のため
 		@tbldata = reqparams["tbldata"]  ###tbldata -->テーブル項目　　viewではない。
 		@mkbillinsts_id = reqparams["mkbillinsts_id"]   
 		add_tbl = "" 

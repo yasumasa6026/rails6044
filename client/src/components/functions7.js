@@ -1,33 +1,54 @@
 //yupでできなかったこと
 export function  setProtectFunc(field,row){
-    let readOnly = false
-    switch (field) {
-        case "fieldcode_dataprecision":
-            if(row.values.fieldcode_ftype==="numeric") {readOnly=false}
-            else{readOnly=true}     
-            break   
-        case "screenfield_dataprecision":
-            if(row.values.screenfield_type==="numeric") {readOnly=false}
-            else{readOnly=true}      
-            break      
-        case "fieldcode_datascale":
-            if(row.values.fieldcode_ftype==="numeric") {readOnly=false}
-            else{readOnly=true}        
-            break    
-        case "screenfield_datascale":
-            if(row.values.screenfield_type==="numeric") {readOnly=false}
-            else{readOnly=true}         
-            break   
-        case "fieldcode_fieldlength":
-            if(row.values.fieldcode_ftype==="char"||row.values.fieldcode_ftype==="varchar") {readOnly=false}
-            else{readOnly=true}         
-            break   
-        case "screenfield_edoptmaxlength":
-            if(row.values.screenfield_type==="varchar"||row.values.screenfield_ftype==="char"){readOnly=false}
-            else{readOnly=true}      
-            break      
-        default:  readOnly = false
-        }
+    let readOnly = {}
+    switch (row.values.fieldcode_ftype) 
+        // {
+        // case "fieldcode_dataprecision":
+        //     if(row.values.fieldcode_ftype==="numeric") {readOnly=false}
+        //     else{readOnly=true}     
+        //     break   
+        // case "screenfield_dataprecision":
+        //     if(row.values.screenfield_type==="numeric") {readOnly=false}
+        //     else{readOnly=true}      
+        //     break      
+        // case "fieldcode_datascale":
+        //     if(row.values.fieldcode_ftype==="numeric") {readOnly=false}
+        //     else{readOnly=true}        
+        //     break    
+        // case "screenfield_datascale":
+        //     if(row.values.screenfield_type==="numeric") {readOnly=false}
+        //     else{readOnly=true}         
+        //     break   
+        // case "fieldcode_fieldlength":
+        //     if(row.values.fieldcode_ftype==="char"||row.values.fieldcode_ftype==="varchar") {readOnly=false}
+        //     else{readOnly=true}         
+        //     break   
+        // case "screenfield_edoptmaxlength":
+        //     if(row.values.screenfield_type==="varchar"||row.values.screenfield_ftype==="char"){readOnly=false}
+        //     else{readOnly=true}      
+        //     break      
+        // default:  readOnly = false
+        // }
+        
+         {
+         case "numeric":
+             readOnly["fieldcode_fieldlength"] = true   
+             readOnly["screenfield_edoptmaxlength"] = true   
+             break   
+         case "char":
+            readOnly["fieldcode_dataprecision"] = true   
+            readOnly["screenfield_dataprecision"] = true   
+            readOnly["fieldcode_datascale"] = true     
+            readOnly["screenfield_datascale"] = true   
+             break      
+         case "varchar":
+            readOnly["fieldcode_dataprecision"] = true   
+            readOnly["screenfield_dataprecision"] = true   
+            readOnly["fieldcode_datascale"] = true     
+            readOnly["screenfield_datascale"] = true   
+             break    
+         default:  
+         }
     return readOnly    
 }
 
@@ -64,9 +85,6 @@ export function  setInitailValueForAddFunc(field,row,className,screenCode){
                 break
                 case /loca_code_cust_custrcvplc/.test(field):  //   
                     val = row.values["loca_code_cust"] 
-                break
-                case /custrcvplc_code/.test(field):  //   
-                    val = "000"
                 break
                 default: break 
             }

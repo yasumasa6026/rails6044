@@ -172,9 +172,9 @@ module ScreenLib
 				end
 				@grid_columns_info["columns_info"] = columns_info
 				@grid_columns_info["hiddenColumns"] = hiddenColumns
-				@grid_columns_info["yup"] = {}
-				@grid_columns_info["yup"]["yupfetchcode"] = YupSchema.proc_create_yupfetchcode   screenCode
-				@grid_columns_info["yup"]["yupcheckcode"] = YupSchema.create_yupcheckcode   screenCode
+				@grid_columns_info["fetch_check"] = {}
+				@grid_columns_info["fetch_check"]["fetchCode"] = YupSchema.proc_create_fetchCode   screenCode
+				@grid_columns_info["fetch_check"]["checkCode"] = YupSchema.proc_create_checkCode   screenCode
 
 				dropdownlist.each do |key,val|
 					tmpval="["
@@ -186,7 +186,7 @@ module ScreenLib
 				@grid_columns_info["dropdownlist"] = dropdownlist
 				if sort_info[:default]
 					ary_select_fields = select_fields.split(',')
-					sort_info = ControlFields.proc_detail_check_strorder sort_info,ary_select_fields
+					sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
 				end	
 				@grid_columns_info["init_where_info"] = init_where_info
 				@grid_columns_info["sort_info"] = sort_info	
@@ -288,7 +288,7 @@ module ScreenLib
 						if  (ff["value"] =~ /^%/ or ff["value"] =~ /%$/ ) then 
 							where_str << " #{ff["id"]} like '#{ff["value"]}'     AND " if  ff["value"] != ""
 						elsif ff["value"] =~ /^<=/  or ff["value"] =~ /^>=/ then 
-							where_str << " #{ff["id"]} #{ff["id"][0..1]} '#{ff["id"][2..-1]}'     AND " if  ff["value"] != ""
+							where_str << " #{ff["id"]} #{ff["value"][0..1]} '#{ff["value"][2..-1]}'     AND " if  ff["value"] != ""
 						elsif 	ff["value"] =~ /^</   or  ff["value"] =~ /^>/
 							where_str << " #{ff["id"]}   #{ff["value"][0]}  '#{ff["value"][1..-1]}'         AND "  if  ff["value"] != ""
 						elsif 	ff["value"] =~ /^!=/   
@@ -392,8 +392,10 @@ module ScreenLib
 						case cell[:accessor]
 						when /loca_code_|itm_code_|person_code_chrg/	
 							temp[cell[:accessor]] = "dummy"
-						when /mkprdpurord_starttime_|mkprdpurord_duedate_/
+						when /mkprdpurord_duedate_/
 							temp[cell[:accessor]] = "2099/12/31"  
+						when /mkprdpurord_starttime_/
+							temp[cell[:accessor]] = "2000/01/01"  
 						end
 					when /audfld_pobjects|r_fieldcodes/
 						case cell[:accessor]
@@ -594,56 +596,56 @@ module ScreenLib
 					end
 					##end
 				end	
-				yup={}
-				yup[:yupfetchcode] = YupSchema.proc_create_yupfetchcode screenCode   
-				yup[:yupcheckcode]  = YupSchema.create_yupcheckcode screenCode   
+				fetch_check = {}
+				fetch_check[:fetchCode] = YupSchema.proc_create_fetchCode screenCode   
+				fetch_check[:checkCode]  = YupSchema.proc_create_checkCode screenCode   
 				if sort_info[:default]
 					ary_select_fields = select_fields.split(',')
-					sort_info = ControlFields.proc_detail_check_strorder sort_info,ary_select_fields
+					sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
 				end	 
 				page_info[:screenwidth] = screenwidth	
 				if gridmessages_fields.size > 1
 					select_fields << gridmessages_fields
 				end
-				upload_columns_info = [columns_info,page_info,init_where_info,select_fields.chop,yup,dropdownlist,sort_info,nameToCode]
+				upload_columns_info = [columns_info,page_info,init_where_info,select_fields.chop,fetc_check,dropdownlist,sort_info,nameToCode]
 			end
 			return upload_columns_info
 		end
 
 		def proc_confirm_screen(params)
 			tblnamechop = screenCode.split("_")[1].chop
-			yup_fetch_code = grid_columns_info["yup"]["yupfetchcode"]
-			yupcheckcode = grid_columns_info["yup"]["yupcheckcode"]
+			yup_fetch_code = grid_columns_info["fetch_check"]["fetchCode"]
+			yup_check_code = grid_columns_info["fetch_check"]["checkCode"]
 			parse_linedata = params[:parse_linedata].dup
 			addfield = {}
 			setParams = params.dup
 			setParams[:err] = nil
 			parse_linedata.each do |field,val|
-			  if yup_fetch_code[field] 
-				##setParams["fetchcode"] = %Q%{"#{field}":"#{val}"}%  ###clientのreq='fetch_request'で利用
-				if setParams[:parse_linedata]["id"] == ""  ###tableのユニークid
-					setParams[:parse_linedata]["aud"]= "add" 
-				end  
-				setParams["fetchview"] = yup_fetch_code[field]
-				setParams = ControlFields.proc_chk_fetch_rec setParams  
-				if setParams[:err] 
-				  setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
-				  setParams[:parse_linedata][:confirm] = false 
-				  setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
-				  break
-				end
-			  end
-			  if setParams[:err].nil?
-				if yupcheckcode[field] 
-				  setParams = ControlFields.proc_judge_check_code setParams,field,yupcheckcode[field]  
-				  if setParams[:err]
-					setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
-					setParams[:parse_linedata][:confirm] = false 
-					setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
-					break
-				  end
-				end
-			  end    
+			  	if yup_fetch_code[field] 
+					##setParams["fetchCode"] = %Q%{"#{field}":"#{val}"}%  ###clientのreq='fetch_request'で利用
+					if setParams[:parse_linedata]["id"] == ""  ###tableのユニークid
+						setParams[:parse_linedata]["aud"]= "add" 
+					end  
+					setParams["fetchview"] = yup_fetch_code[field]
+					setParams = CtlFields.proc_chk_fetch_rec setParams  
+					if setParams[:err] 
+				  		setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
+				  		setParams[:parse_linedata][:confirm] = false 
+				  		setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
+				  		break
+					end
+			  	end
+			 	if setParams[:err].nil?
+					if yup_check_code[field] 
+				  		setParams = CtlFields.proc_judge_check_code setParams,field,yup_check_code[field]  
+				  		if setParams[:err]
+							setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
+							setParams[:parse_linedata][:confirm] = false 
+							setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
+							break
+				  		end
+					end
+			  	end    
 			end	
 			if  setParams[:err].nil?
 				blk =  RorBlkCtl::BlkClass.new(screenCode)
@@ -661,7 +663,7 @@ module ScreenLib
 				  	end
 			  	end 
 			  	### セカンドkeyのユニークチェック
-			 	 err = ControlFields.proc_blkuky_check screenCode.split("_")[1],setParams[:parse_linedata]
+			 	err = CtlFields.proc_blkuky_check screenCode.split("_")[1],setParams[:parse_linedata]
 			  	err.each do |key,recs|
 					recs.each do |rec|
 						if command_c["id"] != rec["id"]

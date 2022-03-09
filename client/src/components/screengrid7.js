@@ -52,7 +52,7 @@ const AutoCell = ({
     row: { index,values },
     column: { id, className },  //id field_code
     setData, data, // This is a custom function that we supplied to our table instance
-    row,params, updateParams,dropDownList,yup,handleScreenRequest,handleFetchRequest,
+    row,params, updateParams,dropDownList,fetch_check,handleScreenRequest,handleFetchRequest,
     params:{req},buttonflg,loading,  //useTableへの登録が必要
     }) => {
         const [value, setValue] = useState(initialValue)
@@ -79,7 +79,7 @@ const AutoCell = ({
             if(values[id]){
                 //setValue(values[id])
                 updateMyData(index, id, values[id])
-                fetch_check(id,index, yup, data, updateParams, params, handleFetchRequest,loading,updateMyData)
+                fetchCheck(id,index, fetch_check, data, updateParams, params, handleFetchRequest,loading,updateMyData)
             }
          // e.target.value||undefinedにすると日付チェックの時splitでエラーが発生
        }  
@@ -96,7 +96,7 @@ const AutoCell = ({
             onFieldValite(updateRow, id, params.screenCode)  //clientでのチェック
             let msg_id = `${id}_gridmessage`
             if ( updateRow[msg_id] === "ok") {
-                fetch_check(id,index, yup, data, updateParams, params, handleFetchRequest,loading,updateMyData)
+                fetchCheck(id,index, fetch_check, data, updateParams, params, handleFetchRequest,loading,updateMyData)
             }else{
               updateMyData(index, msg_id, updateRow[msg_id])}
             }    
@@ -176,7 +176,7 @@ const AutoCell = ({
                     onChange={(e) => setFieldsByonChange(e)}
                     onBlur={(e) => setFieldsByonBlur(e)}
                     className={newClassName}
-                    readOnly={newReadOnly}
+                    readOnly={typeof(newReadOnly[id])==="undefined"?false:newReadOnly[id]}
                     onKeyUp={(e) => {  
                         if (e.key === "Enter" ) 
                               {
@@ -190,7 +190,7 @@ const AutoCell = ({
                     onChange={(e) => setFieldsByonChange(e)}
                     onBlur={(e) => setFieldsByonBlur(e)}
                     className={newClassName}
-                    readOnly={newReadOnly}
+                    readOnly={typeof(newReadOnly[id])==="undefined"?false:newReadOnly[id]}
                     onKeyUp={(e) => {  
                         if (e.key === "Enter" ) 
                             {
@@ -280,59 +280,59 @@ const DefaultColumnFilter = ({
 }
  
 //serverデータとのチェック又はserverデータの検索
-const fetch_check = (id, index, yup, data, updateParams, params,handleFetchRequest,loading,updateMyData) => {
+const fetchCheck = (id, index, fetch_check, data, updateParams, params,handleFetchRequest,loading,updateMyData) => {
     switch (true) {
-      case /confirm$/.test(id):
-        break
-      default:
-        if(yup.yupcheckcode[id]){
-          let chkcondtion = yup.yupcheckcode[id].split(",")[1]
-          if (chkcondtion === undefined || (chkcondtion === "add" & data[index][id] === "") ||
-            (chkcondtion === "update" & data[index][id] !== "")) {
-            updateParams([
-              {"checkcode": JSON.stringify({ [id]: yup.yupcheckcode[id] })},
-              {"linedata": JSON.stringify(data[index])},
-              {"index": index},
-              {"req": "check_request"},
-            ])
-            handleFetchRequest(params,data,loading)
-          }
-        }
-        //チェック項目と検索項目は兼用できない。
-        if(yup.yupfetchcode[id]){
-            let idKeys=[]
-            let flg = true
-            Object.keys(yup.yupfetchcode).map((key,idx)=>{  //複数key対応
-              if(yup.yupfetchcode[id]===yup.yupfetchcode[key]){
-                if(data[index][key]===""||data[index][key]===undefined){
-                  flg = false
-                  return  idKeys
+        case /confirm$/.test(id):
+            break
+        default:
+            if(fetch_check.checkCode[id]){
+                let chkcondtion = fetch_check.checkCode[id].split(",")[1]
+                if (chkcondtion === undefined || (chkcondtion === "add" & data[index][id] === "") ||
+                    (chkcondtion === "update" & data[index][id] !== "")) {
+                    updateParams([
+                    {"checkCode": JSON.stringify({ [id]: fetch_check.checkCode[id] })},
+                    {"linedata": JSON.stringify(data[index])},
+                    {"index": index},
+                    {"req": "check_request"},
+                ])
+                handleFetchRequest(params,data,loading)
                 }
-                else(idKeys.push({[key]:data[index][key]}))
-              }
-            return idKeys
-            })
-          if(flg){
-            let row = {}
-             Object.keys(data[index]).map((key,idx)=>{  //複数key対応
-              if(/_gridmessage/.test(key)){}
-                else{row[key]=data[index][key]}
-                return null
-              }
-             )
-            updateParams([
-              {"fetchcode": JSON.stringify(idKeys)},
-              {"linedata": JSON.stringify(row)},
-              {"index": index},
-              {"fetchview": yup.yupfetchcode[id]},
-              {"req": "fetch_request"},
-            ])
-            handleFetchRequest(params,data,loading)
-          }else{}//未入力keyがある。  
-        }else{
-          updateMyData(index, `${id}_gridmessage`,"ok" )}
-        break
-    }
+            }
+            //チェック項目と検索項目は兼用できない。
+            if(fetch_check.fetchCode[id]){
+                let idKeys=[]
+                let flg = true
+                Object.keys(fetch_check.fetchCode).map((key,idx)=>{  //複数key対応
+                    if(fetch_check.fetchCode[id]===fetch_check.fetchCode[key]){
+                        if(data[index][key]===""||data[index][key]===undefined){
+                            flg = false
+                        return  idKeys
+                        }
+                        else(idKeys.push({[key]:data[index][key]}))
+                    }
+                    return idKeys
+                })
+                if(flg){
+                    let row = {}
+                    Object.keys(data[index]).map((key,idx)=>{  //複数key対応
+                        if(/_gridmessage/.test(key)){}
+                        else{row[key]=data[index][key]}
+                        return null
+                    }
+                    )
+                updateParams([
+                    {"fetchCode": JSON.stringify(idKeys)},
+                    {"linedata": JSON.stringify(row)},
+                    {"index": index},
+                    {"fetchview": fetch_check.fetchCode[id]},
+                    {"req": "fetch_request"},
+                ])
+                handleFetchRequest(params,data,loading)
+                }else{}//未入力keyがある。  
+            }else{
+                updateMyData(index, `${id}_gridmessage`,"ok" )}
+                break
+        }
 }
 
 let Yup = require('yup')
@@ -350,7 +350,7 @@ let fieldSchema = (field, screenCode) => {
 ///ScreenGrid7 
 ///
 const ScreenGrid7 = ({ 
-  screenCode, screenwidth, hiddenColumns,yup,
+  screenCode, screenwidth, hiddenColumns,fetch_check,
   dropDownListOrg, buttonflgOrg, paramsOrg,columnsOrg, dataOrg,
     //buttonflg 下段のボタン：request params[:req] MenusControllerでの実行ケース
   loading, hostError, pageSizeList, 
@@ -410,7 +410,7 @@ const ScreenGrid7 = ({
             dataOrg={dataOrg} data={data} setData={setData} dropDownListOrg={dropDownListOrg}
             loading={loading} handleScreenParamsSet={handleScreenParamsSet}
             controlledPageIndex={controlledPageIndex}  controlledPageSize={controlledPageSize} buttonflg={buttonflg}
-            pageSizeList={pageSizeList}  yup={yup}
+            pageSizeList={pageSizeList}  fetch_check={fetch_check}
             paramsOrg={paramsOrg} params={params} setParams={setParams}  updateParams={updateParams} 
             //skipReset={skipResetRef.current}
             disableFilters={params.disableFilters}
@@ -534,7 +534,7 @@ const defaultPropGetter = () => ({})
 const GridTable = ({
         columns,screenCode,
         dataOrg, data,setData, dropDownListOrg,
-        loading,yup,
+        loading,fetch_check,
         //controlledPageIndex, controlledPageSize,pageSizeList,
         paramsOrg,params, setParams, updateParams,buttonflg,
         disableFilters,
@@ -609,7 +609,7 @@ const GridTable = ({
         {
             columns,
             data,
-            params,updateParams,dropDownList,yup,buttonflg,loading,setData,
+            params,updateParams,dropDownList,fetch_check,buttonflg,loading,setData,
             defaultColumn,
             manualPagination: false,
             manualFilters: true,
@@ -728,7 +728,7 @@ const mapStateToProps = (state,ownProps) => {
         pageSizeList: state.second.grid_columns_info.pageSizeList,
         columnsOrg: state.second.grid_columns_info.columns_info,
         screenwidth: state.second.grid_columns_info.screenwidth,
-        yup: state.second.grid_columns_info.yup,
+        fetch_check: state.second.grid_columns_info.fetch_check,
         dropDownListOrg: state.second.grid_columns_info.dropdownlist,
         hiddenColumns: state.second.grid_columns_info.hiddenColumns,
         hostError: state.second.hostError,
@@ -744,7 +744,7 @@ const mapStateToProps = (state,ownProps) => {
         pageSizeList: state.screen.grid_columns_info.pageSizeList,
         columnsOrg: state.screen.grid_columns_info.columns_info,
         screenwidth: state.screen.grid_columns_info.screenwidth,
-        yup: state.screen.grid_columns_info.yup,
+        fetch_check: state.screen.grid_columns_info.fetch_check,
         dropDownListOrg: state.screen.grid_columns_info.dropdownlist,
         hiddenColumns: state.screen.grid_columns_info.hiddenColumns,
         hostError: state.screen.hostError,

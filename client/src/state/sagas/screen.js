@@ -86,7 +86,7 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
               xparams.req = buttonState.buttonflg
               data[params.index].confirm_gridmessage =  "ok"
               if(response.data.params.err){
-                  tmp =  JSON.parse(response.data.params.fetchcode) //javascript -->rails hush で渡せず
+                  tmp =  JSON.parse(response.data.params.fetchCode) //javascript -->rails hush で渡せず
                   tmp.map((idx)=>{
                     data[params.index][`${Object.keys(idx)[0]}_gridmessage`] = response.data.params.err
                     data[params.index].confirm_gridmessage =  response.data.params.err
@@ -109,7 +109,7 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
                 //  xparams.req = buttonState.buttonflg
                   data[params.index].confirm_gridmessage =  "ok"
                   if(response.data.params.err){
-                       tmp =  JSON.parse(response.data.params.checkcode)
+                       tmp =  JSON.parse(response.data.params.checkCode)
                        Object.keys(tmp).map((idx)=>{
                          data[params.index][`${idx}_gridmessage`] = response.data.params.err
                          data[params.index].confirm_gridmessage =  response.data.params.err
@@ -117,7 +117,7 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
                       })
                   }
                   else{
-                       tmp =  JSON.parse(response.data.params.checkcode)
+                       tmp =  JSON.parse(response.data.params.checkCode)
                        Object.keys(tmp).map((idx)=>{
                          data[params.index][`${idx}_gridmessage`] = "ok check"
                        return data
@@ -129,8 +129,6 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
                       //  })
                     }
                   break      
-              // case "yup":  // create yup schema
-              //       return yield put({ type: YUP_RESULT, payload: {message:response.data.params.message} })    
               default:
                 return {}
             }

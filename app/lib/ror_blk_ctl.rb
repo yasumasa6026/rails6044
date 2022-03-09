@@ -162,7 +162,7 @@ module RorBlkCtl
 		gantt["tblname"] = tblname
 		gantt["tblid"] = tblid = @src_tbl[:id]		
 		setParams["classname"] = command_c[:sio_classname]
-		setParams["tbldata"] = @src_tbl.to_json
+		setParams["tbldata"] = @src_tbl
 		setParams["opeitm"] = opeitm.dup
 
 		case tblname
@@ -606,11 +606,11 @@ module RorBlkCtl
 					if k == ""
 						case 	  j_to_sfld
 						when 'sno'
-							command_c[tblnamechop+"_sno"] = @src_tbl[:sno] = ControlFields.proc_field_sno(tblnamechop,command_c["id"])
+							command_c[tblnamechop+"_sno"] = @src_tbl[:sno] = CtlFields.proc_field_sno(tblnamechop,command_c["id"])
 						when 'cno'
-							command_c[tblnamechop+"_cno"] = @src_tbl[:cno] = ControlFields.proc_field_cno(command_c["id"])
+							command_c[tblnamechop+"_cno"] = @src_tbl[:cno] = CtlFields.proc_field_cno(command_c["id"])
 						when 'gno'
-							command_c[tblnamechop+"_gno"] = @src_tbl[:gno] = ControlFields.proc_field_gno(command_c["id"])
+							command_c[tblnamechop+"_gno"] = @src_tbl[:gno] = CtlFields.proc_field_gno(command_c["id"])
 						end
 					else
 					end

@@ -6,7 +6,7 @@ module Api
           def create
             case params[:req] 
               when 'yup'
-                yup = YupSchema.create_schema 	
+                yup = YupSchema.proc_create_schema 	
                 foo = File.open("#{Rails.root}/vendor/yup/yupschema.js", "w:UTF-8") # 書き込みモード
                 foo.puts yup[:yupschema]
                 params[:message] = " yup schema created " 

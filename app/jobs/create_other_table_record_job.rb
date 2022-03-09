@@ -11,7 +11,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             order by t.id limit 1 for update"
             processreq = ActiveRecord::Base.connection.select_one(perform_strsql)            
             params = JSON.parse(processreq["reqparams"])       
-            tbldata = JSON.parse(params["tbldata"])
+            tbldata = params["tbldata"].dup
             strsql = %Q% select email from persons where id = #{tbldata["persons_id_upd"]}
                     %
             rec = ActiveRecord::Base.connection.select_one(strsql) ###
@@ -19,7 +19,7 @@ class CreateOtherTableRecordJob < ApplicationJob
             $person_code_chrg = rec["code"]
             until processreq.nil? do
                     setParams = params.dup
-                    gantt = params["gantt"]
+                    gantt = params["gantt"].dup
                     tblname = gantt["tblname"]
                     tblid = gantt["tblid"]
                     paretblname = gantt["paretblname"]
@@ -161,7 +161,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 setParams["gantt"] = gantt.dup
                                 setParams["opeitm"] = child_opeitm.dup
                                 setParams["mkprdpurords_id"] = 0
-                                blk.proc_private_aud_rec(setPparams,command_c) ###create pur,prdschs
+                                blk.proc_private_aud_rec(setParams,command_c) ###create pur,prdschs
                                 if child["consumtype"] =~ /CON|MET/  ###出庫
                                         if tblname =~ /^prd/
                                             child["locas_id_to"] = tbldata["locas_id_wrokplace"]
@@ -233,7 +233,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             blk.proc_create_src_tbl(command_c)
                             setParams["child"] = child.dup
                             setParams["gantt"] = gantt.dup
-                            setParams = bkl.proc_private_aud_recset(setParams,command_c) 
+                            setParams = blk.proc_private_aud_rec(setParams,command_c) 
 
                     else  
                         result_f = '6'
@@ -243,8 +243,10 @@ class CreateOtherTableRecordJob < ApplicationJob
                     %
                     ActiveRecord::Base.connection.update(strsql)
                     processreq = ActiveRecord::Base.connection.select_one(perform_strsql)
-                    params = JSON.parse(processreq["reqparams"])  
-                    tbldata = JSON.parse(params["tbldata"])
+                    if processreq
+                        params = JSON.parse(processreq["reqparams"])  
+                        tbldata = params["tbldata"].dup
+                    end
             end
         rescue
             ActiveRecord::Base.connection.rollback_db_transaction()
@@ -301,7 +303,7 @@ class CreateOtherTableRecordJob < ApplicationJob
             parent.delete("qty") 
             parent.delete("amt") 
         end
-		command_c,qty_require = ControlFields.proc_fields_update(parent,"r_"+ opeitm["prdpur"]+"schs",command_init) do |command,para|
+		command_c,qty_require = CtlFields.proc_fields_update(parent,"r_"+ opeitm["prdpur"]+"schs",command_init) do |command,para|
 			command["id"] = ""
 			command["opeitm_loca_id_opeitm"] = opeitm["locas_id_opeitm"]
 			para["opeitms_id"] = opeitm["id"]
