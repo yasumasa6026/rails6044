@@ -274,14 +274,14 @@ module CtlFields
 		return err
 	end
 
-	def proc_judge_check_code params,sfd,checkcode  ###item未使用
+	def proc_judge_check_code params,sfd,checkCode  ###item未使用
 			checkstatus = true
-			check_proc = checkcode.split(",")[0]
-			params = __send__("check_#{check_proc}",params,sfd,checkcode)  ###[1]: nil all,add,updateは画面側で判断
+			check_proc = checkCode.split(",")[0]
+			params = __send__("check_#{check_proc}",params,sfd,checkCode)  ###[1]: nil all,add,updateは画面側で判断
 		return params 
 	end	
 
-	def check_paragraph params,item,checkcode ### proc_judge_check_codeからcallされる。
+	def check_paragraph params,item,checkCode ### proc_judge_check_codeからcallされる。
 		linedata = params[:parse_linedata]
 		if linedata["screenfield_paragraph"] == ""
 			if linedata["pobject_code_sfd"] =~ /_code/ and params[:screenCode].split("_")[1].chop == linedata["pobject_code_sfd"].split("_"[0])
@@ -325,7 +325,7 @@ module CtlFields
 		return params
 	end	
 
-	def check_strorder params,item,checkcode
+	def check_strorder params,item,checkCode
 		linedata = params[:parse_linedata]
 		if linedata["screen_strorder"] and linedata["screen_strorder"] != ""
 			ary_select_fields = linedata.keys
@@ -361,7 +361,7 @@ module CtlFields
 		return sort_info
 	end	
 
-	def check_qty params,item,checkcode
+	def check_qty params,item,checkCode
 	 	linedata = params[:parse_linedata]
 		tblname =  params[:screenCode].split("_")[1]
 	 	if linedata[tblname.chop + "_qty"]
@@ -431,7 +431,7 @@ module CtlFields
 	 	return params
 	end	
 
-	 def check_loca_code_to params,item,checkcode
+	 def check_loca_code_to params,item,checkCode
 	 	linedata = params[:parse_linedata]
 	 	tblname =  params[:screenCode].split("_")[1]
 	 	id = linedata["#{tblname.chop}_id"]
@@ -459,9 +459,9 @@ module CtlFields
 	 	return params
 	 end	
 
-	def check_already_used params,item,checkcode   ###あるidで登録されたcodeが別のテーブルに既に登録されているとき、codeの変更は不可
+	def check_already_used params,item,checkCode   ###あるidで登録されたcodeが別のテーブルに既に登録されているとき、codeの変更は不可
 		###外部keyでチェックすべき???
-		check_code,view,field = checkcode.split(",")
+		check_code,view,field = checkCode.split(",")
 		strsql = %Q&select #{field} from #{view} where #{field} = '#{params[:parse_linedata][item.to_sym]}'
 				&
 		old_value = ActiveRecord::Base.connection.select_value(strsql)

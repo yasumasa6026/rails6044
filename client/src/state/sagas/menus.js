@@ -43,7 +43,7 @@ export function* MenuSaga({ payload: {token,client,uid} }) {
                 return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
             }
         default:
-            message = ` Something went wrong ${e} `
+            message = `Menu  Something went wrong ${e} `
               if(params.second===true){
                   return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
               }else{  

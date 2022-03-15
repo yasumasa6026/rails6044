@@ -1,0 +1,19 @@
+ --- create view script   r_suppliers 
+<p>step 1-2: view field person_code_upd duplicate </p>
+<p>step 1-2: view field person_name_upd duplicate </p>
+<p>step 1-2: view field loca_code_supplier duplicate </p>
+<p>step 1-2: view field loca_name_supplier duplicate </p>
+<p>step 1-2: view field person_code_chrg_supplier duplicate </p>
+<p>step 1-2: view field person_name_chrg_supplier duplicate </p>
+<p>step 1-2: view field crr_name_supplier duplicate </p>
+<p>step 1-2: view field crr_code_supplier duplicate </p>
+<p>step 1-2: view field chrg_person_id_chrg_supplier duplicate </p>
+<p>step 1-2: view field person_sect_id_chrg_supplier duplicate </p>
+<p>step 1-2: view field loca_code_payment_supplier duplicate </p>
+<p>step 1-2: view field loca_name_payment_supplier duplicate </p>
+<p>step 1-2: view field payment_loca_id_payment_supplier duplicate </p>
+<p>step 1-2: view field payment_chrg_id_payment_supplier duplicate </p>
+<p>step 1-2: view field person_code_chrg_payment_supplier duplicate </p>
+<p>step 1-2: view field person_name_chrg_payment_supplier duplicate </p>
+<p>step 1-2: view field crr_code_payment_supplier duplicate </p>
+<p>step 1-2: view field crr_name_payment_supplier duplicate </p>

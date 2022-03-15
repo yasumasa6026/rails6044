@@ -1,0 +1,1 @@
+ --- create view script   r_suppliers 

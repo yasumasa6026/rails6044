@@ -1,0 +1,8 @@
+ --- create view script   r_puracts 
+ --- create view script   r_purinsts 
+ --- create view script   r_purschs 
+ --- create view script   r_purords 
+ --- create view script   r_payacts 
+ --- create view script   r_payinsts 
+ --- create view script   r_payords 
+ --- create view script   r_payschs 

@@ -48,8 +48,8 @@ export function* TblfieldSaga({ payload: {params}  }) {
   let message
   try{
     let response  = yield call(screenApi,{params ,token,client,uid} )
-      switch(response.data.params.status){
-        case "200":
+      switch(response.status){
+        case 200:
           switch(params.req) {
             case "yup":  // create yup schema
               return yield put({ type: TBLFIELD_SUCCESS, payload: {message:response.data.params.message} })   
@@ -60,7 +60,7 @@ export function* TblfieldSaga({ payload: {params}  }) {
             default:
               return {}
           }
-        case "500":
+        case 500:
               message = `Internal Server Error ${response.data.params.errmsg} `
               if(params.second===true){
                 return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
@@ -85,7 +85,7 @@ export function* TblfieldSaga({ payload: {params}  }) {
                   return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
               }
           default:
-              message = ` Something went wrong ${e} `
+              message = ` TblFields Something went wrong ${e} `
                 if(params.second===true){
                     return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
                 }else{  

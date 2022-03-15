@@ -66,7 +66,7 @@ export function* DownloadSaga({ payload: {params}}) {
             yield put({ type: DOWNLOAD_FAILURE, errors: message })
             break
     default:
-           message = `${response.status} : Something went wrong ${response.statusText}`}
+           message = `${response.status} :downLoad Something went wrong ${response.statusText}`}
            yield put({ type: DOWNLOAD_FAILURE, errors: message })
  }
  

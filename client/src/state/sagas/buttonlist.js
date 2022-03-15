@@ -35,7 +35,7 @@ export function* ButtonListSaga({ payload: {token,client,uid} }) {
           break
          case /code.*401/.test(error): message = 'Invalid credentials'
           break
-         default: message = `Something went wrong ${error}`}
+         default: message = `buttonList Something went wrong ${error}`}
       yield put({ type: MENU_FAILURE, errors: message })
       }  
 }

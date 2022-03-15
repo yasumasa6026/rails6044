@@ -6,6 +6,7 @@ module MkordinstLib
 	###mkordparams-->schsからordsを作成した結果
 	def proc_mkprdpurords reqparams,mkordparams  ###xxxschsからxxxordsを作成する。 trngantts:xxxschs= 1:1
 		### mkprdpurordsではxno_xxxschはセットしない。schsをまとめたり分割したりする機能のため
+		setParams = reqparams.dup
 		@tbldata = reqparams["tbldata"].dup  ###tbldata -->テーブル項目　　viewではない。
 		@mkprdpurords_id = reqparams["mkprdpurords_id"]   
 		seqno = reqparams["seqno"].dup   
@@ -73,8 +74,11 @@ module MkordinstLib
 						    strwhere[sel] << %Q% gantt.processseq_#{sel} = '#{val}'   and
 								%
 						end		
-					when /duedate|starttime/						
+					when /duedate/						
 						strwhere[sel] << %Q% gantt.#{field}_#{sel} <= to_date('#{val}','yyyy/mm/dd hh24:mi:ss')   and
+								%
+					when /starttime/						
+						strwhere[sel] << %Q% gantt.#{field}_#{sel} >= to_date('#{val}','yyyy/mm/dd hh24:mi:ss')   and
 								%
 					when /sno/					
 						strwhere[sel] << %Q% org.sno = '#{val}'    and
@@ -125,14 +129,15 @@ module MkordinstLib
 							order by  min(mk.duedate)
 		&
 		ActiveRecord::Base.connection.begin_db_transaction()
+		command_c = nil
 		ActiveRecord::Base.connection.select_all(strsql).each do |rlst|
 			sch_strsql = %Q&
 						select * from #{rlst["tblname"]} where id = #{rlst["tblid"]}
 			&
 			rec = ActiveRecord::Base.connection.select_one(sch_strsql)
-			blk =  RorBlkCtl::BlkClass.new("r_#{tblord}s")
-			command_c =blk.command_init
 			tblord = rlst["tblname"].sub("schs","ord")
+			blk =  RorBlkCtl::BlkClass.new("r_#{tblord}s")
+			command_c = blk.command_init
 			symqty = tblord + "_qty"
 			command_c[:sio_classname] = "_add_ord_by_mkordinst"
 			opeitm = {}
@@ -158,14 +163,14 @@ module MkordinstLib
 						else
 							command_c["#{tblord}_#{key.sub("s_id","_id")}"] = val
 						end
-					when /suppliers_id/	
-						if tblord == "purord"
-							command_c["purord_supplier_id"] = val
-							payments_id = ActiveRecord::Base.connection.select_value("select payments_id  from suppliers where id = #{val}")
-							command_c["purord_payment_id_purord"] = payments_id
-						else
-							command_c["#{tblord}_#{key.sub("s_id","_id")}"] = val
-						end
+					# when /suppliers_id/	
+					# 	if tblord == "purord"
+					# 		command_c["purord_supplier_id"] = val
+					# 		payments_id = ActiveRecord::Base.connection.select_value("select payments_id  from suppliers where id = #{val}")
+					# 		command_c["purord_payment_id_purord"] = payments_id
+					# 	else
+					# 		command_c["#{tblord}_#{key.sub("s_id","_id")}"] = val
+					# 	end
 					when /opeitms_id/
 						opeitm = ActiveRecord::Base.connection.select_one("select * from opeitms where id = #{val}")
 						command_c["#{tblord}_#{key.sub("s_id","_id")}"] = val
@@ -189,14 +194,14 @@ module MkordinstLib
 			command_c["#{tblord}_gno"] = "" ### 
 			command_c["#{tblord}_id"] = command_c["id"] = ArelCtl.proc_get_nextval("#{tblord}s_seq")
 			command_c[:sio_classname] = "_add_proc_mkprdpurord_"
-			reqparams = {}  ###mkprdpurordsをリセット
-			reqparams["seqno"] = seqno.dup
-			reqparams["mkprdpurords_id"] = @mkprdpurords_id 
+			setParams = {}  ###mkprdpurordsをリセット
+			setParams["seqno"] = seqno.dup
+			setParams["mkprdpurords_id"] = @mkprdpurords_id 
 			###
 			blk.proc_create_src_tbl(command_c)
-			reqparams = blk.proc_private_aud_rec(reqparams,command_c)
-			prdpur_tbldata = reqparams["tbldata"].dup
-			gantt = reqparams["gantt"].dup
+			setParams = blk.proc_private_aud_rec(setParams,command_c)
+			prdpur_tbldata = setParams["tbldata"].dup
+			gantt = setParams["gantt"].dup
 			if gantt["key"] == "00000" and gantt["orgtblid"] != gantt["tblid"]
 				debugger
 			end
@@ -266,26 +271,28 @@ module MkordinstLib
 			Shipment.proc_lotstkhists_in_out("in",stkinout)
 
 			if gantt["qty_handover"] > 0   ###不足分のみ手配
-				reqparams["segment"]  = "mkschs"   ###構成展開
-				reqparams["gantt"] = gantt.dup
+				setParams["segment"]  = "mkschs"   ###構成展開
+				setParams["gantt"] = gantt.dup
 				###mkschで子部品の出庫、消費も行う		
-				reqparams["remark"]  = "MkordinstLib line:#{__LINE__}  構成展開"   ###構成展開
-				processreqs_id ,reqparams = ArelCtl.proc_processreqs_add reqparams
-				CreateOtherTableRecordJob.perform_later(reqparams["seqno"][0])
-				seqno = reqparams["seqno"].dup
+				setParams["remark"]  = "MkordinstLib line:#{__LINE__}  構成展開"   ###構成展開
+				processreqs_id ,setParams = ArelCtl.proc_processreqs_add setParams
+				CreateOtherTableRecordJob.perform_later(setParams["seqno"][0])
+				seqno = setParams["seqno"].dup
 			end
 		end
 		rescue
 			ActiveRecord::Base.connection.rollback_db_transaction()
-			command_c[:sio_result_f] = "9"  ##9:error
-			command_c[:sio_message_contents] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
-			command_c[:sio_errline] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
+			if command_c
+				command_c[:sio_result_f] = "9"  ##9:error
+				command_c[:sio_message_contents] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
+				command_c[:sio_errline] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
+				Rails.logger.debug"  command_c: #{command_c} "
+			end
 			Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
 		  	Rails.logger.debug"error class #{self} : $!: #{$!} "
-		  	Rails.logger.debug"  command_c: #{command_c} "
   		else
-			if setParams.size > 0   ###画面からの時はperform_later(setParams["seqno"][0])　seqnoは一つのみ。次の処理がないときはreqparams=nil
-				if setParams["seqno"].size > 0
+			if setParams.size > 0   ###画面からの時はperform_later(setParams["seqno"][0])　seqnoは一つのみ。
+				if setParams["seqno"].size > 0 and command_c
 					if command_c["mkord_runtime"] 
 						CreateOtherTableRecordJob.set(wait: command_c["mkord_runtime"].to_f.hours).perform_later(setParams["seqno"][0])
 					else	
@@ -413,7 +420,8 @@ module MkordinstLib
 	
 	def proc_mkbillinsts reqparams,mkinstparams  ###xxxschsからxxxordsを作成する。 trngantts:xxxschs= 1:1
 		### mkprdpurordsではxno_xxxschはセットしない。schsをまとめたり分割したりする機能のため
-		@tbldata = reqparams["tbldata"]  ###tbldata -->テーブル項目　　viewではない。
+		setParams = reqparams.dup
+		@tbldata = reqparams["tbldata"].dup  ###tbldata -->テーブル項目　　viewではない。
 		@mkbillinsts_id = reqparams["mkbillinsts_id"]   
 		add_tbl = "" 
 		strsql = "select ord.bills_id,ord.duedate,max(ord.saledate) max_saledate,min(ord.saledate) min_saledate,
@@ -487,10 +495,10 @@ module MkordinstLib
 			gantt = {}
 			gantt["orgtblname"] = gantt["paretblname"] = gantt["tblname"] = "billinsts"
 			gantt["orgtblid"] = gantt["paretblid"] =  gantt["tblid"] = command_c["id"]
-			reqparams["gantt"] = gantt.dup		
+			setParams["gantt"] = gantt.dup		
 			blk.proc_create_src_tbl(command_c)
 			blk.proc_private_aud_rec({},command_c)
-			CreateOtherTableRecordJob.perform_later(reqparams["seqno"][0])			
+			CreateOtherTableRecordJob.perform_later(setParams["seqno"][0])			
 			mkinstarams[:incnt] += inst["incnt"].to_f
 			mkinstparams[:outcnt] += 1
 			billordsql = "select ord.id,ord.amt from billords ord  " +  strjoin + strwhere[0..-7]
@@ -510,7 +518,7 @@ module MkordinstLib
 		  	Rails.logger.debug"  command_c: #{command_c} "
   		else
 			ActiveRecord::Base.connection.commit_db_transaction()
-			if setParams.size > 0   ###画面からの時はperform_later(setParams["seqno"][0])　seqnoは一つのみ。次の処理がないときはreqparams=nil
+			if setParams.size > 0   ###画面からの時はperform_later(setParams["seqno"][0])　seqnoは一つのみ。次の処理がないときはsetParams["seqno"][0].nil
 				if setParams["seqno"].size > 0
 					if command_c["mkord_runtime"] 
 						CreateOtherTableRecordJob.set(wait: command_c["mkord_runtime"].to_f.hours).perform_later(setParams["seqno"][0])
@@ -523,5 +531,4 @@ module MkordinstLib
 		# ###未処理－－＞最大発注量の分割
 		return mkordparams
 	end	
-
 end

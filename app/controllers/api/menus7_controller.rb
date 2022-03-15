@@ -52,11 +52,10 @@ module Api
 
             when "check_request"  
                 reqparams = params.dup
-                reqparams[:parse_lineddata] = JSON.parse(params[:linedata])
-                JSON.parse(params[:checkcode]).each do |sfd,checkcode|
+                reqparams[:parse_linedata] = JSON.parse(params[:linedata])
+                JSON.parse(params[:checkCode]).each do |sfd,checkcode|
                   reqparams = CtlFields.proc_judge_check_code reqparams,sfd,checkcode
                 end
-               ### ?????????? reqparams[:parse_linedata] = {}
                 render json: {:params=>reqparams}   
 
             when "confirm7"

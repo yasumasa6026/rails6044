@@ -129,11 +129,11 @@ extend self
             	Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
           		Rails.logger.debug"error class #{self} : $!: #{$!} "
           		Rails.logger.debug"  params: #{params} "
-				status = "500"
+				status = 500
 				errmsg = $!
       	else
 			if noerror
-				status = "200"
+				status = 200
 				ergmsg = ""
 				ActiveRecord::Base.connection.commit_db_transaction()
 			end
@@ -874,10 +874,9 @@ extend self
 					chks = ActiveRecord::Base.connection.select_all(strsql)
 					chks.each do |chkrec|
 						if chkfields[chkrec["column_name"]+delm].nil? 
-							chkfields[chkrec["column_name"]+delm] = 1
+							chkfields[chkrec["column_name"]+delm] = chkrec["table_name"]
 						else
-							chkfields[chkrec["column_name"]+delm] += 1
-							@messages << "<p>step 1-0: view  #{chkrec["table_name"]}.#{chkrec["column_name"]} duplicate </p>"
+							@messages << "<p>step 1-0: view #{chkfields[chkrec["column_name"]+delm]}:#{chkrec["table_name"]}.#{chkrec["column_name"]} duplicate </p>"
 						end
 					end
 					if chks.empty?
@@ -900,24 +899,14 @@ extend self
 		 				where  s.selection = '1' and
 							s.expiredate > current_date
 		&
-		ActiveRecord::Base.connection.select_values(strsql).each do |view|
-			viewname = "r_"+view.split("_")[0]+"s"
-			tblname = view.split("_")[0]+"s"
-			##if  view =~ /_id/
-			##	if chkfields[viewname].nil? and "r_#{tbl}" != viewname
-			##		@messages << "<p> step 0 : view  #{viewname} not exists field #{view} </p>"
-			##	end
-			##else
-				if  chkfields[view]
-					if  chkfields[view] == 1
-						chkfields[view] += 1
-					else
-						@messages << "<p>step 1-2: view field #{view} duplicate </p>"
-					end
-				else
-									
-				end
-			##end
+		chkfields = {}
+		ActiveRecord::Base.connection.select_values(strsql).each do |sfd|
+			if  chkfields[sfd]
+				chkfields[sfd] += 1
+				@messages << "<p>step 1-2: view field #{sfd} duplicate </p>"
+			else
+				chkfields[sfd] = 1								
+			end
 		end
 	end
 

@@ -53,8 +53,8 @@ class ImportexcelController < ApplicationController
         jparams = {}
         idx = 0
 
-  		fetchcode = YupSchema.proc_create_fetchcode screen.screenCode ##
-        checkcode  = YupSchema.proc_create_checkcode screen.screenCode   
+  		fetchCode = YupSchema.proc_create_fetchCode screen.screenCode ##
+        checkCode  = YupSchema.proc_create_checkCode screen.screenCode   
         tblid = screen.screenCode.split("_")[1].chop + "_id"
         lines = params[:importData][:importexcel]
         lines.each do |linedata|
@@ -71,17 +71,17 @@ class ImportexcelController < ApplicationController
                 linedata.each do |field,val| ###confirmはfunction batchcheckで項目追加している。
                         ##エラーと最初のレコード(confirm="confirm")のname項目行を除く
                     jparams[:parse_linedata]["confirm"] = true
-                    if fetchcode[field] 
-                        jparams[:fetchcode] = %Q%{"#{field}":"#{val}"}%
-                        jparams[:fetchview] = fetchcode[field]
+                    if fetchCode[field] 
+                        jparams[:fetchCode] = %Q%{"#{field}":"#{val}"}%
+                        jparams[:fetchview] = fetchCode[field]
                         jparams = CtlFields.proc_chk_fetch_rec jparams
                         if jparams[:err].nil?
                                 jparams[:fetch_data].each do |fd,vl|
                                     jparams[:parse_linedata][fd] = vl
                                 end  
-                                if checkcode[field] and val != ""
-                                    jparams["checkcode"] = %Q%{"#{field}":"#{val}"}%
-                                    jparams = CtlFields.proc_judge_check_code jparams,field,checkcode[field]
+                                if checkCode[field] and val != ""
+                                    jparams["checkCode"] = %Q%{"#{field}":"#{val}"}%
+                                    jparams = CtlFields.proc_judge_check_code jparams,field,checkCode[field]
                                     if jparams[:err]
                                         importError = true
                                         jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
