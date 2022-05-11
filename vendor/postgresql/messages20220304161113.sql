@@ -1,2 +1,0 @@
- --- create view script   r_opeitms 
- --- create view script   r_nditms 

@@ -1,2 +1,0 @@
- --- create view script   r_suppliers 
- --- create view script   r_supplierwhs 

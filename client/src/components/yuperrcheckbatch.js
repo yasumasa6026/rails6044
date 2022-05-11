@@ -9,6 +9,8 @@ export  function yupErrCheckBatch(lines,screenCode)
     let importexcel = []
     let importErrorCheckMaster = false
     let tblnamechop = screenCode.split("_")[1].slice(0, -1)
+    let batchField = ""
+    let autoAddFields = {}
     lines.map((line,inx) => {
         if(["add","update","delete"].includes(line["aud"])){
             try{
@@ -16,27 +18,32 @@ export  function yupErrCheckBatch(lines,screenCode)
                 let row = {}
                 Object.keys(line).map((fd)=>{
                      if(screenSchema.fields[fd]){  //対象は入力項目のみ
-                         row[fd] = line[fd]
-                         }
-                         return null
+                        batchField = fd
+                        row ={...row,[fd]:line[fd]}
+                        }
+                        return row
                      }
                 )
                 screenSchema.validateSync(row)
-                row = dataCheck7(screenSchema,row) //row:_gridmessageを含む
+                line[`${tblnamechop}_confirm_gridmessage`] = ""
                 Object.keys(screenSchema.fields).map((fd)=>{  // line:_gridmessageを含まない
+                    batchField = fd
+                    row = dataCheck7(screenSchema,fd,row) //row:_gridmessageを含む
                     if(row[`${fd}_gridmessage`] !== "ok"){
                           line[`${fd}_gridmessage`] = row[`${fd}_gridmessage`]
-                          line[`${tblnamechop}_confirm_gridmessage`] = `x error ${fd}`
+                          line[`${tblnamechop}_confirm_gridmessage`] = `x error ${fd} field:${fd} ` + line[`${tblnamechop}_confirm_gridmessage`]
                           importErrorCheckMaster = true
+                          line[`confirm`] = false
+                          line = {...line,[fd]:row[fd]}
                         }else{
-                            line = onBlurFunc7(screenCode,line,fd)
+                            line,autoAddFields = onBlurFunc7(screenCode,row,fd)
                         }
-                        return null
+                        return line
                     }
                 )
             }      
             catch(err){  //jsonにはxxxx_gridmessageはない。
-                line[`${tblnamechop}_confirm_gridmessage`] = `y error ${err}`
+                line[`${tblnamechop}_confirm_gridmessage`] = `y error ${err} field:${batchField} ` + line[`${tblnamechop}_confirm_gridmessage`]
                 line[`confirm`] = false
                 importErrorCheckMaster = true
             }

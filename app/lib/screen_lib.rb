@@ -14,7 +14,7 @@ module ScreenLib
 				p "add person to his or her email "
 				raise   ### 別画面に移動する　後で対応
 			end
-			if params[:screenCode]
+			if params[:screenCode] and params[:req] != "import"
 				proc_create_grid_editable_columns_info(params)
 			end
 		end
@@ -61,7 +61,9 @@ module ScreenLib
 					select_fields = 	select_fields + 
 											case i["screenfield_type"]
 											when "timestamp(6)" 
-												%Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd hh24:mi:ss') #{i["pobject_code_sfd"]}% + " ,"
+												%Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd hh24:mi') #{i["pobject_code_sfd"]}% + " ,"
+											when "date" 
+												%Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd ') #{i["pobject_code_sfd"]}% + " ,"
 											else 												
 												i["pobject_code_sfd"] + " ,"
 											end		
@@ -89,7 +91,7 @@ module ScreenLib
 									:width => if i["screenfield_width"].to_i < 80 then 80 else  i["screenfield_width"].to_i end,
 									:className=>if  (req==="inlineedit7" or req==="inlineadd7") and 
 													(i["screenfield_editable"] === "1" or i["screenfield_editable"] === "2" or i["screenfield_editable"] === "3") 
-														if i["screenfield_indisp"] === "1"  ###必須はyupでも
+														if  i["screenfield_indisp"] === "1" or i["screenfield_indisp"] === "2" ###必須はyupでも
 															case i["screenfield_type"] 
 															when "select"
 																	"SelectEditableRequire"
@@ -148,7 +150,7 @@ module ScreenLib
 									sort_info[:default] = i["screen_strorder"]
 								end	
 				 	end
-					if  i["screenfield_type"] == "select"
+					if  i["screenfield_type"] == "select" and i["screenfield_hideflg"] == "0"
 						if i["screenfield_edoptvalue"] 
 							if i["screenfield_edoptvalue"] =~ /\:/
 								dropdownlist[i["pobject_code_sfd"]] = i["screenfield_edoptvalue"]
@@ -175,6 +177,7 @@ module ScreenLib
 				@grid_columns_info["fetch_check"] = {}
 				@grid_columns_info["fetch_check"]["fetchCode"] = YupSchema.proc_create_fetchCode   screenCode
 				@grid_columns_info["fetch_check"]["checkCode"] = YupSchema.proc_create_checkCode   screenCode
+				@grid_columns_info["fetch_data"] = {}
 
 				dropdownlist.each do |key,val|
 					tmpval="["
@@ -186,7 +189,8 @@ module ScreenLib
 				@grid_columns_info["dropdownlist"] = dropdownlist
 				if sort_info[:default]
 					ary_select_fields = select_fields.split(',')
-					sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
+					fields = CtlFields::CtlFieldsClass.new()
+					sort_info = fields.proc_detail_check_strorder sort_info,ary_select_fields
 				end	
 				@grid_columns_info["init_where_info"] = init_where_info
 				@grid_columns_info["sort_info"] = sort_info	
@@ -355,25 +359,24 @@ module ScreenLib
 			return pagedata,setParams 
 		end	
 
-		def proc_add_empty_data(params) ###新規追加画面の初期値
+		def proc_add_empty_data(params) ###新規追加画面の画面の初期値
 			num = params[:pageSize].to_f
 			setParams = params.dup
-			columns_info = grid_columns_info["columns_info"]
 			pagedata = []
-			until num <= 0 do
+			until num <= 0 do   ###初期値セット　参考　ctl_fields.get_fetch_rec onblurfunc.js
 				temp ={}
-				columns_info.each do |cell|
-					temp[cell[:accessor]] = ""
+				grid_columns_info["columns_info"].each do |cell|
 					next if cell[:accessor] == "id" 
 					next if cell[:accessor] =~ /_id/
-					if cell[:className] =~ /Editable/
+					temp[cell[:accessor]] = ""
+					if cell[:className] =~ /^Editable/
 						if cell[:className] =~ /Numeric/
-							temp[cell[:accessor]] = "0"
+							temp[cell[:accessor]] = "0" ###初期表示
 						end
-						case cell[:accessor]
-						when /_expiredate/
+						case cell[:accessor]   ###初期表示
+						when /_expiredate|_cmpldate/
 							temp[cell[:accessor]] = "2099-12-31"
-						when /_isudate|_rcptdate|_cmpldate/
+						when /_isudate|_rcptdate/
 							temp[cell[:accessor]] = Time.now.strftime("%Y/%m/%d")
 						when /pobject_objecttype_tbl/
 							temp[cell[:accessor]] = "tbl"
@@ -385,6 +388,7 @@ module ScreenLib
 							temp[cell[:accessor]] = $person_code_chrg
 						when /prjno_code/	
 							temp[cell[:accessor]] = "0"
+						else
 						end
 					end
 					case screenCode
@@ -397,10 +401,15 @@ module ScreenLib
 						when /mkprdpurord_starttime_/
 							temp[cell[:accessor]] = "2000/01/01"  
 						end
-					when /audfld_pobjects|r_fieldcodes/
+					when /fieldcodes/
 						case cell[:accessor]
 						when /pobject_objecttype/	
-						temp[cell[:accessor]] = "tbl_field"
+							temp[cell[:accessor]] = "tbl_field"
+						end
+					when /screenfields/
+						case cell[:accessor]
+						when /pobject_objecttype_sfd/	
+							temp[cell[:accessor]] = "view_field"
 						end
 					end
 				end	
@@ -455,7 +464,7 @@ module ScreenLib
 						contents = []
 						contents << i["pobject_code_sfd"] ###
 						contents << i["screenfield_name"] ###
-						contents <<  if i["screenfield_indisp"] == "1"
+						contents <<  if i["screenfield_indisp"] === "1" or i["screenfield_indisp"] === "2"
 							 			"00bfff"  ##rgb(125, 177, 245)
 									else
 										if i["screenfield_editable"] == "1"	
@@ -533,7 +542,6 @@ module ScreenLib
 							:className=>"ffffff",
 							}
 				ActiveRecord::Base.connection.select_all(sqlstr).each_with_index do |i,cnt|		
-					next if i["screenfield_hideflg"] == "1" 		
 					select_fields = 	select_fields + 	i["pobject_code_sfd"] + ','
 					if 	nameToCode[i["screenfield_name"]].nil?   ###nameToCode excelから取り込むときの表示文字からテーブル項目名への変換テーブル
 						nameToCode[i["screenfield_name"]] = i["pobject_code_sfd"]
@@ -548,9 +556,7 @@ module ScreenLib
 									:width => i["screenfield_width"].to_i,
 									:id=>"#{i["screenfield_id"]}",
 									:style=>{:textAlign=>if i["screenfield_type"] == "numeric" then "right" else "left" end}, 
-									:className=>if ((req==="editabletablereq" or req==="inlineaddreq") and i["screenfield_editable"] === "1") or
-													(req==="editabletablereq"  and i["screenfield_editable"] === "2") or
-													( req==="inlineaddreq" and i["screenfield_editable"] === "3") 
+									:className=>if req == "import"
 													if  i["screenfield_type"] == "select" 
 															"00bfff"
 													else
@@ -560,7 +566,11 @@ module ScreenLib
 															if	(i["screenfield_indisp"] === "1" or i["screenfield_indisp"] === "2")
 																		"00bfff"
 															else
-																		"87ceeb"
+																if i["screenfield_editable"] == "1"	
+																	"87ceeb"  ## rgb(200, 220, 245);
+																else
+																	"ffffff"
+																end
 															end
 														end
 													end				  
@@ -568,9 +578,7 @@ module ScreenLib
 																		"ffffff"
 												end	
 									}
-					if ((req==="editabletablereq" or req==="inlineaddreq") and i["screenfield_editable"] === "1") or
-						(req==="editabletablereq"  and i["screenfield_editable"] === "2") or
-						( req==="inlineaddreq" and i["screenfield_editable"] === "3") 
+					if req == "import" 
 						columns_info << {:Header=>"#{i["screenfield_name"]}_gridmessage",
 										:accessor=>"#{i["pobject_code_sfd"]}_gridmessage",
 										:id=>"#{i["screenfield_id"]}_gridmessage",
@@ -601,13 +609,14 @@ module ScreenLib
 				fetch_check[:checkCode]  = YupSchema.proc_create_checkCode screenCode   
 				if sort_info[:default]
 					ary_select_fields = select_fields.split(',')
-					sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
+					fields = CtlFields::CtlFieldsClass.new()
+					sort_info = fields.proc_detail_check_strorder sort_info,ary_select_fields
 				end	 
 				page_info[:screenwidth] = screenwidth	
 				if gridmessages_fields.size > 1
 					select_fields << gridmessages_fields
 				end
-				upload_columns_info = [columns_info,page_info,init_where_info,select_fields.chop,fetc_check,dropdownlist,sort_info,nameToCode]
+				upload_columns_info = [columns_info,page_info,init_where_info,select_fields.chop,fetch_check,dropdownlist,sort_info,nameToCode]
 			end
 			return upload_columns_info
 		end
@@ -627,21 +636,29 @@ module ScreenLib
 						setParams[:parse_linedata]["aud"]= "add" 
 					end  
 					setParams["fetchview"] = yup_fetch_code[field]
-					setParams = CtlFields.proc_chk_fetch_rec setParams  
+					fields = CtlFields::CtlFieldsClass.new()
+					setParams = fields.proc_chk_fetch_rec setParams  
 					if setParams[:err] 
 				  		setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
 				  		setParams[:parse_linedata][:confirm] = false 
 				  		setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
+						  if setParams[:parse_linedata][:errPath].nil? 
+							  setParams[:parse_linedata][:errPath] = [field+"_gridmessage"]
+						  end
 				  		break
 					end
 			  	end
 			 	if setParams[:err].nil?
 					if yup_check_code[field] 
-				  		setParams = CtlFields.proc_judge_check_code setParams,field,yup_check_code[field]  
+						fields = CtlFields::CtlFieldsClass.new()
+				  		setParams = fields.proc_judge_check_code setParams,field,yup_check_code[field]  
 				  		if setParams[:err]
 							setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
 							setParams[:parse_linedata][:confirm] = false 
 							setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
+							if setParams[:parse_linedata][:errPath].nil? 
+								setParams[:parse_linedata][:errPath] = [field+"_gridmessage"]
+							end
 							break
 				  		end
 					end
@@ -654,21 +671,28 @@ module ScreenLib
 			  	parse_linedata.each do |key,val|
 					if key.to_s =~ /_id/ and val == ""   and tblnamechop == key.to_s.split("_")[0] and
 						key.to_s !~ /_gridmessage$/ and  key.to_s !~ /_person_id_upd$/ and  key.to_s != "#{tblnamechop}_id"
-						setParams[:parse_linedata][:confirm_gridmessage] = " key #{key.to_s} missing"
-						setParams[:parse_linedata][:confirm] = false 
-						setParams[:err] = "error  key #{key.to_s} missing"
-						break
+							setParams[:parse_linedata][:confirm_gridmessage] = " key #{key.to_s} missing"
+							setParams[:parse_linedata][:confirm] = false 
+							setParams[:err] = "error  key #{key.to_s} missing"
+							if setParams[:parse_linedata][:errPath].nil? 
+								setParams[:parse_linedata][:errPath] = [key+"_gridmessage"]
+							end
+							break
 				  	else
 						command_c[key] = setParams[:parse_linedata][key]
 				  	end
 			  	end 
 			  	### セカンドkeyのユニークチェック
-			 	err = CtlFields.proc_blkuky_check screenCode.split("_")[1],setParams[:parse_linedata]
+				fields = CtlFields::CtlFieldsClass.new()
+			 	err = fields.proc_blkuky_check screenCode.split("_")[1],setParams[:parse_linedata]
 			  	err.each do |key,recs|
 					recs.each do |rec|
 						if command_c["id"] != rec["id"]
-							setParams[:err] = " error #{key} already exist "
+							setParams[:err] = " error #{key} already exist line:#{setParams[:index]} "
 							setParams[:parse_linedata][("confirm_gridmessage").to_sym] = setParams[:err] 
+							if setParams[:parse_linedata][:errPath].nil? 
+								setParams[:parse_linedata][:errPath] = [key+"_gridmessage"]
+							end
 							setParams[:parse_linedata][:confirm] = false 
 						end  
 					end	
@@ -687,12 +711,12 @@ module ScreenLib
 			  end  
 			  seqchkfields[setParams[:parse_linedata]["pobject_code_sfd"]] = setParams[:parse_linedata]["screenfield_seqno"]
 			  if (seqchkfields["screenfield_starttime"]||="99999") <  (seqchkfields["screenfield_duedate"]||="0")
-				setParams[:err] =  " starttime seqno > duedate seqno  "
+				setParams[:err] =  " starttime seqno > duedate seqno  line:#{setParams[:index]} "
 				setParams[:parse_linedata][("confirm_gridmessage").to_sym] = setParams[:err] 
 				setParams[:parse_linedata][:confirm] = false 
 			  else
 				if (seqchkfields["screenfield_qty_case"]||="99999") <  (seqchkfields["screenfield_qty"]||="0")
-					setParams[:err] =  " qty_case seqno > qty seqno  "  ###画面表示順　　包装単位の計算ため
+					setParams[:err] =  " qty_case seqno > qty seqno  line:#{setParams[:index]} "  ###画面表示順　　包装単位の計算ため
 					setParams[:parse_linedata][("confirm_gridmessage").to_sym] = setParams[:err] 
 					setParams[:parse_linedata][:confirm] = false 
 				end
@@ -701,9 +725,9 @@ module ScreenLib
 			if  setParams[:err].nil?
 			  if command_c["id"] == "" or  command_c["id"].nil?   ### add画面で同一lineで二度"enter"を押されたとき errorにしない
 				  ###  追加後エラーに気づいたときエラーしないほうが，操作性がよい
-				  command_c[:sio_classname] = "_add_grid_line_data"
+				  command_c[:sio_classname] = "_add_grid_linedata"
 			  else         
-				  command_c[:sio_classname] = "_edit_update_grid_line_data"
+				  command_c[:sio_classname] = "_edit_update_grid_linedata"
 			  end
 			  blk.proc_create_src_tbl(command_c) ##
 			  setParams,command_c = blk.proc_add_update_table(setParams,command_c)

@@ -93,7 +93,7 @@ ${'' /* These styles are required for a horizontaly scrollable table overflow */
       touch-action :none;
 
       &.isResizing {
-        background: red;
+        background-color: red;
       }
     }
   }
@@ -116,7 +116,17 @@ ${'' /* These styles are required for a horizontaly scrollable table overflow */
 .Numeric {text-align: right}
 
 .error {
-  background: red;
+  background-color: red;
 }
 
+input[type="checkbox"] { width:100%;
+  height:60%; 
+ }
+
+  input[type="checkbox"].error { width:1%;
+    height:1%;  }
+
+label.error {width:80%;
+    background-color: #FF0000;
+  }
 `

@@ -1,1 +1,0 @@
- --- create view script   r_workplaces 

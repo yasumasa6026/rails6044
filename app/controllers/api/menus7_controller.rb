@@ -10,6 +10,7 @@ module Api
             $person_code_chrg = ActiveRecord::Base.connection.select_value(strsql)
  
             screen = ScreenLib::ScreenClass.new(params)
+            fields = CtlFields::CtlFieldsClass.new()
             #####    
             case params[:req] 
             when 'menureq'   ###大項目
@@ -44,22 +45,21 @@ module Api
               render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}               
                 
             when "fetch_request"
-                reqparams = params.dup   ### CtlFields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
+                reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
                 reqparams[:parse_linedata] = JSON.parse(params[:linedata])
-                reqparams = CtlFields.proc_chk_fetch_rec reqparams
-                ###xparams[:parse_linedata] = {}
+                reqparams = fields.proc_chk_fetch_rec reqparams
                 render json: {:params=>reqparams}   
 
             when "check_request"  
                 reqparams = params.dup
                 reqparams[:parse_linedata] = JSON.parse(params[:linedata])
                 JSON.parse(params[:checkCode]).each do |sfd,checkcode|
-                  reqparams = CtlFields.proc_judge_check_code reqparams,sfd,checkcode
+                  reqparams = fields.proc_judge_check_code reqparams,sfd,checkcode
                 end
                 render json: {:params=>reqparams}   
 
             when "confirm7"
-                reqparams = params.dup   ### CtlFields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
+                reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
                 reqparams[:parse_linedata] = JSON.parse(params[:linedata])
                 reqparams = screen.proc_confirm_screen(reqparams)
                 render json: {:linedata=> reqparams[:parse_linedata]}

@@ -522,7 +522,7 @@ extend self
 		command_r["pobject_objecttype"] = "view_field"
 		command_r["pobject_expiredate"] = '2099/12/31'
 		blk.proc_create_src_tbl(command_c) ##
-		setParams,command_c = blk.proc_private_aud_rec({},command_c)
+		setParams = blk.proc_private_aud_rec({},command_c)
 		if command_r[:sio_result_f] ==   "9"
 		 	@messages <<  "error  update_pobject_record #{screenfield}\n"
 			 @messages  << command_r[:sio_message_contents][0..200] + "\n"
@@ -663,7 +663,7 @@ extend self
 												end
 				
 		blk.proc_create_src_tbl(command_r) ##
-		setParams,command_c = blk.proc_private_aud_rec({},command_r)
+		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r[:sio_result_f] ==   "9"
 				@messages  << command_r[:sio_message_contents][0..200] + "\n"
 			 	@messages  << command_r[:sio_errline][0..200] 
@@ -867,7 +867,7 @@ extend self
 										 ON  cls.oid = att.attrelid
 										AND  att.attnum > 0
 								 WHERE       cls.relkind IN ('r','v','m')
-								   AND       nms.nspname = 'public'
+								   AND       nms.nspname = '#{ActiveRecord::Base.connection_config[:schema_search_path]}'
 								   and att.attname  not like '%_upd'	and att.attname  != 'id' 
 									and cls.relname = 'r_#{chktbl}'
 								"
@@ -910,16 +910,13 @@ extend self
 		end
 	end
 
-	def createUniqueIndex params
+	def proc_createUniqueIndex params
 		@messages = [] 
 		@sql = ""
 		ukey = {}
 		params["data"].each do |tmp|
 			val = JSON.parse(tmp)
-			next if val["blkuky_expiredate"] == ""
 			next if val["blkuky_expiredate"].to_date < Time.now
-			next if val["pobject_code_tbl"] == ""
-			next if val["blkuky_grp"] == ""
 			if ukey[val["pobject_code_tbl"]].nil?
 				ukey[val["pobject_code_tbl"]] = {}
 			end	
@@ -949,8 +946,8 @@ extend self
 	def chk_constraint tblname,grpname
 		strsql = %Q%SELECT table_name,constraint_name
 					FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
-					WHERE TABLE_SCHEMA = 'public' and table_name = '#{tblname}'
-					and constraint_name = '#{tblname}_uky#{grpname}'
+					WHERE TABLE_SCHEMA = '#{ActiveRecord::Base.connection_config[:schema_search_path]}' 
+					and table_name = '#{tblname}' and constraint_name = '#{tblname}_uky#{grpname}'
 					ORDER BY CONSTRAINT_CATALOG, CONSTRAINT_SCHEMA, CONSTRAINT_NAME%
 		chkrecs = ActiveRecord::Base.connection.select_one(strsql)
 		constraint_exists = nil
@@ -966,13 +963,13 @@ extend self
 	end	
 
 	def	create_uniq_constraint tblname,grpname,codes
-		 @sql << %Q%ALTER TABLE public.#{tblname}
+		 @sql << %Q%ALTER TABLE #{tblname}
 				ADD CONSTRAINT #{tblname}_uky#{grpname} UNIQUE(#{codes.join(",")});\n%
 	end
 	
 	
 	def	drop_constraint tblname,grpname,codes
-		 @sql << %Q%ALTER TABLE public.#{tblname}
+		 @sql << %Q%ALTER TABLE #{tblname}
 				drop CONSTRAINT #{tblname}_uky#{grpname} cascade;\n%
 	end
 

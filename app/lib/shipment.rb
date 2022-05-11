@@ -100,7 +100,7 @@ module Shipment
 						command_c[new_key] = rec[key]
 					end
 				end
-				xxxxxx
+
 				strsql  = %Q%select * from r_outstks  where  id = #{rec["shpinst_outstk_id"]} %
 				r_outstks  = ActiveRecord::Base.connection.select_one(strsql)  ###更新後のr_instks
 				strsql = %Q&select id from shelfnos where locas_id_shelfno = #{rec["shpinst_loca_id_to"]}
@@ -120,7 +120,7 @@ module Shipment
 				command_all << command_c
 				outcnt += 1
 				blk.proc_create_src_tbl(command_c) ##
-				setParams,command_c = blk.proc_private_aud_rec(params,command_c)
+				setParams = blk.proc_private_aud_rec(params,command_c)
 			end  
 		rescue
 			ActiveRecord::Base.connection.rollback_db_transaction()
@@ -256,8 +256,8 @@ module Shipment
 		gantt = reqparams["gantt"]
 		child_opeitm = reqparams["opeitm"]
 		tblnamechop = yield.chop  
-		begin
-			ActiveRecord::Base.connection.begin_db_transaction()
+		##begin
+			###ActiveRecord::Base.connection.begin_db_transaction()
 			blk = RorBlkCtl::BlkClass.new("r_#{tblnamechop}s")
 			command_c = blk.command_init
 			if child["shelfno_id_to"] != tbldata["shelfnos_id_fm"]  ###子部品の保管場所!=shelfnos_id_fm親の作業場所
@@ -266,8 +266,8 @@ module Shipment
 				command_c["#{tblnamechop}_isudate"] = Time.now
 				command_c["#{tblnamechop}_shelfno_id_fm"] = child["shelfnos_id_fm"] ###自身の保管先から出庫
 				command_c["#{tblnamechop}_shelfno_id_to"] = tbldata["shelfnos_id_fm"]  ###親の作業場所へ納品
-				command_c["#{tblnamechop}_duedate"] = tbldata["starttime"] - 1   ###稼働日考慮
-				command_c["#{tblnamechop}_depdate"] = tbldata["starttime"] - 2
+				command_c["#{tblnamechop}_duedate"] = (tbldata["starttime"].to_date - 1).strftime("%Y-%m-%d %H:%M:%S")   ###稼働日考慮
+				command_c["#{tblnamechop}_depdate"] = (tbldata["starttime"].to_date - 2).strftime("%Y-%m-%d %H:%M:%S")
 				command_c["#{tblnamechop}_gno"] = tbldata["sno"] 
 				command_c["#{tblnamechop}_transport_id"] = 0 
 				command_c["#{tblnamechop}_paretblname"] = gantt["tblname"] 
@@ -325,7 +325,7 @@ module Shipment
 				end		
 
 				blk.proc_create_src_tbl(command_c) ##
-				setParams,command_c = blk.proc_private_aud_rec(reqparams,command_c)
+				setParams = blk.proc_private_aud_rec(reqparams,command_c)
 
 				stkinout["tblname"] = yield
 				stkinout["tblid"] = command_c["id"]
@@ -339,19 +339,17 @@ module Shipment
 				stkinout["starttime"] = command_c[tblnamechop+"_depdate"]
 				case tblnamechop
 				when "shpsch"
-					stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_fm"]   ###出
-					stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfno_id_fm"]   
+					stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfno_id_fm"]   ###出
 					stkinout = proc_lotstkhists_in_out("out",stkinout)
 					stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
-					stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]   ###入り
+					stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfno_id_to"]   ###入り
 					stkinout = proc_lotstkhists_in_out("in",stkinout)
 				when "shpord"
 					stkinout["qty_sch"] = -stkinout["qty"]
-					stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_fm"]
-					stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfno_id_fm"]   
+					stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfno_id_fm"]
 					stkinout = proc_lotstkhists_in_out("out",stkinout)
 					stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
-					stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]
+					stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfno_id_to"]
 					stkinout = proc_lotstkhists_in_out("in",stkinout)
 				when "shpinst"
 					if stkinout["units_id"] == stkinout["units_id_case_shp"]
@@ -367,7 +365,11 @@ module Shipment
 					stkinout["qty"] = -stkinout["qty_stk"]
 					stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
 					stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]
-					stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfno_id_to"]
+					if stkinout["units_id"] == stkinout["units_id_case_shp"]
+						stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfno_id_fm"]  
+					else   ###瓶毎、リール毎移動
+						stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfno_id_to"]
+					end
 					stkinout = proc_lotstkhists_in_out("in",stkinout)
 				end	
 
@@ -389,43 +391,43 @@ module Shipment
 					case tblnamechop
 					when "shpsch"
 						stkinout["qty_sch"] = tbldata["qty_sch"].to_f / bqty * stkinout["qty_sch"] 
-						stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfnos_id_fm"]
+						stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfnos_id_fm"]
 						proc_check_inoutlotstk("out",stkinout)	
 						stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
-						stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfnos_id_to"]
+						stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfnos_id_to"]
 						proc_check_inoutlotstk("in",stkinout)
 					when "shpord"
 						stkinout["qty"] = tbldata["qty"].to_f / bqty * stkinout["qty"]
 						stkinout["qty_sch"] = -stkinout["qty"]
-						stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfnos_id_fm"]
+						stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfnos_id_fm"]
 						proc_check_inoutlotstk("out",stkinout)
 						stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
-						stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfnos_id_to"]
+						stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfnos_id_to"]
 						proc_check_inoutlotstk("in",stkinout)
 					when "shpinst"
 						stkinout["qty_stk"] = tbldata["qty_stk"].to_f / bqty * stkinout["qty_stk"]
 						stkinout["qty"] = -stkinout["qty_stk"]
-						stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfnos_id_fm"]
+						stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfnos_id_fm"]
 						proc_check_inoutlotstk("out",stkinout)
 					when "shpact"
 						stkinout["qty_stk"] = tbldata["qty_stk"].to_f / bqty * stkinout["qty_stk"]
 						stkinout["qty"] = -stkinout["qty_stk"]
 						stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
-						stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfnos_id_to"]
+						stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfnos_id_to"]
 						proc_check_inoutlotstk("in",stkinout)
 					end	
 				end
 			end ###出庫処理
-		rescue
-			ActiveRecord::Base.connection.rollback_db_transaction()
-			command_c[:sio_result_f] = "9"  ##9:error
-			command_c[:sio_message_contents] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
-			command_c[:sio_errline] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
-			Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
-			Rails.logger.debug"error class #{self} : $!: #{$!} "
-			Rails.logger.debug"  command_c: #{command_c} "
-	  	else
-			ActiveRecord::Base.connection.commit_db_transaction()
+		# rescue
+		# 	ActiveRecord::Base.connection.rollback_db_transaction()
+		# 	command_c[:sio_result_f] = "9"  ##9:error
+		# 	command_c[:sio_message_contents] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
+		# 	command_c[:sio_errline] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
+		# 	Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
+		# 	Rails.logger.debug"error class #{self} : $!: #{$!} "
+		# 	Rails.logger.debug"  command_c: #{command_c} "
+	  	# else
+		# 	ActiveRecord::Base.connection.commit_db_transaction()
 			if setParams.size > 0   ###画面からの時はperform_later(setParams["seqno"][0])　seqnoは一つのみ。次の処理がないときはreqparams=nil
 				if setParams["seqno"].size > 0
 					if command_c["mkord_runtime"] 
@@ -435,8 +437,8 @@ module Shipment
 					end
 				end
 			end	
-	  	ensure
-	  	end ##begin
+	  	# ensure
+	  	# end ##begin
 	end
 
 	def proc_create_consume reqparams ##
@@ -447,7 +449,7 @@ module Shipment
 		gantt = reqparams["gantt"]
 		tblnamechop = yield.chop  
 		begin
-			ActiveRecord::Base.connection.begin_db_transaction()
+			###ActiveRecord::Base.connection.begin_db_transaction()
 			blk = RorBlkCtl::BlkClass.new("r_#{tblnamechop}s")
 			command_c = blk.command_init
 			command_c[:sio_code] =  command_c[:sio_viewname] =  "r_#{yield}"
@@ -475,7 +477,7 @@ module Shipment
 			command_c["#{tblnamechop}_paretblid"] = gantt["tblid"]
 
 			blk.proc_create_src_tbl(command_c) ##
-			setParams,command_c = blk.proc_private_aud_rec(reqparams,command_c)
+			setParams = blk.proc_private_aud_rec(reqparams,command_c)
 
 			stkinout = {}
 			case tblnamechop
@@ -503,8 +505,8 @@ module Shipment
 			stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
 			stkinout["consumtype"] = command_c[tblnamechop+"_consumtype"]
 
-			stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfnos_id_fm"]   ###消費場所
-			stkinout = proc_lotstkhists_in_out "out",stkinout
+			stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfnos_id_fm"]   ###消費場所
+			stkinout = proc_lotstkhists_in_out("out",stkinout)
 
 			###conxxxの明細作成
 			strsql = %Q&
@@ -535,7 +537,7 @@ module Shipment
 					stkinout["qty_sch"] = 0
 				end
 
-				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfnos_id_to"]
+				stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfnos_id_to"]
 				proc_check_inoutlotstk("out",stkinout)
 			end
 		rescue
@@ -567,8 +569,8 @@ module Shipment
 		child = reqparams["child"]  ###対象
 		gantt = reqparams["gantt"]
 		tblnamechop = yield.chop  
-		begin
-			ActiveRecord::Base.connection.begin_db_transaction()
+		###begin
+			###ActiveRecord::Base.connection.begin_db_transaction()
 			blk = RorBlkCtl::BlkClass.new("r_#{tblnamechop}s")
 			command_c = blk.command_init
 			command_c[:sio_classname] = "#{yield}_update_"
@@ -601,7 +603,7 @@ module Shipment
 			end
 
 			blk.proc_create_src_tbl(command_c) ##
-			setParams,command_c = blk.proc_private_aud_rec(reqparams,command_c)
+			setParams = blk.proc_private_aud_rec(reqparams,command_c)
 
 			stkinout["tblname"] = yield
 			stkinout["tblid"] = command_c["id"]
@@ -615,8 +617,8 @@ module Shipment
 			stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
 			stkinout["consumtype"] = command_c[tblnamechop+"_consumtype"]
 
-			stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfnos_id_fm"]   ###消費場所
-			stkinout = proc_lotstkhists_in_out "out",stkinout
+			stkinout["shelfnos_id"] = stkinout["shelfnos_id_real"] = command_c[tblnamechop+"_shelfnos_id_fm"]   ###消費場所
+			stkinout = proc_lotstkhists_in_out("out",stkinout)
 
 			###conxxxの明細作成
 			strsql = %Q&
@@ -646,16 +648,16 @@ module Shipment
 				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfnos_id_to"]
 				proc_check_inoutlotstk("out",stkinout)
 			end
-		rescue
-			ActiveRecord::Base.connection.rollback_db_transaction()
-			command_c[:sio_result_f] = "9"  ##9:error
-			command_c[:sio_message_contents] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
-			command_c[:sio_errline] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
-			Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
-			Rails.logger.debug"error class #{self} : $!: #{$!} "
-			Rails.logger.debug"  command_c: #{command_c} "
-	  	else
-			ActiveRecord::Base.connection.commit_db_transaction()
+		###rescue
+		###	ActiveRecord::Base.connection.rollback_db_transaction()
+		###	command_c[:sio_result_f] = "9"  ##9:error
+		###	command_c[:sio_message_contents] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
+		###	command_c[:sio_errline] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
+		###	Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
+		###	Rails.logger.debug"error class #{self} : $!: #{$!} "
+		###	Rails.logger.debug"  command_c: #{command_c} "
+	  	###else
+		###	ActiveRecord::Base.connection.commit_db_transaction()
 			if setParams.size > 0   ###画面からの時はperform_later(setParams["seqno"][0])　seqnoは一つのみ。次の処理がないときはreqparams=nil
 				if setParams["seqno"].size > 0
 					if command_c["mkord_runtime"] 
@@ -665,8 +667,8 @@ module Shipment
 					end
 				end
 			end	
-	  	ensure
-	  	end ##begin
+	  	###ensure
+	  	###end ##begin
 	end	
 
 	def proc_mk_conacts reqparams
@@ -731,7 +733,7 @@ module Shipment
 		stkinout = {}
 
 		begin
-			ActiveRecord::Base.connection.begin_db_transaction()
+			###ActiveRecord::Base.connection.begin_db_transaction()
 			blk = RorBlkCtl::BlkClass.new("r_#{tblnamechop}s")
 			command_c = blk.command_init
 			command_c[:sio_classname] = "#{yield}_update_"
@@ -741,7 +743,7 @@ module Shipment
 			stkinout["shelfnos_id_real"] = stkinout["shelfnos_id"] = command_c["#{tblnamechop}_shelfno_id_fm"] = child["shelfnos_id_fm"] 
 			command_c["#{tblnamechop}_shelfno_id_to"] = tbldata["shelfnos_id_fm"]  ###親の作業場所へ納品
 			command_c["#{tblnamechop}_duedate"] = tbldata["starttime"] - 1   ###稼働日考慮
-			stkinout["starttime"] = command_c["#{tblnamechop}_depdate"] = tbldata["starttime"] - 2
+			stkinout["starttime"] = command_c["#{tblnamechop}_depdate"] = (tbldata["starttime"] - 2).strftime("%Y-%m-%d %H:%M:%S")
 			command_c["#{tblnamechop}_gno"] = tbldata["sno"] 
 			command_c["#{tblnamechop}_transport_id"] = 0 
 			command_c["#{tblnamechop}_paretblname"] = gantt["tblname"] 
@@ -788,7 +790,7 @@ module Shipment
 			end		
 
 			blk.proc_create_src_tbl(command_c) ##
-			setParams,command_c = blk.proc_private_aud_rec(reqparams,command_c)
+			setParams = blk.proc_private_aud_rec(reqparams,command_c)
 
 			stkinout["tblname"] = yield
 			stkinout["tblid"] = command_c["id"]
@@ -796,17 +798,17 @@ module Shipment
 			case tblnamechop
 			when "shpsch"
 				stkinout["qty_sch"] = qty_sch - child["qty_sch"].to_f
-				stkinout = proc_lotstkhists_in_out "out",stkinout
+				stkinout = proc_lotstkhists_in_out("out",stkinout)
 				stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
 				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfnos_id_to"]   ###入り
-				stkinout = proc_lotstkhists_in_out "in",stkinout
+				stkinout = proc_lotstkhists_in_out("in",stkinout)
 			when "shpord"
 				stkinout["qty"] = qty_sch - child["qty"].to_f
 				stkinout["qty_sch"] = -stkinout["qty"]  
-				stkinout = proc_lotstkhists_in_out "out",stkinout
+				stkinout = proc_lotstkhists_in_out("out",stkinout)
 				stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
 				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfnos_id_to"]
-				stkinout = proc_lotstkhists_in_out "in",stkinout
+				stkinout = proc_lotstkhists_in_out("in",stkinout)
 			end	
 
 			###shpxxxの在庫明細作成
@@ -866,7 +868,7 @@ module Shipment
 	end		
 
 	###
-	def proc_lotstkhists_in_out kubun,stkinout   ###,old_alloc,srctblname
+	def proc_lotstkhists_in_out(kubun,stkinout)   ###,old_alloc,srctblname
 		case kubun
 		when "out" 
 			inout = -1
@@ -874,6 +876,8 @@ module Shipment
 			inout = 1
 		end	
 		new_stk = stkinout.dup
+		ActiveRecord::Base.connection.execute("lock table lotstkhists in  SHARE ROW EXCLUSIVE mode")
+		###ActiveRecord::Base.connection.select_one("select * from itms where id = #{stkinout["itms_id"]} for update")
 		strsql = %Q% select *
 								from lotstkhists
 								where   itms_id = #{stkinout["itms_id"]} and  
@@ -883,6 +887,7 @@ module Shipment
 										prjnos_id = #{stkinout["prjnos_id"]} and
 										starttime = to_date('#{stkinout["starttime"]}','yyyy-mm-dd hh24:mi:ss') and 
 										packno = '#{stkinout["packno"]}' and  lotno = '#{stkinout["lotno"]}'
+										---　一件のみ
 				%
 		lotstkhists =  ActiveRecord::Base.connection.select_one(strsql)
 		if lotstkhists.nil?
@@ -901,14 +906,14 @@ module Shipment
 			if last_lot.nil?
 				last_lot = {"qty_sch" =>0,"qty" => 0,"qty_stk" => 0,"packno" => "","lotno" => ""}
 			end	
-			lotstkhists_id = ArelCtl.proc_get_nextval("lotstkhists_seq") 
 			new_stk["qty_sch"] = stkinout["qty_sch"].to_f * inout + last_lot["qty_sch"].to_f 
 			new_stk["qty"]     = stkinout["qty"].to_f * inout  + last_lot["qty"].to_f
-			new_stk["qty_stk"] = stkinout["qty_stk"].to_f * inout +  + last_lot["qty_stk"].to_f
-			ActiveRecord::Base.connection.insert(insert_lotstkhists_sql(new_stk,lotstkhists_id)) 
+			new_stk["qty_stk"] = stkinout["qty_stk"].to_f * inout +  last_lot["qty_stk"].to_f
+			new_stk["lotstkhists_id"] = stkinout["lotstkhists_id"] = ArelCtl.proc_get_nextval("lotstkhists_seq") 
+			ActiveRecord::Base.connection.insert(insert_lotstkhists_sql(new_stk)) 
 			###
 		else
-			lotstkhists_id = new_stk["lotstkhists_id"] = lotstkhists["id"]
+			stkinout["lotstkhists_id"] = lotstkhists["id"]
 			###
 			new_stk["qty_sch"] = stkinout["qty_sch"].to_f * inout  + lotstkhists["qty_sch"].to_f
 			new_stk["qty"]     = stkinout["qty"].to_f * inout  + lotstkhists["qty"].to_f
@@ -916,26 +921,12 @@ module Shipment
 			strsql = %Q& update lotstkhists set  
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 									persons_id_upd = #{$person_code_chrg||=0},
-									shelfnos_id = #{stkinout["shelfnos_id"]} ,
-									shelfnos_id_real = #{stkinout["shelfnos_id_real"]} ,
 									qty_stk = #{new_stk["qty_stk"]},
 									qty = #{new_stk["qty"]} ,
 									qty_sch = #{new_stk["qty_sch"].to_f}  
-									where id = #{lotstkhists_id}					
+									where id = #{stkinout["lotstkhists_id"]}					
 						&
 			ActiveRecord::Base.connection.update(strsql) 
-			last_strsql = %Q% select *
-									from lotstkhists
-									where   itms_id = #{stkinout["itms_id"]} and  
-											shelfnos_id = #{stkinout["shelfnos_id"]} and 
-											shelfnos_id_real = #{stkinout["shelfnos_id_real"]} and
-											processseq = #{stkinout["processseq"]} and
-											prjnos_id = #{stkinout["prjnos_id"]} and
-											starttime < to_date('#{lotstkhists["starttime"]}','yyyy-mm-dd hh24:mi:ss') and 
-											packno = '#{stkinout["packno"]}' and  lotno = '#{stkinout["lotno"]}'
-									order by starttime desc limit 1
-					%
-			last_lot =  ActiveRecord::Base.connection.select_one(last_strsql)
 
 		end
 		strsql = %Q& select *
@@ -947,19 +938,19 @@ module Shipment
 										prjnos_id = #{stkinout["prjnos_id"]} and
 										starttime > to_date('#{stkinout["starttime"]}','yyyy-mm-dd hh24:mi:ss') and 
 										packno = '#{stkinout["packno"]}' and  lotno = '#{stkinout["lotno"]}'
+										order by starttime 
 				&
 		ActiveRecord::Base.connection.select_all(strsql).each do |futrec|
 			strsql = %Q& update lotstkhists set  
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 									persons_id_upd = #{$person_code_chrg||=0},
-									qty_stk = #{stkinout["qty_stk"] * inout + futrec["qty_stk"].to_f},
-									qty = #{stkinout["qty"] * inout + futrec["qty"].to_f},
-									qty_sch = #{stkinout["qty_sch"].to_f * inout + futrec["qty_sch"].to_f} 
+									qty_stk = #{stkinout["qty_stk"].to_f * inout + futrec["qty_stk"].to_f},
+									qty = #{stkinout["qty"].to_f * inout + futrec["qty"].to_f},
+									qty_sch = #{stkinout["qty_sch"].to_f  * inout + futrec["qty_sch"].to_f} 
 									where id = #{futrec["id"]}					
 						&
 			ActiveRecord::Base.connection.update(strsql) 
 		end
-		stkinout["wh_id"] = stkinout["lotstkhists_id"] = lotstkhists_id
 		stkinout["wh"] = "lotstkhists"	
 		###
 		###  在庫明細
@@ -999,7 +990,8 @@ module Shipment
 		end
 		strsql = %Q&
 			select * from inoutlotstks where trngantts_id = #{stkinout["trngantts_id"]}
-										and srctblid = #{stkinout["wh_id"]} and srctblname = '#{stkinout["wh"]}'
+										and srctblid = #{stkinout["lotstkhists_id"]} and srctblname = '#{stkinout["wh"]}'
+										for update
 		&
 		inoutlotstk = ActiveRecord::Base.connection.select_one(strsql)
 		if inoutlotstk
@@ -1016,7 +1008,7 @@ module Shipment
 		end	
 	end
 
-	def insert_lotstkhists_sql stkinout,lotstkhists_id
+	def insert_lotstkhists_sql stkinout
 		 %Q&insert into lotstkhists(id,
 								starttime,
 								itms_id,processseq,
@@ -1027,7 +1019,7 @@ module Shipment
 								created_at,
 								updated_at,
 								update_ip,persons_id_upd,expiredate,remark)
-						values(#{lotstkhists_id},
+						values(#{stkinout["lotstkhists_id"]},
 								'#{stkinout["starttime"]}',
 								#{stkinout["itms_id"]} ,#{stkinout["processseq"]},
 								#{stkinout["shelfnos_id"]},#{stkinout["shelfnos_id_real"]},'#{stkinout["stktaking_proc"]}',
@@ -1036,7 +1028,7 @@ module Shipment
 								#{stkinout["prjnos_id"]},
 								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-								' ',#{$person_code_chrg||=0},'2099/12/31','')
+								' ',#{$person_code_chrg||=0},'2099/12/31','#{stkinout["remark"]}')
 		&
 	 end
 
@@ -1167,7 +1159,7 @@ module Shipment
 		end
 	end
 
-	def proc_re_create_shpords srctblname,qty,rec
+	def proc_re_create_shpords reqparams,srctblname,qty,rec
 		strsql = %Q&
 					select 1 from shpinsts where paretblname = '#{srctblname}' and paretblid = #{rec["id"]}
 											and qty > 0
@@ -1192,7 +1184,7 @@ module Shipment
 					end
 					prev_shpord["qty"] = new_shp_qty
 					prev_shpord["amt"] =prev_shpord["qty"] * prev_shpord["price"].to_f
-					proc_create_shp @reqparams,prev_shpord do
+					proc_create_shp reqparams,prev_shpord do
 						"shpords"
 					end
 					new_shp_qty =  (rec["qty"].to_f - qty) * prev_shpord["qty"].to_f
@@ -1208,7 +1200,7 @@ module Shipment
 					prev_shpord["tblname"] = "shpords"
 					prev_shpord["paretblname"] = srctbldata["srctblname"]
 					prev_shpord["paretblid"] = srctbldata["srctblid"]
-					proc_update_shpschs_ords @reqparams,last_pare_qty
+					proc_update_shpschs_ords reqparams,last_pare_qty
 				end
 			else   
 				if scgno =~ /gno/  ###まとめの出庫オーダの作り直し
@@ -1228,7 +1220,7 @@ module Shipment
 						prev_shpord["qty"] = 0
 						prev_shpord["amt"] = 0
 						prev_shpord["tblname"] = "shpords"
-						proc_update_shpschs_ords @reqparams,last_pare_qty
+						proc_update_shpschs_ords reqparams,last_pare_qty
 						prev = prev_shpord.dup
 						if save_itms_id != ""
 							if (save_itms_id != prev_shpord["itms_id"] or save_processseq != prev_shpord["processseq"])
@@ -1236,7 +1228,7 @@ module Shipment
 								prev_shpord["amt"] = prev_shpord["qty"] * prev_shpord["price"].to_f
 								prev_shpord["itms_id"] = save_itms_id
 								prev_shpord["processseq"] = save_processseq
-								proc_create_shp @reqparams,prev_shpord do
+								proc_create_shp reqparams,prev_shpord do
 									"shpords"
 								end
 								new_shp_qty = prev["qty"].to_f
@@ -1253,7 +1245,7 @@ module Shipment
 					end
 					prev_shpord["qty"] = new_shp_qty
 					prev_shpord["amt"] = prev_shpord["qty"] * prev_shpord["price"].to_f
-					proc_create_shp @reqparams,prev_shpord do
+					proc_create_shp reqparams,prev_shpord do
 						"shpords"
 					end
 				end
@@ -1261,7 +1253,7 @@ module Shipment
 		end
 	end	
 
-	def proc_re_create_conords srctblname,qty,rec
+	def proc_re_create_conords reqparams,srctblname,qty,rec
 		if scgno =~ /sno|cno/  ###出庫オーダの作り直し
 			### ords　を分割したinstsのみ対象　　　既に出庫指示されているときは対象外。
 			def_qty = rec["qty"].to_f - qty
@@ -1275,7 +1267,7 @@ module Shipment
 					new_con_qty = (new_con_qty / prev_conord["qty_case"].to_f).ceil * prev_conord["qty_case"].to_f
 					prev_conord["qty"] = new_con_qty
 					prev_conord["amt"] =prev_conord["qty"] * prev_conord["price"].to_f
-					proc_create_consume @reqparams,prev_conord do
+					proc_create_consume reqparams,prev_conord do
 						"conords"
 					end
 					new_con_qty =  (rec["qty"].to_f - qty) * prev_conord["qty"].to_f
@@ -1291,7 +1283,7 @@ module Shipment
 					prev_conord["tblname"] = "conords"
 					prev_conord["paretblname"] = srctbldata["srctblname"]
 					prev_conord["paretblid"] = srctbldata["srctblid"]
-					proc_update_conschs_ords @reqparams,last_pare_qty
+					proc_update_conschs_ords reqparams,last_pare_qty
 				end
 			end	
 		else   
@@ -1312,7 +1304,7 @@ module Shipment
 					prev_conord["qty"] = 0
 					prev_conord["amt"] = 0
 					prev_conord["tblname"] = "conords"
-					proc_update_conschs_ords @reqparams,last_pare_qty
+					proc_update_conschs_ords reqparams,last_pare_qty
 					prev = prev_conord.dup
 					if save_itms_id != ""
 						if (save_itms_id != prev_conord["itms_id"] or save_processseq != prev_conord["processseq"])
@@ -1320,7 +1312,7 @@ module Shipment
 							prev_conord["amt"] = prev_conord["qty"] * prev_conord["price"].to_f
 							prev_conord["itms_id"] = save_itms_id
 							prev_conord["processseq"] = save_processseq
-							proc_create_consume @reqparams,prev_conord do
+							proc_create_consume reqparams,prev_conord do
 									"conords"
 							end
 							new_con_qty = prev["qty"].to_f
@@ -1337,7 +1329,7 @@ module Shipment
 				end
 				prev_conord["qty"] = new_con_qty
 				prev_conord["amt"] = prev_conord["qty"] * prev_conord["price"].to_f
-				proc_create_con @reqparams,prev_conord do
+				proc_create_con reqparams,prev_conord do
 						"conords"
 				end
 			end

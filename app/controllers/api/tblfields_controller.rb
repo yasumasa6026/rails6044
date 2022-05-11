@@ -12,7 +12,7 @@ module Api
                 params[:message] = " yup schema created " 
                 render json:{:params=>params} 
               when 'createTblViewScreen'  ### blktbs tblfields 
-                messages,modifysql,status,errmsg = TblField.proc_blktbs params
+                messages,modifysql,status,errmsg = TblField.proc_blktbs params   ###params[:data]に画面の表示内容を含む
 		            $tblfield_materiallized.each do |view|
 				            strsql = %Q%select 1 from pg_catalog.pg_matviews pm 
 				                  where matviewname = '#{view}' %
@@ -34,7 +34,7 @@ module Api
                 params[:errmsg] = 	errmsg 
                 render json:{:params=>params}  
               when 'createUniqueIndex'  ### createUniqueIndex
-                messages,sql = TblField.createUniqueIndex params
+                messages,sql = TblField.proc_createUniqueIndex params   ###params[:data]に画面の表示内容を含む
                 foo = File.open("#{Rails.root}/vendor/postgresql/tblviewupdate#{(Time.now).strftime("%Y%m%d%H%M%S")}.sql", "w:UTF-8") # 書き込みモード
                 foo.puts sql
                 foo.close

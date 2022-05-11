@@ -6,8 +6,6 @@ import { LOGINFORM_REQUEST,LOGINFORM_SUCCESS,
           LOGIN_REQUEST,LOGIN_SUCCESS,LOGIN_FAILURE,
           LOGOUT_REQUEST, LOGOUT_SUCCESS, } from '../../actions'
 
-export let getLoginState = state => state.auth
-
 const initialValues = {
   isSubmitting:false,
   errors:[],

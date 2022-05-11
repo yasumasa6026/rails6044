@@ -37,7 +37,7 @@ export function * SignupSaga({payload:{email,password,password_confirmation}}) {
               break
              case /code.*422/.test(error): message = 'dupulicate Error'
               break
-             case /code.*401/.test(error): message = 'Invalid credentials'
+             case /code.*401/.test(error): message = 'Invalid credentials or Login TimeOut'
               break
              default: message = `Something went wrong ${error}`}
     yield put({ type: SIGNUP_FAILURE, payload: message })

@@ -66,14 +66,14 @@ module ArelCtl
 			case ActiveRecord::Base.configurations[Rails.env]['adapter']
 				when /post/
 					ActiveRecord::Base.connection.select_value("SELECT nextval('#{tbl_seq}')")  ##post
-				when /oracle/
-					ActiveRecord::Base.connection.select_value("select #{tbl_seq}.nextval from dual")  ##oracle
+				# when /oracle/  ###oracle対応中止
+				# 	ActiveRecord::Base.connection.select_value("select #{tbl_seq}.nextval from dual")  ##oracle
 			end
 		end
 	end
 	
 	def proc_processreqs_add reqparams
-		processreqs_id = ArelCtl.proc_get_nextval("processreqs_seq")
+		processreqs_id = proc_get_nextval("processreqs_seq")
 		if reqparams["seqno"].nil?
 			reqparams["seqno"] = []
 		end	
@@ -81,6 +81,9 @@ module ArelCtl
 		%
 		person_id = ActiveRecord::Base.connection.select_value(strsql)
 		reqparams["seqno"] << processreqs_id  ###
+		setParams = reqparams.dup
+		setParams.delete(:parse_linedata)  ###size 8192対策
+		setParams.delete(:linedata)
 		strsql = %Q&
 			insert into processreqs(
 						contents,remark,
@@ -91,7 +94,7 @@ module ArelCtl
 						'','#{reqparams["remark"]}',
 						to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 						to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-						'',#{person_id},'#{reqparams.to_json}',
+						'',#{person_id},'#{setParams.to_json}',
 						#{reqparams["seqno"][0]},#{processreqs_id},'0')
 		&
 		ActiveRecord::Base.connection.insert(strsql) 
@@ -126,7 +129,7 @@ module ArelCtl
 					end
 				end
 			else
-				if torecs.index(prevkey)
+				if torecs.index(prevkey)  ###配列に該当のkeyがあった時
 					command_c[key] = fmview[prevkey]
 				end	
 			end
@@ -306,7 +309,7 @@ module ArelCtl
 	end
 
 	def proc_insert_linktbls(src,base)
-		linktbls_seq = ArelCtl.proc_get_nextval("linktbls_seq")
+		linktbls_seq = proc_get_nextval("linktbls_seq")
 		strsql = %Q&
 				insert into linktbls(id,trngantts_id,
 					srctblname,srctblid,
@@ -325,7 +328,7 @@ module ArelCtl
 	end
 
 	def proc_insert_alloctbls(rec_alloc)
-		rec_alloc["alloctbls_id"] = ArelCtl.proc_get_nextval("alloctbls_seq")
+		rec_alloc["alloctbls_id"] = proc_get_nextval("alloctbls_seq")
 		strsql = %Q&
 		insert into alloctbls(id,
 							srctblname,srctblid,
@@ -347,4 +350,133 @@ module ArelCtl
 		ActiveRecord::Base.connection.insert(strsql)
 		return rec_alloc
 	end
+	
+
+	def proc_insert_trngantts(gantt) ## ###@tblname,@tblid,@gantt・・・・セット
+		strsql = %Q&
+		insert into trngantts(id,key,
+						orgtblname,orgtblid,paretblname,paretblid,
+						tblname,tblid,
+						mlevel,
+						shuffle_flg,
+						parenum,chilnum,
+						qty_sch,qty,qty_stk,
+						qty_require,
+						qty_pare,qty_stk_pare,
+						qty_handover,qty_free,
+						prjnos_id,
+						shelfnos_id_to,
+						itms_id_trn,processseq_trn,locas_id_trn,
+						itms_id_pare,processseq_pare,locas_id_pare,shelfnos_id_to_pare,
+						itms_id_org,processseq_org,locas_id_org,
+						consumunitqty,consumminqty,consumchgoverqty,
+						starttime_trn,
+						starttime_pare,
+						starttime_org,
+						duedate_trn,
+						duedate_pare,
+						duedate_org,
+						toduedate_trn,
+						toduedate_pare,
+						toduedate_org,
+						chrgs_id_trn,chrgs_id_pare,chrgs_id_org,
+						created_at,
+						updated_at,
+						update_ip,persons_id_upd,expiredate,remark)
+		values(#{gantt["trngantts_id"]},'#{gantt["key"]}',
+					'#{gantt["orgtblname"]}',#{gantt["orgtblid"]},'#{gantt["paretblname"]}',#{gantt["paretblid"]},
+					'#{gantt["tblname"]}',#{gantt["tblid"]},
+					'#{gantt["mlevel"]}',
+					'#{gantt["shuffle_flg"]}',
+					#{gantt["parenum"]},#{gantt["chilnum"]},
+					#{gantt["qty_sch"]},#{gantt["qty"]},#{gantt["qty_stk"]},
+					#{gantt["qty_require"]},
+					#{gantt["qty_pare"]},#{gantt["qty_stk_pare"]},
+					#{gantt["qty_handover"]},#{gantt["qty_free"]},
+					#{gantt["prjnos_id"]},
+					#{gantt["shelfnos_id_to"]},
+					#{gantt["itms_id_trn"]},#{gantt["processseq_trn"]},#{gantt["locas_id_trn"]},
+					#{gantt["itms_id_pare"]},#{gantt["processseq_pare"]},#{gantt["locas_id_pare"]},#{gantt["shelfnos_id_to_pare"]},
+					#{gantt["itms_id_org"]},#{gantt["processseq_org"]},#{gantt["locas_id_org"]},
+					#{gantt["consumunitqty"]},#{gantt["consumminqty"]},#{gantt["consumchgoverqty"]},
+					to_timestamp('#{gantt["starttime_trn"]}','yyyy/mm/dd hh24:mi:ss'),
+					to_timestamp('#{gantt["starttime_pare"]}','yyyy/mm/dd hh24:mi:ss'),
+					to_timestamp('#{gantt["starttime_org"]}','yyyy/mm/dd hh24:mi:ss'),
+					to_timestamp('#{gantt["duedate_trn"]}','yyyy/mm/dd hh24:mi:ss'),
+					to_timestamp('#{gantt["duedate_pare"]}','yyyy/mm/dd hh24:mi:ss'),
+					to_timestamp('#{gantt["duedate_org"]}','yyyy/mm/dd hh24:mi:ss'),
+					to_timestamp('#{gantt["toduedate_trn"]}','yyyy/mm/dd hh24:mi:ss'),
+					to_timestamp('#{gantt["toduedate_pare"]}','yyyy/mm/dd hh24:mi:ss'),
+					to_timestamp('#{gantt["toduedate_org"]}','yyyy/mm/dd hh24:mi:ss'),
+					#{gantt["chrgs_id_trn"]},#{gantt["chrgs_id_pare"]},#{gantt["chrgs_id_org"]},
+					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					' ','0','2099/12/31','#{gantt["remark"]}')
+		&
+		ActiveRecord::Base.connection.insert(strsql)
+		return
+	end
+
+	
+	def proc_sql_get_lotstkhists_id(tbl)
+		%Q&
+		select lot.id,lot.qty,lot.qty_stk,lot.lotno,lot.packno 
+				from lotstkhists lot 
+				inner join (select ope.itms_id,ope.processseq,
+									tbl.shelfnos_id_to,tbl.prjnos_id,
+									#{case tbl["tblname"]
+										when /dlvs/
+											"qty_stk,depdate duedate"
+										when /^puracts/
+											"qty_stk,rcptdate duedate"
+										when /^prdacts/
+											"qty_stk,cmpldate duedate"
+										when /rets/
+											"qty_stk,retdate"
+										when /reply/
+											"qty,replydate duedate"
+										when /schs/
+											"qty_sch,duedate"
+										else
+											"qty,duedate"
+										end } 
+									from #{tbl["tblname"]} tbl inner join opeitms ope
+									on tbl.opeitms_id = ope.id
+									where tbl.id = #{tbl["tblid"]}) t
+				on lot.itms_id = t.itms_id and  lot.processseq = t.processseq
+				and lot.starttime = t.duedate and lot.shelfnos_id = t.shelfnos_id_to
+				and lot.prjnos_id = t.prjnos_id 
+			&
+   end
+
+   	def proc_set_stkinout(tmptbldata)
+		stkinout = {"tblname" => tmptbldata["tblname"],"tblid" => tmptbldata["tblid"],
+				"srctblname" => tmptbldata["tblname"],"srctblid" => tmptbldata["tblid"],
+				"itms_id" => tmptbldata["itms_id"] ,"processseq" => tmptbldata["processseq"] ,
+				"shelfnos_id" => tmptbldata["shelfnos_id_to"],  ###shpxxx,custxxxでは個別の設定が必要
+				"shelfnos_id_real" => (tmptbldata["shelfnos_id_real"]||=tmptbldata["shelfnos_id_to"]),
+				"prjnos_id" => tmptbldata["prjnos_id"] ,
+				"starttime" => tmptbldata["duedate"],"packno" => (tmptbldata["packno"]||=""),"lotno" => (tmptbldata["lotno"]||=""),
+				"lotstkhists_id" => "","trngantts_id" =>  tmptbldata["trngantts_id"],"alloctbls_id" => "",
+				"qty_src" => 0,"amt_src" => 0,"qty_linkto_alloctbl" => 0,
+				"qty_sch" => tmptbldata["qty_sch"].to_f,"qty" =>tmptbldata["qty"].to_f,"qty_stk" => tmptbldata["qty_stk"].to_f
+				}	
+		stkinout["duedate"] = stkinout["starttime"] =  
+							case stkinout["tblname"]		
+							when /dlvs/
+								tmptbldata["depdate"]
+							when /^puracts/
+								tmptbldata["rcptdate"]
+							when /^prdacts/
+								tmptbldata["cmpldate"]
+							when /rets/
+								tmptbldata["retdate"]
+							when /reply/
+								tmptbldata["replydate"]
+							else
+								tmptbldata["duedate"]
+							end	
+		return stkinout		
+	end
+
 end

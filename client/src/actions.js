@@ -18,7 +18,6 @@ export const MENU_REQUEST = 'MENU_REQUEST'
 export const MENU_SUCCESS = 'MENU_SUCCESS'
 export const MENU_FAILURE = 'MENU_FAILURE'
 
-
 export const SCREENINIT_REQUEST = 'SCREENINIT_REQUEST'
 export const SCREEN_REQUEST = 'SCREEN_REQUEST'
 export const SCREEN_SUCCESS7 = 'SCREEN_SUCCESS7'
@@ -61,7 +60,6 @@ export const SECONDSCREEN_PARAMS_SET = 'SECONDSCREEN_PARAMS_SET'
 export const IMPORTEXCEL_REQUEST = 'IMPORTEXCEL_REQUEST'
 export const IMPORTEXCEL_SUCCESS = 'IMPORTEXCEL_SUCCESS'
 export const IMPORTEXCEL_FAILURE = 'IMPORTEXCEL_FAILURE'
-
 export const INPUTFIELDPROTECT_REQUEST = 'INPUTFIELDPROTECT_REQUEST'
 export const INPUTPROTECT_RESULT = 'INPUTPROTECT_RESULT'
 
@@ -156,6 +154,7 @@ export const SecondScreenParamsSet = (params) => ({
   payload: { params}  //
 })
 
+
 export const SecondScreenRequest = (params,data) => ({
   type:  SECONDSCREEN_REQUEST,
   payload: { params,data}  //
@@ -200,28 +199,28 @@ export const ButtonFlgRequest = (buttonflg,params) => ({
 })
 
 
-export const FetchRequest = (params,data,loading) => ({
+export const FetchRequest = (params,data) => ({
   type: FETCH_REQUEST,
-  payload: { params,data,loading }
+  payload: { params,data }
 })
 
-export const FetchResult = (data,params) => ({
+export const FetchResult = (params) => ({
   type: FETCH_RESULT,
-  payload: { data,params}
+  payload: { params}
 })
 
-export const FetchFailure = (data,params) => ({
+export const FetchFailure = (params) => ({
   type: FETCH_FAILURE,
-  payload: { data,params}
+  payload: { params}
 })
-export const SecondFetchRequest = (params,data,loading) => ({
+export const SecondFetchRequest = (params,data) => ({
   type: SECONDFETCH_REQUEST,
-  payload: { params,data,loading }
+  payload: { params,data }
 })
 
 export const SecondFetchResult = (data,params) => ({
   type: SECONDFETCH_RESULT,
-  payload: { data,params}
+  payload: {params}
 })
 
 export const SecondFetchFailure = (data,params) => ({

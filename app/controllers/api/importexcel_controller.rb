@@ -1,8 +1,7 @@
 module Api
   ###
-  ###
-  ###  rollbackの結果を画面に返せてない。
-  ###
+  ###  rollbackの結果を画面に返せてない。エラー時はlogで確認
+  ###　日付は文字タイプ(関数、日付は使用できない。)
   ###
 class ImportexcelController < ApplicationController
 
@@ -22,16 +21,20 @@ class ImportexcelController < ApplicationController
         $email = params[:email]  ###tokenのuid  ===>uidはemailであること
         strsql = "select person_code_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
         $person_code_chrg = ActiveRecord::Base.connection.select_value(strsql)
-        screen = ScreenLib::ScreenClass.new(params)
+        jparams = params.dup
+        jparams[:importData] = {}  ###jparamsではimportdataは使用しない。processreqへの保存対象外
+        jparams[:req] = "import"
+        screen = ScreenLib::ScreenClass.new(jparams)
+        fields = CtlFields::CtlFieldsClass.new()
         column_info,page_info,where_info,select_fields,fetch_check,dropdownlist,sort_info,nameToCode = 
-                  screen.proc_create_upload_editable_columns_info "inlineaddreq" 
+                  screen.proc_create_upload_editable_columns_info "import" 
         
         strsql = "select	column_name from 	information_schema.columns 
                   where 	table_catalog='#{ActiveRecord::Base.configurations["development"]["database"]}' 
                   and table_name='#{screen.screenCode}' and  column_name not like  '%person_id_upd' "
         keyids = ActiveRecord::Base.connection.select_values(strsql)
         
-        command_all = []
+        performSeqNos = []
         results = {}   
         results[:columns] = []
         results[:rows] = []
@@ -50,15 +53,14 @@ class ImportexcelController < ApplicationController
 
         rows = []
         importError = false
-        jparams = {}
         idx = 0
 
   		fetchCode = YupSchema.proc_create_fetchCode screen.screenCode ##
         checkCode  = YupSchema.proc_create_checkCode screen.screenCode   
         tblid = screen.screenCode.split("_")[1].chop + "_id"
         lines = params[:importData][:importexcel]
-        lines.each do |linedata|
-            jparams[:parse_linedata] = linedata.dup
+        lines.each do |linevalues|
+            jparams[:parse_linedata] = linevalues.dup
             keyids.each do |idkey|   ###keyids--->view項目
                     if jparams[:parse_linedata][idkey].nil?
                         jparams[:parse_linedata][idkey] = ""
@@ -67,30 +69,26 @@ class ImportexcelController < ApplicationController
             jparams[:screenCode] = screen.screenCode
             jparams[:err] = nil
             jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] ||= ""
-            if linedata["confirm"] != false  
-                linedata.each do |field,val| ###confirmはfunction batchcheckで項目追加している。
+            if linevalues["confirm"] != false  
+                linevalues.each do |field,val| ###confirmはfunction batchcheckで項目追加している。
                         ##エラーと最初のレコード(confirm="confirm")のname項目行を除く
                     jparams[:parse_linedata]["confirm"] = true
                     if fetchCode[field] 
                         jparams[:fetchCode] = %Q%{"#{field}":"#{val}"}%
                         jparams[:fetchview] = fetchCode[field]
-                        jparams = CtlFields.proc_chk_fetch_rec jparams
+                        jparams = fields.proc_chk_fetch_rec jparams
                         if jparams[:err].nil?
-                                jparams[:fetch_data].each do |fd,vl|
-                                    jparams[:parse_linedata][fd] = vl
-                                end  
-                                if checkCode[field] and val != ""
-                                    jparams["checkCode"] = %Q%{"#{field}":"#{val}"}%
-                                    jparams = CtlFields.proc_judge_check_code jparams,field,checkCode[field]
-                                    if jparams[:err]
+                            if checkCode[field] and val != ""
+                                jparams = fields.proc_judge_check_code jparams,field,checkCode[field]
+                                if jparams[:err]
                                         importError = true
                                         jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
-                                    end
                                 end
+                            end
                         else   
-                                importError = true  
-                                jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
-                                jparams[:parse_linedata]["confirm"] = false
+                            importError = true  
+                            jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
+                            jparams[:parse_linedata]["confirm"] = false
                         end  
                     else  
                     end
@@ -106,7 +104,7 @@ class ImportexcelController < ApplicationController
                 blk =  RorBlkCtl::BlkClass.new(screen.screenCode)
                 command_c = blk.command_init.dup  ###blkukyはid以外でユニークを保証するkey
                 if parse_linedata["confirm"] == true    ###重複keyチェック
-                    err = CtlFields.proc_blkuky_check(screen.screenCode.split("_")[1],parse_linedata)
+                    err = fields.proc_blkuky_check(screen.screenCode.split("_")[1],parse_linedata)
                     tblid = screen.screenCode.split("_")[1].chop + "_id"
                     err.each do |key,recs|
                         recs.each do |rec|
@@ -151,37 +149,41 @@ class ImportexcelController < ApplicationController
                 end
                 case command_c["aud"] 
                 when "add" 
-                    command_c[:sio_classname] = "_add_grid_line_data"
+                    command_c[:sio_classname] = "_add_grid_linedata"
                 when "update"         
-                    command_c[:sio_classname] = "_update_grid_line_data"
+                    command_c[:sio_classname] = "_update_grid_linedata"
                 when "delete"       
-                    command_c[:sio_classname] = "_delete_grid_line_data"
+                    command_c[:sio_classname] = "_delete_grid_linedata"
+                else
                 end
-                command_all << command_c
                 if importError == false and parse_linedata["confirm"] == true 
                     blk.proc_create_src_tbl(command_c) ### @src_tbl作成
-                    blk.proc_private_aud_rec(jparams,command_c)
+                    setParams = blk.proc_private_aud_rec(jparams,command_c)
                     idx += 1
+                    performSeqNos << setParams["seqno"][0]
                 else
                 end
                 results[:rows] << parse_linedata 
             end
         rescue
             ActiveRecord::Base.connection.rollback_db_transaction()
-            command_all[idx][:sio_result_f] =   "9"  ##9:error
-            command_all[idx][:sio_message_contents] =  "error class #{self} : LINE #{__LINE__} $!: #{$!} "    ###evar not defined
-            command_all[idx][:sio_errline] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
-            Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
-            Rails.logger.debug"error class #{self} : $!: #{$!} "
-            Rails.logger.debug"  idx = #{idx} command_init: #{command_all[idx]} "
+            command_c[:sio_result_f] =   "9"  ##9:error
+            command_c[:sio_message_contents] =  "error class #{self} : LINE #{__LINE__} $!: #{$!} "    ###evar not defined
+            command_c[:sio_errline] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
+            Rails.logger.debug"error class #{self} : #{Time.now}: #{$@}\n "
+            Rails.logger.debug"error class #{self} : $!: #{$!} \n"
+            Rails.logger.debug"  idx = #{idx} command_init: #{command_c} "
             if rows.empty?
               ###redults excelへの返し
             else
-              rows[idx+1]["#{tblname.chop}_confirm_gridmessage"] = command_all[idx][:sio_message_contents].to_s[0..1000]
+              rows[idx+1]["#{tblname.chop}_confirm_gridmessage"] = command_c[:sio_message_contents].to_s[0..1000]
             end
             idx = 0
         else
             ActiveRecord::Base.connection.commit_db_transaction()
+            performSeqNos.each do |seq|
+				CreateOtherTableRecordJob.perform_later(seq)
+            end
             ArelCtl.proc_materiallized tblname
         end
         render json: {:results=>results,:importError=>importError,:idx=>idx}
@@ -193,5 +195,5 @@ class ImportexcelController < ApplicationController
         def importexcel_params
             params.require(:importexcel).permit(:title, :filename)
         end 
-end
-end  
+end   ###class
+end    ###module

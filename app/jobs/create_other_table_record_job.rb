@@ -3,7 +3,6 @@ class CreateOtherTableRecordJob < ApplicationJob
     def perform(pid)
         # 後で実行したい作業をここに書く
         begin
-            ActiveRecord::Base.connection.begin_db_transaction()
             perform_strsql = "select * from  processreqs t 
                             where t.result_f = '0'  and t.seqno = #{pid} 
                             and not exists(select 1 from processreqs c where t.seqno = c.seqno and t.id > c.id
@@ -17,7 +16,9 @@ class CreateOtherTableRecordJob < ApplicationJob
             rec = ActiveRecord::Base.connection.select_one(strsql) ###
             $email = rec["email"]
             $person_code_chrg = rec["code"]
+            ActiveRecord::Base.connection.begin_db_transaction()
             until processreq.nil? do
+                    ope = Operation::OpeClass.new(params)  ###xxxschs,xxxords
                     setParams = params.dup
                     gantt = params["gantt"].dup
                     tblname = gantt["tblname"]
@@ -45,9 +46,9 @@ class CreateOtherTableRecordJob < ApplicationJob
                     case params["segment"]
                         when "skip" 
                         when "trngantts" ###prd,pur,cust xxxschs,xxxordsのとき
-                            Operation.proc_trngantts(params)  ###xxxschs,xxxords
+                            ope.proc_trngantts()  ###xxxschs,xxxords
                         when "add_update_lotstkhists" ###prd,pur,cust xxxinsts,xxxreplyxxx,xxxdlvs,xxxacts,xxxxretsのとき
-                            Operation.proc_add_update_lotstkhists(params)  
+                            ope.proc_add_update_lotstkhists()  
                         when "sumrequest" 
                         when "splitrequest"  
 
@@ -66,12 +67,12 @@ class CreateOtherTableRecordJob < ApplicationJob
                         when "mkprdpurords"  ###  xxxschsからxxxordsを作成。
                             mkordparams = {}
                             mkord = tbldata.dup
-                            mkordparams[:incnt] = mkord["incnt"].to_f
-                            mkordparams[:inqty] = mkord["inqty"].to_f
-                            mkordparams[:inamt] = mkord["inamt"].to_f
-                            mkordparams[:outcnt] = mkord["outcnt"].to_f
-                            mkordparams[:outqty] = mkord["outqty"].to_f
-                            mkordparams[:outamt] = mkord["outamt"].to_f
+                            mkordparams[:incnt] = 0
+                            mkordparams[:inqty] = 0
+                            mkordparams[:inamt] = 0
+                            mkordparams[:outcnt] = 0
+                            mkordparams[:outqty] = 0
+                            mkordparams[:outamt] = 0
                             mkordparams = MkordinstLib.proc_mkprdpurords params,mkordparams
                             mkordparams[:message_code] = ""
                             mkordparams[:remark] = "  CreateOtherTableRecordJob mkprdpurords line:#{__LINE__}"
@@ -115,6 +116,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             gantt["paretblid"] = tblid
                             gantt["itms_id_pare"] = gantt["itms_id_trn"]
                             gantt["duedate_pare"] = gantt["duedate_trn"]
+                            gantt["duedate_pare"] = gantt["toduedate_trn"]
                             gantt["shelfnos_id_to_pare"] = gantt["shelfnos_id_to"]
                             gantt["processseq_pare"] = gantt["processseq_trn"]
                             gantt["locas_id_pare"] = gantt["locas_id_trn"]
@@ -122,10 +124,12 @@ class CreateOtherTableRecordJob < ApplicationJob
                             gantt["qty_pare"] = gantt["qty"] + gantt["qty_sch"] 
                             parent["qty_handover"] =  gantt["qty_handover"]
                             strsql = %Q%
-                                        select ope.itms_id,ope.processseq,itm.consumtype,
+                                        select ope.itms_id,nditm.itms_id_nditm,  ---itms_id = itms_id_nditm
+                                                ope.processseq,nditm.processseq_nditm,
+                                                itm.consumtype,
                                                 nditm.parenum,nditm.chilnum, ope.locas_id_fm,
                                                 nditm.consumunitqty,nditm.consumminqty,nditm.consumchgoverqty,
-                                                ope.id,ope.prdpur,ope.packno_proc,ope.locas_id_opeitm,ope.duration,
+                                                ope.id opeitms_id,ope.prdpur,ope.packno_proc,ope.locas_id_opeitm,ope.duration,
                                                 ope.packqty,ope.shelfnos_id_to_opeitm,ope.shelfnos_id_fm_opeitm,ope.locas_id_opeitm
                                         from nditms nditm 
                                         inner join itms itm on itm.id = nditm.itms_id_nditm 
@@ -137,15 +141,15 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     %  
                             ActiveRecord::Base.connection.select_all(strsql).each do |nd|
                                 child = {"itms_id_nditm" => nd["itms_id"] ,"processseq_nditm" => nd["processseq"] ,
-                                    "parenum" =>nd["parenum"],"chilnum" => nd["chilnum"],"locas_id_fm" => nd["locas_id_fm"],  
-                                    "consumunitqty" =>nd["consumunitqty"],"consumminqty" => nd["consumminqty"],
-                                    "consumchgoverqty" => nd["consumchgoverqty"],"consumtype" => nd["consumtype"]}
-                                child_opeitm = {"id" => nd["id"],"prdpur" => nd["prdpur"], "packno_proc" => nd["packno_proc"],
-                                    "locas_id_opeitm" => nd["locas_id_opeitm"],"duration" => nd["duration"],"packqty" => nd["packqty"],
-                                    "itms_id" => nd["itms_id"] ,"processseq" => nd["processseq"] ,
-                                    "shelfnos_id_to_opeitm" => nd["shelfnos_id_to_opeitm"],"shelfnos_id_fm_opeitm" =>nd["shelfnos_id_fm_opeitm"]}
+                                     "parenum" =>nd["parenum"],"chilnum" => nd["chilnum"],"locas_id_fm" => nd["locas_id_fm"],  
+                                     "consumunitqty" =>nd["consumunitqty"],"consumminqty" => nd["consumminqty"],
+                                     "consumchgoverqty" => nd["consumchgoverqty"],"consumtype" => nd["consumtype"]}
+                                child_opeitm = {"id" => nd["opeitms_id"],"prdpur" => nd["prdpur"], "packno_proc" => nd["packno_proc"],
+                                     "locas_id_opeitm" => nd["locas_id_opeitm"],"duration" => nd["duration"],"packqty" => nd["packqty"],
+                                     "itms_id" => nd["itms_id"] ,"processseq" => nd["processseq"] ,
+                                     "shelfnos_id_to_opeitm" => nd["shelfnos_id_to_opeitm"],"shelfnos_id_fm_opeitm" =>nd["shelfnos_id_fm_opeitm"]}
                                 blk = RorBlkCtl::BlkClass.new("r_"+child_opeitm["prdpur"]+"schs")
-                                command_c,qty_require = add_update_prdpur_table_from_nditm  child,parent,tblname,child_opeitm,blk.command_init
+                                command_c,qty_require = add_update_prdpur_table_from_nditm  nd,parent,tblname,blk.command_init
                                 blk.proc_create_src_tbl(command_c)
                                 trnganttkey += 1
                                 gantt["key"] = gantt_key + format('%05d', trnganttkey)
@@ -155,12 +159,16 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 gantt["processseq_trn"] = nd["processseq"]
                                 gantt["locas_id_trn"] = nd["locas_id_opeitm"]
                                 gantt["duedate_trn"] = command_c["#{gantt["tblname"].chop}_duedate"]
+                                gantt["toduedate_trn"] = command_c["#{gantt["tblname"].chop}_toduedate"]
                                 gantt["qty_require"] = qty_require
+                                gantt["qty_handover"] = (qty_require / nd["packqty"].to_f).ceil * nd["packqty"].to_f 
                                 gantt["chilnum"] = nd["chilnum"]
                                 gantt["parenum"] = nd["parenum"]
                                 setParams["gantt"] = gantt.dup
                                 setParams["opeitm"] = child_opeitm.dup
                                 setParams["mkprdpurords_id"] = 0
+                                setParams["child"] = child.dup
+                                setParams["gantt"] = gantt.dup
                                 blk.proc_private_aud_rec(setParams,command_c) ###create pur,prdschs
                                 if child["consumtype"] =~ /CON|MET/  ###出庫
                                         if tblname =~ /^prd/
@@ -180,6 +188,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         end
                                         child["packno"] = if (child_opeitm["packno_proc"]||="0") != "0" then "packno" else "" end
                                         child["lotno"] = ""   ### shpschs,shpordsの時はlotnoは""  
+                                        setParams["child"] = child.dup
                                         Shipment.proc_create_shp(setParams) do   
                                             shptblname
                                         end
@@ -190,7 +199,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         end
                                         if child["consumtype"] =~ /MET/ and child_opeitm["consumauto"] == "A"   ###使用後自動返却
                                             ###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
-                                            tbldata["starttime"] = tbldata["duedate"] + 3  ###親の作業後2日後元に戻す。
+                                            tbldata["starttime"] = (tbldata["duedate"].to_date + 1).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
                                             child["shelfnos_id_to"] = child["shelfnos_id_fm"] 
                                             if tblname =~ /^prd/
                                                 child["locas_id_fm"] = tbldata["locas_id_wrokplace"]
@@ -199,6 +208,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                                 child["locas_id_fm"] = tbldata["locas_id_suppier"]
                                                 child["shelfnos_id_fm"] = tbldata["shelfnos_id_fm"]
                                             end
+                                            setParams["child"] = child.dup
                                             Shipment.proc_create_shp(setParams) do   ###setParams 親のデータ
                                                 shptblname
                                             end
@@ -220,16 +230,17 @@ class CreateOtherTableRecordJob < ApplicationJob
                             when "custschs"
                                 gantt["qty_handover"] = tbldata["qty_handover"] =  gantt["qty_sch"]
                             else
-                                Rails.logger.debug" orgtblname:#{gantt["orgtblname"]} error "                                
-                                Rails.logger.debug" orgtblname:#{gantt["orgtblname"]} error "
+                                3.times{Rails.logger.debug" orgtblname:#{gantt["orgtblname"]} error "}
                                 raise
                             end
                             gantt["qty_require"] = tbldata["qty_require"] = gantt["qty_handover"] 
                             child = {"itms_id_nditm" => gantt["itms_id_trn"],"processseq_nditm" => gantt["processseq_trn"] ,
+                                    "opeitms_id"=> tbldata["opeitms_id"],
                                     "parenum" => 1,"chilnum" => 1,"locas_id_fm" => 0,  ###親が子部品をどこから持ってくるかなので今回は不要
                                     "consumunitqty" => 1,"consumminqty" => 0,"consumchgoverqty" => 0}
+                            child.merge!(setParams["opeitm"])
                             blk = RorBlkCtl::BlkClass.new("r_"+ setParams["opeitm"]["prdpur"]+"schs")
-                            command_c,qty_require = add_update_prdpur_table_from_nditm  child,tbldata,paretblname,setParams["opeitm"],blk.command_init
+                            command_c,qty_require = add_update_prdpur_table_from_nditm  child,tbldata,paretblname,blk.command_init
                             blk.proc_create_src_tbl(command_c)
                             setParams["child"] = child.dup
                             setParams["gantt"] = gantt.dup
@@ -257,9 +268,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                 ActiveRecord::Base.connection.update(strsql)
             end
             remark =  %Q% $@: #{$@[0..200]} :class #{self} : LINE #{__LINE__} $!: #{$!} %  ###evar not defined
-            Rails.logger.debug"error rollback "
-            Rails.logger.debug"error rollback "
-            Rails.logger.debug"error rollback "
+            3.times{Rails.logger.debug"error rollback "}
             Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
             Rails.logger.debug"error class #{self} : $!: #{$!} "
             Rails.logger.debug"error class #{self} : params: #{params} "
@@ -298,30 +307,16 @@ class CreateOtherTableRecordJob < ApplicationJob
     end
  
 	###schsの追加	paretblname =~ /schs$|ords$/の時呼ばれる 
-	def add_update_prdpur_table_from_nditm  child,parent,paretblname,opeitm,command_init ### id processreqsのid child-->nditms  parent ===> r_prd,pur XXXs
+	def add_update_prdpur_table_from_nditm  nd,parent,paretblname,command_init ### id processreqsのid child-->nditms  parent ===> r_prd,pur XXXs
         if paretblname =~ /ords/   ###ordsから _schを作成
+            parent["qty_sch"] = parent["qty"]
             parent.delete("qty") 
             parent.delete("amt") 
         end
-		command_c,qty_require = CtlFields.proc_fields_update(parent,"r_"+ opeitm["prdpur"]+"schs",command_init) do |command,para|
+        fields = CtlFields::CtlFieldsClass.new()
+		command_c,qty_require = fields.proc_fields_update(nd,parent,"r_"+ nd["prdpur"]+"schs",command_init) do |command|
 			command["id"] = ""
-			command["opeitm_loca_id_opeitm"] = opeitm["locas_id_opeitm"]
-			para["opeitms_id"] = opeitm["id"]
-			para["duration"] =  opeitm["duration"].to_f
-			para["packqty"] =  if opeitm["packqty"].to_f == 0
-                                    1
-                                else
-                                    opeitm["packqty"].to_f
-                                end
-			para["shelfnos_id_to"] = opeitm["shelfnos_id_to_opeitm"]
-			para["shelfnos_id_fm"] = opeitm["shelfnos_id_fm_opeitm"]
-			para["locas_id"] = opeitm["locas_id_opeitm"]  ###発注の時の作業場所
-			para["parenum"] = child["parenum"].to_f
-			para["chilnum"] = child["chilnum"].to_f
-			para["locas_id_fm"] = child["locas_id_fm"]
-			para["consumunitqty"] = child["consumunitqty"].to_f
-			para["consumminqty"] = child["consumminqty"].to_f
-            para["consumchgoverqty"] = child["consumchgoverqty"].to_f
+			command["opeitm_loca_id_opeitm"] = nd["locas_id_opeitm"]
 		end
 		return command_c,qty_require
     end

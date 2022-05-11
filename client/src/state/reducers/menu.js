@@ -17,6 +17,8 @@ const menureducer =  (state= initialValues , actions) =>{
 
     case MENU_SUCCESS:
       return {...state,
+        hostError: null,
+        message:null,
         menuListData:actions.action,
       }
 
@@ -32,6 +34,8 @@ const menureducer =  (state= initialValues , actions) =>{
 
     case SCREEN_SUCCESS7:
           return {...state,
+            hostError: null,
+            message:null,
             menuChanging:false,
     }
 

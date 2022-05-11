@@ -36,7 +36,7 @@ export function* MenuSaga({ payload: {token,client,uid} }) {
             }else{  
               return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
             }
-        case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized  ${e}`
+        case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
             if(params.second===true){
                 return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
             }else{  

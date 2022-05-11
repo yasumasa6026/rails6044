@@ -36,7 +36,7 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,GanttReset,
                   {tmpbuttonlist[screenCode].map((val,index) => 
                     <Tab key={index} >
                       <Button  
-                      type={val[1]==='inlineedit7'||'inlineadd7'||'yup'||'ganttchart'?"submit":"button"}
+                      type={val[1]==='inlineedit7'||'inlineadd7'||'yup'||'ganttchart'||'import'?"submit":"button"}
                       onClick ={() =>{
                                       setButtonFlg(val[1],params,data,second_columns_info,pareScreenCode)} // buttonflg
                                      }>
@@ -111,6 +111,8 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
   setButtonFlg : (buttonflg,    //editableflg,screenCode,uid,screenName,search
                     params,data,second_columns_info,pareScreenCode) =>{
         dispatch(ButtonFlgRequest(buttonflg,params)) // import export 画面用
+        let screenData = []
+        let newRow = {}
         switch (buttonflg) {  //buttonflg ==button_code
           case "reset":
             params= { ...params, req:"reset",disableFilters:false}
@@ -133,7 +135,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
               return  dispatch(DownloadRequest(params)) //
          
           case "import":
-              return   //画面表示のみ
+              return  //画面表示のみ
 
           case "mkshpinsts":
               params= {...params,req:"mkshpinsts",disableFilters:false}
@@ -183,11 +185,23 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
               break
 
           case "crt_tbl_view_screen":
-              params = {...params,req:"createTblViewScreen",data:data}
+            data.map((row,index)=>{Object.keys(row).map((field,idx)=>
+                        {
+                          if(/_code|_expiredate/.test(field)){newRow = {...newRow,[field]:row[field]}                                                            }
+                        })
+                        screenData[index] = newRow
+                        newRow = {}})
+            params= {...params,req:"createTblViewScreen",data:screenData}
               return  dispatch(TblfieldRequest(params)) //
 
           case "unique_index":
-              params= {...params,req:"createUniqueIndex",data:data}
+              data.map((row,index)=>{Object.keys(row).map((field,idx)=>
+                          { if(/_code|_seqno|_grp|_expiredate/.test(field)){newRow = {...newRow,[field]:row[field]}                                                              }
+                          })
+                          screenData[index] = newRow
+                          newRow = {}
+                        })
+              params= {...params,req:"createUniqueIndex",data:screenData}
               return  dispatch(TblfieldRequest(params)) 
           default:
             return 

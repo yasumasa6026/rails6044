@@ -1,8 +1,8 @@
 import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,
-  SCREEN_FAILURE,LOGOUT_REQUEST,SCREEN_PARAMS_SET,SCREEN_LINEEDIT,
-  FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,
-  YUP_ERR_SET,YUP_RESULT,DROPDOWNVALUE_SET,
+  SCREEN_FAILURE,LOGOUT_REQUEST,SCREEN_LINEEDIT,
+  FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,YUP_RESULT,
   INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
+  YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_PARAMS_SET,
   MKSHPINSTS_SUCCESS,SECONDSCREEN_SUCCESS7,CONFIRMALL_SUCCESS,} 
   from '../../actions'
 
@@ -28,7 +28,6 @@ case SCREEN_PARAMS_SET:
 return {...state,
   params:actions.payload.params,
 }
-
 
 //case SCREEN_ONKEYUP:
 //return {...state,
@@ -64,7 +63,6 @@ return {...state,
 
 case SCREEN_LINEEDIT:
 return {...state,
-  data:actions.payload.data,
   params:actions.payload.params,
   loading:false,
   hostError:actions.payload.data[actions.payload.params.index].confirm_message
@@ -82,7 +80,6 @@ case  DROPDOWNVALUE_SET:
 case SCREEN_FAILURE:
   return {...state,
   hostError: actions.payload.message,
-  data: actions.payload.data,
   loading:false,
 }
 
@@ -94,8 +91,7 @@ return {...state,
 }
 
 case FETCH_FAILURE:
-    return {...state,
-      data:actions.payload.data,  
+    return {...state, 
       params:actions.payload.params,  
       loading:false,
       hostError: actions.payload.params.err,  
@@ -103,7 +99,6 @@ case FETCH_FAILURE:
 
 case FETCH_RESULT:
           return {...state,
-            data:actions.payload.data, 
             params:actions.payload.params,  
             loading:false,
             hostError: null,
@@ -142,8 +137,12 @@ case CONFIRMALL_SUCCESS:
 }
 
 case  LOGOUT_REQUEST:
-return {}  
-
+  return {
+      loading:false,
+      hostError: null,
+      disabled:false,
+      message:null,
+  }
 default:
 return state
 }

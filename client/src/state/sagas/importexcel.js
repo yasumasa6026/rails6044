@@ -52,7 +52,6 @@ function batchcheck(sheet,nameToCode,screenCode) {
             else{
                 errHeader.push(`${tblchop}_confirm_gridmessage:"can not proceed for above error"`)
             }
-            return lines
         }
         lineData = {}
     })
@@ -98,14 +97,15 @@ export function* ImportExcelSaga({ payload: {excelfile,nameToCode,params} }) {
                     let {importexcel,importErrorCheckMaster} = yupErrCheckBatch(importdata,screenCode)
                     if(importErrorCheckMaster){
                             errHeader.push(`check_master write error ${excelfile.name} Screen Code :${screenCode}`)
-                           yield put({ type: IMPORTEXCEL_FAILURE, errHeader: errHeader ,importErrorCheckMaster:true,errMessage:errMessage })}
-                    //    }else{
+                            errMessage = "error => " +  JSON.stringify(importexcel[0])
+                           yield put({ type: IMPORTEXCEL_FAILURE, errHeader: errHeader ,importErrorCheckMaster:true,errMessage:errMessage })
+                    }//else{
                             try{
                                 let res = yield call(sendExcelData,{params,importexcel})
                                 let importError = res.data.importError
                                 let results = res.data.results
                                 let sheetName
-                                if(importError){     
+                                if(importError||importErrorCheckMaster){     
                                     sheetName = params.screenName + "_" + "_Import_Ng"
                                 }
                                 else{
@@ -162,8 +162,8 @@ export function* ImportExcelSaga({ payload: {excelfile,nameToCode,params} }) {
                                 errHeader.push(`err:${e}, ${excelfile.name}, Screen Code :${screenCode}`)
                                 yield put({ type: IMPORTEXCEL_FAILURE, errHeader: errHeader ,errMessage:errMessage})
                             }
-                       // }
-                }
+                    }
+                //}
         }catch(e){
                     errMessage = `err:${e}, excel read error ${excelfile.name} Screen Code :${screenCode}`
                     yield put({ type: IMPORTEXCEL_FAILURE, errMessage: errMessage })

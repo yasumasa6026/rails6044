@@ -62,7 +62,7 @@ export function* DownloadSaga({ payload: {params}}) {
            yield put({ type: DOWNLOAD_FAILURE, errors: message })
            break
     case 401:
-            message = 'Invalid credentials'
+            message = 'Invalid credentials or Login TimeOut'
             yield put({ type: DOWNLOAD_FAILURE, errors: message })
             break
     default:

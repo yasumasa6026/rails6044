@@ -48,9 +48,9 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,grid_columns_i
                 <TabPanel key={idx}  >
                 <Tabs forceRenderTabPanel  selectedTabClassName="react-tabs--selected_custom_detail">
                 <TabList>
-                  {menuListData.map((val,index) => 
+                  {menuListData.map((val,idx) => 
                     grp_name===val.grp_name&&
-                    <Tab key={index} >
+                    <Tab key={idx} >
                       <Button   type="submit"
                       onClick ={() => {
                                         getScreen(val.screen_code,val.scr_name,val.view_name,params)
@@ -60,9 +60,9 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,grid_columns_i
                       </Button>             
                     </Tab>)}
                 </TabList>
-                  {menuListData.map((val,index) => 
+                  {menuListData.map((val,idx) => 
                     grp_name===val.grp_name&&
-                    <TabPanel  key={index}> 
+                    <TabPanel  key={idx}> 
                       {val.contents?val.contents:" "}
                     </TabPanel>)}
                 </Tabs>
@@ -111,9 +111,10 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
       getScreen : (screenCode, screenName,view_name, params) =>{
         titleNameSet(screenName)
         params= { ...params,screenName:  (screenName||""),disableFilters:false,
-                          filtered:[],where_str:"",sortBy:[],
-                         screenCode:screenCode,pageIndex:0,pageSize:20,
-                         req:"viewtablereq7",viewName:view_name} 
+                        parse_linedata:{},
+                        filtered:[],where_str:"",sortBy:[],
+                        screenCode:screenCode,pageIndex:0,pageSize:20,
+                        req:"viewtablereq7",viewName:view_name} 
         dispatch(ScreenInitRequest(params,null))}   //data:null
           })    
 export default connect(mapStateToProps,mapDispatchToProps)(Menus7)

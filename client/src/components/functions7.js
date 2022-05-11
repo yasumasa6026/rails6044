@@ -65,30 +65,30 @@ export function  setClassFunc(field,row,className,req){  //error処理
                 }    
 }
 
-export function  setInitailValueForAddFunc(field,row,className,screenCode){    
-    //let today = new Date();
-    let val = ""
-    let duedateField
-    if(row.values[field]&&row.values[field]!==""){val = row.values[field]}
-        else{  //コメントの内容はホストで対応
-        //     if(/Numeric/.test(className)){val = "0"}
-            switch( true ){ //初期値 全画面共通
-                // case /_expiredate/.test(field):
-                //     val = "2099-12-31"
-                // break
-                // case /_isudate|_rcptdate|_cmpldate/.test(field):  //   mkord_cmpldateでもセットしている。
-                //     val = today.getFullYear() + "-" + (today.getMonth() + 1) + "-" +  today.getDate()  
-                // break
-                case /_starttime|_toduedate/.test(field):  //   mkord_cmpldateでもセットしている。
-                    duedateField = field.split("_")[0] + "_duedate"
-                    val = row.values[duedateField] 
-                break
-                case /loca_code_cust_custrcvplc/.test(field):  //   
-                    val = row.values["loca_code_cust"] 
-                break
-                default: break 
-            }
-        }
-    return val    
-}
+// export function  setInitailValueForAddFunc(field,row,screenCode){    //screenCode未使用
+//     //let today = new Date();
+//     let val = ""
+//     let duedateField
+//     if(row.values[field]&&row.values[field]!==""){val = row.values[field]}
+//         else{  //コメントの内容はホストで対応
+//         //     if(/Numeric/.test(className)){val = "0"}
+//             switch( true ){ //初期値 全画面共通
+//                 // case /_expiredate/.test(field):
+//                 //     val = "2099-12-31"
+//                 // break
+//                 // case /_isudate|_rcptdate|_cmpldate/.test(field):  //   mkord_cmpldateでもセットしている。
+//                 //     val = today.getFullYear() + "-" + (today.getMonth() + 1) + "-" +  today.getDate()  
+//                 // break
+//                 case /_starttime|_toduedate/.test(field):  //   mkord_cmpldateでもセットしている。
+//                     duedateField = field.split("_")[0] + "_duedate"
+//                     val = row.values[duedateField] 
+//                 break
+//                 case /loca_code_custrcvplc/.test(field):  //   
+//                     val = row.values["loca_code_cust"] 
+//                 break
+//                 default: break 
+//             }
+//         }
+//     return val    
+// }
 

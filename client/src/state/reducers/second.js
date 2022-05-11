@@ -1,6 +1,7 @@
 import {SCREENINIT_REQUEST,LOGOUT_REQUEST,  //SECONDSCREEN_REQUEST,
         MKSHPACTS_RESULT,CONFIRMALL_SUCCESS,SECONDSCREEN_SUCCESS7,
         SECONDSCREEN_LINEEDIT,SECONDSCREEN_FAILURE, SECONDFETCH_REQUEST,
+        SECONDSCREEN_PARAMS_SET,
         SECONDFETCH_FAILURE,SECONDFETCH_RESULT} from '../../actions'
 
         const initialValues = {data:[],
@@ -74,13 +75,13 @@ const secondreducer =  (state= initialValues , actions) =>{
     case SECONDFETCH_REQUEST:
         return {...state,
             params:actions.payload.params, 
+            data:actions.payload.data, 
             loading:true,
           //editableflg:false
         }
         
     case SECONDFETCH_FAILURE:
         return {...state,
-            data:actions.payload.data,  
             params:actions.payload.params,  
             loading:false,
             hostError: actions.payload.params.err,  
@@ -88,7 +89,6 @@ const secondreducer =  (state= initialValues , actions) =>{
         
     case SECONDFETCH_RESULT:
         return {...state,
-            data:actions.payload.data, 
             params:actions.payload.params,  
             loading:false,
             hostError: null,
@@ -103,7 +103,12 @@ const secondreducer =  (state= initialValues , actions) =>{
                                     dropdownlist:[],
                                     hiddenColumns:[]},
         } 
-   
+
+    case SECONDSCREEN_PARAMS_SET:
+        return {...state,
+            params:actions.payload.params,
+        }
+       
     case  LOGOUT_REQUEST:
         return {}  
 

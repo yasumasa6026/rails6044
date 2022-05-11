@@ -42,7 +42,7 @@ export function* LoginSaga({ payload: { email, password } }) {
           switch (true) {
               case /code.*500/.test(error): message = 'Internal Server Error'
                break
-              case /code.*401/.test(error): message = 'Invalid credentials'
+              case /code.*401/.test(error): message = 'Invalid credentials or Login TimeOut'
                break
               default: message = `Something went wrong ${error}`}
         yield put({ type: LOGIN_FAILURE, payload: message })

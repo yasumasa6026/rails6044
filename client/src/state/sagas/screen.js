@@ -5,7 +5,6 @@ import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_LINEEDIT, FETCH_RESULT, FETCH_FAIL
         SECONDFETCH_FAILURE,MKSHPINSTS_SUCCESS,MKSHPACTS_RESULT,CONFIRMALL_SUCCESS,
         }
          from '../../actions'
-import {getLoginState} from '../reducers/auth'
 import {getButtonState} from '../reducers/button'
 
 function screenApi({params ,url,headers} ) {
@@ -21,11 +20,10 @@ function screenApi({params ,url,headers} ) {
 
  // const delay = (ms) => new Promise(res => setTimeout(res, ms)) 
 export function* ScreenSaga({ payload: {params,data,}  }) {
-  const loginState = yield select(getLoginState)  //loginStateの変更は不可　思わぬことが発生。
   const buttonState = yield select(getButtonState) //buttonStateの変更は不可　思わぬことが発生。
-  let token = loginState.token       
-  let client = loginState.client         
-  let uid = loginState.uid
+  let token = params.token       
+  let client = params.client         
+  let uid = params.uid
   let url = ""
   let tmp 
   // let sagaCallTime = new Date()
@@ -41,10 +39,9 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
     //   yield delay(100)
     // }
     let xparams = {}
-    params["fetch_data"] = ""  //net error 対策　1024*10 送信時は不要
+    //params["fetch_data"] = ""  //net error 対策　1024*10 送信時は不要
     try{
       let response  = yield call(screenApi,{params ,url,headers} )
-      console.log(response)
       switch (response.status) {
         case 200:  
           switch(params.req) {
@@ -84,79 +81,36 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
                 return yield put({ type: SECONDSCREEN_SUCCESS7, payload:response})       
 
             case "fetch_request":  //viewによる存在チェック内容表示
-              xparams = {...response.data.params}
-              xparams.req = buttonState.buttonflg
-              data[params.index].confirm_gridmessage =  "ok"
-              if(response.data.params.err){
-                  tmp =  JSON.parse(response.data.params.fetchCode) //javascript -->rails hush で渡せず
-                  tmp.map((idx)=>{
-                    data[params.index][`${Object.keys(idx)[0]}_gridmessage`] = response.data.params.err
-                    data[params.index].confirm_gridmessage =  response.data.params.err
-                  return null
-                 })
-                }
-                else{
-                  //tmp =  JSON.parse(response.data.params.fetch_data)
-                   Object.keys(response.data.params.fetch_data).map((idx)=>{
-                             data[params.index][idx]= response.data.params.fetch_data[idx]
-                             if(response.data.params.fetch_data[idx]==="")
-                                         {data[params.index][`${idx}_gridmessage`] = "on the way"}
-                                     else{data[params.index][`${idx}_gridmessage`] = "detected"}
-                     return null
-                   })
-              }    
-              break
+                xparams = {...response.data.params}
+                xparams.req = buttonState.buttonflg
+                break
             case "check_request":   //項目毎のチェック帰りはfetchと同じ
-                  xparams = {...response.data.params}
-                //  xparams.req = buttonState.buttonflg
-                  data[params.index].confirm_gridmessage =  "ok"
-                  if(response.data.params.err){
-                       tmp =  JSON.parse(response.data.params.checkCode)
-                       Object.keys(tmp).map((idx)=>{
-                         data[params.index][`${idx}_gridmessage`] = response.data.params.err
-                         data[params.index].confirm_gridmessage =  response.data.params.err
-                       return null
-                      })
-                  }
-                  else{
-                       tmp =  JSON.parse(response.data.params.checkCode)
-                       Object.keys(tmp).map((idx)=>{
-                         data[params.index][`${idx}_gridmessage`] = "ok check"
-                       return data
-                       })
-                      //  tmp = response.data.params.linedata
-                      //  Object.keys(tmp).map((idx)=>{
-                      //    data[params.index][idx] = tmp[idx]
-                      //  return null
-                      //  })
-                    }
-                  break      
-              // case "yup":  // create yup schema
-              //       return yield put({ type: YUP_RESULT, payload: {message:response.data.params.message} })    
-              default:
+                xparams = {...response.data.params}
+                break      
+            default:
                 return {}
             }
-            if(response.data.params.err){
+          if(response.data.params.err){
                 if(params.second===true){
-                    yield put({ type: SECONDFETCH_FAILURE,payload:{data:data,params:xparams}}) 
+                    yield put({ type: SECONDFETCH_FAILURE,payload:{params:xparams}}) 
                 }else{
-                    yield put({ type: FETCH_FAILURE, payload:{data:data,params:xparams}}) 
+                    yield put({ type: FETCH_FAILURE, payload:{params:xparams}}) 
                 }
-            }else{
+          }else{
                 if(params.second===true){
-                    yield put({type: SECONDFETCH_RESULT, payload:{data:data,params:xparams}}) 
+                    yield put({type: SECONDFETCH_RESULT, payload:{params:xparams}}) 
                 }else{  
-                    yield put({type: FETCH_RESULT, payload:{data:data,params:xparams}}) 
+                    yield put({type: FETCH_RESULT, payload:{params:xparams}}) 
                 }  
-            }  
-            break  
-            case 500: message = `${response.status}: Internal Server Error ${response.statusText}`
+          }  
+          break  
+        case 500: message = `${response.status}: Internal Server Error ${response.statusText}`
                     data[params.index]["confirm_gridmessage"] = message
                     break
-            case 401: message = `${response.status}: Invalid credentials ${response.statusText}`
+        case 401: message = `${response.status}: Invalid credentials or Login TimeOut ${response.statusText}`
                     data[params.index]["confirm_gridmessage"] = message
                     break
-            default:
+        default:
                     data[params.index]["confirm_gridmessage"] = message
                     message = `${response.status}: Screen Something went wrong ${response.statusText} `
       }
@@ -174,7 +128,7 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
                 }else{  
                   return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
                 }
-            case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized  ${e}`
+            case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
                 if(params.second===true){
                     return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
                 }else{  

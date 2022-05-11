@@ -21,30 +21,6 @@ export function* TblfieldSaga({ payload: {params}  }) {
   let client = params.client         
   let uid = params.uid   
   
-  let data =[]
-  switch(params.req) {
-      case "yup":
-          break
-      case  "createTblViewScreen":
-              params.data.map((val,index) =>{ 
-              return data.push({pobject_code_tbl:val.pobject_code_tbl,                      
-                  pobject_code_fld:val.pobject_code_fld, })
-               })
-              params["data"] = data
-            break
-      case "createUniqueIndex": 
-          params.data.map((val,index) =>{ 
-          return data.push({pobject_code_tbl:val.pobject_code_tbl,                      
-                      pobject_code_fld:val.pobject_code_fld,  // blkuky用
-                      blkuky_grp:val.blkuky_grp,
-                      blkuky_seqno:val.blkuky_seqno,
-                      blkuky_expiredate:val.blkuky_expiredate,})
-           }) 
-           params["data"] = data
-           break
-      default:
-         return {}
-  }
   let message
   try{
     let response  = yield call(screenApi,{params ,token,client,uid} )
@@ -78,7 +54,7 @@ export function* TblfieldSaga({ payload: {params}  }) {
               }else{  
                 return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
               }
-          case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized  ${e}`
+          case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
               if(params.second===true){
                   return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
               }else{  

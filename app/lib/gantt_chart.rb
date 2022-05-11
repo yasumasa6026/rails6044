@@ -93,15 +93,7 @@ module GanttChart
 		end	
 		return tblname,tblid
 	end
-        ##dp_id = 0
-        ##@bgantts.sort.each  do|key,value|    ###set depends
-        ##   if key.size > 3 ###(key+ idx(%4d)
-        ##     @bgantts[key[0..-4]][:depends] << dp_id.to_s + ","
-        ##   end
-        ##   dp_id += 1
-        ##
-	###
-	###upload
+       
 	###
 	def update_opeitm_from_gantt(copy_opeitm,value ,command_r)
 		if copy_opeitm
@@ -596,7 +588,7 @@ module GanttChart
 						and nditm_Expiredate > current_date order by itm_code_nditm  "
 			rnditms = ActiveRecord::Base.connection.select_all(strsql)
 			depend = []
-			rnditms.each_with_index  do |rec,index|
+			rnditms.each_with_index  do |rec,idx|
 				nopeitms_id = get_opeitms_id_from_itm_by_processseq(rec["nditm_itm_id_nditm"],
 																rec["nditm_processseq_nditm"])
 				duration = rec["nditm_duration"].to_i
@@ -607,7 +599,7 @@ module GanttChart
 						"parenum"=>rec["nditm_parenum"],"chilnum"=>rec["nditm_chilnum"],
 						"itms_id"=>rec["itm_id_nditm"],"itm_code"=>rec["itm_code_nditm"],
 						"itm_name"=>rec["itm_name_nditm"]}
-				nlevel = level + "_" + format('%04d', index)
+				nlevel = level + "_" + format('%04d', idx)
 				@ganttchartData[nlevel] = contents
 				@stacklevel << [nopeitms_id,nlevel]
 				depend << nlevel
@@ -661,7 +653,7 @@ module GanttChart
                               :id=>"nditms_"+i["id"].to_s}  ###
                       ngantts << np
                  else
-                      Rails.logger.debug "logic error opeitms missing  line :#{__LINE_} select * from opeitms where id = #{i["opeitms_id"]} "
+                      3.times{Rails.logger.debug "logic error opeitms missing  line :#{__LINE_} select * from opeitms where id = #{i["opeitms_id"]} "}
                       @errmsg =  "logic error opeitms missing  line :#{__LINE_} select * from opeitms where id = #{i["opeitms_id"]} "
                       raise
                  end
