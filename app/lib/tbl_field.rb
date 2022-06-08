@@ -501,7 +501,7 @@ extend self
 		command_r["pobject_code"] = screenfield
 		command_r["pobject_objecttype"] = "view_field"
 		command_r["pobject_expiredate"] = '2099/12/31'
-		blk.proc_create_src_tbl(command_r) ##
+		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r[:sio_result_f] ==   "9"
 		 	@messages <<  "error  add_pobject_record #{screenfield}\n"
@@ -521,7 +521,7 @@ extend self
 		command_r["pobject_code"] = screenfield
 		command_r["pobject_objecttype"] = "view_field"
 		command_r["pobject_expiredate"] = '2099/12/31'
-		blk.proc_create_src_tbl(command_c) ##
+		blk.proc_create_tbldata(command_c) ##
 		setParams = blk.proc_private_aud_rec({},command_c)
 		if command_r[:sio_result_f] ==   "9"
 		 	@messages <<  "error  update_pobject_record #{screenfield}\n"
@@ -662,7 +662,7 @@ extend self
 													field["screenfield_crtfield"]	
 												end
 				
-		blk.proc_create_src_tbl(command_r) ##
+		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r[:sio_result_f] ==   "9"
 				@messages  << command_r[:sio_message_contents][0..200] + "\n"

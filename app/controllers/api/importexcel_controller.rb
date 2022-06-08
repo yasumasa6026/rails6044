@@ -24,8 +24,8 @@ class ImportexcelController < ApplicationController
         jparams = params.dup
         jparams[:importData] = {}  ###jparamsではimportdataは使用しない。processreqへの保存対象外
         jparams[:req] = "import"
+        command_c = {}
         screen = ScreenLib::ScreenClass.new(jparams)
-        fields = CtlFields::CtlFieldsClass.new()
         column_info,page_info,where_info,select_fields,fetch_check,dropdownlist,sort_info,nameToCode = 
                   screen.proc_create_upload_editable_columns_info "import" 
         
@@ -76,10 +76,10 @@ class ImportexcelController < ApplicationController
                     if fetchCode[field] 
                         jparams[:fetchCode] = %Q%{"#{field}":"#{val}"}%
                         jparams[:fetchview] = fetchCode[field]
-                        jparams = fields.proc_chk_fetch_rec jparams
+                        jparams = CtlFields.proc_chk_fetch_rec jparams
                         if jparams[:err].nil?
                             if checkCode[field] and val != ""
-                                jparams = fields.proc_judge_check_code jparams,field,checkCode[field]
+                                jparams = CtlFields.proc_judge_check_code jparams,field,checkCode[field]
                                 if jparams[:err]
                                         importError = true
                                         jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
@@ -104,7 +104,7 @@ class ImportexcelController < ApplicationController
                 blk =  RorBlkCtl::BlkClass.new(screen.screenCode)
                 command_c = blk.command_init.dup  ###blkukyはid以外でユニークを保証するkey
                 if parse_linedata["confirm"] == true    ###重複keyチェック
-                    err = fields.proc_blkuky_check(screen.screenCode.split("_")[1],parse_linedata)
+                    err = CtlFields.proc_blkuky_check(screen.screenCode.split("_")[1],parse_linedata)
                     tblid = screen.screenCode.split("_")[1].chop + "_id"
                     err.each do |key,recs|
                         recs.each do |rec|
@@ -157,7 +157,7 @@ class ImportexcelController < ApplicationController
                 else
                 end
                 if importError == false and parse_linedata["confirm"] == true 
-                    blk.proc_create_src_tbl(command_c) ### @src_tbl作成
+                    blk.proc_create_tbldata(command_c) ### @src_tbl作成
                     setParams = blk.proc_private_aud_rec(jparams,command_c)
                     idx += 1
                     performSeqNos << setParams["seqno"][0]

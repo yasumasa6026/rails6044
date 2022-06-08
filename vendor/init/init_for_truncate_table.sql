@@ -44,6 +44,7 @@ truncate table mkprdpurords  cascade;
 truncate table srctbls;
 truncate table instks cascade;
 truncate table outstks cascade;
+truncate table mkordorgs cascade;
 
 --insert into lotstkhists(id,
 --									itms_id,shelfnos_id,
@@ -141,7 +142,8 @@ truncate table sio.sio_r_srctbls;
 truncate table sio.sio_r_shpacts;
 
 truncate table mkordterms ;
-truncate table mkordterms ;
+truncate table sio.sio_r_mkordterms ;
+truncate table sio.sio_r_mkordorgs cascade;
 
 
 REFRESH MATERIALIZED view  r_pobjects;

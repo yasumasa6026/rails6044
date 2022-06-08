@@ -10,7 +10,6 @@ module Api
             $person_code_chrg = ActiveRecord::Base.connection.select_value(strsql)
  
             screen = ScreenLib::ScreenClass.new(params)
-            fields = CtlFields::CtlFieldsClass.new()
             #####    
             case params[:req] 
             when 'menureq'   ###大項目
@@ -47,14 +46,14 @@ module Api
             when "fetch_request"
                 reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
                 reqparams[:parse_linedata] = JSON.parse(params[:linedata])
-                reqparams = fields.proc_chk_fetch_rec reqparams
+                reqparams = CtlFields.proc_chk_fetch_rec reqparams
                 render json: {:params=>reqparams}   
 
             when "check_request"  
                 reqparams = params.dup
                 reqparams[:parse_linedata] = JSON.parse(params[:linedata])
                 JSON.parse(params[:checkCode]).each do |sfd,checkcode|
-                  reqparams = fields.proc_judge_check_code reqparams,sfd,checkcode
+                  reqparams = CtlFields.proc_judge_check_code reqparams,sfd,checkcode
                 end
                 render json: {:params=>reqparams}   
 

@@ -189,8 +189,7 @@ module ScreenLib
 				@grid_columns_info["dropdownlist"] = dropdownlist
 				if sort_info[:default]
 					ary_select_fields = select_fields.split(',')
-					fields = CtlFields::CtlFieldsClass.new()
-					sort_info = fields.proc_detail_check_strorder sort_info,ary_select_fields
+					sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
 				end	
 				@grid_columns_info["init_where_info"] = init_where_info
 				@grid_columns_info["sort_info"] = sort_info	
@@ -609,8 +608,7 @@ module ScreenLib
 				fetch_check[:checkCode]  = YupSchema.proc_create_checkCode screenCode   
 				if sort_info[:default]
 					ary_select_fields = select_fields.split(',')
-					fields = CtlFields::CtlFieldsClass.new()
-					sort_info = fields.proc_detail_check_strorder sort_info,ary_select_fields
+					sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
 				end	 
 				page_info[:screenwidth] = screenwidth	
 				if gridmessages_fields.size > 1
@@ -636,8 +634,7 @@ module ScreenLib
 						setParams[:parse_linedata]["aud"]= "add" 
 					end  
 					setParams["fetchview"] = yup_fetch_code[field]
-					fields = CtlFields::CtlFieldsClass.new()
-					setParams = fields.proc_chk_fetch_rec setParams  
+					setParams = CtlFields.proc_chk_fetch_rec setParams  
 					if setParams[:err] 
 				  		setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
 				  		setParams[:parse_linedata][:confirm] = false 
@@ -650,8 +647,7 @@ module ScreenLib
 			  	end
 			 	if setParams[:err].nil?
 					if yup_check_code[field] 
-						fields = CtlFields::CtlFieldsClass.new()
-				  		setParams = fields.proc_judge_check_code setParams,field,yup_check_code[field]  
+				  		setParams = CtlFields.proc_judge_check_code setParams,field,yup_check_code[field]  
 				  		if setParams[:err]
 							setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
 							setParams[:parse_linedata][:confirm] = false 
@@ -683,8 +679,7 @@ module ScreenLib
 				  	end
 			  	end 
 			  	### セカンドkeyのユニークチェック
-				fields = CtlFields::CtlFieldsClass.new()
-			 	err = fields.proc_blkuky_check screenCode.split("_")[1],setParams[:parse_linedata]
+			 	err = CtlFields.proc_blkuky_check screenCode.split("_")[1],setParams[:parse_linedata]
 			  	err.each do |key,recs|
 					recs.each do |rec|
 						if command_c["id"] != rec["id"]
@@ -703,51 +698,49 @@ module ScreenLib
 						  where screenfield_expiredate > current_date and 
 						  id in (select id from r_screenfields where pobject_code_scr = '#{screenCode}') and
 						  pobject_code_sfd in('screenfield_starttime','screenfield_duedate','screenfield_qty','screenfield_qty_case')
-			  %
-			  seqchkfields ={}
-			  recs = ActiveRecord::Base.connection.select_all(strsql)
-			  recs.each do |rec|
-				seqchkfields[rec["pobject_code_sfd"]] = rec["screenfield_seqno"]
-			  end  
-			  seqchkfields[setParams[:parse_linedata]["pobject_code_sfd"]] = setParams[:parse_linedata]["screenfield_seqno"]
-			  if (seqchkfields["screenfield_starttime"]||="99999") <  (seqchkfields["screenfield_duedate"]||="0")
-				setParams[:err] =  " starttime seqno > duedate seqno  line:#{setParams[:index]} "
-				setParams[:parse_linedata][("confirm_gridmessage").to_sym] = setParams[:err] 
-				setParams[:parse_linedata][:confirm] = false 
-			  else
-				if (seqchkfields["screenfield_qty_case"]||="99999") <  (seqchkfields["screenfield_qty"]||="0")
-					setParams[:err] =  " qty_case seqno > qty seqno  line:#{setParams[:index]} "  ###画面表示順　　包装単位の計算ため
+			  			%
+			  	seqchkfields ={}
+			  	recs = ActiveRecord::Base.connection.select_all(strsql)
+			  	recs.each do |rec|
+					seqchkfields[rec["pobject_code_sfd"]] = rec["screenfield_seqno"]
+			  	end  
+			  	seqchkfields[setParams[:parse_linedata]["pobject_code_sfd"]] = setParams[:parse_linedata]["screenfield_seqno"]
+			  	if (seqchkfields["screenfield_starttime"]||="99999") <  (seqchkfields["screenfield_duedate"]||="0")
+					setParams[:err] =  " starttime seqno > duedate seqno  line:#{setParams[:index]} "
 					setParams[:parse_linedata][("confirm_gridmessage").to_sym] = setParams[:err] 
 					setParams[:parse_linedata][:confirm] = false 
-				end
-			  end
+			  	else
+					if (seqchkfields["screenfield_qty_case"]||="99999") <  (seqchkfields["screenfield_qty"]||="0")
+						setParams[:err] =  " qty_case seqno > qty seqno  line:#{setParams[:index]} "  ###画面表示順　　包装単位の計算ため
+						setParams[:parse_linedata][("confirm_gridmessage").to_sym] = setParams[:err] 
+						setParams[:parse_linedata][:confirm] = false 
+					end
+			  	end
 			end
 			if  setParams[:err].nil?
-			  if command_c["id"] == "" or  command_c["id"].nil?   ### add画面で同一lineで二度"enter"を押されたとき errorにしない
-				  ###  追加後エラーに気づいたときエラーしないほうが，操作性がよい
-				  command_c[:sio_classname] = "_add_grid_linedata"
-			  else         
-				  command_c[:sio_classname] = "_edit_update_grid_linedata"
-			  end
-			  blk.proc_create_src_tbl(command_c) ##
-			  setParams,command_c = blk.proc_add_update_table(setParams,command_c)
-			  if command_c[:sio_result_f]  == "9"
-				setParams[:parse_linedata][:confirm] = false  
-				err_message = command_c[:sio_message_contents].split(":")[1][0..100] + 
+			  	if command_c["id"] == "" or  command_c["id"].nil?   ### add画面で同一lineで二度"enter"を押されたとき errorにしない
+				  	###  追加後エラーに気づいたときエラーしないほうが，操作性がよい
+					command_c[:sio_classname] = "_add_grid_linedata"
+			  	else         
+					command_c[:sio_classname] = "_edit_update_grid_linedata"
+			  	end
+			  	blk.proc_create_tbldata(command_c) ##
+			  	setParams,command_c = blk.proc_add_update_table(setParams,command_c)
+			  	if command_c[:sio_result_f]  == "9"
+					setParams[:parse_linedata][:confirm] = false  
+					err_message = command_c[:sio_message_contents].split(":")[1][0..100] + 
 							  command_c[:sio_errline].split(":")[1][0..100]  
-				setParams[:parse_linedata][("confirm_gridmessage").to_sym] = err_message
-			  else
-				setParams[:parse_linedata][:id] = command_c["id"]
-				setParams[:parse_linedata][(tblnamechop+"_id").to_sym] = command_c[tblnamechop+"_id"]
-				setParams[:parse_linedata][:confirm] = true  
-				setParams[:parse_linedata][("confirm_gridmessage").to_sym] = "done"
-				ArelCtl.proc_materiallized tblnamechop+"s"
-			  end
+					setParams[:parse_linedata][("confirm_gridmessage").to_sym] = err_message
+			  	else
+					setParams[:parse_linedata][:id] = command_c["id"]
+					setParams[:parse_linedata][(tblnamechop+"_id").to_sym] = command_c[tblnamechop+"_id"]
+					setParams[:parse_linedata][:confirm] = true  
+					setParams[:parse_linedata][("confirm_gridmessage").to_sym] = "done"
+					ArelCtl.proc_materiallized tblnamechop+"s"
+			  	end
 			end 
 			return setParams
 		end
-
-
   
 		def undefined
 		  nil

@@ -7,7 +7,7 @@ const Download = ({screenName,filtered,totalCount,}) => {
         return(                 
         <div>
         <form  > 
-           <p>export Table:{screenName}</p>
+           <p>export ScreenName:{screenName}</p>
            <p>select condition </p>
            {filtered.length===0?<p>all data selected </p>: filtered.map((val,idx) =>{
                                                     return <p key={idx}>{val.id} : {val.value}</p>

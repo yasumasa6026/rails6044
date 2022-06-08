@@ -119,7 +119,7 @@ module Shipment
 				command_c[:sio_classname] = "shpacts_add_"
 				command_all << command_c
 				outcnt += 1
-				blk.proc_create_src_tbl(command_c) ##
+				blk.proc_create_tbldata(command_c) ##
 				setParams = blk.proc_private_aud_rec(params,command_c)
 			end  
 		rescue
@@ -324,7 +324,7 @@ module Shipment
 					command_c["#{tblnamechop}_tax"] = 0 		
 				end		
 
-				blk.proc_create_src_tbl(command_c) ##
+				blk.proc_create_tbldata(command_c) ##
 				setParams = blk.proc_private_aud_rec(reqparams,command_c)
 
 				stkinout["tblname"] = yield
@@ -476,7 +476,7 @@ module Shipment
 			command_c["#{tblnamechop}_paretblname"] = gantt["tblname"] 
 			command_c["#{tblnamechop}_paretblid"] = gantt["tblid"]
 
-			blk.proc_create_src_tbl(command_c) ##
+			blk.proc_create_tbldata(command_c) ##
 			setParams = blk.proc_private_aud_rec(reqparams,command_c)
 
 			stkinout = {}
@@ -602,7 +602,7 @@ module Shipment
 				stkinout["qty_stk"] = stkinout["qty_sch"] = 0
 			end
 
-			blk.proc_create_src_tbl(command_c) ##
+			blk.proc_create_tbldata(command_c) ##
 			setParams = blk.proc_private_aud_rec(reqparams,command_c)
 
 			stkinout["tblname"] = yield
@@ -789,7 +789,7 @@ module Shipment
 				command_c["#{tblnamechop}_tax"] = 0 		
 			end		
 
-			blk.proc_create_src_tbl(command_c) ##
+			blk.proc_create_tbldata(command_c) ##
 			setParams = blk.proc_private_aud_rec(reqparams,command_c)
 
 			stkinout["tblname"] = yield
@@ -872,7 +872,7 @@ module Shipment
 		case kubun
 		when "out" 
 			inout = -1
-		when "in"
+		else  ### in update
 			inout = 1
 		end	
 		new_stk = stkinout.dup
@@ -909,11 +909,14 @@ module Shipment
 			new_stk["qty_sch"] = stkinout["qty_sch"].to_f * inout + last_lot["qty_sch"].to_f 
 			new_stk["qty"]     = stkinout["qty"].to_f * inout  + last_lot["qty"].to_f
 			new_stk["qty_stk"] = stkinout["qty_stk"].to_f * inout +  last_lot["qty_stk"].to_f
-			new_stk["lotstkhists_id"] = stkinout["lotstkhists_id"] = ArelCtl.proc_get_nextval("lotstkhists_seq") 
+			new_stk["lotstkhists_id"] = stkinout["lotstkhists_id"] = stkinout["srctblid"] =ArelCtl.proc_get_nextval("lotstkhists_seq") 
 			ActiveRecord::Base.connection.insert(insert_lotstkhists_sql(new_stk)) 
 			###
+			src = {"tblname" => "","tblid" => -1,"trngantts_id" => stkinout["trngantts_id"]}
+			base = {"tblname" =>stkinout["tblname"],"tblid" =>stkinout["tblid"],"qty_src" => 0,"amt_src" => 0}
+			ArelCtl.proc_insert_linktbls(src,base)
 		else
-			stkinout["lotstkhists_id"] = lotstkhists["id"]
+			stkinout["lotstkhists_id"] = stkinout["srctblid"] = lotstkhists["id"]
 			###
 			new_stk["qty_sch"] = stkinout["qty_sch"].to_f * inout  + lotstkhists["qty_sch"].to_f
 			new_stk["qty"]     = stkinout["qty"].to_f * inout  + lotstkhists["qty"].to_f
@@ -929,6 +932,7 @@ module Shipment
 			ActiveRecord::Base.connection.update(strsql) 
 
 		end
+		stkinout["wh"] = "lotstkhists" 
 		strsql = %Q& select *
 								from lotstkhists
 								where   itms_id = #{stkinout["itms_id"]} and  
@@ -951,60 +955,59 @@ module Shipment
 						&
 			ActiveRecord::Base.connection.update(strsql) 
 		end
-		stkinout["wh"] = "lotstkhists"	
-		###
-		###  在庫明細
-		####
-		case stkinout["tblname"]  ###shpxxxxは除く
-		when /^cust|^prd|^purschs|^purords|^purinsts|^puracts|^purrets|reply/
-			strsql = %Q&
-				select * from alloctbls where srctblname = '#{stkinout["tblname"]}' and srctblid = #{stkinout["tblid"]}
-										and (qty_sch + qty + qty_stk) > qty_linkto_alloctbl
-				& ###qty_sch,qty,qty_stkの何れか1つのみzero以上		
-			ActiveRecord::Base.connection.select_all(strsql).each do |alloc| 
-				case stkinout["tblname"]
-				when /schs/
-					qty_sch = alloc["qty_sch"].to_f - alloc["qty_linkto_alloctbl"].to_f
-					qty = 0
-					qty_stk = 0
-				when /ords|insts|reply/
-					qty_sch = 0
-					qty = alloc["qty"].to_f - alloc["qty_linkto_alloctbl"].to_f
-					qty_stk = 0
-				when /dlvs|acts|rets/
-					qty_sch = 0
-					qty = 0
-					qty_stk = alloc["qty_stk"].to_f - alloc["qty_linkto_alloctbl"].to_f
-				end
-				proc_check_inoutlotstk(kubun,stkinout)
-			end
-		end
 		return stkinout
 	end
 
-	def proc_check_inoutlotstk(kubun,stkinout)
-		if kubun == "out"
-			inout = -1
+	def proc_check_inoutlotstk(inout,stkinout)
+		if inout == "out"
+			plusminus = -1
 		else
-			inout = 1
+			plusminus = 1
 		end
 		strsql = %Q&
 			select * from inoutlotstks where trngantts_id = #{stkinout["trngantts_id"]}
-										and srctblid = #{stkinout["lotstkhists_id"]} and srctblname = '#{stkinout["wh"]}'
+										and srctblid = #{stkinout["srctblid"]} and srctblname = '#{stkinout["wh"]}'
+										and tblid = #{stkinout["tblid"]} and tblname = '#{stkinout["tblname"]}'
 										for update
 		&
 		inoutlotstk = ActiveRecord::Base.connection.select_one(strsql)
 		if inoutlotstk
 			update_sql = %Q&
-				update inoutlotstks set qty_sch = qty_sch + #{stkinout["qty_sch"].to_f * inout},
-										qty = qty + #{stkinout["qty"].to_f * inout},
-										qty_stk = qty_stk + #{stkinout["qty_stk"].to_f * inout},
+				update inoutlotstks set qty_sch = qty_sch + #{stkinout["qty_sch"].to_f * plusminus},
+										qty = qty + #{stkinout["qty"].to_f * plusminus},
+										qty_stk = qty_stk + #{stkinout["qty_stk"].to_f * plusminus},
 										remark = '#{stkinout["remark"]}'
 						where id = #{inoutlotstk["id"]}				 
 			& 
 			ActiveRecord::Base.connection.update(update_sql)
 		else
-			ActiveRecord::Base.connection.update(insert_inoutlotstk_sql(stkinout["wh"],stkinout,inout))
+			ActiveRecord::Base.connection.insert(proc_insert_inoutlotstk_sql(plusminus,stkinout))
+		end	
+	end
+	
+	def proc_sch_inoutlotstk(kubun,sch)
+		if kubun == "out"
+			plusminus = -1
+		else
+			plusminus = 1
+		end
+		strsql = %Q&
+			select id from inoutlotstks where trngantts_id = #{sch["trngantts_id"]}
+									and srctblid = #{sch["lotstkhists_id"]} and srctblname = '#{sch["wh"]}'
+									and tblid = #{sch["tblid"]} and tblname = '#{sch["tblname"]}'
+									for update
+		&
+		inoutlotstk_id = ActiveRecord::Base.connection.select_value(strsql)
+		if inoutlotstk_id
+			update_sql = %Q&
+				update inoutlotstks set qty_sch = qty_sch + #{sch["qty_sch"].to_f *plusminus},
+										remark = '#{sch["remark"]}'
+						where id = #{inoutlotstk_id}				 
+			& 
+			ActiveRecord::Base.connection.update(update_sql)
+		else
+			sch["qty"] = sch["qty_stk"] = 0
+			ActiveRecord::Base.connection.insert(proc_insert_inoutlotstk_sql(plusminus,stkinout))
 		end	
 	end
 
@@ -1032,7 +1035,7 @@ module Shipment
 		&
 	 end
 
-	def insert_inoutlotstk_sql(wh,stkinout,inout)
+	def proc_insert_inoutlotstk_sql(plusminus,stkinout)
 		  %Q&insert into inoutlotstks(id,
 								 trngantts_id,
 								 tblname,tblid,
@@ -1046,35 +1049,21 @@ module Shipment
 						 values(#{ArelCtl.proc_get_nextval("inoutlotstks_seq")},
 								 #{stkinout["trngantts_id"]},
 								 '#{stkinout["tblname"]}',#{stkinout["tblid"]},
-								 '#{wh}',#{stkinout["lotstkhists_id"]},
-								 #{stkinout["qty_sch"].to_f * inout} ,
-								 #{stkinout["qty_stk"].to_f * inout},
-								 #{stkinout["qty"].to_f * inout},
+								 '#{stkinout["srctblname"]}',#{stkinout["srctblid"]},
+								 #{stkinout["qty_sch"].to_f * plusminus} ,
+								 #{stkinout["qty_stk"].to_f * plusminus},
+								 #{stkinout["qty"].to_f * plusminus},
 								 to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 								 to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 								 ' ',#{$person_code_chrg||=0},'2099/12/31','#{stkinout["remark"]}')
 		 &
 	end
 	
-	def proc_mk_custwhs_rec kubun,stkinout,tbldata  ###lotstkhistsは棚のみ
+	def proc_mk_custwhs_rec kubun,stkinout  ###lotstkhistsは棚のみ
 		if kubun == "in"
 			inout = 1
 		else
 			inout = -1
-		end
-		case stkinout["tblname"]
-		when /custschs/
-			stkinout["qty_sch"] = tbldata["qty_sch"].to_f * inout
-			stkinout["qty"] = stkinout["qty_stk"] = 0			
-		when /custords|custinsts/
-			stkinout["qty_sch"] = stkinout["qty_stk"] = 0
-			stkinout["qty"] = tbldata["qty"].to_f  * inout			
-		when /custdlvs|custacts/
-			stkinout["qty_sch"] = stkinout["qty"] = 0			
-			###lotstkhistsはqty_stk custwhsはqty（予定)
-			stkinout["qty_stk"] = tbldata["qty_stk"].to_f  * inout  ###自社倉庫を出ただけ
-		else
-			return
 		end
 		strsql = %Q&
 				select * from custwhs where itms_id = #{stkinout["itms_id"]} and processseq = #{stkinout["processseq"]}
@@ -1111,9 +1100,8 @@ module Shipment
 				%
 			ActiveRecord::Base.connection.update(update_sql) 
 		end
-		stkinout["wh_id"] =  custwhs_id
-		stkinout["wh"] = "custwhs"	
-		proc_check_inoutlotstk(kubun,stkinout)
+		stkinout["srctblid"] =  custwhs_id
+		return stkinout
 	end
 
 	def proc_mk_supplierwhs_rec kubun,stkinout  ###lotstkhistsは棚のみ
@@ -1156,7 +1144,11 @@ module Shipment
 									where id = #{rec["id"]} 
 				%
 			ActiveRecord::Base.connection.update(update_sql) 
+			supplierwhs_id = rec["id"]
 		end
+		stkinout["srctblname"] = "supplierwhs"
+		stkinout["srctblid"] = supplierwhs_id
+		return stkinout
 	end
 
 	def proc_re_create_shpords reqparams,srctblname,qty,rec
