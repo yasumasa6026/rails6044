@@ -31,7 +31,7 @@ module ArelCtl
 
   	def  proc_pdfwhere pdfscript,command_c
 	    reports_id = pdfscript[:id]
-	    viewname = command_c[:sio_viewname]
+	    viewname = command_c["sio_viewname"]
         tmpwhere = proc_strwhere command_c
         case  params[:initprnt]
             when  "1"  then
@@ -241,7 +241,7 @@ module ArelCtl
 					###入金日の計算
 				end
 		end
-		command_c[:sio_classname] =
+		command_c["sio_classname"] =
 			if add_or_update =~ /_add_|_insert_/
 				"_add_proc_createtable_data"
 			else
@@ -297,8 +297,8 @@ module ArelCtl
 					command_c = ActiveRecord::Base.connection.select_one(amt_sch_sql)
 					command_c["#{prev_totbl.chop}_amt_sch"] = amt_sch
 					command_c["#{prev_totbl.chop}_tax"] = tax
-					command_c[:sio_code] = command_c[:sio_viewname] =  "r_" + prev_totbl
-					command_c[:sio_classname] = "_update_consume_amt_sch_by_act"
+					command_c["sio_code"] = command_c["sio_viewname"] =  "r_" + prev_totbl
+					command_c["sio_classname"] = "_update_consume_amt_sch_by_act"
 				when /insts|dlvs|acts|replyinputs/
 					srctbl = link["srctblname"]
 					srctblid = link["srctblid"]
@@ -415,6 +415,10 @@ module ArelCtl
 					' ','0','2099/12/31','#{gantt["remark"]}')
 		&
 		ActiveRecord::Base.connection.insert(strsql)
+		src = {"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"trngantts_id" => gantt["trngantts_id"]}
+		qty_src = gantt["qty_sch"].to_f + gantt["qty"].to_f + gantt["qty_stk"].to_f  ###qty_sch,qty,qty_stkの一つのみ有効
+		base = {"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"qty_src" => qty_src,"amt_src" => 0}
+		proc_insert_linktbls(src,base)
 		return
 	end
 
@@ -482,7 +486,7 @@ module ArelCtl
 		### freeがschsを引き当てた時,schsがfreeに引きあったとき!trngantts_id==nil ordsがinsts,actsになった時 trngantts_id==nil
 	###xxschsとxxordsの関係やxxxordsとxxxxacts等の関係のリンク作成
 	def proc_src_link_alloc_update act,base,src
-		###sno,cnoでの前の状態との関係  @tbldata = {"id"=>,"qty"=>,"qty_stk"=>}
+		###sno,cnoでの前の状態との関係  @tbldata = {:id=>,:qty=>,:qty_stk=>}
 		strsql = %Q& select id from linktbls where srctblid = #{src["tblid"]} and srctblname = '#{src["tblname"]}'
 							and tblname = '#{base["tblname"]}' and tblid = #{base["tblid"]}
 							and trngantts_id = #{src["trngantts_id"]}

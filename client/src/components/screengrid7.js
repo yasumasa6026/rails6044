@@ -691,8 +691,11 @@ const GridTable = ({
                       toggleAllRowsSelected(false)
                       updateParams([{clickIndex:[]}])
                       row.toggleRowSelected()
-                      let starttime = params.screenCode.split("_")[1].slice(0,-1)+"_starttime" //outstksで使用
-                      updateParams([{clickIndex:[{lineId:row.index,id:data[row.index]["id"],starttime:data[row.index][starttime]}]},
+                      let starttime = params.screenCode.split("_")[1].slice(0,-1)+"_starttime" //
+                      let snoOrd = params.screenCode.split("_")[1].slice(0,-1)+"_sno_"+params.screenCode.split("_")[1].slice(0,2)+"ord" //
+                      let snoInst = params.screenCode.split("_")[1].slice(0,-1)+"_sno_"+params.screenCode.split("_")[1].slice(0,2)+"inst"  //
+                      updateParams([{clickIndex:[{lineId:row.index,id:data[row.index]["id"],starttime:data[row.index][starttime],
+                                    snoOrd:data[row.index][snoOrd],snoInst:data[row.index][snoInst],}]},
                                     {index:row.index}])
                       handleScreenParamsSet(params)  
                     },

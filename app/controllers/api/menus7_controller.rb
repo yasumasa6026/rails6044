@@ -6,9 +6,14 @@ module Api
         def create
             ###JSON.parseのエラー対応　要
             $email = current_api_user[:email]
-            strsql = "select person_code_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
-            $person_code_chrg = ActiveRecord::Base.connection.select_value(strsql)
- 
+            strsql = "select person_code_chrg,chrg_person_id_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
+            person = ActiveRecord::Base.connection.select_one(strsql)
+            if person.nil?
+                person = {"person_code_chrg" => "0","chrg_person_id_chrg" =>0 }
+            end
+            $person_code_chrg = person["person_code_chrg"]
+            $person_id_upd = person["chrg_person_id_chrg"]
+
             screen = ScreenLib::ScreenClass.new(params)
             #####    
             case params[:req] 
@@ -68,8 +73,8 @@ module Api
               render json:{:excelData=>{:columns=>download_columns_info.to_json,:data=>pagedata.to_json},
                             :totalCount=>totalCount,:filttered=>params[:filtered] }    
 
-            when 'mkshpinsts'  ###shpordsは作成済が条件
-                outcnt,shortcnt,err = Shipment.proc_mkshpinsts(screen.screenCode),params[:clickIndex]
+            when 'mkshpords'  ###shpschsは作成済が条件 purords,prdords時に自動作成
+                outcnt,shortcnt,err = Shipment.proc_mkshpords(screen.screenCode,params[:clickIndex])
                 render json:{:outcnt=>outcnt,:shortcnt=>shortcnt,:err=>err}    
             
             when 'mkshpacts'

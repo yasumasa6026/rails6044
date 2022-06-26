@@ -98,20 +98,20 @@ module GanttChart
 	def update_opeitm_from_gantt(copy_opeitm,value ,command_r)
 		if copy_opeitm
 			copy_opeitm.each do |k,v|
-				command_r["#{k}".to_sym] = v if k =~ /^opeitm_/
+				command_r["#{k}"] = v if k =~ /^opeitm_/
 			end
 		end
-		command_r[:opeitm_itm_id] = value[:itm_id]
-		command_r[:opeitm_loca_id_opeitm] = value[:loca_id]
-		command_r[:sio_viewname]  = command_r[:sio_code] = @screen_code = "r_opeitms"
-		command_r[:opeitm_priority] = value[:priority]
-		command_r[:opeitm_processseq] = value[:processseq]
-		command_r[:opeitm_prdpur] = value[:prdpur]
-		command_r[:opeitm_parenum] = value[:parenum]
-		command_r[:opeitm_chilnum] = value[:chilnum]
-		command_r[:opeitm_duration] = value[:duration]
-		### command_r[:opeitm_person_id_upd] = command_r[:sio_user_code]
-        command_r[:opeitm_expiredate] = Time.parse("2099/12/31")
+		command_r["opeitm_itm_id"] = value[:itm_id]
+		command_r["opeitm_loca_id_opeitm"] = value[:loca_id]
+		command_r["sio_viewname"]  = command_r["sio_code"] = @screen_code = "r_opeitms"
+		command_r["opeitm_priority"] = value[:priority]
+		command_r["opeitm_processseq"] = value[:processseq]
+		command_r["opeitm_prdpur"] = value[:prdpur]
+		command_r["opeitm_parenum"] = value[:parenum]
+		command_r["opeitm_chilnum"] = value[:chilnum]
+		command_r["opeitm_duration"] = value[:duration]
+		### command_r["opeitm_person_id_upd"] = command_r["sio_user_code"]
+        command_r["opeitm_expiredate"] = Time.parse("2099/12/31")
 		yield
 		proc_simple_sio_insert command_r  ###重複チェックは　params[:tasks][@tree[key]][:processseq] > value[:processseq]　が確定済なので不要
 	end
@@ -134,26 +134,26 @@ module GanttChart
 		end
 	end
 	def chk_alreadt_exists_nditm(command_r)
-		strsql = "select 1 from nditms where  opeitms_id = #{command_r[:nditm_opeitm_id]} and  itm_id_nditm = #{command_r[:nditm_itm_id_nditm]} and
-					processseq_nditm = #{command_r[:nditm_processseq_nditm]} and   locas_id_nditm  = #{command_r[:nditm_loca_id_nditm]} "
+		strsql = "select 1 from nditms where  opeitms_id = #{command_r["nditm_opeitm_id"]} and  itm_id_nditm = #{command_r["nditm_itm_id_nditm"]} and
+					processseq_nditm = #{command_r["nditm_processseq_nditm"]} and   locas_id_nditm  = #{command_r["nditm_loca_id_nditm"]} "
 		if ActiveRecord::Base.connection.select_one (strsql)
 			@ganttdata[key][:itm_name] = @err = " ??? !!! already exists !!!"
 		end
 	end
 	def update_nditm_rec(pare_opeitm_id,value ,command_r)
-		command_r[:sio_viewname]  = command_r[:sio_code] = @screen_code = "r_nditms"
+		command_r["sio_viewname"]  = command_r["sio_code"] = @screen_code = "r_nditms"
 		if value[:itm_id]
-			command_r[:nditm_itm_id_nditm] = value[:itm_id]
-			command_r[:nditm_opeitm_id] = pare_opeitm_id
+			command_r["nditm_itm_id_nditm"] = value[:itm_id]
+			command_r["nditm_opeitm_id"] = pare_opeitm_id
 			if value[:loca_id]
-				command_r[:nditm_loca_id_nditm] = value[:loca_id]
-				command_r[:nditm_processseq_nditm] = value[:processseq]
-				command_r[:nditm_expiredate] = Time.parse("2099/12/31")
-				command_r[:nditm_parenum] = value[:parenum]
-				command_r[:nditm_chilnum] = value[:chilnum]
-				command_r[:nditm_duration] = value[:duration]
-				command_r[:nditm_expiredate] = Time.parse("2099/12/31")
-				chk_alreadt_exists_nditm(command_r) if command_r[:sio_classname] =~ /_add_/
+				command_r["nditm_loca_id_nditm"] = value[:loca_id]
+				command_r["nditm_processseq_nditm"] = value[:processseq]
+				command_r["nditm_expiredate"] = Time.parse("2099/12/31")
+				command_r["nditm_parenum"] = value[:parenum]
+				command_r["nditm_chilnum"] = value[:chilnum]
+				command_r["nditm_duration"] = value[:duration]
+				command_r["nditm_expiredate"] = Time.parse("2099/12/31")
+				chk_alreadt_exists_nditm(command_r) if command_r["sio_classname"] =~ /_add_/
 				proc_simple_sio_insert command_r  if @err == "no"
 			else
 				@ganttdata[key][:loca_code] =  @err = "???"
@@ -171,8 +171,8 @@ module GanttChart
 			if opeitm
 				if opeitm["itms_id"].to_s == value[:itm_id] and opeitm["processseq"].to_s == value[:processseq] and opeitm["priority"].to_s == value[:priority]
 					update_opeitm_from_gantt(copy_opeitm,value ,command_r) do
-						command_r[:sio_classname] = "_edit_opeitms_rec"
-						command_r[:opeitm_id] = command_r[:id] = opeitm["id"]
+						command_r["sio_classname"] = "_edit_opeitms_rec"
+						command_r["opeitm_id"] = command_r["id"] = opeitm["id"]
 					end
 				else
 					strsql = "select * from r_opeitms where itm_code = '#{value["copy_itemcode"]}' and
@@ -181,8 +181,8 @@ module GanttChart
 						@ganttdata[key][:priority] = "???"  ###priority違いで同じものがいる。
 					else
 						update_opeitm_from_gantt(copy_opeitm,value ,command_r) do
-							command_r[:sio_classname] = "_edit_opeitms_rec"
-							command_r[:opeitm_id] = command_r[:id] = opeitm["id"]
+							command_r["sio_classname"] = "_edit_opeitms_rec"
+							command_r["opeitm_id"] = command_r["id"] = opeitm["id"]
 						end
 					end
 				end
@@ -192,10 +192,10 @@ module GanttChart
 		else
 			if copy_opeitm
 				update_opeitm_from_gantt(copy_opeitm,value ,command_r)do
-					command_r[:sio_classname] = "_add_opeitm_rec"
-					command_r[:opeitm_id] = command_r[:id] = ArelCtl.proc_get_nextval("opeitms_seq")
+					command_r["sio_classname"] = "_add_opeitm_rec"
+					command_r["opeitm_id"] = command_r["id"] = ArelCtl.proc_get_nextval("opeitms_seq")
 				end
-				params[:tasks][key][:opeitms_id] = command_r[:opeitm_id]
+				params[:tasks][key][:opeitms_id] = command_r["opeitm_id"]
 			else
 				@ganttdata[key][:copy_itemcode] = @err = "???"
 			end
@@ -206,16 +206,16 @@ module GanttChart
 			r_nditm = ActiveRecord::Base.connection.select_one("select * from r_nditms where id = #{value[:nditms_id]} ")
 			if r_nditm
 				update_nditm_from_gantt(key,value ,command_r) do
-					command_r[:sio_classname] = "_edit_nditm_rec"
-					command_r[:nditm_id] = command_r[:id] = value[:nditms_id]
+					command_r["sio_classname"] = "_edit_nditm_rec"
+					command_r["nditm_id"] = command_r["id"] = value[:nditms_id]
 				end
 			else ###
 				@ganttdata[key][:itm_name] = @err = "logic error  line #{__LINE__} "
 			end
 		else
 			update_nditm_from_gantt(key,value ,command_r) do
-				command_r[:sio_classname] = "_add_nditm_rec"
-				command_r[:nditm_id] = command_r[:id] = ArelCtl.proc_get_nextval("nditms_seq")
+				command_r["sio_classname"] = "_add_nditm_rec"
+				command_r["nditm_id"] = command_r["id"] = ArelCtl.proc_get_nextval("nditms_seq")
 			end
 		end
 	end
@@ -251,13 +251,13 @@ module GanttChart
 									copy_opeitm = ActiveRecord::Base.connection.select_one(strsql)
 									if copy_opeitm
 										update_opeitm_from_gantt(copy_opeitm,value ,command_r)do
-											command_r[:sio_classname] = "_add_opeitm_rec"
-											command_r[:opeitm_id] = command_r[:id] = ArelCtl.proc_get_nextval("opeitms_seq")
+											command_r["sio_classname"] = "_add_opeitm_rec"
+											command_r["opeitm_id"] = command_r["id"] = ArelCtl.proc_get_nextval("opeitms_seq")
 										end
-										params[:tasks][key][:opeitms_id] = command_r[:opeitm_id]
+										params[:tasks][key][:opeitms_id] = command_r["opeitm_id"]
 										command_r = {}
-										command_r[:sio_user_code] = $person_code_chrg
-										command_r[:sio_session_counter] =   @sio_session_counter
+										command_r["sio_user_code"] = $person_code_chrg
+										command_r["sio_session_counter"] =   @sio_session_counter
 										exits_nditm_from_gantt(key,value ,command_r)
 									else
 										@ganttdata[key][:copy_itemcode] = @err = "???"
@@ -308,8 +308,8 @@ module GanttChart
 				@tree[i] = key
 			end
 			command_r = {}
-			command_r[:sio_user_code] = $person_code_chrg
-			command_r[:sio_session_counter] =   @sio_session_counter
+			command_r["sio_user_code"] = $person_code_chrg
+			command_r["sio_session_counter"] =   @sio_session_counter
 			case value[:id]
                 when  "000" then
                 ##top record
@@ -337,17 +337,17 @@ module GanttChart
 			params[:deletedTaskIds].each do |del_rec|
 				tbl,id = del_rec.split("_")
 				command_r = {}
-				command_r[:sio_user_code] = $person_code_chrg
-				command_r[:sio_session_counter] =   @sio_session_counter
+				command_r["sio_user_code"] = $person_code_chrg
+				command_r["sio_session_counter"] =   @sio_session_counter
 				case tbl
 					when "nditms"
-						command_r[:sio_classname] = "_delete_nditm_rec"
-						command_r[:nditm_id] = command_r[:id] = id.to_i
-						command_r[:sio_viewname]  = command_r[:sio_code] = @screen_code = "r_nditms"
+						command_r["sio_classname"] = "_delete_nditm_rec"
+						command_r["nditm_id"] = command_r["id"] = id.to_i
+						command_r["sio_viewname"]  = command_r["sio_code"] = @screen_code = "r_nditms"
 					when "opeitms"
-						command_r[:sio_classname] = "_delete_opeitm_rec"
-						command_r[:opeitm_id] = command_r[:id] = id.to_i
-						command_r[:sio_viewname]  = command_r[:sio_code] = @screen_code = "r_opeitms"
+						command_r["sio_classname"] = "_delete_opeitm_rec"
+						command_r["opeitm_id"] = command_r["id"] = id.to_i
+						command_r["sio_viewname"]  = command_r["sio_code"] = @screen_code = "r_opeitms"
 				end
 				proc_simple_sio_insert command_r
 			end
@@ -634,8 +634,7 @@ module GanttChart
 	end
 	
     def vproc_get_pare_itms(n0,duedate)  ###
-          strsql = "select nditm.*,itm.consumtype consumtype from nditms nditm
-		  					inner join itms itm on itm.id = nditm.itms_id_nditm and itm.processseq = nditm.processseq_nditm 
+          strsql = "select nditm.* from nditms nditm 
 							where itms_id_nditm = #{n0[:itms_id]} and locas_id_nditm = #{n0[:locas_id]} 
 							and processseq_nditm = #{n0[:processseq]} and Expiredate > current_date  "
           nditms = ActiveRecord::Base.connection.select_all(strsql)

@@ -11,7 +11,7 @@ import "../index.css"
 import {ScreenRequest,DownloadRequest,GanttChartRequest,GanttReset,
         //ScreenInitRequest,
         ButtonFlgRequest,
-        YupRequest,TblfieldRequest,ResetRequest, //MkShpinstsResult,
+        YupRequest,TblfieldRequest,ResetRequest, 
         ConfirmAllRequest, } from '../actions'
 
  const  ButtonList = ({buttonListData,setButtonFlg,buttonflg,
@@ -137,8 +137,8 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           case "import":
               return  //画面表示のみ
 
-          case "mkshpinsts":
-              params= {...params,req:"mkshpinsts",disableFilters:false}
+          case "mkshpords":
+              params= {...params,req:"mkshpords",disableFilters:false}
               params.linedata = {}    
               return  dispatch(ScreenRequest(params,data)) //
 

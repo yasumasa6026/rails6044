@@ -234,7 +234,7 @@ extend self
 		strsql = "select id,#{column_name} from #{table_name} where #{column_name} is not null"
 		rec = ActiveRecord::Base.connection.select_one(strsql)
 		if rec
-			rslt = "DROP COLUMN but already used table:#{table_name},field:#{column_name},value:#{rec[column_name]} "
+			rslt = "modify COLUMN but already used table:#{table_name},field:#{column_name},value:#{rec[column_name]} "
 		else
 			rslt = nil	
 		end
@@ -495,7 +495,7 @@ extend self
 		blk = RorBlkCtl::BlkClass.new("r_pobjects")
 		command_r = blk.command_init
 		command_r["id"] == ""
-		command_r[:sio_classname] = "_add_pobject_screenfield"
+		command_r["sio_classname"] = "_add_pobject_screenfield"
 		command_r["pobject_id"] = ""
 		command_r["pobject_remark"] = "auto add pobject screenfield #{screenfield}"
 		command_r["pobject_code"] = screenfield
@@ -503,10 +503,10 @@ extend self
 		command_r["pobject_expiredate"] = '2099/12/31'
 		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
-		if command_r[:sio_result_f] ==   "9"
+		if command_r["sio_result_f"] ==   "9"
 		 	@messages <<  "error  add_pobject_record #{screenfield}\n"
-			@messages  << command_r[:sio_message_contents][0..200] + "\n"
-			@messages  << command_r[:sio_errline][0..200] 
+			@messages  << command_r["sio_message_contents"][0..200] + "\n"
+			@messages  << command_r["sio_errline"][0..200] 
 		end  
 		return command_r["id"]
 	end	
@@ -515,7 +515,7 @@ extend self
 		blk = RorBlkCtl::BlkClass.new("r_pobjects")
 		command_c = blk.command_init
 		command_r["id"] == id
-		command_r[:sio_classname] = "_update_pobject_screenfield"
+		command_r["sio_classname"] = "_update_pobject_screenfield"
 		command_r["pobject_id"] = ""
 		command_r["pobject_remark"] = "auto add pobject screenfield #{screenfield}"
 		command_r["pobject_code"] = screenfield
@@ -523,17 +523,17 @@ extend self
 		command_r["pobject_expiredate"] = '2099/12/31'
 		blk.proc_create_tbldata(command_c) ##
 		setParams = blk.proc_private_aud_rec({},command_c)
-		if command_r[:sio_result_f] ==   "9"
+		if command_r["sio_result_f"] ==   "9"
 		 	@messages <<  "error  update_pobject_record #{screenfield}\n"
-			 @messages  << command_r[:sio_message_contents][0..200] + "\n"
-			@messages  << command_r[:sio_errline][0..200] 
+			 @messages  << command_r["sio_message_contents"][0..200] + "\n"
+			@messages  << command_r["sio_errline"][0..200] 
 		end  
 	end
 
 	def add_screenfield_record screens_id,pobjects_id_sfd,field,aud,owner  ###aud:add,update,delete   owner:自分自身の	テーブル?
 		blk =  RorBlkCtl::BlkClass.new("r_screenfields")
 		command_r = blk.command_init
-		command_r[:sio_classname] = case aud
+		command_r["sio_classname"] = case aud
 										when "add" 
 											"_add_screenfield record"
 										when "update"
@@ -616,7 +616,7 @@ extend self
 		command_r["screenfield_dataprecision"] = (field["screenfield_dataprecision"]||=field["fieldcode_dataprecision"])
 		command_r["screenfield_datascale"] = (field["screenfield_datascale"]||=field["fieldcode_datascale"])
 		command_r["screenfield_edoptmaxlength"] = (field["screenfield_edoptmaxlength"]||=0)
-		command_r["screenfield_subindisp"] =""
+		command_r["screenfield_subindisp"] =  (field["screenfield_subindisp"]||="")
 		command_r["screenfield_editable"] =	if field["pobject_code_sfd"]  =~ /_upd/
 													"0"
 												else
@@ -664,9 +664,9 @@ extend self
 				
 		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
-		if command_r[:sio_result_f] ==   "9"
-				@messages  << command_r[:sio_message_contents][0..200] + "\n"
-			 	@messages  << command_r[:sio_errline][0..200] 
+		if command_r["sio_result_f"] ==   "9"
+				@messages  << command_r["sio_message_contents"][0..200] + "\n"
+			 	@messages  << command_r["sio_errline"][0..200] 
 		 		@messages <<  "error  add screenfield record #{field["pobject_code_tbl"].chop}_#{field["pobject_code_fld"]}"
 		else  
 		  		@params[:addId] = command_r["id"]

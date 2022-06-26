@@ -42,8 +42,8 @@ export const FETCH_REQUEST = 'FETCH_REQUEST'
 export const FETCH_RESULT = 'FETCH_RESULT'
 export const FETCH_FAILURE = 'FETCH_FAILURE'
 
-export const MKSHPINSTS_SUCCESS = 'MKSHPINSTS_SUCCESS'
-export const MKSHPINSTS_RESULT = 'MKSHPINSTS_RESULT'
+export const MKSHPORDS_SUCCESS = 'MKSHPORDS_SUCCESS'
+export const MKSHPORDS_RESULT = 'MKSHPORDS_RESULT'
 export const MKSHPACTS_RESULT = 'MKSHPACTS_RESULT'
 export const CONFIRMALL_REQUEST = 'CONFIRMALL_REQUEST'
 export const CONFIRMALL_SUCCESS = 'CONFIRMALL_SUCCESS'
@@ -233,8 +233,8 @@ export const SecondScreenFailure = (errors) => ({
   errors: { errors }  //
 })
 
-export const MkShpinstsResult = (data,params) => ({
-  type: MKSHPINSTS_RESULT,
+export const MkShpordsResult = (data,params) => ({
+  type: MKSHPORDS_RESULT,
   payload: { data,params}
 })
 

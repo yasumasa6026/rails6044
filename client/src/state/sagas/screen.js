@@ -2,7 +2,7 @@ import { call, put, select } from 'redux-saga/effects'
 import axios         from 'axios'
 import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_LINEEDIT, FETCH_RESULT, FETCH_FAILURE,
         SECONDSCREEN_SUCCESS7,SECONDSCREEN_FAILURE,SECONDSCREEN_LINEEDIT, SECONDFETCH_RESULT,
-        SECONDFETCH_FAILURE,MKSHPINSTS_SUCCESS,MKSHPACTS_RESULT,CONFIRMALL_SUCCESS,
+        SECONDFETCH_FAILURE,MKSHPORDS_SUCCESS,MKSHPACTS_RESULT,CONFIRMALL_SUCCESS,
         }
          from '../../actions'
 import {getButtonState} from '../reducers/button'
@@ -62,11 +62,11 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
                   return yield put({type:SCREEN_LINEEDIT,payload:{data:data,params:params} })   
               }      
 
-            case "mkshpinsts":  //second画面専用
-              params.req =  "mkshpinsts"
+            case "mkshpords":  //second画面専用
+              params.req =  "mkshpords"
               messages[0] = "out count : " + response.data.outcnt
               messages[1] = "shortage count : " + response.data.shortcnt
-              return yield put({ type: MKSHPINSTS_SUCCESS, payload:{messages:messages}})       
+              return yield put({ type: MKSHPORDS_SUCCESS, payload:{messages:messages}})       
            
             case "mkshpacts":  //second画面専用
               params.req = "mkshpacts"

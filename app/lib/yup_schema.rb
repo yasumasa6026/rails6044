@@ -43,10 +43,10 @@ extend self
                 str<< %Q%string()%
             when "numeric"
                 str<< %Q%number()%
-                if rec["screenfield_minvalue"].to_i >0
+                if rec["screenfield_minvalue"].to_f > 0 
                     str<< %Q%.min(#{rec["screenfield_minvalue"]})%
                 end         
-                if rec["screenfield_maxvalue"].to_i >0
+                if rec["screenfield_maxvalue"].to_f > 0
                     str<< %Q%.max(#{rec["screenfield_maxvalue"]})%
                 else
                     if rec["screenfield_dataprecision"].to_i > 0

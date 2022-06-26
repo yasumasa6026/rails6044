@@ -19,8 +19,13 @@ class ImportexcelController < ApplicationController
         ###if @importexcel.save
         tblname = params[:screenCode].split("_")[1]
         $email = params[:email]  ###tokenのuid  ===>uidはemailであること
-        strsql = "select person_code_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
-        $person_code_chrg = ActiveRecord::Base.connection.select_value(strsql)
+        strsql = "select person_code_chrg,chrg_person_id_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
+        person = ActiveRecord::Base.connection.select_one(strsql)
+        if person.nil?
+            person = {"person_code_chrg" => "0","chrg_person_id_chrg" =>0 }
+        end
+        $person_code_chrg = person["person_code_chrg"]
+        $person_id_upd = person["chrg_person_id_chrg"]
         jparams = params.dup
         jparams[:importData] = {}  ###jparamsではimportdataは使用しない。processreqへの保存対象外
         jparams[:req] = "import"
@@ -149,11 +154,11 @@ class ImportexcelController < ApplicationController
                 end
                 case command_c["aud"] 
                 when "add" 
-                    command_c[:sio_classname] = "_add_grid_linedata"
+                    command_c["sio_classname"] = "_add_grid_linedata"
                 when "update"         
-                    command_c[:sio_classname] = "_update_grid_linedata"
+                    command_c["sio_classname"] = "_update_grid_linedata"
                 when "delete"       
-                    command_c[:sio_classname] = "_delete_grid_linedata"
+                    command_c["sio_classname"] = "_delete_grid_linedata"
                 else
                 end
                 if importError == false and parse_linedata["confirm"] == true 
@@ -167,16 +172,16 @@ class ImportexcelController < ApplicationController
             end
         rescue
             ActiveRecord::Base.connection.rollback_db_transaction()
-            command_c[:sio_result_f] =   "9"  ##9:error
-            command_c[:sio_message_contents] =  "error class #{self} : LINE #{__LINE__} $!: #{$!} "    ###evar not defined
-            command_c[:sio_errline] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
+            command_c["sio_result_f"] =   "9"  ##9:error
+            command_c["sio_message_contents"] =  "error class #{self} : LINE #{__LINE__} $!: #{$!} "    ###evar not defined
+            command_c["sio_errline"] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
             Rails.logger.debug"error class #{self} : #{Time.now}: #{$@}\n "
             Rails.logger.debug"error class #{self} : $!: #{$!} \n"
             Rails.logger.debug"  idx = #{idx} command_init: #{command_c} "
             if rows.empty?
               ###redults excelへの返し
             else
-              rows[idx+1]["#{tblname.chop}_confirm_gridmessage"] = command_c[:sio_message_contents].to_s[0..1000]
+              rows[idx+1]["#{tblname.chop}_confirm_gridmessage"] = command_c["sio_message_contents"].to_s[0..1000]
             end
             idx = 0
         else

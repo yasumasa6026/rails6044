@@ -3,21 +3,21 @@
 # 2099/12/31を修正する時は　2100/01/01の修正も
 module PriceLib
 	def proc_price_amt command_c
-		tblnamechop = (command_c[:sio_viewname].split("_",2)[1].chop)
-		qty = command_c[("#{tblnamechop}_qty").to_sym]
+		tblnamechop = (command_c["sio_viewname"].split("_",2)[1].chop)
+		qty = command_c[("#{tblnamechop}_qty")]
 		case tblnamechop
 			when /^cust/
 				pricetbl = "custs"
-				loca_code = command_c[:loca_code_cust]
+				loca_code = command_c["loca_code_cust"]
 			when /^pur/
 				pricetbl = "dealers"
-				loca_code = command_c[:loca_code]   ###入力でdealerを保証する。
+				loca_code = command_c["loca_code"]   ###入力でdealerを保証する。
 			when /^prd/
 				pricetbl = "asstwhs"
-				loca_code = command_c[:loca_code_asstwh]
+				loca_code = command_c["loca_code_asstwh"]
 			when /^shp/
-				loca_code = command_c[:loca_code_to]
-				case command_c[:opeitm_oparation]
+				loca_code = command_c["loca_code_to"]
+				case command_c["opeitm_oparation"]
 					when "shp:delivered_goods"
 							pricetbl = "custs"
 					when "shp:feepayment"
@@ -27,17 +27,17 @@ module PriceLib
 					else
 							pricetbl = "asstwhs"
 				end
-				loca_code = command_c[:loca_code_to]
+				loca_code = command_c["loca_code_to"]
 			when /mkact/
-				case command_c[:mkact_prdpur]
+				case command_c["mkact_prdpur"]
 					when "pur"
 						pricetbl = "dealers"
-						if command_c[:mkact_sno_inst]
-							strsql = "select * from r_purinsts where purinst_sno = '#{command_c[:mkact_sno_inst]}'"
+						if command_c["mkact_sno_inst"]
+							strsql = "select * from r_purinsts where purinst_sno = '#{command_c["mkact_sno_inst"]}'"
 							loca_code = ActiveRecord::Base.connection.select_one(strsql)["loca_code"]
 						else
-							if command_c[:mkact_sno_act]
-								strsql = "select * from r_puracts where purinst_sno = '#{command_c[:mkact_sno_act]}'"
+							if command_c["mkact_sno_act"]
+								strsql = "select * from r_puracts where purinst_sno = '#{command_c["mkact_sno_act"]}'"
 								loca_code = ActiveRecord::Base.connection.select_one(strsql)["loca_code"]
 							else
 								return {}
@@ -52,12 +52,12 @@ module PriceLib
 		strsql = "select *
 				from r_pricemsts 	/*同一品目内ではcontract_price<pricemst_amtroundは有効日内で同一であること*/
 				where pricemst_tblname =  '#{pricetbl}' and pricemst_expiredate >= current_date and
-				itm_code = '#{command_c[:itm_code]}' AND loca_code = '#{loca_code}' "
+				itm_code = '#{command_c["itm_code"]}' AND loca_code = '#{loca_code}' "
 		rec_contract = ActiveRecord::Base.connection.select_one(strsql)   ###画面のfield
-		command_c[("#{tblnamechop}_contract_price").to_sym]||=""
-		if command_c[("#{tblnamechop}_contract_price").to_sym]  != "" ###変更の時
-			contract = command_c[("#{tblnamechop}_contract_price").to_sym]
-			price = (command_c[("#{tblnamechop}_price").to_sym]||=0).to_f
+		command_c[("#{tblnamechop}_contract_price")]||=""
+		if command_c[("#{tblnamechop}_contract_price")]  != "" ###変更の時
+			contract = command_c[("#{tblnamechop}_contract_price")]
+			price = (command_c[("#{tblnamechop}_price")]||=0).to_f
 			amtround = rec_contract["pricemst_amtround"] if rec_contract
 			amtdecimal = rec_contract["pricemst_amtdecimal"] if rec_contract
 		else   ###新規登録の時の単価
@@ -73,7 +73,7 @@ module PriceLib
 						expiredate = ""
 						return {:price=>"0",:amt=>"0",:tax=>"0",:amtf=>"0",:contract_price => contract}   ##
 					when /^shp/
-						case command_c[:opeitm_oparation]
+						case command_c["opeitm_oparation"]
 							when "shp:delivered_goods"
 								contract= "C"
 							when "shp:feepayment"
@@ -162,7 +162,7 @@ module PriceLib
 		end
 		strsql = %Q& select * from r_pricemsts
 					where pricemst_tblname =  '#{pricetbl}' and
-						itm_code = '#{command_c[:itm_code]}' AND loca_code = '#{loca_code}' and
+						itm_code = '#{command_c["itm_code"]}' AND loca_code = '#{loca_code}' and
 						pricemst_maxqty >= #{qty} and
 						pricemst_expiredate >= to_date('#{expiredate}','yyyy/mm/dd') and
 						pricemst_contract_price = '#{contract}'
@@ -178,7 +178,7 @@ module PriceLib
 				price =  price_rec["pricemst_price"]
 			else
 				if contract == "Z"
-					price = command_c[("#{tblnamechop}_price").to_sym].to_f
+					price = command_c[("#{tblnamechop}_price")].to_f
 					contract = "Z" if price_rec["pricemst_price"] != price
 				else
 					price =  price_rec["pricemst_price"]
@@ -213,22 +213,22 @@ module PriceLib
 		0
 	end
 	def vproc_price_expiredate_set(contract,command_c)
-		tblnamechop = command_c[:sio_viewname].split("_",2)[1].chop
+		tblnamechop = command_c["sio_viewname"].split("_",2)[1].chop
 		case contract  ###
 			when "1"   ###発注日ベース
-				expiredate = command_c[(tblnamechop+"_isudate").to_sym].strftime("%Y/%m/%d")
+				expiredate = command_c[(tblnamechop+"_isudate")].strftime("%Y/%m/%d")
 			when "2" ###納期ベース
-				expiredate = command_c[(tblnamechop+"_duedate").to_sym].strftime("%Y/%m/%d")
+				expiredate = command_c[(tblnamechop+"_duedate")].strftime("%Y/%m/%d")
 			when "3" ###:受入日ベース
 				if tblnamechop =~ /acts$/
-					expiredate = command_c[(tblnamechop+"_rcptdate").to_sym].strftime("%Y/%m/%d")
+					expiredate = command_c[(tblnamechop+"_rcptdate")].strftime("%Y/%m/%d")
 				else
-					expiredate = command_c[(tblnamechop+"_duedate").to_sym].strftime("%Y/%m/%d")
+					expiredate = command_c[(tblnamechop+"_duedate")].strftime("%Y/%m/%d")
 				end
 			when "4" ###:出荷日ベース　
-				expiredate = command_c[(tblnamechop+"_depdate").to_sym].strftime("%Y/%m/%d")
+				expiredate = command_c[(tblnamechop+"_depdate")].strftime("%Y/%m/%d")
 			when "5" #####:検収ベース
-				expiredate = command_c[(tblnamechop+"acpdate").to_sym].strftime("%Y/%m/%d")
+				expiredate = command_c[(tblnamechop+"acpdate")].strftime("%Y/%m/%d")
 		end
 	end
 end   ##module

@@ -16,6 +16,7 @@ module MkordinstLib
 		add_tbl_trn = ""
 		strwhere = {"org"=>"","pare"=>"","trn"=>""} 
 		tblxxx = ""
+		incnt = inqty = inamt = outcnt = outqty = outamt = 0		 
 		command_c = nil
 		["org","pare","trn"].each do |sel|  ###抽出条件のsql作成
 			case sel
@@ -62,7 +63,7 @@ module MkordinstLib
 			tbldata.each do |field_delm,val|  ###field-->r_purxxxs,r_prdxxxsのfield  delm-->org,pare,trn
 				next if field_delm =~ /_id/ ###画面から入力された項目のみが対象
 				next if val == "" or val.nil? or val == "dummy"
-				if field_delm =~ /_#{sel}/  ###sel:[org,pare,trn]のどれか
+				if field_delm.to_s =~ /_#{sel}/  ###sel:[org,pare,trn]のどれか
 					field = field_delm.sub(/_#{sel}/,"")
 					tag = field_delm.split("_")[0] + "_" + sel  ###field.split("_")[0]  --> [itm,loca,person,sno]のどれか
 					case  field
@@ -95,6 +96,7 @@ module MkordinstLib
 
 		###ordsは prjnos_id,itms_id,processseq,locas_id(作業場所、発注先),shelfnos_id_to(完成後、受入後)の保管場所毎に作成
 		###対象データの特定 trnganttsにmkprdpurords_idをセット
+		ActiveRecord::Base.connection.execute("lock table trngantts in  SHARE ROW EXCLUSIVE mode")
 		ActiveRecord::Base.connection.update(set_mkprdpurords_id_in_trngantts_strsql(add_tbl,strwhere,mkprdpurords_id))
 		###上記対象データの中で期間がある品目の選定opeitm.optfixoterm　　期間ごとにxxxordsを分ける。
 		ActiveRecord::Base.connection.insert(mkord_term(mkprdpurords_id))
@@ -118,7 +120,8 @@ module MkordinstLib
 			ord_sql = %Q&
 						select  tmp.itms_id,tmp.locas_id,tmp.processseq,tmp.prjnos_id,tmp.shelfnos_id_to,tmp.duedate,max(tmp.packqty) packqty,
 								max(tmp.tblname) tblname,max(tmp.tblid) tblid,tmp.mkprdpurords_id ,min(tmp.starttime) starttime,
-								max(ordorg.qty_require) qty_require,max(ordorg.id) mkordorgs_id,min(tmp.toduedate) toduedate
+								max(ordorg.qty_require) qty_require,max(ordorg.id) mkordorgs_id,min(tmp.toduedate) toduedate,
+								sum(tmp.incnt) incnt
 								--- qty_handover:get_ordqtyで計算済
 			   			from mkordtmpfs tmp
 						inner join  mkordorgs ordorg on tmp.itms_id = ordorg.itms_id and tmp.locas_id = ordorg.locas_id and 
@@ -131,8 +134,11 @@ module MkordinstLib
 							group by  tmp.itms_id,tmp.locas_id,tmp.processseq,tmp.prjnos_id,tmp.shelfnos_id_to,tmp.duedate,tmp.mkprdpurords_id 
 						&
 			ActiveRecord::Base.connection.select_all(ord_sql).each do |sumSchs|  ### xxxords作成
+					incnt += sumSchs["incnt"].to_f
+					inqty += sumSchs["qty_require"].to_f
 					### freeの確認
 					sumSchs = schtrn_alloc_to_freetrn(sumSchs)
+					###
 					next if sumSchs["qty_require"].to_f <= 0   ###sumSchs["qty_require"].to_f free　qty引当済
 					qty_handover = (sumSchs["qty_require"].to_f / sumSchs["packqty"].to_f).ceil  * sumSchs["packqty"].to_f
 					update_sql = %Q&
@@ -158,7 +164,7 @@ module MkordinstLib
 					command_c = blk.command_init
 					symqty = tblord + "_qty"
 					command_c[symqty] = qty_handover
-					command_c[:sio_classname] = "_add_ord_by_mkordinst"
+					command_c["sio_classname"] = "_add_ord_by_mkordinst"
 					opeitm = {}
 					field_check_sql = " select column_name from information_schema.columns
 									where 	table_catalog='#{ActiveRecord::Base.configurations["development"]["database"]}' 
@@ -201,7 +207,7 @@ module MkordinstLib
 					end
 					command_c["#{tblord}_gno"] = "" ### 
 					command_c["#{tblord}_id"] = command_c["id"] = ArelCtl.proc_get_nextval("#{tblord}s_seq")
-					command_c[:sio_classname] = "_add_proc_mkprdpurord_"
+					command_c["sio_classname"] = "_add_proc_mkprdpurord_"
 					setParams = {}  ###mkprdpurordsをリセット
 					setParams["seqno"] = seqno.dup
 					setParams["mkprdpurords_id"] = mkprdpurords_id 
@@ -210,7 +216,8 @@ module MkordinstLib
 					###
 					blk.proc_create_tbldata(command_c)
 					setParams = blk.proc_private_aud_rec(setParams,command_c)
-					prdpur_tbldata = setParams["tbldata"].dup
+					outcnt += 1
+					outqty +=  command_c[symqty]
 					gantt = setParams["gantt"].dup
 					qty = command_c[symqty]
 					strsql = %Q&
@@ -234,6 +241,7 @@ module MkordinstLib
 											where id = #{schtrn["trngantts_id"]}   --- schsのtrngantts_id
 							&		
 							ActiveRecord::Base.connection.update(update_strsql)
+							### new alloc add
 							alloctbl = {"tblname" => tblord + "s","tblid" => command_c["id"],"trngantts_id" => schtrn["trngantts_id"],
 			            				"qty_sch" => 0,"qty" => gantt_qty,"qty_stk" => 0,
 					    				"qty_linkto_alloctbl" => 0,"remark" => "Mkordinst_lib line:#{__LINE__} ",
@@ -247,6 +255,15 @@ module MkordinstLib
 									and srctblname ='#{schtrn["tblname"]}' and srctblid ='#{schtrn["tblid"]}' 
 							&
 							ActiveRecord::Base.connection.update(update_src_alloc)
+							### free
+							update_free_alloc = %Q&
+								update alloctbls set  qty_linkto_alloctbl = qty_linkto_alloctbl + #{gantt_qty},
+									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+									remark = 'MkordinstLib line #{__LINE__}'
+									where trngantts_id = #{gantt["trngantts_id"]} 
+									and srctblname ='#{gantt["tblname"]}' and srctblid ='#{gantt["tblid"]}' 
+							&
+							ActiveRecord::Base.connection.update(update_free_alloc)
 
 							src = {"tblname" => schtrn["tblname"],"tblid" => schtrn["tblid"],"trngantts_id" => schtrn["trngantts_id"]}
 							base = {"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"qty_src" => gantt_qty,"amt_src" => 0 }
@@ -255,8 +272,22 @@ module MkordinstLib
 							break
 						end
 					end
-				end
+					stkinout = {"itms_id" => sumSchs["itms_id"],"processseq" => sumSchs["processseq"],
+								"shelfnos_id" => sumSchs["shelfnos_id_to"],"shelfnos_id_real" => sumSchs["shelfnos_id_to"],
+								"prjnos_id" => sumSchs["prjnos_id"],"starttime" => sumSchs["duedate"],
+								"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"trngantts_id" => gantt["trngantts_id"],
+								"packno" => "","lotno" => "",
+								"qty_sch" => 0, "qty" => qty,"qty_stk" => 0}
+					stkinout = Shipment.proc_lotstkhists_in_out("in",stkinout)  ###在庫の更新
+					qty_src = qty 
+					opeord = Operation::OpeClass.new(setParams)
+					opeord.proc_update_inoutlot_and_src_stk("in","lotstkhists",stkinout)
 			end
+		end
+		mkordparams[:incnt] = incnt
+		mkordparams[:inqty] = inqty
+		mkordparams[:outcnt] = outcnt
+		mkordparams[:outqty] = outqty
 		# ###未処理－－＞最大発注量の分割
 		return mkordparams
 	end	
@@ -588,8 +619,7 @@ module MkordinstLib
 		strsql = strsql + strjoin + strwhere[0..-7] + strgroupby
 		blk =  RorBlkCtl::BlkClass.new("r_#{tblname}")
 		command_c =blk.command_init
-		command_c[:sio_classname] = "_add_billinst_by_mkbillinsts"
-		###ActiveRecord::Base.connection.begin_db_transaction()
+		command_c["sio_classname"] = "_add_billinst_by_mkbillinsts"
 		ActiveRecord::Base.connection.select_all(strsql).each do |inst|
 			command_c["billinst_id"] = command_c["id"] = ArelCtl.proc_get_nextval("billinsts_seq")
 			command_c["billinst_isudate"] = Time.now 
@@ -617,9 +647,9 @@ module MkordinstLib
 		end
 		rescue
 			ActiveRecord::Base.connection.rollback_db_transaction()
-			command_c[:sio_result_f] = "9"  ##9:error
-			command_c[:sio_message_contents] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
-			command_c[:sio_errline] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
+			command_c["sio_result_f"] = "9"  ##9:error
+			command_c["sio_message_contents"] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
+			command_c["sio_errline"] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
 			Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
 		  	Rails.logger.debug"error class #{self} : $!: #{$!} "
 		  	Rails.logger.debug"  command_c: #{command_c} "
@@ -650,28 +680,28 @@ module MkordinstLib
 	 		qty_src = 0
 	 		base = ArelCtl.proc_set_stkinout(free)
 	 		base["trngantts_id"] = free["trngantts_id"] ####schsの@trngantts_idを変更
-	 		if (free["alloc_qty"].to_f - free["alloc_qty_linkto_alloctbl"].to_f) >= required_sch_qty
+	 		if (free["qty"].to_f - free["alloc_qty_linkto_alloctbl"].to_f) >= required_sch_qty
 	 			qty_src = required_sch_qty 
 	 			base["qty"] = alloc_qty = required_sch_qty
 	 			base["qty_stk"] = 0
 	 			required_sch_qty = 0
 	 		else
-	 			if (free["alloc_qty_stkj"].to_f - free["alloc_qty_linkto_alloctbl"].to_f) >= required_sch_qty
+	 			if (free["qty_stk"].to_f - free["alloc_qty_linkto_alloctbl"].to_f) >= required_sch_qty
 	 				qty_src = required_sch_qty 
 	 				base["qty_stk"] = alloc_qty_stk = required_sch_qty
 	 				base["qty"] = 0
 	 				required_sch_qty = 0
 	 			else		
-	 				if (free["alloc_qty"].to_f > free["alloc_qty_linkto_alloctbl"].to_f) 
-	 					qty_src = (free["alloc_qty"].to_f - free["alloc_qty_linkto_alloctbl"].to_f) 
-	 					required_sch_qty -=  (free["alloc_qty"].to_f - free["alloc_qty_linkto_alloctbl"].to_f)
+	 				if (free["qty"].to_f > free["alloc_qty_linkto_alloctbl"].to_f) 
+	 					qty_src = (free["qty"].to_f - free["alloc_qty_linkto_alloctbl"].to_f) 
+	 					required_sch_qty -=  (free["qty"].to_f - free["alloc_qty_linkto_alloctbl"].to_f)
 	 					base["qty"] = qty_src
 	 					base["qty_stk"] = 0
 	 					alloc_qty += qty_src 
 	 				else		
-	 					if (free["alloc_qty_stk"].to_f > free["alloc_qty_linkto_alloctbl"].to_f) 
-	 						qty_src = (free["alloc_qty_stk"].to_f - free["alloc_qty_linkto_alloctbl"].to_f) 
-	 						required_sch_qty -=  (free["alloc_qty_stk"].to_f - free["alloc_qty_linkto_alloctbl"].to_f)
+	 					if (free["qty_stk"].to_f > free["alloc_qty_linkto_alloctbl"].to_f) 
+	 						qty_src = (free["qty_stk"].to_f - free["alloc_qty_linkto_alloctbl"].to_f) 
+	 						required_sch_qty -=  (free["qty_stk"].to_f - free["alloc_qty_linkto_alloctbl"].to_f)
 	 						base["qty_stk"] = qty_src
 	 						base["qty"] = 0
 	 						alloc_qty_stk += qty_src 
@@ -737,13 +767,13 @@ module MkordinstLib
 			gantt ={}
 			gantt["tblname"] = gantt["paretblname"] = gantt["orgtblname"] = base["tblname"]
 			gantt["tblid"] = gantt["paretblid"] = gantt["orgtblid"] = base["tblid"]
-			tbldata = ActiveRecord::Base.connection.select_one(%Q&select * from #{base["tblname"]} where id = #{base["tblid"]}  &)
-			gantt["qty_sch"] = tbldata["qty_sch"]
-			gantt["qty"] =  tbldata["qty"]
-			gantt["qty_stk"] =  tbldata["qty_stk"]
+			tblrec = ActiveRecord::Base.connection.select_one(%Q&select * from #{base["tblname"]} where id = #{base["tblid"]}  &)
+			gantt["qty_sch"] = tblrec["qty_sch"]
+			gantt["qty"] =  tblrec["qty"]
+			gantt["qty_stk"] =  tblrec["qty_stk"]
 			gantt["itms_id_trn"] = sumSchs["itms_id"]
 			gantt["processseq_trn"] = sumSchs["processseq"]
-			allocParams = {"gantt" => gantt,"tbldata" => tbldata,"mkprdpurords_id" => 0,"mkbillinsts_id" => 0,"classname" => "/_add_/"  }
+			allocParams = {"gantt" => gantt,"tbldata" => tblrec,"mkprdpurords_id" => 0,"mkbillinsts_id" => 0,"classname" => "/_add_/"  }
 			ope = Operation::OpeClass.new(allocParams)
 			ope.proc_link_lotstkhists_update()
 	 		break if required_sch_qty <= 0
@@ -768,7 +798,7 @@ module MkordinstLib
 	 	 				gantt.itms_id_trn itms_id,gantt.prjnos_id,
 	 	 				alloc.srctblname tblname,alloc.srctblid tblid,alloc.trngantts_id trngantts_id,
 	 	 				alloc.id alloctbls_id	,gantt.qty_free	,gantt.qty_handover,
-	 	 				alloc.qty alloc_qty,alloc.qty_stk alloc_qty_stk,alloc.qty_linkto_alloctbl alloc_qty_linkto_alloctbl	
+	 	 				alloc.qty qty,alloc.qty_stk qty_stk,alloc.qty_linkto_alloctbl alloc_qty_linkto_alloctbl	
 	 	 				from trngantts gantt
 	 	 				inner join alloctbls alloc on gantt.id = alloc.trngantts_id and gantt.orgtblname = alloc.srctblname 
 	 	 												and gantt.orgtblid = alloc.srctblid
@@ -785,55 +815,3 @@ module MkordinstLib
 	 	 				& ### xxxacts等を登録するときは必ずxxxordsを前に登録すること。
 	end
 end
-
-
-
-	# def cal_ord_qty_strsql(handover,mkprdpurords_id)
-	# 	%Q&
-	# 		update mkordtmpfs tmp set 	qty_require = cal.qty_require,
-	# 									qty_handover = 	trunc(cal.qty_require / cal.packqty + 0.99999) * cal.packqty 
-	# 						from (select mk.id,mk.packqty,
-	# 								case 
-	# 								when (trunc(pare_mk.pare_qty_handover * mk.chilnum / mk.parenum / mk.consumunitqty + 0.99999) * mk.consumunitqty + mk.consumchgoverqty) > mk.consumminqty  then 
-	# 									(trunc(pare_mk.pare_qty_handover * mk.chilnum / mk.parenum / mk.consumunitqty + 0.99999) * mk.consumunitqty + mk.consumchgoverqty)
-	# 								else 
-	# 									mk.consumminqty
-	# 								end qty_require
-	# 								from mkordtmpfs mk 
-	# 								inner join (select itms_id,processseq,prjnos_id,locas_id,shelfnos_id_to,
-	# 												sum(qty_handover) pare_qty_handover from mkordtmpfs
-	# 												where mkprdpurords_id = #{mkprdpurords_id}  
-	# 												and itms_id = #{handover["itms_id_pare"]} and processseq = #{handover["processseq_pare"]}  
-	# 												and locas_id = #{handover["locas_id_pare"]} and prjnos_id = #{handover["prjnos_id"]}
-	# 												and shelfnos_id_to = #{handover["shelfnos_id_to_pare"]} 
-	# 												group by itms_id,processseq,locas_id,prjnos_id,shelfnos_id_to) pare_mk
-	# 										on mk.itms_id_pare = pare_mk.itms_id and mk.processseq_pare = pare_mk.processseq
-	# 											and mk.locas_id_pare = pare_mk.locas_id and mk.prjnos_id = pare_mk.prjnos_id
-	# 											and mk.shelfnos_id_to_pare = pare_mk.shelfnos_id_to
-	# 											) cal
-	# 						where tmp.id = cal.id											
-   	#   	&			
-	# end
-
-	# def ordorg_strsql(handover)
-	# 	%Q&
-	# 		select 
-	# 			mk.mkprdpurords_id,mk.itms_id,mk.processseq,mk.locas_id,
-	# 			mk.prjnos_id,mk.shelfnos_id_to,
-	# 			sum(mk.qty_sch) qty_sch,max(opeitm.packqty) packqty,
-	# 			max(mk.tblname) tblname,min(mk.tblid) tblid,
-	# 			min(mk.duedate) duedate,max(mk.toduedate) toduedate,min(mk.starttime) starttime,
-	# 			max(consumchgoverqty) consumchgoverqty,max(consumminqty) consumminqty,max(consumunitqty) consumunitqty,
-	# 			sum(mk.qty_handover) qty_handover,sum(mk.qty_require) qty_require,sum(mk.incnt) incnt
-	# 			from mkordtmpfs mk
-	# 			inner join opeitms opeitm on opeitm.itms_id = mk.itms_id and opeitm.processseq = mk.processseq
-	# 				and mk.locas_id = opeitm.locas_id_opeitm
-	# 			where mkprdpurords_id = #{handover["mkprdpurords_id"]}
-	# 			and itms_id_pare = #{handover["itms_id_pare"]} and processseq_pare = #{handover["processseq_pare"]}  
-	# 			and shelfnos_id_to_pare = #{handover["shelfnos_id_to_pare"]} 
-	# 			and locas_id_pare = #{handover["locas_id_pare"]} and prjnos_id = #{handover["prjnos_id"]}
-	# 			group by mk.prjnos_id,mk.locas_id,mk.itms_id,mk.processseq,mk.shelfnos_id_to,mkprdpurords_id
-	# 	&
-	# end
-
-	
