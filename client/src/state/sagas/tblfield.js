@@ -1,6 +1,6 @@
 import { call, put, } from 'redux-saga/effects'
 import axios         from 'axios'
-import {TBLFIELD_SUCCESS, SCREEN_FAILURE,SECONDSCREEN_FAILURE,
+import {TBLFIELD_SUCCESS, SCREEN_FAILURE,SECOND_FAILURE,
         }     from '../../actions'
 
 function screenApi({params,token,client,uid}) {
@@ -38,8 +38,8 @@ export function* TblfieldSaga({ payload: {params}  }) {
           }
         case 500:
               message = `Internal Server Error ${response.data.params.errmsg} `
-              if(params.second===true){
-                return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+              if(params.screenFlg==="second"){
+                return  yield put({type:SECOND_FAILURE, payload:{message:message,data}})   
               }else{  
                 return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
               }   
@@ -49,21 +49,21 @@ export function* TblfieldSaga({ payload: {params}  }) {
   }catch(e) {   
         switch (true) {
           case /code.*500/.test(e): message = `${e}: Internal Server Error `
-              if(params.second===true){
-                return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+              if(params.screenFlg==="second"){
+                return  yield put({type:SECOND_FAILURE, payload:{message:message,data}})   
               }else{  
                 return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
               }
           case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
-              if(params.second===true){
-                  return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+              if(params.screenFlg==="second"){
+                  return  yield put({type:SECOND_FAILURE, payload:{message:message,data}})   
               }else{  
                   return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
               }
           default:
               message = ` TblFields Something went wrong ${e} `
-                if(params.second===true){
-                    return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+                if(params.screenFlg==="second"){
+                    return  yield put({type:SECOND_FAILURE, payload:{message:message,data}})   
                 }else{  
                     return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
               }

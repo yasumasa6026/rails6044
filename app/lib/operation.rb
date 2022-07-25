@@ -56,6 +56,7 @@ class OpeClass
 				"qty"
 			end
 		if @tblname =~ /^prd|^pur|^cust/ and @tblname =~ /schs$|ords$|insts$|reply|dlvs$|acts$|rets$/ 
+			### viewはr_xxxxxxsのみ
 			get_last_rec()   ##set @last_rec
 		end
 	end
@@ -104,9 +105,9 @@ class OpeClass
 			###数量又は納期の変更があった時   xxxsxhs,xxxordsの時のみ
 			strsql = %Q&update trngantts set   --- xxschs,xxxordsが変更された時のみ
 							updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-							#{@str_qty.to_s} = #{@tbldata[@str_qty]},remark = 'Operation.proc_trangantts line:#{__LINE__}'
+							#{@str_qty.to_s} = #{@tbldata[@str_qty]},remark = 'Operation.proc_trangantts line:#{__LINE__}',
 							prjnos_id = #{@tbldata["prjnos_id"]},duedate_trn = '#{@tbldata[@str_duedate]}',
-							shelfnos_id_to = #{@tbldata["shelfnos_id_to"]}
+							shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}
 							where  id = #{@trngantts_id} &
 			ActiveRecord::Base.connection.update(strsql) 
 			####
@@ -662,7 +663,6 @@ class OpeClass
 										@gantt["consumunitqty"].to_f
 									end
 		###@gantt["qty_require"] create_other_table_record_job.mkschで対応済
-		@gantt["qty_free"] = 0 ###child(xxxschs)にfreeはない。  
 		### parenum chilnum
 		@gantt["id"] = @gantt["trngantts_id"]  = @trngantts_id = ArelCtl.proc_get_nextval("trngantts_seq")
 		@gantt["remark"] =  " Operation.child_trngantts  "

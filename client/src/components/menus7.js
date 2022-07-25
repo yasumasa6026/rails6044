@@ -18,7 +18,7 @@ const titleNameSet = (screenName) =>{ return (
 }
 
 const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,grid_columns_info,hostError,
-            isSignUp,menuChanging,uid,token,client}) =>{
+            isSignUp,menuChanging,uid,token,client,second_columns_info}) =>{
     if(params){}else{params = {}}
     params["token"] = token
     params["client"] = client
@@ -69,10 +69,11 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,grid_columns_i
                 </TabPanel> 
               )}
             </Tabs>
-              {(grid_columns_info&&menuChanging===false)&&<div> <ScreenGrid7 second={false} /></div>}
-              {/*(grid_columns_info&&menuChanging===false)&&<div> <ButtonList second={false} /></div>*/}
+              {(grid_columns_info&&menuChanging===false)&&<div> <ScreenGrid7 screenFlg = "first" /></div>}
               <p> {hostError?hostError:""} </p>
-           </div>    
+              {(second_columns_info&&menuChanging===false)&&<div> <ScreenGrid7 screenFlg = "second" /></div>}
+              <p> {hostError?hostError:""} </p>
+        </div>
       )
     }else{
      return(
@@ -105,6 +106,7 @@ const  mapStateToProps = (state,ownProps) =>({
   uid:state.auth.uid ,
   token:state.auth.token ,
   client:state.auth.client ,
+  second_columns_info:state.screen.second_columns_info,
 })
 
 const mapDispatchToProps = (dispatch,ownProps ) => ({

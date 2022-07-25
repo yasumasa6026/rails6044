@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect, } from 'react'
 import { connect } from 'react-redux'
-import { ScreenRequest, SecondScreenRequest,
-          FetchRequest,SecondFetchRequest,
-          ScreenParamsSet,SecondScreenParamsSet,} from '../actions'
+import { ScreenRequest, FetchRequest,ScreenParamsSet,SecondParamsSet,
+            SecondRequest, SecondFetchRequest,  } from '../actions'
 //import DropDown from './dropdown'
 import { yupschema } from '../yupschema'
 import Tooltip from 'react-tooltip-lite'
@@ -89,7 +88,6 @@ const AutoCell = ({
             }
             //updateLineData(index,linedata)  //dataの更新
             if ( linedata[msg_id] === "ok") {
-                //fetchCheck(id,index, linedata,fetch_check, data, updateParams, params, handleFetchRequest)
                 fetchCheck( linedata,autoAddFields)
             }else{
               updateMyData(index, msg_id, " error " + linedata[msg_id])
@@ -340,10 +338,10 @@ let fieldSchema = (field, screenCode) => {
 
 const ScreenGrid7 = ({ 
     screenCode, screenwidth, hiddenColumns,fetch_check,
-    dropDownListOrg, buttonflgOrg, paramsOrg,columnsOrg, dataOrg,
+    dropDownListOrg, buttonflgOrg, paramsOrg,columnsOrg, dataOrg,screenFlg,
     //buttonflg 下段のボタン：request params[:req] MenusControllerでの実行ケース
     loading, hostError, pageSizeList, 
-    handleScreenRequest, handleFetchRequest,handleScreenParamsSet,second,
+    handleScreenRequest, handleFetchRequest,handleScreenParamsSet,message,
     }) => {
         const columns = useMemo(
             () => (columnsOrg))
@@ -470,7 +468,7 @@ const ScreenGrid7 = ({
             </div>
           )}
       </div>
-      {(params["req"]==="viewtablereq7"||params["req"]==="inlineedit7")&& 
+      {(Number(params["totalCount"])>0)&& 
       <div className="pagination">
         <button onClick={() => {
           gotoPage(1)
@@ -535,7 +533,8 @@ const ScreenGrid7 = ({
       </div>  /*nextPage等終わり*/}  
       <p>{hostError}</p>
      
-       { columns&&<div> <ButtonList second={second} /></div>}
+       { columns&&<div> <ButtonList screenFlg={screenFlg} /></div>}
+       {loading&&<p>{message}</p>}
       </div>
     )
 }
@@ -565,20 +564,20 @@ const GridTable = ({
     const [dropDownList, setDropDownList] = useState(dropDownListOrg)
   
     useEffect(() => {
-                   updateParams([{sortBy:"[]"},{filtered:"[]"}])},
+                  // updateParams([{sortBy:[]},{filtered:[]},{clickIndex:[]}])},
+                  params = {...params,sortBy:[],filtered:[],clickIndex:[]}},
                     [screenCode]) 
 
     useEffect(()=>{   setDropDownList(dropDownListOrg)},
                           [dropDownListOrg])
 
     useEffect(() => {
-          setAllFilters(params.filtered===undefined?[]:JSON.parse(params.filtered).map((filter)=>{
-                  return filter}))},[params.filtered])  
+          setAllFilters(params.filtered.length===0?[]:params.filtered.map((filter)=>{
+                  return (typeof(filter)==="string"?JSON.parse(filter):filter)}))},[params.filtered])  
                   
     useEffect(() => {
-              setSortBy(params.sortBy===undefined?
-                       []:JSON.parse(params.sortBy).map((sort)=>{
-                  return sort}))},[params.sortBy])  
+              setSortBy(params.sortBy.length===0?[]:params.sortBy.map((sort)=>{
+                  return (typeof(sort)==="string"?JSON.parse(sort):sort)}))},[params.sortBy])  
                
     const ColumnHeader = ({
         column ,
@@ -620,7 +619,7 @@ const GridTable = ({
             autoResetSortBy: true,
             disableFilters,
             initialState: {hiddenColumns:hiddenColumns,
-                      sortBy:params.sortBy===undefined?[]:JSON.parse(params.sortBy).map((sort)=>{return sort})
+                      sortBy:params.sortBy===undefined?[]:params.sortBy.map((sort)=>{return sort})
                     },
             handleFetchRequest,handleScreenRequest,
      // initialState: { controlledPageIndex: 0, controlledPageSize: 0, },
@@ -651,7 +650,7 @@ const GridTable = ({
                      {  // filter sortでの検索しなおし
                       if (e.key === "Enter" &&(params.disableFilters===false) )
                           { 
-                            updateParams([{filtered:JSON.stringify(filters)},{sortBy:JSON.stringify(sortBy)}])
+                            updateParams([{filtered:filters},{sortBy:sortBy}])
                             // Apply the header cell props
                             handleScreenRequest(params,data)
                           }
@@ -688,15 +687,37 @@ const GridTable = ({
                       row.index % 2 === 0 ? 'ivory' : 'lightgray',
                       },
                   onClick: e => {
-                      toggleAllRowsSelected(false)
-                      updateParams([{clickIndex:[]}])
-                      row.toggleRowSelected()
                       let starttime = params.screenCode.split("_")[1].slice(0,-1)+"_starttime" //
                       let snoOrd = params.screenCode.split("_")[1].slice(0,-1)+"_sno_"+params.screenCode.split("_")[1].slice(0,2)+"ord" //
                       let snoInst = params.screenCode.split("_")[1].slice(0,-1)+"_sno_"+params.screenCode.split("_")[1].slice(0,2)+"inst"  //
-                      updateParams([{clickIndex:[{lineId:row.index,id:data[row.index]["id"],starttime:data[row.index][starttime],
-                                    snoOrd:data[row.index][snoOrd],snoInst:data[row.index][snoInst],}]},
-                                    {index:row.index}])
+                      let result = -1
+                      if(params.clickIndex){
+                                params.clickIndex.map((clickRow,index) => 
+                                      {if(clickRow.id===data[row.index]["id"])
+                                            {result = index}
+                                      })}
+                      else{ params = { ...params,clickIndex:[]}}
+                      if(e.shiftKey){
+                          if(result===-1){
+                            toggleAllRowsSelected(true)
+                            let tmpClicks = []
+                            rows.map((linerow,index) => 
+                              { tmpClicks.push({lineId:linerow.index,id:data[linerow.index]["id"],starttime:data[linerow.index][starttime],
+                                                  snoOrd:data[linerow.index][snoOrd],snoInst:data[linerow.index][snoInst],})
+                              })
+                              updateParams([{clickIndex:tmpClicks},])
+                          }else{
+                            toggleAllRowsSelected(false)
+                            updateParams([{clickIndex:[]},])
+                          }
+                      }else{
+                        row.toggleRowSelected()
+                        if(result===-1){
+                          params.clickIndex.push({lineId:row.index,id:data[row.index]["id"],starttime:data[row.index][starttime],
+                                      snoOrd:data[row.index][snoOrd],snoInst:data[row.index][snoInst]})
+                          }
+                        else{params.clickIndex.splice(result,1)}
+                      }
                       handleScreenParamsSet(params)  
                     },
                   })
@@ -719,10 +740,11 @@ const GridTable = ({
 }
 
 const mapStateToProps = (state,ownProps) => {
-    if(ownProps.second===true){
+    if(ownProps.screenFlg==="second"){
         return {
           buttonflgOrg: state.second.buttonflg,
           loading: state.second.loading,
+          message: state.second.message,
           dataOrg: state.second.data,
           paramsOrg: state.second.params,
           screenCode: state.second.params.screenCode,
@@ -733,12 +755,13 @@ const mapStateToProps = (state,ownProps) => {
           dropDownListOrg: state.second.grid_columns_info.dropdownlist,
           hiddenColumns: state.second.grid_columns_info.hiddenColumns,
           hostError: state.second.hostError,
-          second:ownProps.second,
+          screenFlg:ownProps.screenFlg,
        }
     }else{
         return {
           buttonflgOrg: state.button.buttonflg,
           loading: state.screen.loading,
+          message: state.screen.message,
           dataOrg: state.screen.data,
           paramsOrg: state.screen.params,
           screenCode: state.screen.params.screenCode,
@@ -749,35 +772,32 @@ const mapStateToProps = (state,ownProps) => {
           dropDownListOrg: state.screen.grid_columns_info.dropdownlist,
           hiddenColumns: state.screen.grid_columns_info.hiddenColumns,
           hostError: state.screen.hostError,
-          second:ownProps.second,
+          screenFlg:ownProps.screenFlg,
         }
     }      
 }
 
 const mapDispatchToProps = (dispatch, ownProps) => ({
     handleScreenRequest: (params,data) => {
-      params.second = ownProps.second
-    if( ownProps.second===true){ 
-      dispatch(SecondScreenRequest(params,data))
-      }else{  
-    dispatch(ScreenRequest(params,data))
-    }
+        params = {...params,screenFlg:ownProps.screenFlg}
+        if(params.screenFlg === "second"){
+          dispatch(SecondRequest(params,data))
+        }else{
+          dispatch(ScreenRequest(params,data))}
   },
-  handleFetchRequest: (params,data) => {
-    params.second = ownProps.second
-    if( ownProps.second===true){ 
-        dispatch(SecondFetchRequest(params,data))
-      }else{  
-        dispatch(FetchRequest(params,data))
-    }
+    handleFetchRequest: (params,data) => {
+      params = {...params,screenFlg:ownProps.screenFlg}
+        if(params.screenFlg === "second"){
+          dispatch(SecondFetchRequest(params,data))
+        }else{
+          dispatch(FetchRequest(params,data))}
   },
-  handleScreenParamsSet: (params) => {
-    params.second = ownProps.second
-    if( ownProps.second===true){ 
-      dispatch(SecondScreenParamsSet(params))
-    }else{  
-      dispatch(ScreenParamsSet(params))
-    }
+    handleScreenParamsSet: (params) => {
+      params = {...params,screenFlg:ownProps.screenFlg}
+        if(params.screenFlg === "second"){
+            dispatch(SecondParamsSet(params))
+          }else{
+            dispatch(ScreenParamsSet(params))}
   },
   
 })

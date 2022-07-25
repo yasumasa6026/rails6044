@@ -70,7 +70,7 @@ export function dataCheck7(schema,field,linedata){
                     return linedata
                 })
               break
-            case "screenfield_indisp":  //tipが機能しない。
+            case "screenfield_indisp":  //変更可能な　/_code/は必須項目。tipが機能しない。
                 if(/_code/.test(linedata["pobject_code_sfd"])&linedata["screenfield_editable"]!=="0")
                     {if(linedata["screenfield_indisp"]==="1")
                             {linedata[`${field}_gridmessage`] = "ok"}

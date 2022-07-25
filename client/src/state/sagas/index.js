@@ -3,7 +3,7 @@ import {takeEvery} from 'redux-saga/effects'
 
 import {LOGIN_REQUEST,SIGNUP_REQUEST,MENU_REQUEST,FETCH_REQUEST,
         SCREENINIT_REQUEST,SCREEN_REQUEST,IMPORTEXCEL_REQUEST,
-        SECONDSCREEN_REQUEST,CONFIRMALL_REQUEST,
+        SECOND_REQUEST,CONFIRMALL_REQUEST,
         GANTTCHART_REQUEST,BUTTONLIST_REQUEST,
         DOWNLOAD_REQUEST, YUP_REQUEST,TBLFIELD_REQUEST,
         INPUTFIELDPROTECT_REQUEST, LOGOUT_REQUEST,
@@ -29,7 +29,7 @@ export function * sagas () {
   yield takeEvery(MENU_REQUEST,MenuSaga)
   yield takeEvery(SCREENINIT_REQUEST,ScreenSaga)
   yield takeEvery(SCREEN_REQUEST,ScreenSaga)
-  yield takeEvery(SECONDSCREEN_REQUEST,ScreenSaga)
+  yield takeEvery(SECOND_REQUEST,ScreenSaga)
   yield takeEvery(FETCH_REQUEST,ScreenSaga)
   yield takeEvery(CONFIRMALL_REQUEST,ScreenSaga)
   yield takeEvery(BUTTONLIST_REQUEST,ButtonListSaga)

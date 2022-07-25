@@ -165,7 +165,9 @@ class ImportexcelController < ApplicationController
                     blk.proc_create_tbldata(command_c) ### @src_tbl作成
                     setParams = blk.proc_private_aud_rec(jparams,command_c)
                     idx += 1
-                    performSeqNos << setParams["seqno"][0]
+                    if setParams["seqno"][0]
+                        performSeqNos << setParams["seqno"][0]
+                    end
                 else
                 end
                 results[:rows] << parse_linedata 

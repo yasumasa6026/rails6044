@@ -2,32 +2,40 @@
 # RorBlk
 # 2099/12/31を修正する時は　2100/01/01の修正も
 module PriceLib
-	def proc_price_amt command_c
-		tblnamechop = (command_c["sio_viewname"].split("_",2)[1].chop)
-		qty = command_c[("#{tblnamechop}_qty")]
+	extend self		
+	def proc_price_amt tblnamechop,command_c
+		
+		command_c["#{tblnamechop}_price"] = 0 
+		command_c["#{tblnamechop}_amt_sch"] = 0 
+		command_c["#{tblnamechop}_tax"] = 0 
+		command_c["#{tblnamechop}_contract_price"] = "" 
+		command_c["#{tblnamechop}_itm_code_client"] = "" ###pricemst["itm_code_client"] 
+		command_c["#{tblnamechop}_crr_id"] = 0  ###pricemst["crrs_id"] 
+
+		return command_c  ### 完了後はcut
+
+		###
+		### 作成中
+		###
+
+		case tblnamechop
+		when /schs$/
+			qty = command_c[("#{tblnamechop}_qty_sch")]
+		when /ords$|insts|reply/
+			qty = command_c[("#{tblnamechop}_qty")]
+		when /dlvs$|acts$|rets$/
+			qty = command_c[("#{tblnamechop}_qty_stk")]
+		end
 		case tblnamechop
 			when /^cust/
 				pricetbl = "custs"
 				loca_code = command_c["loca_code_cust"]
 			when /^pur/
-				pricetbl = "dealers"
+				pricetbl = "suppliers"
 				loca_code = command_c["loca_code"]   ###入力でdealerを保証する。
-			when /^prd/
-				pricetbl = "asstwhs"
-				loca_code = command_c["loca_code_asstwh"]
 			when /^shp/
-				loca_code = command_c["loca_code_to"]
-				case command_c["opeitm_oparation"]
-					when "shp:delivered_goods"
-							pricetbl = "custs"
-					when "shp:feepayment"
-							pricetbl = "feepayms"
-					when "shp:shipment"
-							pricetbl = "asstwhs"
-					else
-							pricetbl = "asstwhs"
-				end
-				loca_code = command_c["loca_code_to"]
+				loca_code = command_c["loca_code_shelfno_to"]
+				###有償支給
 			when /mkact/
 				case command_c["mkact_prdpur"]
 					when "pur"
@@ -47,12 +55,13 @@ module PriceLib
 						return {}
 				end
 			else
-				return {}
+				return command_c
 		end
 		strsql = "select *
 				from r_pricemsts 	/*同一品目内ではcontract_price<pricemst_amtroundは有効日内で同一であること*/
 				where pricemst_tblname =  '#{pricetbl}' and pricemst_expiredate >= current_date and
-				itm_code = '#{command_c["itm_code"]}' AND loca_code = '#{loca_code}' "
+				itm_code = '#{command_c["itm_code"]}' AND loca_code = '#{loca_code}' 
+				processseq = '#{command_c["opeitm_opeprocessseq"]}' AND loca_code = '#{loca_code}' "
 		rec_contract = ActiveRecord::Base.connection.select_one(strsql)   ###画面のfield
 		command_c[("#{tblnamechop}_contract_price")]||=""
 		if command_c[("#{tblnamechop}_contract_price")]  != "" ###変更の時
@@ -207,7 +216,7 @@ module PriceLib
 				raise  ###該当レコードのremarkに
 		end
 		tax = vproc_get_tax(amt,loca_code)    ###作成中
-		return {:price=>price.to_s,:amt=>amt.to_s,:tax=>tax.to_s,:pricef=>true,:amtf=>true,:contract_price => contract}
+		return command_c
 	end
 	def vproc_get_tax(amt,loca_code)  ###作成中
 		0

@@ -1,7 +1,7 @@
 import { call, put, select } from 'redux-saga/effects'
 import axios         from 'axios'
-import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_LINEEDIT, FETCH_RESULT, FETCH_FAILURE,
-        SECONDSCREEN_SUCCESS7,SECONDSCREEN_FAILURE,SECONDSCREEN_LINEEDIT, SECONDFETCH_RESULT,
+import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_CONFIRM7, FETCH_RESULT, FETCH_FAILURE,
+        SECOND_SUCCESS7,SECOND_FAILURE,SECOND_CONFIRM7, SECONDFETCH_RESULT,
         SECONDFETCH_FAILURE,MKSHPORDS_SUCCESS,MKSHPACTS_RESULT,CONFIRMALL_SUCCESS,
         }
          from '../../actions'
@@ -42,33 +42,34 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
     //params["fetch_data"] = ""  //net error 対策　1024*10 送信時は不要
     try{
       let response  = yield call(screenApi,{params ,url,headers} )
+      // params.sortBy === [] だとrailsに取り込められない　paramsからsortByがなくなる。
       switch (response.status) {
         case 200:  
           switch(params.req) {
             case 'viewtablereq7':
-            case 'inlineedit7':
+            case 'inlineedit7':   //第一画面又は第二画面のみ　両方修正は不可
             case 'inlineadd7':
-              if(params.second===true){
-                return yield put({ type:SECONDSCREEN_SUCCESS7, payload:response})}
-              else{
-                return yield put({ type:SCREEN_SUCCESS7, payload: response })   
-              }      
+              if(params.screenFlg==="second")
+                  {return yield put({type:SECOND_SUCCESS7,payload:response })}
+              else
+                  {return yield put({ type:SCREEN_SUCCESS7, payload: response })}
             case "confirm7":
               data[params.index] = {...response.data.linedata}
               params.req = buttonState.buttonflg
-              if(params.second===true){
-                  return yield put({type:SECONDSCREEN_LINEEDIT,payload:{data:data,params:params}})}
-              else{
-                  return yield put({type:SCREEN_LINEEDIT,payload:{data:data,params:params} })   
-              }      
-
-            case "mkshpords":  //second画面専用
-              params.req =  "mkshpords"
+              if(params.screenFlg==="second")
+                {return yield put({type:SECOND_CONFIRM7,payload:{data:data,params:params} })}
+              else
+                {return yield put({type:SCREEN_CONFIRM7,payload:{data:data,params:params} })} 
+            case "mkShpords":  //
+              params.req =  "mkShpords"
               messages[0] = "out count : " + response.data.outcnt
               messages[1] = "shortage count : " + response.data.shortcnt
               return yield put({ type: MKSHPORDS_SUCCESS, payload:{messages:messages}})       
            
-            case "mkshpacts":  //second画面専用
+            case "mkShpinsts":  //second画面出力専用　第一画面の修正、追加は不可
+                return yield put({ type:SECOND_SUCCESS7, payload:response})
+                
+            case "mkshpacts":  //second画面出力専用
               params.req = "mkshpacts"
               return yield put({ type: MKSHPACTS_RESULT, payload:response})    
               
@@ -78,26 +79,26 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
            
             case "refshpacts":  //second画面専用
                 params.req = "refshpacts"
-                return yield put({ type: SECONDSCREEN_SUCCESS7, payload:response})       
+                return yield put({ type: SECOND_SUCCESS7, payload:response})       
 
             case "fetch_request":  //viewによる存在チェック内容表示
-                xparams = {...response.data.params}
+                xparams = {...params,...response.data.params}
                 xparams.req = buttonState.buttonflg
                 break
             case "check_request":   //項目毎のチェック帰りはfetchと同じ
-                xparams = {...response.data.params}
+                xparams = {...params,...response.data.params}
                 break      
             default:
                 return {}
             }
           if(response.data.params.err){
-                if(params.second===true){
+                if(params.screenFlg==="second"){
                     yield put({ type: SECONDFETCH_FAILURE,payload:{params:xparams}}) 
                 }else{
                     yield put({ type: FETCH_FAILURE, payload:{params:xparams}}) 
                 }
           }else{
-                if(params.second===true){
+                if(params.screenFlg==="second"){
                     yield put({type: SECONDFETCH_RESULT, payload:{params:xparams}}) 
                 }else{  
                     yield put({type: FETCH_RESULT, payload:{params:xparams}}) 
@@ -114,8 +115,8 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
                     data[params.index]["confirm_gridmessage"] = message
                     message = `${response.status}: Screen Something went wrong ${response.statusText} `
       }
-      if(params.second===true){
-            return  yield put({type:SECONDSCREEN_FAILURE,payload:{message:message,data}})   
+      if(params.screenFlg==="second"){
+            return  yield put({type:SECOND_FAILURE,payload:{message:message,data}})   
       }else{  
             return  yield put({type:SCREEN_FAILURE,payload:{message:message,data}})   
       }
@@ -123,24 +124,12 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
     catch(e){
         switch (true) {
             case /code.*500/.test(e): message = `${e}: Internal Server Error `
-                if(params.second===true){
-                  return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
-                }else{  
                   return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
-                }
             case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
-                if(params.second===true){
-                    return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
-                }else{  
                     return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
-                }
             default:
                 message = ` Screen Something went wrong ${e} `
-                  if(params.second===true){
-                      return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
-                  }else{  
                       return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
-                }
       }
     }
   }

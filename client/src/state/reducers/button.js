@@ -1,7 +1,7 @@
 import {  BUTTONLIST_REQUEST, BUTTONLIST_SUCCESS, BUTTONFLG_REQUEST,GANTT_RESET,SCREENINIT_REQUEST,
   TBLFIELD_SUCCESS,GANTTCHART_SUCCESS,LOGOUT_REQUEST,MKSHPORDS_SUCCESS,MKSHPACTS_RESULT,
   SCREEN_SUCCESS7,IMPORTEXCEL_REQUEST,CONFIRMALL_SUCCESS,
-  SECONDSCREEN_SUCCESS7} //RESET_REQUEST
+  SECOND_SUCCESS7} //RESET_REQUEST
    from '../../actions'
 
 export let getButtonState = state => state.button
@@ -72,7 +72,7 @@ return {...state,
 
 case MKSHPORDS_SUCCESS:
 return {...state,
-  buttonflg:"mkshpords",
+  buttonflg:"mkShpords",
   messages:actions.payload.messages,
   loading:false,
 }
@@ -82,7 +82,7 @@ return {...state,
   buttonflg:"mkshpacts",
   loading:false,
 }
-case SECONDSCREEN_SUCCESS7: // payloadに統一
+case SECOND_SUCCESS7: // payloadに統一
 return {...state,
     disabled:false,
 }

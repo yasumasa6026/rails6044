@@ -3,7 +3,7 @@
 # 2099/12/31を修正する時は　2100/01/01の修正も
 module Shipment
 	extend self
-	def proc_mkshpords screenCode,clickIndex  ###screenCode:r_purords,r_prdords
+	def proc_mkShpords screenCode,clickIndex  ###screenCode:r_purords,r_prdords
 		###shpschsは変更済
 		pagedata = []
 		outcnt = 0
@@ -145,7 +145,7 @@ module Shipment
 											where i.srctblname = 'lotstkhists'	and (i.qty > 0	or i.qty_stk > 0)						
 											)	inout on child.id = inout.src_trngantts_id
 							where child.itms_id_trn = #{shp["itms_id"]} and child.processseq_trn = #{shp["processseq"]} 
-							and   child.shelfnos_id_to = #{shp["shelfnos_id_fm"]}
+							and   child.shelfnos_id_to_trn = #{shp["shelfnos_id_fm"]}
 							and (inout.qty_sch > 0 or inout.qty > 0 or inout.qty_stk > 0) 
 						&
 					shpOrd = shp.dup
@@ -232,11 +232,11 @@ module Shipment
 		return outcnt,shortcnt,err
 	end	
 
-	def proc_shpact_confirmall params
+	def proc_confirmShpinsts(params)
 	###削除
 	end	
 
-	def proc_mkshpacts params,grid_columns_info
+	def proc_mkShpinsts params,grid_columns_info
 		tmp = []
 		outcnt = 0
 		err = ""
@@ -247,9 +247,8 @@ module Shipment
 		end
 		strselect = strselect.chop + ")"
 		strsorting = ""
-		if params[:sortBy]  and   params[:sortBy] != "" ###: {id: "itm_name", desc: false}
-			sortBy = JSON.parse(params[:sortBy])
-			sortBy.each do |sortKey|
+		if params[:sortBy]  and   params[:sortBy] != [] ###: {id: "itm_name", desc: false}
+			params[:sortBy].each do |sortKey|
 				strsorting = " order by " if strsorting == ""
 				strsorting << %Q% #{sortKey["id"]} #{if sortKey["desc"]  == false then " asc " else "desc" end} ,%
 			end	
@@ -259,36 +258,37 @@ module Shipment
 				strsorting << " id desc "
 			end
 		else
-			strsorting = "  order by paretblid,id desc "
-			params[:sortBy] = "[]"
+			strsorting = "  order by shpord_paretblid,id desc "
+			params[:sortBy] = []
 		end
-		strsql = "select   #{grid_columns_info["select_fields"]} 
-						from (SELECT ROW_NUMBER() OVER (#{strsorting}) , #{grid_columns_info["select_fields"]} 
-												 FROM r_shpinsts inst where
-												 shpinst_paretblname = '#{params["pareScreenCode"].split("_")[1]}' and
-												 shpinst_paretblid = #{strselect} and 
-												 not exists(select 1 from shpacts act where
+		strsql = "select   #{grid_columns_info[:select_fields]} 
+						from (SELECT ROW_NUMBER() OVER (#{strsorting}) , #{grid_columns_info[:select_row_fields]} 
+												 FROM forInsts_shpords ord where
+												 shpord_paretblname = '#{params["pareScreenCode"].split("_")[1]}' and
+												 shpord_paretblid in #{strselect} and 
+												 not exists(select 1 from shpinsts inst where
 													 paretblname = '#{params["pareScreenCode"].split("_")[1]}' and
-													 paretblid = #{strselect} and 
-													 act.itms_id = inst.shpinst_itm_id and
-													 act.processseq = inst.shpinst_processseq) ) x
+													 paretblid in #{strselect} and 
+													inst.itms_id = ord.shpord_itm_id and
+													inst.processseq = ord.shpord_processseq) ) x
 													where ROW_NUMBER > #{(params[:pageIndex].to_f)*params[:pageSize].to_f} 
 													and ROW_NUMBER <= #{(params[:pageIndex].to_f + 1)*params[:pageSize].to_f} 
 															  "
 		pagedata = ActiveRecord::Base.connection.select_all(strsql)
 		
-		strsql = " select count(*) FROM r_shpinsts inst where
-					shpinst_paretblname = '#{params["pareScreenCode"].split("_")[1]}' and
-					shpinst_paretblid = #{strselect} and 
-					not exists(select 1 from shpacts act where
+		strsql = " select count(*) FROM forInsts_shpords ord where
+					shpord_paretblname = '#{params["pareScreenCode"].split("_")[1]}' and
+					shpord_paretblid in #{strselect} and 
+					not exists(select 1 from shpinsts inst where
 						paretblname = '#{params["pareScreenCode"].split("_")[1]}' and
-						paretblid = #{strselect} and 
-						act.itms_id = inst.shpinst_itm_id and
-						act.processseq = inst.shpinst_processseq)"
+						paretblid in #{strselect} and 
+						inst.itms_id = ord.shpord_itm_id and
+						inst.processseq = ord.shpord_processseq)"
 		 ###fillterがあるので、table名は抽出条件に合わず使用できない。
 		totalCount = ActiveRecord::Base.connection.select_value(strsql)
 		params[:pageCount] = (totalCount.to_f/params[:pageSize].to_f).ceil
 		params[:totalCount] = totalCount.to_f
+		params[:parse_linedata] = {}
 		return pagedata 
 	end	
 	
@@ -303,9 +303,8 @@ module Shipment
 		end
 		strselect = strselect.chop + ")"
 		strsorting = ""
-		if params[:sortBy]  and   params[:sortBy] != "" ###: {id: "itm_name", desc: false}
-			sortBy = JSON.parse(params[:sortBy])
-			sortBy.each do |sortKey|
+		if params[:sortBy]  and   params[:sortBy] != [] ###: {id: "itm_name", desc: false}
+			params[:sortBy].each do |sortKey|
 				strsorting = " order by " if strsorting == ""
 				strsorting << %Q% #{sortKey["id"]} #{if sortKey["desc"]  == false then " asc " else "desc" end} ,%
 			end	
@@ -316,10 +315,10 @@ module Shipment
 			end
 		else
 			strsorting = "  order by paretblid,id desc "
-			params[:sortBy] = "[]"
+			params[:sortBy] = []
 		end
-		strsql = "select   #{grid_columns_info["select_fields"]} 
-						from (SELECT ROW_NUMBER() OVER (#{strsorting}) , #{grid_columns_info["select_fields"]} 
+		strsql = "select   #{grid_columns_info[:select_fields]} 
+						from (SELECT ROW_NUMBER() OVER (#{strsorting}) , #{grid_columns_info[:select_fields]} 
 												 FROM r_shpacts inst where
 												 shpact_paretblname = '#{params["pareScreenCode"].split("_")[1]}' and
 												 shpact_paretblid = #{strselect}  ) x
@@ -335,6 +334,7 @@ module Shipment
 		totalCount = ActiveRecord::Base.connection.select_value(strsql)
 		params[:pageCount] = (totalCount.to_f/params[:pageSize].to_f).ceil
 		params[:totalCount] = totalCount.to_f
+		params[:parse_linedata] = {}
 		return pagedata 
 	end	
 	
@@ -348,7 +348,7 @@ module Shipment
 		tblnamechop = yield.chop  
 		blk = RorBlkCtl::BlkClass.new("r_#{tblnamechop}s")
 		command_c = blk.command_init
-		if child["shelfnos_id_to_opeitm"] != parent["shelfnos_id_opeitm"]  ###子部品の保管場所!=shelfnos_id_fm親の作業場所
+		if child["shelfnos_id_to_opeitm"] != parent["shelfnos_id"]  ###子部品の保管場所!=shelfnos_id_fm親の作業場所
 				command_c["sio_classname"] = "#{yield}_add_"
 				command_c["#{tblnamechop}_id"] = "" 
 				command_c["#{tblnamechop}_isudate"] = Time.now
@@ -464,7 +464,7 @@ module Shipment
 
 	def shpord_create_by_shpsch(shp)  ###
 		###自分自身のshpschs を作成   
-		blk = RorBlkCtl::BlkClass.new("r_shpords")
+		blk = RorBlkCtl::BlkClass.new("forInsts_shpords")
 		command_c = blk.command_init
 		command_c["sio_classname"] = "shpords_add_"
 		command_c["shpord_id"] = "" 
@@ -872,7 +872,6 @@ module Shipment
 						&
 			ActiveRecord::Base.connection.update(strsql)
 		end
-		stkinout["wh"] = stkinout["srctblname"] = "lotstkhists" 
 		strsql = %Q& select *
 								from lotstkhists
 								where   itms_id = #{stkinout["itms_id"]} and  

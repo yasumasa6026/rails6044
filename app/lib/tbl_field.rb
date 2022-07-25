@@ -249,8 +249,10 @@ extend self
 							---	case screenfield_hideflg when 1 then '' else '表示有' end display,
 							---   case screenfield_indisp when 1 then '必須' else '' end inquire from r_screenfields "
 		@modifysql << "\n ---- where  pobject_code_sfd = '#{column_name}'"
-		@modifysql << "\n ---- update screenfields set expiredate ='2000/01/01',remark =' 項目　#{column_name}が削除　#{Time.now}' "
-		@modifysql << "\n ---- where  pobject_code_sfd = '#{column_name}'"
+		@modifysql << "\n  update screenfields set expiredate = '2000/1/1',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
+		@modifysql << "\n         ,updated_at = current_date " 
+		@modifysql << "\n         where id in  (select id from r_screenfields where  pobject_code_sfd = 'screenfield_#{column_name}' "
+		@modifysql << "\n         											and  pobject_code_scr = 'r_#{table_name}' );"
 	end	
 
 	def create_modify_field_sql rec
@@ -651,7 +653,11 @@ extend self
 		command_r["screenfield_edoptsize"] = (field["screenfield_edoptsize"]||="0")
 		command_r["screenfield_edoptrow"] = (field["screenfield_edoptrow"]||=0)
 		command_r["screenfield_edoptcols"] = (field["screenfield_edoptcols"]||=0)
-		command_r["screenfield_edoptvalue"] = (field["screenfield_edoptvalue"]||="0")
+		if command_r["screenfield_type"] == "select"  
+			command_r["screenfield_edoptvalue"] = (field["screenfield_edoptvalue"]||="0:未設定")
+		else  
+			command_r["screenfield_edoptvalue"] = (field["screenfield_edoptvalue"]||="0")
+		end
 		command_r["screenfield_pobject_id_sfd"] = pobjects_id_sfd
 		command_r["screenfield_tblfield_id"] = (field["screenfield_tblfield_id"] ||=field["fieldcode_tblfield_id"])
 		command_r["screenfield_paragraph"] = (field["screenfield_paragraph"]||="")

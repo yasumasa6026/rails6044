@@ -46,7 +46,7 @@ const authreducer =  (state= initialValues , actions) =>{
       return {
         isSubmitting:true,
         isSignUp:true,
-        message: [{ body: 'signining in...', time: new Date() }],
+        message: "signining in...",
       }
 
     // Successful?  Reset the signup state.

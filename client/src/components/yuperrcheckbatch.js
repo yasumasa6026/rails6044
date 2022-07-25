@@ -1,3 +1,4 @@
+//excelからの項目とscreenfieldsの項目のtype チェックが必要。未実施。
 //規定値はセットされない。
 import {yupschema} from '../yupschema'
 import {dataCheck7} from './yuperrcheck'

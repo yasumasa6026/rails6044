@@ -1,25 +1,23 @@
 import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,
-  SCREEN_FAILURE,LOGOUT_REQUEST,SCREEN_LINEEDIT,
+  SCREEN_FAILURE,LOGOUT_REQUEST,SCREEN_CONFIRM7,
   FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,YUP_RESULT,
-  INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
-  YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_PARAMS_SET,
-  MKSHPORDS_SUCCESS,SECONDSCREEN_SUCCESS7,CONFIRMALL_SUCCESS,} 
+  INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,SECOND_SUCCESS7,
+  YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_PARAMS_SET, CONFIRMALL_SUCCESS,} 
   from '../../actions'
 
 export let getScreenState = state => state.screen
 
-const initialValues = {
-}
+const initialValues = {second_columns_info:{columns_info:null,},}
 
-const screenreducer =  ( state= initialValues , actions) =>{
+const screenreducer =  ( state = initialValues , actions) =>{
 switch (actions.type) {
 // Set the requesting flag and append a message to be shown
 
 case SCREENINIT_REQUEST:
   return {...state,
-          params:actions.payload.params,
+    //      params:actions.payload.params,
           loading:true,
-          message: [{ body: 'screen loading ...', time: new Date() }],
+          message: " screen loading ...",
           // editableflg:actions.payload.editableflg
 }
 
@@ -28,12 +26,6 @@ case SCREEN_PARAMS_SET:
 return {...state,
   params:actions.payload.params,
 }
-
-//case SCREEN_ONKEYUP:
-//return {...state,
-//  data:actions.payload.data,
-//}
-
 
 case YUP_ERR_SET:
   return {...state,
@@ -46,7 +38,7 @@ case SCREEN_REQUEST:
 return {...state,
         params:actions.payload.params,
         loading:true,
-        message: [{ body: 'screen loading ...', time: new Date() }],
+        message: "screen loading ...",
         // editableflg:actions.payload.editableflg
 }
 
@@ -59,9 +51,10 @@ return {...state,
   params: actions.payload.data.params,
   status: actions.payload.data.status,
   grid_columns_info:actions.payload.data.grid_columns_info,
+  second_columns_info:null,
 }
 
-case SCREEN_LINEEDIT:
+case SCREEN_CONFIRM7:
 return {...state,
   params:actions.payload.params,
   loading:false,
@@ -116,17 +109,6 @@ case YUP_RESULT:
       message: actions.payload.message,
     }
 
-case MKSHPORDS_SUCCESS:
-      return {...state,
-        loading:false,
-}
-
-case SECONDSCREEN_SUCCESS7: // payloadに統一
-return {...state,
-    loading:false,
-    hostError: null,
-    disabled:false,
-}
 
 
 case CONFIRMALL_SUCCESS:
@@ -134,6 +116,13 @@ case CONFIRMALL_SUCCESS:
    loading:false,
    hostError: actions.payload.messages,
    disabled:false,
+}
+
+
+case SECOND_SUCCESS7: // 第一画面から移るときの受け渡し
+return {...state,
+    loading:false,
+    second_columns_info:actions.payload.data.grid_columns_info, //第一画面の内容
 }
 
 case  LOGOUT_REQUEST:

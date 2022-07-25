@@ -15,7 +15,6 @@ module RorBlkCtl
 		    @command_init["sio_message_contents"] = nil
 		    @command_init["sio_recordcount"] = 1
 		    @command_init["sio_result_f"] =   "0"  
-            command_init["sio_recordcount"] = 1
             @tbldata = {}   ###テーブル更新
 		end
 		def screenCode
@@ -86,6 +85,7 @@ module RorBlkCtl
         	###
         	insert_sio_r(command_c)   ###sioxxxxの追加
         	###
+			setParams["tbldata"] = @tbldata.dup
         	command_c.select do |key,val|
 				if key.to_s =~ /_autocreate/
 					if (JSON.parse(val) rescue nil)
@@ -103,53 +103,28 @@ module RorBlkCtl
 			setParams["child"] ||= {}
 			if @tbldata["opeitms_id"]
 				opeitm = ActiveRecord::Base.connection.select_one("select * from opeitms where id = #{@tbldata["opeitms_id"]}")
+				opeitm["locas_id_opeitm"] = ActiveRecord::Base.connection.select_value(%Q%
+														select locas_id_shelfno from shelfnos where id = #{opeitm["shelfnos_id_opeitm"]} %)
+				opeitm["locas_id_to_opeitm"] = ActiveRecord::Base.connection.select_value(%Q%
+														select locas_id_shelfno from shelfnos where id = #{opeitm["shelfnos_id_to_opeitm"]} %)
 			else
 				opeitm = {}
 			end
 			setParams["opeitm"] = opeitm.dup
 			setParams["classname"] = command_c["sio_classname"]
+
         	case @tblname
         	when /^custs$|^custrcvplcs$|^custwh$|^bills$|^paymnets$/
             	return setParams 
-        	when /^cust/
-            ###次の処理
-				gantt = setGantt(setParams)
 			when /^bill|^pay/
 				account = setAccount(setParams)
-        	end
-			case @tblname
-			when /^shpschs/
+			when /^shp/
 				gantt = setGantt(setParams)
 				return setParams
-			when /custschs/
-			when /^prdschs|^purschs/
-				gantt = setGantt(setParams)
-				gantt["qty_sch"] = @tbldata["qty_sch"]
-				gantt["qty_handover"] = @tbldata["qty_sch"]  if gantt["key"] == "00000"###下位部品所要量計算用
-				gantt["qty_free"] = 0
-			when /^custords/
-			when /^prdords|^purords/
-				gantt = setGantt(setParams)
-				gantt["qty"] =  gantt["qty_free"] =  @tbldata["qty"]
-				gantt["qty_require"] = 0
-				gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
-				###gantt["qty_require"] = @tbldata["qty"].to_f  ###自身のschsからordsへの変換用
-			when /insts|reply/
-				gantt = setGantt(setParams)
-				gantt["qty"] =  @tbldata["qty"]
-				gantt["qty_free"] = 0
-			when /acts|rets|dlvs/
-				gantt = setGantt(setParams)
-				gantt["qty_stk"] = @tbldata["qty_stk"]
-				gantt["qty_free"] = 0
-			###
-			### bill payの対応
-			###
 			when /mkprdpurords/
 				gantt = setGantt(setParams)
 				setParams["segment"] = "mkprdpurords"
 				setParams["gantt"] = gantt.dup
-				setParams["tbldata"] = @tbldata
 				setParams["mkprdpurords_id"] = @tbldata["id"]
 				setParams["remark"] = " RorBlkCtl.lib.proc_private_aud_rec"
 				processreqs_id ,setParams = ArelCtl.proc_processreqs_add(setParams)		
@@ -157,68 +132,100 @@ module RorBlkCtl
 			when /mkbillinsts/
 				gantt = setGantt(setParams)
 				setParams["segment"] = "mkbillinsts"
-				setParams["tbldata"] = @tbldata
 				setParams["gantt"] = gantt.dup
 				setParams["mkbillinsts_id"] = @tbldata["id"]
 				setParams["remark"] = " RorBlkCtl.lib.proc_private_aud_rec"
 				processreqs_id ,setParams = ArelCtl.proc_processreqs_add(setParams)	
 				return setParams
-			end
-		
-			### 
-			case @tblname  ###time,date,locas_id 
-			when /^prdschs/
-				gantt["starttime_trn"] = (@tbldata["duedate"].to_time - opeitm["duration"].to_f*60*60*24).strftime("%Y-%m-%d %H:%M:%S") 
-				###作業場所の稼働日考慮要
-				strsql = "select locas_id_workplace from workplaces where id = #{@tbldata["workplaces_id"]} "
-				gantt["locas_id_trn"] = ActiveRecord::Base.connection.select_value(strsql)
-			when /^purschs/
-				gantt["starttime_trn"] = (@tbldata["duedate"].to_time - opeitm["duration"].to_f*60*60*24).strftime("%Y-%m-%d %H:%M:%S")  
-				###作業場所の稼働日考慮要
-				debugger if @tbldata["suppliers_id"].nil?
-				strsql = "select locas_id_supplier from suppliers where id = #{@tbldata["suppliers_id"]} "
-				gantt["locas_id_trn"] = ActiveRecord::Base.connection.select_value(strsql)
+			when /^prdschs|^purschs/
+				gantt = setGantt(setParams)
+				if setParams["gantt"]
+				else
+					gantt = setGantt(setParams)
+					gantt["qty_sch"] = @tbldata["qty_sch"]
+					gantt["qty_handover"] = @tbldata["qty_sch"] 
+					gantt["starttime_trn"] = (@tbldata["duedate"].to_time - opeitm["duration"].to_f*60*60*24).strftime("%Y-%m-%d %H:%M:%S") 
+					###作業場所の稼働日考慮要
+					gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"]  = command_c["shelfno_loca_id_shelfno"]
+					gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
+					gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
+				end
 			when /^prdords/
+				gantt = setGantt(setParams)  ### setParams["gantt"].nil?==trueのはず
+				gantt["qty"] =  @tbldata["qty"]  ###free
+				gantt["qty_require"] = 0
+				gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
 				gantt["starttime_trn"] = @tbldata["starttime"] 
-				debugger if @tbldata["workplaces_id"].nil?
-				strsql = "select locas_id_workplace from workplaces where id = #{@tbldata["workplaces_id"]} "
-				gantt["locas_id_trn"] = ActiveRecord::Base.connection.select_value(strsql)
-			when /^prdinsts/
+				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
+				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
+				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
+			when /^prdinsts/  ###insts,actsでは trnganttsは作成しない。
+				gantt = setGantt(setParams)
+				gantt["qty"] =  @tbldata["qty"]
 				gantt["starttime_trn"] = @tbldata["commencementdate"]  
-			when /^replyinputs/
+				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
+				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 				gantt["duedate_trn"] =  gantt["toduedate_trn"] =  @tbldata["replydate"]
 			when /^prdacts/
+				gantt = setGantt(setParams)
+				gantt["qty_stk"] = @tbldata["qty_stk"]
 				gantt["duedate_trn"] = gantt["toduedate_trn"] =  @tbldata["cmpldate"]
+				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
+				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^purords/
+				gantt = setGantt(setParams)  ### setParams["gantt"].nil?==trueのはず
+				gantt["qty"] =  @tbldata["qty"]   ###free
+				gantt["qty_require"] = 0
+				gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
 				gantt["starttime_trn"] = @tbldata["starttime"] 
-				strsql = "select locas_id_supplier from suppliers where id = #{@tbldata["suppliers_id"]} "
-				gantt["locas_id_trn"] = ActiveRecord::Base.connection.select_value(strsql)
+				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] =  command_c["shelfno_loca_id_shelfno"]
+				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
+				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
+			when /^replyinputs/
+				gantt = setGantt(setParams)
+				gantt["qty"] =  @tbldata["qty"]
+				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
+				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
+			when /^purinsts/
+				gantt = setGantt(setParams)
+				gantt["qty"] =  @tbldata["qty"]
+			when /^purdlvs/
+				gantt = setGantt(setParams)
+				gantt["qty_stk"] = @tbldata["qty_stk"]
 			when /^puracts/
+				gantt = setGantt(setParams)
+				gantt["qty_stk"] = @tbldata["qty_stk"]
 				gantt["duedate_trn"] = gantt["toduedate_trn"] =  @tbldata["rcptdate"]
-			when /^custschs/
+				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
+				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
+			when /^custschs/  ### setParams["gantt"].nil?==trueのはず
 				gantt = setGantt(setParams)
 				gantt["qty_sch"] = @tbldata["qty_sch"]
 				gantt["qty_handover"] = @tbldata["qty_sch"] ###下位部品所要量計算用
-				gantt["qty_free"] = 0
-				gantt["starttime_trn"] = @tbldata["starttime"] = (@tbldata["duedate"].to_date - 1).strftime("%Y-%m-%d %H:%M:%S") ###輸送期間と作業場所の稼働日考慮要
-				gantt["locas_id_trn"] = opeitm["locas_id_opeitm"]
-				strsql = "select locas_id_cust from custs where id = #{@tbldata["custs_id"]} "
-				gantt["locas_id_trn"] = ActiveRecord::Base.connection.select_value(strsql)
-			when /^custords/
-				gantt = setGantt(setParams)
-				gantt["qty"] =  gantt["qty_handover"] = gantt["qty_require"] = @tbldata["qty"]
+				gantt["qty"] = 0
+				gantt["starttime_trn"] = @tbldata["starttime"] = (@tbldata["duedate"].to_date - 1).strftime("%Y-%m-%d %H:%M:%S") 
+				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["cust_loca_id_cust"]
+				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = 0 ###custschs,custords用dummy id
+				gantt["shelfnos_id_to_trn"] =  gantt["shelfnos_id_to_pare"] = 0 
+			when /^custords/  ### setParams["gantt"].nil?==trueのはず
 				###下位部品所要量計算用
 				###自身のschsからordsへの変換用
-				gantt["qty_free"] = 0
-				gantt["starttime_trn"] = @tbldata["starttime"] = (@tbldata["duedate"].to_date - 1).strftime("%Y-%m-%d %H:%M:%S") ###輸送期間と作業場所の稼働日考慮要
-				gantt["locas_id_trn"] = opeitm["locas_id_opeitm"]
-				strsql = "select locas_id_cust from custs where id = #{@tbldata["custs_id"]} "
-				gantt["locas_id_trn"] = ActiveRecord::Base.connection.select_value(strsql)
+				gantt = setGantt(setParams)
+				gantt["qty"] =  gantt["qty_handover"] = gantt["qty_require"] = @tbldata["qty"]
+				gantt["qty_sch"] = 0
+				gantt["starttime_trn"] = @tbldata["starttime"] = (@tbldata["duedate"].to_date - 1).strftime("%Y-%m-%d %H:%M:%S")
+				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] =  command_c["cust_loca_id_cust"] ###
+				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = 0 ###custschs,custords用dummy id
+				gantt["shelfnos_id_to_trn"] =  gantt["shelfnos_id_to_pare"] = 0 
+			when /acts$|rets$/
+				gantt = setGantt(setParams)
+				gantt["qty_stk"] = @tbldata["qty_stk"]
+			when /^cust/ ###custschs,custords以外
+				gantt = setGantt(setParams)
 			end
 		
 			if @tblname =~ /^prd|^pur|^cust/ and @tblname =~ /insts|dlvs|acts|rets/
-				###前の状態の変更　ordsは対象外（mkordprdpur.proc_mkprdpurords)で実施
-				###custordskの在庫の変更はOperation.custords_alloc_to_custschsで
+				###custordsの在庫の変更はOperation.custords_alloc_to_custschsで
 				src_qty = @tbldata["qty_sch"].to_f + @tbldata["qty"].to_f + @tbldata["qty_stk"].to_f
 				link_strsql,sql_get_src_alloc = get_src_tbl()
 				if link_strsql != "" and command_c["sio_classname"] =~ /_edit_|_update_|_delete_|_purge_/
@@ -253,21 +260,18 @@ module RorBlkCtl
 
 			if @tblname =~ /^prd|^pur|^cust/ 
 				setParams["gantt"] = gantt.dup
-				setParams["tbldata"] = @tbldata.dup	
+				setParams["tbldata"] = @tbldata.dup	###変更されているため再セット
 				case  @tblname
 				when /insts$|acts$|dlvs$|rets$/
 					setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
-					setParams["remark"] = " RorBlkCtl.proc_private_aud_rec line:#{__LINE__}"
 					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
 				when /schs$|^custords/
-					setParams["remark"] = " RorBlkCtl.proc_private_aud_rec line:#{__LINE__}"
 					# processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
                     ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
 					setParams = ope.proc_trngantts()  ###xxxschs,xxxords
 					setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
 					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
 				when /^prdords|^purords/
-					setParams["remark"] = " RorBlkCtl.proc_private_aud_rec line:#{__LINE__}"
                     ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
 					setParams = ope.proc_trngantts()  ###xxxschs,xxxords
 					setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
@@ -279,6 +283,10 @@ module RorBlkCtl
 					raise
 				end
 			end
+			return setParams
+		end
+
+		def  setAccount(setParams)
 			return setParams
 		end
 
@@ -464,14 +472,8 @@ module RorBlkCtl
 				gantt["parenum"] = gantt["chilnum"] = 1
 				gantt["qty_pare"] = 0
 				gantt["qty_stk_pare"] = 0
-				gantt["shelfnos_id_to"] =  case @tblname
-								   when /^prd|^pur/ 
-									@tbldata["shelfnos_id_to"]
-								   else
-									"0"  ###shelfnos_id=0は必須　dummy
-								   end
-				gantt["shelfnos_id_to_pare"] = gantt["shelfnos_id_to"]     
-				gantt["shelfnos_id_fm"] = gantt["shelfnos_id_to"] 
+				gantt["shelfnos_id_to_trn"] =  @tbldata["shelfnos_id_to"]
+				gantt["shelfnos_id_trn"] = @tbldata["shelfnos_id"]     
 				gantt["chrgs_id_trn"] =  gantt["chrgs_id_pare"] =  gantt["chrgs_id_org"] =  @tbldata["chrgs_id"]
 				gantt["prjnos_id"] = @tbldata["prjnos_id"]
 				gantt["shuffle_flg"] = (opeitm["shuffle_flg"]||="0")
@@ -481,7 +483,7 @@ module RorBlkCtl
 				gantt["duedate_trn"] = gantt["duedate_pare"] = gantt["duedate_org"] = @tbldata["duedate"]
 				gantt["toduedate_trn"] = gantt["toduedate_pare"] = gantt["toduedate_org"] = (@tbldata["toduedate"]||=@tbldata["duedate"])
 				gantt["starttime_trn"] = gantt["starttime_pare"] = gantt["starttime_org"] = @tbldata["starttime"]
-				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = opeitm["locas_id_opeitm"]
+				gantt["locas_id_pare"] = gantt["locas_id_org"] = gantt["locas_id_trn"] ###tbldataにlocas_idがない。
 				gantt["consumunitqty"] = 1 ###消費単位
 				gantt["consumminqty"]  = 0 ###最小消費数
 				gantt["consumchgoverqty"] = 0  ###段取り消費数
@@ -489,17 +491,27 @@ module RorBlkCtl
 				gantt["qty_require"] = 0
 		 	else
 				gantt = setParams["gantt"].dup
-			 	gantt["shelfnos_id_to"] =  @tbldata["shelfnos_id_to"]
-			 	gantt["chrgs_id_trn"] =  @tbldata["chrgs_id"]
-			 	gantt["prjnos_id"] = @tbldata["prjnos_id"]
 			 	gantt["shuffle_flg"] = (opeitm["shuffle_flg"]||="0")
+			 	# gantt["chrgs_id_pare"]  = gantt["chrgs_id_trn"] 
+			 	# gantt["itms_id_pare"] = gantt["itms_id_trn"] 
+			 	# gantt["processseq_pare"] = gantt["processseq_trn"] 
+			 	# gantt["duedate_pare"] = gantt["duedate_trn"] 
+			 	# gantt["toduedate_pare"] = gantt["toduedate_trn"]
+			 	# gantt["starttime_pare"] = gantt["starttime_trn"]
+				# gantt["locas_id_pare"] = gantt["locas_id_trn"] 
+				# gantt["shelfnos_id_to_pare"] =  gantt["shelfnos_id_to_trn"] 
+				# gantt["shelfnos_id_pare"] =  gantt["shelfnos_id_trn"] 
+				####
+			 	gantt["shelfnos_id_to_trn"] =  @tbldata["shelfnos_id_to"]
+			 	gantt["shelfnos_id_trn"] =  @tbldata["shelfnos_id"]
+			 	gantt["prjnos_id"] = @tbldata["prjnos_id"]
+			 	gantt["chrgs_id_trn"] =  @tbldata["chrgs_id"]
 			 	gantt["itms_id_trn"] = opeitm["itms_id"]
 			 	gantt["processseq_trn"] = opeitm["processseq"]
 			 	gantt["duedate_trn"] = @tbldata["duedate"]
 			 	gantt["toduedate_trn"] = @tbldata["toduedate"]
 			 	gantt["starttime_trn"] = @tbldata["starttime"]
-			 	gantt["locas_id_trn"] = opeitm["locas_id_opeitm"]
-			 	gantt["remark"] = " RorBlkCtl line:#{__LINE__} "
+			 	gantt["remark"] = " RorBlkCtl.setGantt line:#{__LINE__} "
 			end
 			gantt["tblname"] = @tblname
 			gantt["tblid"] = tblid = @tbldata["id"]	
@@ -575,7 +587,7 @@ module RorBlkCtl
 			trn = ActiveRecord::Base.connection.select_one(strsql)
 			update_trngantt = %Q&
 					update trngantts set qty = qty + #{inc_qty},qty_stk = qty_stk + #{inc_qty_stk},
-											qty_free = qty_free + #{inc_qty + inc_qty_stk },remark = 'ror_blkctl(#{__LINE__})'
+											remark = 'ror_blkctl(#{__LINE__})'
 							where id = #{trn["id"]}
 			&
 			ActiveRecord::Base.connection.update(update_trngantt)
@@ -688,14 +700,14 @@ module RorBlkCtl
 								end
 							else
 							   Rails.logger.debug " line #{__LINE__} : error val.class #{ftype}  key #{key} "
-							   p " line #{__LINE__} : error val.class #{ftype}  key #{key} "
+							   Rails.logger.debug" line #{__LINE__} : error val.class #{ftype}  key #{key} "
 							end	
 						else
 							if reqTblName.downcase =~ /^sio_|^bk_/
 								%Q&'#{val.to_s.gsub("'","''")}',&
 							else
 								Rails.logger.debug " line #{__LINE__} : error val.class #{ftype}  key #{key} "
-								p " line #{__LINE__} : error val.class #{ftype}  key #{key} "
+								Rails.logger.debug" line #{__LINE__} : error val.class #{ftype}  key #{key} "
 							end	
 			 			end
 			end

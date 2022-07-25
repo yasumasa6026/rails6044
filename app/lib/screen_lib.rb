@@ -35,7 +35,7 @@ module ScreenLib
 				select_fields = ""
 				select_row_fields = ""
 				gridmessages_fields = ""  ### error messages
-				init_where_info = {:filtered => {}}
+				init_where_info = {:filtered => ""}
 				dropdownlist = {}
 				sort_info = {}
 				nameToCode = {}
@@ -155,14 +155,14 @@ module ScreenLib
 							if i["screenfield_edoptvalue"] =~ /\:/
 								dropdownlist[i["pobject_code_sfd"].to_sym] = i["screenfield_edoptvalue"]
 							else
-								Rails.logger.debug " selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
-								Rails.logger.debug " selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
+								Rails.logger.debug " screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
+								Rails.logger.debug " screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
 								p " selectではedoptvalueにxxx:yyy,aaa:bbbは必須  "
 								raise
 							end
 						else
-							Rails.logger.debug " selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
-							Rails.logger.debug " selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
+							Rails.logger.debug "  screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
+							Rails.logger.debug "  screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
 							p " selectではedoptvalueにxxx:yyy,aaa:bbbは必須  "
 							raise
 						end
@@ -205,20 +205,23 @@ module ScreenLib
 			end
 		end
 	
-		def proc_create_filteredstr(params) 
+		def create_filteredstr(params) 
 			setParams = params.dup
 			if params[:filtered] 
 				init_where_info = grid_columns_info[:init_where_info]  ###r_screenからの　where
 				if (init_where_info[:filtered]).size > 0
-					 where_str =   "  where " +	 init_where_info[:filtered] + "    and "				else
+					 where_str =   "  where " +	 init_where_info[:filtered] + "    and "			
+				else
 					 where_str = "  where "	 
 				end	
-				JSON.parse(params[:filtered]).each  do |ff|  ##xparams gridの生
+				params[:filtered].each  do |fil|  ##xparams gridの生
+					ff = JSON.parse(fil)
 					###ff = JSON.parse(strjson)
 					next if ff["value"].nil?
 					next if ff["value"] == ""
 					next if ff["value"] =~ /'/
 					next if ff["value"] == "null"
+					###init_where_info[i["pobject_code_sfd"].to_sym] 
 	      			case init_where_info[ff["id"].to_sym]  ### where_info[i["pobject_code_sfd"].to_sym] = i["screenfield_type"]	
 					when nil
 						next
@@ -314,21 +317,22 @@ module ScreenLib
 				  end
 				end   
 				###@where_info["filtered"] screen sort 規定値
-				setParams[:filtered]="[]"
+				setParams[:filtered]= []
 			end
 			setParams[:pageIndex] = params[:pageIndex].to_f
 			setParams[:pageSize] = params[:pageSize].to_f
 			setParams[:disableFilters] = false
+			setParams[:sortBy]||= []
 			return setParams
 		end	
 
 		def proc_search_blk(params) 
-			setParams = proc_create_filteredstr(params) 
+			setParams = create_filteredstr(params) 
 			where_str = setParams[:where_str]
 			strsorting = ""
-			if setParams[:sortBy]  and   setParams[:sortBy] != "" ###: {id: "itm_name", desc: false}
-				sortBy = JSON.parse(setParams[:sortBy])
-				sortBy.each do |sortKey|
+			if setParams[:sortBy]  and   setParams[:sortBy] != [] ###: {id: "itm_name", desc: false}
+				setParams[:sortBy].each do |strSortKey|
+					sortKey = JSON.parse(strSortKey)
 					strsorting = " order by " if strsorting == ""
 					strsorting << %Q% #{sortKey["id"]} #{if sortKey["desc"]  == false then " asc " else "desc" end} ,%
 				end	
@@ -339,8 +343,9 @@ module ScreenLib
 				end
 			else
 				strsorting = "  order by id desc "
-				setParams[:sortBy] = "[]"
+				setParams[:sortBy] = []
 			end
+			setParams[:clickIndex] = []
 			strsql = "select #{grid_columns_info[:select_fields]} 
 						from (SELECT ROW_NUMBER() OVER (#{strsorting}) ,#{grid_columns_info[:select_row_fields]}
 													 FROM #{screenCode} #{if where_str == '' then '' else where_str end } ) x
@@ -356,6 +361,9 @@ module ScreenLib
 			totalCount = ActiveRecord::Base.connection.select_value(strsql)
 			setParams[:pageCount] = (totalCount.to_f/setParams[:pageSize]).ceil
 			setParams[:totalCount] = totalCount.to_f
+			if params[:parse_linedata]
+				setParams[:parse_linedata] = params[:parse_linedata]
+			end
 			return pagedata,setParams 
 		end	
 
@@ -420,8 +428,8 @@ module ScreenLib
 			end
 			setParams[:pageCount] = 1
 			setParams[:pageIndex] = 0
-			setParams[:filtered]="[]"
-			setParams[:sort]="[]"
+			setParams[:filtered]= []
+			setParams[:sortBy]= []
 			return pagedata,setParams		
 		end	   ## proc_strwhere
 
@@ -490,10 +498,10 @@ module ScreenLib
 	
 		def proc_download_data_blk(params)
 			download_columns_info = create_download_columns_info 
-			setParams = proc_create_filteredstr(params) 
+			setParams = create_filteredstr(params) 
 			downloadFields = ""
 			download_columns_info.each do |key,val|
-					downloadFields << key + ","
+					downloadFields << key.to_s + ","
 			end
 			strsql = "select #{downloadFields.chop} from  #{screenCode}
 							 #{if setParams[:where_str] == '' then '' else setParams[:where_str]   end }  limit 10000	  "
@@ -590,7 +598,7 @@ module ScreenLib
 					end																
 					init_where_info[i["pobject_code_sfd"].to_sym] = 	i["screenfield_type"]	
 					if cnt == 0
-								init_where_info[:filtered] = i["screen_strwhere"]
+								init_where_info[:filtered] = i["screen_strwhere"]   ### init_where_info[:filtered] === "string", params[:filtered] === "arrey["object"]""
 								###page_info[:sizePerPage] = i["screen_rows_per_page"].to_i
 								page_info[:pageNo] = 1
 								page_info[:sizePerPageList] = []
@@ -661,7 +669,8 @@ module ScreenLib
 							break
 				  		end
 					end
-			  	end    
+			  	end 
+				setParams[:parse_linedata][field] = val    
 			end	
 			if  setParams[:err].nil?
 				blk =  RorBlkCtl::BlkClass.new(screenCode)
@@ -678,7 +687,7 @@ module ScreenLib
 							end
 							break
 				  	else
-						command_c[key.to_s] = parse_linedata[key]
+						command_c[key.to_s] = val
 				  	end
 			  	end 
 			  	### セカンドkeyのユニークチェック

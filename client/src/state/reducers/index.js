@@ -12,7 +12,6 @@ import  downloadreducer  from './download'
 import  ganttchartreducer  from './ganttchart'
 import  secondreducer  from './second'
 
-
 const reducer = combineReducers({
   //login:loginreducer,
   //signup:signupreducer,

@@ -45,8 +45,8 @@ module Api
               render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
              
             when 'inlineadd7'
-              pagedata,reqparams = screen.proc_add_empty_data(params)  ### nil filtered sorting
-              render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}               
+              pagedata,setParams = screen.proc_add_empty_data(params)  ### nil filtered sorting
+              render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>setParams}               
                 
             when "fetch_request"
                 reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
@@ -73,40 +73,47 @@ module Api
               render json:{:excelData=>{:columns=>download_columns_info.to_json,:data=>pagedata.to_json},
                             :totalCount=>totalCount,:filttered=>params[:filtered] }    
 
-            when 'mkshpords'  ###shpschsは作成済が条件 purords,prdords時に自動作成
-                outcnt,shortcnt,err = Shipment.proc_mkshpords(screen.screenCode,params[:clickIndex])
+            when 'mkShpords'  ###shpschsは作成済が条件 purords,prdords時に自動作成
+                outcnt,shortcnt,err = Shipment.proc_mkShpords(screen.screenCode,params[:clickIndex])
                 render json:{:outcnt=>outcnt,:shortcnt=>shortcnt,:err=>err}    
             
-            when 'mkshpacts'
-                reqparams[:where_str] ||= ""
-                reqparams[:filtered] ||= []
-                reqparams[:pageIndex] ||= 0
-                reqparams[:pageSize] ||= 100
-                req = reqparams[:req] = "inlineedit7"
-                screenCode = reqparams[:screenCode] = "foract_shpinsts"   ###shpinstsがshpactsに変わるため
-                screen.proc_create_grid_editable_columns_info(reqparams)
-                pagedata = Shipment.proc_mkshpacts params,screen.grid_columns_info
-                render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}  
+            when 'mkShpinsts'
+                if params["clickIndex"]
+                    reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。
+                    reqparams[:where_str] ||= ""
+                    reqparams[:filtered] ||= []
+                    reqparams[:pageIndex] ||= 0
+                    reqparams[:pageSize] ||= 100
+                    reqparams[:req] = "inlineedit7"
+                    reqparams[:screenFlg] = "second" 
+                    reqparams[:screenCode] = "forInsts_shpords"   ###shpordsがshpinstsに変わるため
+                    subScreen = ScreenLib::ScreenClass.new(reqparams)
+                    subScreen.proc_create_grid_editable_columns_info(reqparams)
+                    pagedata = Shipment.proc_mkShpinsts reqparams,subScreen.grid_columns_info
+                    render json:{:grid_columns_info=>subScreen.grid_columns_info,:data=>pagedata,:params=>reqparams}
+                else
+                    render json:{:err=>"please  select Order"}    
+                end
+
+            when 'confirmShpinsts'
+                outcnt,err = Shipment.proc_confirmShpinsts(params)
+                render json:{:outcnt=>outcnt,:err=>err}    
             
-            when 'refshpacts'
+            when 'mkShpacts'
+                reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。
                 reqparams[:where_str] ||= ""
                 reqparams[:filtered] ||= []
                 reqparams[:pageIndex] ||= 0
                 reqparams[:pageSize] ||= 100
-                req = reqparams[:req] = "'viewtablereq7'"
-                screenCode = reqparams[:screenCode] = "r_shpacts"   ###shpinstsがshpactsに変わるため
-                reqparams = screen.proc_create_grid_editable_columns_info(reqparams)
-                pagedata = Shipment.proc_refshpacts reqparams
-                render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
-  
-            when 'confirm_all'  ###チェック済が条件
-                case screen.screenCode
-                when "foract_shpinsts"
-                    outcnt,shortcnt,err = Shipment.proc_shpact_confirmall
-                    render json:{:outcnt=>outcnt,:err=>err}  
-                end  
+                reqparams[:req] = "inlineedit7"
+                reqparams[:screenFlg] = "second" 
+                reqparams[:screenCode] = "forActs_shpinsts"  
+                subScreen = ScreenLib::ScreenClass.new(reqparams)
+                reqparams = subScreen.proc_create_grid_editable_columns_info(reqparams)
+                pagedata = Shipment.proc_mkshpacts reqparams
+                render json:{:grid_columns_info=>subScreen.grid_columns_info,:data=>pagedata,:params=>reqparams}
             else
-              p "#{Time.now} : req-->#{req} not support "    
+                Rails.logger.debug"#{Time.now} : req-->#{req} not support "    
             end
         end
         def show

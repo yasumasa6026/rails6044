@@ -22,7 +22,7 @@ export const SCREENINIT_REQUEST = 'SCREENINIT_REQUEST'
 export const SCREEN_REQUEST = 'SCREEN_REQUEST'
 export const SCREEN_SUCCESS7 = 'SCREEN_SUCCESS7'
 export const SCREEN_PARAMS_SET = 'SCREEN_PARAMS_SET'
-export const SCREEN_LINEEDIT = 'SCREEN_LINEEDIT'
+export const SCREEN_CONFIRM7 = 'SCREEN_CONFIRM7'
 
 export const SCREEN_FAILURE = 'SCREEN_FAILURE'
 
@@ -48,14 +48,15 @@ export const MKSHPACTS_RESULT = 'MKSHPACTS_RESULT'
 export const CONFIRMALL_REQUEST = 'CONFIRMALL_REQUEST'
 export const CONFIRMALL_SUCCESS = 'CONFIRMALL_SUCCESS'
 
-export const SECONDSCREEN_REQUEST = 'SECONDSCREEN_REQUEST'
-export const SECONDSCREEN_SUCCESS7 = 'SECONDSCREEN_SUCCESS7'
-export const SECONDSCREEN_FAILURE = 'SECONDSCREEN_FAILURE'
+export const SECOND_REQUEST = 'SECOND_REQUEST'
+export const SECOND_SUCCESS7 = 'SECOND_SUCCESS7'
+export const SECOND_FAILURE = 'SECOND_FAILURE'
 export const SECONDFETCH_REQUEST = 'SECONDFETCH_REQUEST'
 export const SECONDFETCH_RESULT = 'SECONDFETCH_RESULT'
 export const SECONDFETCH_FAILURE = 'SECONDFETCH_FAILURE'
-export const SECONDSCREEN_LINEEDIT = 'SECONDSCREEN_LINEEDIT'
-export const SECONDSCREEN_PARAMS_SET = 'SECONDSCREEN_PARAMS_SET'
+export const SECOND_CONFIRM7 = 'SECOND_CONFIRM7'
+export const SECOND_PARAMS_SET = 'SECOND_PARAMS_SET'
+
 
 export const IMPORTEXCEL_REQUEST = 'IMPORTEXCEL_REQUEST'
 export const IMPORTEXCEL_SUCCESS = 'IMPORTEXCEL_SUCCESS'
@@ -149,14 +150,14 @@ export const ScreenParamsSet = (params) => ({
   payload: { params}  //
 })
 
-export const SecondScreenParamsSet = (params) => ({
-  type:  SECONDSCREEN_PARAMS_SET,
+export const SecondParamsSet = (params) => ({
+  type:  SECOND_PARAMS_SET,
   payload: { params}  //
 })
 
 
-export const SecondScreenRequest = (params,data) => ({
-  type:  SECONDSCREEN_REQUEST,
+export const SecondRequest = (params,data) => ({
+  type:  SECOND_REQUEST,
   payload: { params,data}  //
 })
 
@@ -218,7 +219,7 @@ export const SecondFetchRequest = (params,data) => ({
   payload: { params,data }
 })
 
-export const SecondFetchResult = (data,params) => ({
+export const SecondFetchResult = (params) => ({
   type: SECONDFETCH_RESULT,
   payload: {params}
 })
@@ -228,8 +229,8 @@ export const SecondFetchFailure = (data,params) => ({
   payload: { data,params}
 })
 
-export const SecondScreenFailure = (errors) => ({
-  type: SECONDSCREEN_FAILURE,
+export const SecondFailure = (errors) => ({
+  type: SECOND_FAILURE,
   errors: { errors }  //
 })
 

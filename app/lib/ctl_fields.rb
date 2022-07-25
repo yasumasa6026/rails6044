@@ -68,7 +68,7 @@ module CtlFields
 					mainviewflg = false
 				end	
 			end	  
-			fetcfieldgetsql = "select pobject_code_sfd,screenfield_subindisp from r_screenfields
+			fetcfieldgetsql = "select pobject_code_sfd from r_screenfields
 								 where pobject_code_scr =  '#{params[:screenCode]}' 
 								 and screenfield_paragraph = '#{params[:fetchview]}'"
 			delm = ""
@@ -131,15 +131,6 @@ module CtlFields
 						missing = true
 						next
 					else
-						if fetch["screenfield_subindisp"]
-							fetch["screenfield_subindisp"].split(",").each do |func|
-								case func.split(":")[0]
-								when "chngSfd"
-									keys <<  "#{func.split(":")[1]}: '#{valOfField}',"
-									strsql << "  #{func.split(":")[1]} = '#{params[:parse_linedata][fetch["pobject_code_sfd"]]}'        and"
-								end
-							end
-						else
 							keys <<  "#{fetch["pobject_code_sfd"]}: '#{valOfField}',"
 							if fetch["pobject_code_sfd"] 	=~ /_sno_|_cno_/
 								 ### 
@@ -152,12 +143,11 @@ module CtlFields
 									strsql << "  #{fetch["pobject_code_sfd"].split(delm)[0]} = '#{params[:parse_linedata][fetch["pobject_code_sfd"]]}'       and"
 								end
 							end
-						end
 					end
 				end
 			end
 			if missing == false  ###検索のための入力項目はすべて入力されている。
-					rec =  ActiveRecord::Base.connection.select_one(strsql[0..-8] + " limit 1")
+					rec =  ActiveRecord::Base.connection.select_one(strsql[0..-8] )
 			else
 					rec = nil
 					findstatus = false
@@ -166,12 +156,14 @@ module CtlFields
 					params[:parse_linedata].each do |key,val|  ###結果をセット
 						next if key.to_s == "id" 
 						next if key.to_s =~ /person.*upd/  
-						items = key.to_s.split("_")   ###画面の項目を分解　tableName.chop_fieldName(_delm)
-						if items[-1] == delm[1..-1]   ### (params[:fetchview].split(":")[1]||="") 
-							field = items[0..-2].join("_")   ##delm(:)が在った時
-						else	
+						###画面の項目を分解　tableName.chop_fieldName(_delm),viewtblnamechop.fieldName(_delm),tableName.chop_viewtblnamechop_id(_dlem)
+						items = key.to_s.split("_")
+						if delm != ""
+							next if key.to_s !~ /#{delm}$/
+							field = key.to_s.sub(delm,"")
+						else
 							field = key.to_s
-						end	
+						end
 						if rec[field]  ###id,sno,cnoから求められた同一項目を画面にセットする。
 							line_data[(field+delm).to_sym] =  rec[field] ###rec:検索結果
 							###自動セット項目 onblurfunc.js 参照(tableをgetしないとき利用)
@@ -195,135 +187,127 @@ module CtlFields
 							#  	fetch_data[field+delm] =  rec[field.gsub(screentblnamechop,srctblnamechop)] ###rec:検索結果
 							# end
 							if items[0] == screentblnamechop
-								if items[1] == viewtblnamechop
-									if items[2]  == "id"
+								if items[2]  == "id"
+									if items[1] == viewtblnamechop
 										if rec["#{field.sub("#{screentblnamechop}_","")}"]
 											line_data[(field+delm).to_sym]  = rec["#{field.sub("#{screentblnamechop}_","")}"]
 										end
-									end
-								else
-									if (items[2]||="") == "id"
-										if rec["#{field.sub(screentblnamechop,viewtblnamechop)}"]
-											line_data[field+delm]  = rec["#{field.sub(screentblnamechop,viewtblnamechop)}"]
+									else
+										if rec["#{field.sub("#{screentblnamechop}","#{viewtblnamechop}")}"]   ###purors_opeitm_id ==>puract_opeitm_id
+											line_data[(field+delm).to_sym]  =  rec["#{field.sub("#{screentblnamechop}","#{viewtblnamechop}")}"]
 										end
 									end
-								end
-							end
-							### オーダ以上を許可するルール未設定
-							###  ###既に状態が変化しているかチェック
-							if  field =~ /_sno_|_cno_/ and field =~ /^#{screentblnamechop}/ and val != ""  and field !~ /_gridmessage/ and 
-												screentblnamechop =~ /^pur|^prd|^cust/   ###shpはりに身のテーブルを持たない　goはまとめなので数量チェックは別
-								strsql = %Q% select sum(link.qty_src) qty_src 
+									### オーダ以上を許可するルール未設定
+									###  ###既に状態が変化しているかチェック
+								else	
+									if  val != ""  and field !~ /_gridmessage/ and srctblnamechop =~ /^pur|^prd|^cust/ and field =~ /_sno|_cno/
+										###shpはりに身のテーブルを持たない　goはまとめなので数量チェックは別
+										strsql = %Q% select sum(link.qty_src) qty_src 
 												from linktbls link
 												inner join   #{srctblnamechop}s srctbl on srctbl.id = link.srctblid
 												where srctbl.#{key.split("_")[1]} = '#{val}' ---key.split("_")[1] :sno　ok,  cno:未対応
 												and link.srctblname = '#{srctblnamechop}s'
 												and (link.srctblname != link.tblname or link.srctblid != link.tblid)
 												group by srctbl.id
-								%  ###次のステータスに移行していないqtyを求める。　
-								org =  ActiveRecord::Base.connection.select_one(strsql)
-								org ||= {}
-								if org["qty_src"]   ###既に状態が変化しているかチェック
-									case srctblnamechop
-									when /act$/
-										case screentblnamechop
-										when  /act$/
-											if params[:parse_linedata]["#{screentblnamechop}_qty_stk"]
-												line_data[("#{screentblnamechop}_qty_stk").to_sym] =  rec["#{srctblnamechop}_qty_stk"].to_f - org["qty_src"].to_f
-												if line_data[("#{screentblnamechop}_qty_stk").to_sym] <= 0
-													params[:err] =  "error   --->over qty line:#{params[:index]} "
-													line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
+											%  ###次のステータスに移行していないqtyを求める。　
+										org =  ActiveRecord::Base.connection.select_one(strsql)
+										org ||= {}
+										if org["qty_src"]   ###既に状態が変化しているかチェック
+											case srctblnamechop
+											when /act$/
+												case screentblnamechop
+												when  /act$/
+													if params[:parse_linedata]["#{screentblnamechop}_qty_stk"]
+														line_data[("#{screentblnamechop}_qty_stk").to_sym] =  rec["#{srctblnamechop}_qty_stk"].to_f - org["qty_src"].to_f
+														if line_data[("#{screentblnamechop}_qty_stk").to_sym] <= 0
+															params[:err] =  "error   --->over qty line:#{params[:index]} "
+															line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
+														end
+													end
+												else
+													if params[:parse_linedata]["#{screentblnamechop}_qty"]
+														line_data[("#{screentblnamechop}_qty").to_sym] =  rec["#{srctblnamechop}_qty_stk"].to_f - org["qty_src"].to_f
+														if line_data[("#{screentblnamechop}_qty").to_sym] <= 0
+															params[:err] =  "error   --->over qty line:#{params[:index]} "
+															line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
+														end
+													end
+												end
+											when /sch$/
+												if screentblnamechop =~ /schs$/
+													if params[:parse_linedata]["#{screentblnamechop}_qty_sch"]
+														line_data[("#{screentblnamechop}_qty_sch").to_sym] = rec["#{srctblnamechop}_qt_sch"].to_f  - org["qty_src"].to_f
+														if line_data[("#{screentblnamechop}_qty_sch").to_sym] <= 0
+															params[:err] =  "error   --->over qty  line:#{params[:index]} "
+															line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
+														end
+													end
+												else	
+													if params[:parse_linedata]["#{screentblnamechop}_qty"]
+														line_data[("#{screentblnamechop}_qty").to_sym] = rec["#{srctblnamechop}_qty_sch"].to_f  - org["qty_src"].to_f
+														if line_data[("#{screentblnamechop}_qty").to_sym] <= 0
+															params[:err] =  "error   --->over qty  line:#{params[:index]} "
+															line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
+														end
+													end
+												end
+											else
+												if screentblnamechop =~ /act$/
+													if params[:parse_linedata]["#{screentblnamechop}_qty_stk"]
+														line_data[("#{screentblnamechop}_qty_stk").to_sym] = rec["#{srctblnamechop}_qty"].to_f  - org["qty_src"].to_f
+														if line_data[("#{screentblnamechop}_qty_stk").to_sym] <= 0
+															params[:err] =  "error   --->over qty  line:#{params[:index]} "
+															line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
+														end
+													end
+												else	
+													if params[:parse_linedata]["#{screentblnamechop}_qty"]
+														line_data[("#{screentblnamechop}_qty").to_sym] = rec["#{srctblnamechop}_qty"].to_f  - org["qty_src"].to_f
+														if line_data[("#{screentblnamechop}_qty").to_sym] <= 0
+															params[:err] =  "error   --->over qty line:#{params[:index]} "
+															line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
+														end
+													end
 												end
 											end
 										else
-											if params[:parse_linedata]["#{screentblnamechop}_qty"]
-												line_data[("#{screentblnamechop}_qty").to_sym] =  rec["#{srctblnamechop}_qty_stk"].to_f - org["qty_src"].to_f
-												if line_data[("#{screentblnamechop}_qty").to_sym] <= 0
-													params[:err] =  "error   --->over qty line:#{params[:index]} "
-													line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
-												end
+											case srctblnamechop 
+											when	/act$/
+												case screentblnamechop 
+												when	/act$/
+													if params[:parse_linedata]["#{screentblnamechop}_qty_stk"]		
+														line_data[("#{screentblnamechop}_qty_stk").to_sym] =  rec["#{srctblnamechop}_qty_stk"].to_f 
+													end
+												else
+													if params[:parse_linedata]["#{screentblnamechop}_qty"]		
+														line_data[("#{screentblnamechop}_qty").to_sym] =  rec["#{srctblnamechop}_qty_stk"].to_f 
+													end
+												end	
+											when /sch/	
+												case screentblnamechop 
+												when	/sch$/
+													if params[:parse_linedata]["#{screentblnamechop}_qty_sch"]		
+														line_data[("#{screentblnamechop}_qty_sch").to_sym] =  rec["#{srctblnamechop}_qty_sch"].to_f 
+													end
+												else
+													if params[:parse_linedata]["#{screentblnamechop}_qty"]		
+														line_data[("#{screentblnamechop}_qty").to_sym] =  rec["#{srctblnamechop}_qty_sch"].to_f 
+													end
+												end	
+											else	
+												if screentblnamechop =~ /act$/
+													if params[:parse_linedata]["#{screentblnamechop}_qty_stk"]		
+														line_data[("#{screentblnamechop}_qty_stk").to_sym] =  rec["#{srctblnamechop}_qty"].to_f 
+													end
+												else
+													if params[:parse_linedata]["#{screentblnamechop}_qty"]		
+														line_data[("#{screentblnamechop}_qty").to_sym] =  rec["#{srctblnamechop}_qty"].to_f 
+													end
+												end	
 											end
 										end
-									when /sch$/
-										if screentblnamechop =~ /schs$/
-											if params[:parse_linedata]["#{screentblnamechop}_qty_sch"]
-												line_data[("#{screentblnamechop}_qty_sch").to_sym] = rec["#{srctblnamechop}_qt_sch"].to_f  - org["qty_src"].to_f
-												if line_data[("#{screentblnamechop}_qty_sch").to_sym] <= 0
-													params[:err] =  "error   --->over qty  line:#{params[:index]} "
-													line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
-												end
-											end
-										else	
-											if params[:parse_linedata]["#{screentblnamechop}_qty"]
-												line_data[("#{screentblnamechop}_qty").to_sym] = rec["#{srctblnamechop}_qty_sch"].to_f  - org["qty_src"].to_f
-												if line_data[("#{screentblnamechop}_qty").to_sym] <= 0
-													params[:err] =  "error   --->over qty  line:#{params[:index]} "
-													line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
-												end
-											end
-										end
-									else
-										if screentblnamechop =~ /act$/
-											if params[:parse_linedata]["#{screentblnamechop}_qty_stk"]
-												line_data[("#{screentblnamechop}_qty_stk").to_sym] = rec["#{srctblnamechop}_qty"].to_f  - org["qty_src"].to_f
-												if line_data[("#{screentblnamechop}_qty_stk").to_sym] <= 0
-													params[:err] =  "error   --->over qty  line:#{params[:index]} "
-													line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
-												end
-											end
-										else	
-											if params[:parse_linedata]["#{screentblnamechop}_qty"]
-												line_data[("#{screentblnamechop}_qty").to_sym] = rec["#{srctblnamechop}_qty"].to_f  - org["qty_src"].to_f
-												if line_data[("#{screentblnamechop}_qty").to_sym] <= 0
-													params[:err] =  "error   --->over qty line:#{params[:index]} "
-													line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
-												end
-											end
-										end
-									end
-								else
-									case srctblnamechop 
-									when	/act$/
-										case screentblnamechop 
-										when	/act$/
-											if params[:parse_linedata]["#{screentblnamechop}_qty_stk"]		
-												line_data[("#{screentblnamechop}_qty_stk").to_sym] =  rec["#{srctblnamechop}_qty_stk"].to_f 
-											end
-										else
-											if params[:parse_linedata]["#{screentblnamechop}_qty"]		
-												line_data[("#{screentblnamechop}_qty").to_sym] =  rec["#{srctblnamechop}_qty_stk"].to_f 
-											end
-										end	
-									when /sch/	
-										case screentblnamechop 
-										when	/sch$/
-											if params[:parse_linedata]["#{screentblnamechop}_qty_sch"]		
-												line_data[("#{screentblnamechop}_qty_sch").to_sym] =  rec["#{srctblnamechop}_qty_sch"].to_f 
-											end
-										else
-											if params[:parse_linedata]["#{screentblnamechop}_qty"]		
-												line_data[("#{screentblnamechop}_qty").to_sym] =  rec["#{srctblnamechop}_qty_sch"].to_f 
-											end
-										end	
-									else	
-										if screentblnamechop =~ /act$/
-											if params[:parse_linedata]["#{screentblnamechop}_qty_stk"]		
-												line_data[("#{screentblnamechop}_qty_stk").to_sym] =  rec["#{srctblnamechop}_qty"].to_f 
-											end
-										else
-											if params[:parse_linedata]["#{screentblnamechop}_qty"]		
-												line_data[("#{screentblnamechop}_qty").to_sym] =  rec["#{srctblnamechop}_qty"].to_f 
-											end
-										end	
 									end
 								end
-							# else
-							# 	if  field =~ /^#{screentblnamechop}/ and field !~ /_gridmessage/ and field =~ /_id/
-							# 			rec_field = field.sub("#{screentblnamechop}_","")
-							# 			if rec[rec_field]
-							# 				fetch_data[field+delm] = rec[rec_field]   
-							# 			end
-							# 	end
 							end
 						end
 					end	
@@ -404,7 +388,7 @@ module CtlFields
 				params[:err] =  nil
 			end
 		else	
-			if linedata[:screenfield_paragraph] and (linedata[:screenfield_subindisp].nil? or linedata[:screenfield_subindisp] != "")
+			if linedata[:screenfield_paragraph]
 				screen,delm = linedata[:screenfield_paragraph].split(":",2)
 				if linedata[:pobject_code_sfd] =~ /_sno_|_cno_|_gno_/
 					case linedata[:pobject_code_sfd] 
@@ -431,20 +415,6 @@ module CtlFields
 					params[:err] =  "error2   --->view or field  #{linedata[:screenfield_paragraph]}　not find line:#{params[:index]} "
 				end
 			else
-				if  linedata[:screenfield_subindisp] 
-						linedata[:screenfield_subindisp].split(",").each do |func|
-							case func.split(":")[0]
-							when "chngSfd"
-								strsql = %Q%select 1 from r_screenfields where pobject_code_scr ='#{screen}' and pobject_code_sfd = '#{func.split(":")[1]}' %
-								rec = ActiveRecord::Base.connection.select_one(strsql)
-								if rec
-									params[:err] = nil
-								else
-									params[:err] =  "error21   --->view or field  #{linedata[:screenfield_paragraph]}　not find line:#{params[:index]} "
-								end
-							end
-						end
-				end
 			end
 		end
 		return params
@@ -452,15 +422,77 @@ module CtlFields
 
 	def check_strorder params,item
 		linedata = params[:parse_linedata]
-		if linedata["screen_strorder"] and linedata["screen_strorder"] != ""
+		if linedata[:screen_strorder] and linedata[:screen_strorder] != ""
 			ary_select_fields = linedata.keys
 			sort_info = {}
-			sort_info[:default] = linedata["screen_strorder"]
+			sort_info[:default] = linedata[:screen_strorder]
 			sort_info = proc_detail_check_strorder sort_info,ary_select_fields
 			if sort_info[:err] 
 				params[:err] =  sort_info[:err] + "line:#{params[:index]}" 
 			else
 				params[:err] =  nil
+			end
+		end
+		return params
+	end
+
+	
+	def check_workplaces params,item
+		linedata = params[:parse_linedata]
+		if linedata[item.to_sym] 
+			strsql = %Q%
+				select id from r_workplaces where loca_code_workplace = '#{linedata[item.to_sym]}'
+											and workplace_expiredate > current_date
+			%
+			if  ActiveRecord::Base.connection.select_value(strsql)
+			else
+				params[:err] =  " #{linedata[item.to_sym]} not workplaces"
+			end
+		end
+		return params
+	end
+
+	
+	def check_suppliers params,item
+		linedata = params[:parse_linedata]
+		if linedata[item.to_sym] 
+			strsql = %Q%
+				select id from r_suppliers where loca_code_supplier = '#{linedata[item.to_sym]}'
+											and supplier_expiredate > current_date
+			%
+			if  ActiveRecord::Base.connection.select_value(strsql)
+			else
+				params[:err] =  " #{linedata[item.to_sym]} not suppliers"
+			end
+		end
+		return params
+	end
+
+	
+	def check_workplaces_suppliers params,item
+		linedata = params[:parse_linedata]
+		case linedata[:opeitm_prdpur]
+		when "pur"
+			if linedata[item.to_sym] 
+				strsql = %Q%
+					select id from r_suppliers where loca_code_supplier = '#{linedata[item.to_sym]}'
+											and supplier_expiredate > current_date
+				%
+				if  ActiveRecord::Base.connection.select_value(strsql)
+				else
+					params[:err] =  " #{linedata[item.to_sym]} not suppliers"
+				end
+			end
+		when "prd"
+			if linedata[item.to_sym] 
+				strsql = %Q%
+					select id from r_workplaces where loca_code_workplace = '#{linedata[item.to_sym]}'
+												and workplace_expiredate > current_date
+				%
+				if  ActiveRecord::Base.connection.select_value(strsql)
+				else
+					params[:err] =  " #{linedata[item.to_sym]} not workplaces"
+				end
 			end
 		end
 		return params
@@ -565,6 +597,17 @@ module CtlFields
 				end
 			end
 		end		
+		if params[:screenCode] =~ /pobjects/   ###将来　履歴専用のtblを作成しこのチェックはなくす。
+			if linedata[:objecttype] == "view"
+				if linedata[:code] =~ /cust|prd|pur|shp/ and linedata[:code] =~ /schs|ords|oinsts|reply|dlvs|acts|rets/
+					if linedata[:code].split("_")[0]  == "r"
+					else
+						params[:err] =  "error   ---> view:#{code}   must be r_xxxxxxx 参照 Operation.get_last_rec  "
+					end
+				end
+			end
+		end
+
 		return params	
 	end
 
@@ -581,109 +624,83 @@ module CtlFields
 	end
 
 	### prd,pur ・・・schs,ords,insts,acts,retsのレコード作成　	
-	def proc_fields_update nd,parent,screenCode ,command_c  ###xxxschsの作成のみ
-		tmptbldata = {}
+	def proc_schs_fields_making nd,parent,screenCode ,command_c  ###xxxschsの作成のみ
 		command_x = command_c.dup
 		qty_require = 0
-		yield command_x   ###tmptbldata 子供自身の員数等
-		tmptbldata["opeitms_id"] = nd["opeitms_id"]
-		tmptbldata["duration"] =  nd["duration"].to_f
-		tmptbldata["packqty"] =  if nd["packqty"].to_f == 0
+		nd["packqty"] =  if nd["packqty"].to_f == 0
 									1
 								else
 									nd["packqty"].to_f
 								end
-		tmptbldata["shelfnos_id_to"] = nd["shelfnos_id_to_opeitm"]
-		tmptbldata["locas_id"] = nd["locas_id_opeitm"]  ###発注の時の作業場所
-		tmptbldata["parenum"] = nd["parenum"].to_f
-		tmptbldata["chilnum"] = nd["chilnum"].to_f
-		tmptbldata["locas_id_fm"] = nd["locas_id_fm"]
-		tmptbldata["consumunitqty"] = case nd["consumunitqty"].to_f when 0 then 1 else nd["consumunitqty"].to_f end
-		tmptbldata["consumminqty"] = nd["consumminqty"].to_f
-		tmptbldata["consumchgoverqty"] = nd["consumchgoverqty"].to_f  
-		###tmptbldata["parent_processseq"] = val
-		tmptbldata["parent_starttime"] = parent["starttime"]
-		tmptbldata["parent_duedate"] = parent["duedate"]
-		tmptbldata["parent_toduedate"] = parent["toduedate"]
-		tmptbldata["parent_duration"] = parent["duration"]
-		tmptbldata["chrgs_id"] = parent["chrgs_id"]
-		tmptbldata["parent_qty"] = parent["qty"].to_f
-		tmptbldata["parent_qty_sch"] = parent["qty_sch"].to_f
-		tmptbldata["parent_qty_handover"] = parent["qty_handover"].to_f
-		tmptbldata["parent_qty_stk"] = parent["qty_stk"].to_f
-		tmptbldata["parent_prjno_id"] = parent["prjnos_id"]
+		nd["consumunitqty"] = case nd["consumunitqty"].to_f when 0 then 1 else nd["consumunitqty"].to_f end
 
 		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
 		command_x["sio_code"] =  command_x["sio_viewname"] 
 
 		strsql =  %Q%select pobject_code_fld from r_tblfields where tblfield_expiredate > current_date and 
-						id in (select id from r_tblfields 
-									where pobject_code_tbl = '#{command_x["sio_code"].split("_")[1]}')
+						pobject_code_tbl = '#{command_x["sio_code"].split("_")[1]}'
 						order by tblfield_seqno
 		%
 		fields = ActiveRecord::Base.connection.select_all(strsql)
-		fields.each do |fd|  ###tblfield_seqnoの順に処理される。
+		fields.each do |fd|  ###tblfield_seqnoの順に処理される。tblfield_seqno順に処理するためcommand_cは利用できない。
 			###lotnoはpur,prd項目ではないのでここにはない。
+			next if !command_x[tblnamechop + "_" + fd["pobject_code_fld"]].nil? and command_x[tblnamechop + "_" + fd["pobject_code_fld"]] != ""
 			case fd["pobject_code_fld"]
-				when "autocreate"
-					command_x = field_autocreate(command_x,tmptbldata)
-				when "chrgs_id"
-					command_x = field_chrgs_id(command_x,tmptbldata) 
-				when "cno"  ###画面の時用にror_blkctl.crete_src_tblでもsetしてる
-				when "confirm"
-					command_x = field_confirm(command_x,tmptbldata)
-				when "consumauto"  ###
-					command_x = field_consumauto(command_x,tmptbldata)
-				when "duedate"  ###稼働日計算
-					command_x = field_duedate(command_x,tmptbldata)
-				when "toduedate"  ###稼働日計算
-					command_x = field_toduedate(command_x,tmptbldata)
-				when "expiredate"
-					command_x = field_expiredate(command_x,tmptbldata)
-				when "gno" ###画面の時用にror_blkctl.create_src_tblでもsetしてる
-				when "id"  ###追加または更新の判断
-					command_x = field_tblid(command_x,tmptbldata)
-				when "isudate"
-						if command_x ["sio_classname"] =~ /_add_/
-							command_x = field_isudate(command_x,tmptbldata) 
-						end
-				when "locas_id_to"
-					command_x = field_locas_id_to(command_x,tmptbldata)
-				when "opeitms_id"
-					command_x = field_opeitms_id(command_x,tmptbldata)
-				when "price"  ###保留
-					command_x = field_price_amt_tax_contract_price(command_x,tmptbldata) 
-				when "processseq_pare"
-					command_x = field_processseq_pare(command_x,tmptbldata)
-				when "prjnos_id"
-					command_x = field_prjnos_id(command_x,tmptbldata)
-				when "qty_sch"
-					command_x,qty_require = field_qty_sch(command_x,tmptbldata)   ### qty_require
-				###when "qty"   ###xxxschsではqtyは存在しない
-				###		field_qty 
-				when "qty_case"
-					command_x = field_qty_case(command_x,tmptbldata) 
-				when "starttime"  ###稼働日計算
-					command_x = field_starttime(command_x,tmptbldata)
-				when "shelfnos_id_to"
-					command_x = field_shelfnos_id_to(command_x,tmptbldata)
-				when "sno"  ###tblfield_seqnoはidの後であること。###画面の時用にror_blkctl.create_src_tblでもsetしてる
-						command_x["#{tblnamechop}_sno"]  = proc_field_sno(tblnamechop,command_x["id"])
-				when "suppliers_id"
-					command_x = field_suppliers_id(command_x,tmptbldata)
-				when "workplaces_id"
-					command_x = field_workplaces_id(command_x,tmptbldata)
-				when "payments_id"  ### seqnoはsuppliers_idより大きいこと
-					command_x = field_payments_id(command_x,tmptbldata)
-				###when "crrs_id"   ### seqはpayments_idより大きいこと
-				###		field_crrs_id
+			when "id"  ###追加または更新の判断
+				command_x = field_tblid(tblnamechop,command_x,nd,parent)
+			# when "confirm"
+			# 	command_x = field_confirm(tblnamechop,command_x,nd,parent)
+			when "isudate"
+				if command_x ["sio_classname"] =~ /_add_/
+					command_x = field_isudate(tblnamechop,command_x,nd,parent) 
+				end
+			when "opeitms_id"
+				command_x = field_opeitms_id(tblnamechop,command_x,nd,parent)
+			when "shelfnos_id"  ###payments_idを含む
+				command_x = field_shelfnos_id(tblnamechop,command_x,nd,parent)
+			when "starttime"  ###稼働日計算
+				command_x = field_starttime(tblnamechop,command_x,nd,parent)
+			when "shelfnos_id_to"
+				command_x = field_shelfnos_id_to(tblnamechop,command_x,nd,parent)
+			when "chrgs_id"
+				command_x = field_chrgs_id(tblnamechop,command_x,nd,parent) 
+			when "duedate"  ###稼働日計算
+				command_x = field_duedate(tblnamechop,command_x,nd,parent)
+			when "toduedate"  ###稼働日計算
+				command_x = field_toduedate(tblnamechop,command_x,nd,parent)
+			when "qty_sch"   ### 
+				command_x,qty_require = field_qty_sch(tblnamechop,command_x,nd,parent)
+			when "price"  ###保留 amt tax  itm_code_client crrs_idを含む
+				command_x = field_price_amt_tax_contract_price(tblnamechop,command_x,nd,parent) 
+			# when "itm_code_client"  ###保留 amt tax  を含む
+			# 	command_x = field_itm_code_client(tblnamechop,command_x,nd,parent) 
+			when "gno" ###画面の時用にror_blkctl.create_src_tblでもsetしてる
+			when "sno"  ###tblfield_seqnoはidの後であること。###画面の時用にror_blkctl.create_src_tblでもsetしてる
+				command_x["#{tblnamechop}_sno"]  = proc_field_sno(tblnamechop,command_x["id"])
+			when "cno"  ###画面の時用にror_blkctl.crete_src_tblでもsetしてる
+			when "prjnos_id"
+				command_x = field_prjnos_id(tblnamechop,command_x,nd,parent)
+			when "expiredate"
+				command_x = field_expiredate(tblnamechop,command_x,nd,parent)
+				# when "autocreate"
+				# 	command_x = field_autocreate(tblnamechop,command_x,nd,parent)
+				# when "consumauto"  ###
+				# 	command_x = field_consumauto(tblnamechop,command_x,nd,parent)
+				# # when "locas_id_to"
+				# # 	command_x = field_locas_id_to(tblnamechop,command_x,nd,parent)
+				# when "processseq_pare"
+				# 	command_x = field_processseq_pare(tblnamechop,command_x,nd,parent)
+				# when "suppliers_id"
+				#  	command_x = field_suppliers_id(tblnamechop,command_x,nd,parent)
+				# when "workplaces_id"
+				#  	command_x = field_workplaces_id(tblnamechop,command_x,nd,parent)
+				# ###when "crrs_id"   ### seqはpayments_idより大きいこと
 			end	
 		end		
-		return command_x,qty_require,tmptbldata
+		return command_x,qty_require
 	end	 
 
-	def	field_tblid command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
+	def field_tblid tblnamechop,command_x,nd,parent
 		if command_x["id"] == "" or  command_x["id"].nil?
 			command_x["sio_classname"] = "_add_grid_linedata"
 			command_x["id"] =  ArelCtl.proc_get_nextval("#{tblnamechop}s_seq")
@@ -694,129 +711,129 @@ module CtlFields
 		return command_x
 	end	
 
-	def field_confirm command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		command_x["#{tblnamechop}_confirm"] = false if command_x["#{tblnamechop}_confirm"].nil? or  command_x["#{tblnamechop}_confirm"] == ""
-		return command_x
-	end	
+	# def field_confirm tblnamechop,command_x,nd,parent
+	# 	command_x["#{tblnamechop}_confirm"] = false if command_x["#{tblnamechop}_confirm"].nil? or  command_x["#{tblnamechop}_confirm"] == ""
+	# 	return command_x
+	# end	
 
-	def field_opeitms_id command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
+	def field_opeitms_id tblnamechop,command_x,nd,parent
 		key = tblnamechop + "_opeitm_id" 
-		command_x[key] = tmptbldata["opeitms_id"]  ###  変更はないはず
+		command_x[key] = nd["opeitms_id"]  ###  変更はないはず
 		return command_x
 	end
 
-	def field_locas_id_to command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		command_x["#{tblnamechop}_loca_id_to"] = tmptbldata["locas_id_fm"] ##
+	def field_locas_id_to tblnamechop,command_x,nd,parent
+		command_x["#{tblnamechop}_loca_id_to"] = nd["locas_id_to"] ##
 		return command_x
 	end 
 
-	def field_suppliers_id command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		strsql = %Q%select  * from suppliers where locas_id_supplier = #{tmptbldata["locas_id"]}%
-		rec = ActiveRecord::Base.connection.select_one(strsql)
-			###supplier_code = dummy は必須 id = 0
-		if rec
-			command_x["#{tblnamechop}_supplier_id"] = rec["id"] ##
-		else
-			command_x["#{tblnamechop}_supplier_id"] = 0
-		end
-		return command_x
-	end 
+	# def field_suppliers_id tblnamechop,command_x,nd,parent
+	# 	strsql = %Q%select  * from suppliers where locas_id_supplier = #{nd["locas_id"]}%
+	# 	rec = ActiveRecord::Base.connection.select_one(strsql)
+	# 		###supplier_code = dummy は必須 id = 0
+	# 	if rec
+	# 		command_x["#{tblnamechop}_supplier_id"] = rec["id"] ##
+	# 	else
+	# 		command_x["#{tblnamechop}_supplier_id"] = 0
+	# 	end
+	# 	return command_x
+	# end 
 
-	def field_workplaces_id command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		strsql = %Q%select  id from workplaces where locas_id_workplace = #{tmptbldata["locas_id"]}
-		%
-		id = ActiveRecord::Base.connection.select_value(strsql)
-		###worlplace_code = dummy は必須 id = 0
-		id ||= 0
-		command_x["#{tblnamechop}_workplace_id"] = id ##
-		return command_x
-	end 
+	# def field_workplaces_id tblnamechop,command_x,nd,parent
+	# 	strsql = %Q%select  id from workplaces where locas_id_workplace = #{nd["locas_id_opeitm"]}
+	# 	%
+	# 	id = ActiveRecord::Base.connection.select_value(strsql)
+	# 	###worlplace_code = dummy は必須 id = 0
+	# 	id ||= 0
+	# 	command_x["#{tblnamechop}_workplace_id"] = id ##
+	# 	return command_x
+	# end 
 
-	def field_payments_id command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		strsql = %Q%select  * from payments where locas_id_payment = #{tmptbldata["locas_id"]}%
-		rec = ActiveRecord::Base.connection.select_one(strsql)
-		###supplier_code = dummy は必須 id = 0
-		if rec
-			command_x["#{tblnamechop}_payment_id"] = rec["id"] ##
-			command_x["#{tblnamechop}_crr_id"] = rec["crrs_id_payment"] ##
-		else
-			command_x["#{tblnamechop}_payment_id"] = 0
-			command_x["#{tblnamechop}_crr_id"] = 0
-		end
-		return command_x
-	end 
 
-	###def field_crrs_id ###seq_noは suppliersのあと
+
 	###end 
 
-	def field_shelfnos_id_to command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		command_x["#{tblnamechop}_shelfno_id_to"] = tmptbldata["shelfnos_id_to"] ##
+	def field_shelfnos_id tblnamechop,command_x,nd,parent
+		command_x["#{tblnamechop}_shelfno_id"] = nd["shelfnos_id_opeitm"] ##
+		shelfno_loca_id_shelfno =  ActiveRecord::Base.connection.select_value(%Q%
+			select locas_id_shelfno from shelfnos where id = #{nd["shelfnos_id_opeitm"]} 
+			%)
+		
+		command_x["shelfno_loca_id_shelfno"] = shelfno_loca_id_shelfno ##
+		case nd["prdpur"]
+		when "pur"
+			strsql = %Q%select  * from payments where locas_id_payment = #{command_x["shelfno_loca_id_shelfno"]}%
+			rec = ActiveRecord::Base.connection.select_one(strsql)
+			###supplier_code = dummy は必須 id = 0
+			if rec
+				command_x["#{tblnamechop}_payment_id"] = rec["id"] ##
+				command_x["#{tblnamechop}_crr_id"] = rec["crrs_id_payment"] ##
+			else
+				command_x["#{tblnamechop}_payment_id"] = 0
+				command_x["#{tblnamechop}_crr_id"] = 0
+			end
+		end
+		return command_x
+	end
+
+	def field_shelfnos_id_to tblnamechop,command_x,nd,parent
+		command_x["#{tblnamechop}_shelfno_id_to"] = nd["shelfnos_id_to_opeitm"] ##
 		return command_x
 	end 
 
-	def field_processseq_pare command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		command_x["#{tblnamechop}_processseq_pare"] = tmptbldata["parent_processseq"] 
+
+	def field_processseq_pare tblnamechop,command_x,nd,parent
+		command_x["#{tblnamechop}_processseq_pare"] = parent["processseq"] 
 		return command_x
 	end	
 
-	def field_isudate command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
+	def field_isudate tblnamechop,command_x,nd,parent
 		command_x["#{tblnamechop}_isudate"] = Time.now.to_s if command_x["#{tblnamechop}_isudate"].nil? or command_x["#{tblnamechop}_isudate"] == ""
 		return command_x
 	end	 
 
-	def field_duedate command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		duedate = tmptbldata["parent_starttime"].to_date - 1
+	def field_duedate tblnamechop,command_x,nd,parent
+		duedate = parent["starttime"].to_date - 1
 		command_x["#{tblnamechop}_duedate"] = command_x["#{tblnamechop}_duedate"] = duedate.strftime("%Y-%m-%d %H:%M:%S")
 		return command_x
 	end
 
 	
-	def field_toduedate command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		toduedate = tmptbldata["parent_toduedate"].to_date - tmptbldata["parent_duration"].to_i  - 1
+	def field_toduedate tblnamechop,command_x,nd,parent
+		toduedate = parent["toduedate"].to_date - parent["duration"].to_i  - 1
 		command_x["#{tblnamechop}_toduedate"] = command_x["#{tblnamechop}_toduedate"] = toduedate.strftime("%Y-%m-%d %H:%M:%S")
 		return command_x
 	end
 
 
-	def field_starttime command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		starttime =  command_x["#{tblnamechop}_duedate"].to_date - tmptbldata["duration"]
+	def field_starttime tblnamechop,command_x,nd,parent
+		starttime =  command_x["#{tblnamechop}_duedate"].to_date - nd["duration"].to_f
 		command_x["#{tblnamechop}_starttime"] = starttime.strftime("%Y-%m-%d %H:%M:%S")
 		return command_x
 	end
 
-	def field_chrgs_id command_x,tmptbldata ### seq_noは　chrgs_id > custs_id,suppliers_id,workplaces_idであること
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
+	def field_chrgs_id tblnamechop,command_x,nd,parent ### seq_noは　chrgs_id > custs_id,suppliers_id,workplaces_idであること
 		if command_x["#{tblnamechop}_chrg_id"].nil? or  command_x["#{tblnamechop}_chrg_id"] == ""
-			if tmptbldata["chrgs_id"]
-				command_x["#{tblnamechop}_chrg_id"] = tmptbldata["chrgs_id"]
+			if nd["chrgs_id"]
+				command_x["#{tblnamechop}_chrg_id"] = nd["chrgs_id"]
 			else
 				case tblnamechop
 				when /^cust/
 					strsql = %Q&
 							select chrgs_id_cust chrgs_id from custs where id = #{command_x["#{tblnamechop}_cust_id"] }
 					&
-				when /^pud/
-					strsql = %Q&
-							select chrgs_id_supplier chrgs_id from suppliers where id = #{command_x["#{tblnamechop}_supplier_id"] }
-					&
-				when /^prd/
-					strsql = %Q&
-							select chrgs_id_workplace chrgs_id from workplaces where id = #{command_x["#{tblnamechop}_workplace_id"] }
-					&
+				when /^pur/
+				 	strsql = %Q&
+				 			select chrgs_id_supplier chrgs_id from suppliers 
+									where locas_id_supplier = #{nd["locas_id_opeitm"]}
+				 	&
+				 when /^prd/
+				 	strsql = %Q&
+				 			select chrgs_id_workplace chrgs_id from workplaces 
+							 		where locas_id_workplace = #{nd["locas_id_opeitm"]}
+				 	&
 				else
-					p "get chrgs_id error LINE:#{__LINE__} "
+					Rails.logger.debug"get chrgs_id error LINE:#{__LINE__} "
 					raise
 				end
 				command_x ["#{tblnamechop}_chrg_id"] = ActiveRecord::Base.connection.select_value(strsql)
@@ -825,41 +842,32 @@ module CtlFields
 		return command_x
 	end	
 
-	def field_qty_sch command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		qty_require = proc_cal_qty_sch(tmptbldata["parent_qty_handover"],
-										tmptbldata["chilnum"],tmptbldata["parenum"],
-										tmptbldata["consumunitqty"],tmptbldata["consumminqty"],tmptbldata["consumchgoverqty"])
-		command_x["#{tblnamechop}_qty_sch"]  = tmptbldata["parent_qty_sch"] * tmptbldata["chilnum"] / tmptbldata["parenum"]
+	def field_qty_sch tblnamechop,command_x,nd,parent
+		qty_require = proc_cal_qty_sch(parent["qty_handover"],
+										nd["chilnum"],nd["parenum"],
+										nd["consumunitqty"],nd["consumminqty"],nd["consumchgoverqty"])
+		command_x["#{tblnamechop}_qty_sch"]  = parent["qty_sch"].to_f * nd["chilnum"].to_f / nd["parenum"].to_f
+		# if nd["packqty"] > 0   ### qty_case xxxschsから削除
+		# 	command_x["#{tblnamechop}_qty_case"] = (qty_require /  nd["packqty"]).ceil 
+		# else
+		# 	command_x["#{tblnamechop}_qty_case"] = 0
+		# end	
 		return command_x,qty_require
 	end	
 
 	def proc_cal_qty_sch(parent_qty,chilnum,parenum,consumunitqty,consumminqty,consumchgoverqty)
-		qty_require = parent_qty * chilnum / parenum
+		qty_require = parent_qty.to_f * chilnum.to_f / parenum.to_f
 		#consumunitqty等については親に合わせて計算する。
-		###if tmptbldata["consumunitqty"] > 0
+		###if nd["consumunitqty"] > 0
 		qty_require = (qty_require /  consumunitqty).ceil *  consumunitqty
-		if consumminqty > qty_require
-			qty_require = consumminqty  ###最小消費数
+		if consumminqty.to_f > qty_require
+			qty_require = consumminqty.to_f  ###最小消費数
 		end	
-		qty_require += consumchgoverqty
+		qty_require += consumchgoverqty.to_f
 	end
 
-	def field_qty_case command_x,tmptbldata ,qty_require
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		if tmptbldata["packqty"] > 0
-			command_x["#{tblnamechop}_qty_case"] = (qty_require /  tmptbldata["packqty"]).ceil 
-		else
-			command_x["#{tblnamechop}_qty_case"] = 0
-		end	
-		return command_x
-	end	
-
-	def field_price_amt_tax_contract_price command_x ,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		command_x["#{tblnamechop}_price"] = 0 if command_x["#{tblnamechop}_price"].nil?
-		command_x["#{tblnamechop}_amt_sch"] = 0 if command_x["#{tblnamechop}_amt_sch"].nil?
-		command_x["#{tblnamechop}_tax"] = 0 if command_x["#{tblnamechop}_tax"].nil?
+	def field_price_amt_tax_contract_price tblnamechop,command_x ,nd,parent
+		command_x = PriceLib.proc_price_amt(tblnamechop,command_x)
 		return command_x
 	end
 
@@ -875,26 +883,22 @@ module CtlFields
 		 format('%07d', id) 
 	end	
 
-	def field_prjnos_id command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		command_x["#{tblnamechop}_prjno_id"] = tmptbldata["parent_prjno_id"] 
+	def field_prjnos_id tblnamechop,command_x,nd,parent
+		command_x["#{tblnamechop}_prjno_id"] = parent["prjnos_id"] 
 		return command_x
 	end	
 
-	def field_consumauto command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		command_x["#{tblnamechop}_consumauto"] = tmptbldata["consumauto"] if command_x["#{tblnamechop}_consumauto"].nil? or  command_x["#{tblnamechop}_consumauto"] == ""
+	def field_consumauto tblnamechop,command_x,nd,parent
+		command_x["#{tblnamechop}_consumauto"] = nd["consumauto"] if command_x["#{tblnamechop}_consumauto"].nil? or  command_x["#{tblnamechop}_consumauto"] == ""
 		return command_x
 	end
 
-	def field_autocreate command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
-		command_x["#{tblnamechop}_autocreate"] = tmptbldata["autocreate"] if command_x["#{tblnamechop}_autocreate"].nil? or  command_x["#{tblnamechop}"] == ""
+	def field_autocreate tblnamechop,command_x,nd,parent
+		command_x["#{tblnamechop}_autocreate"] = nd["autocreate"] if command_x["#{tblnamechop}_autocreate"].nil? or  command_x["#{tblnamechop}"] == ""
 		return command_x
 	end		
 	
-	def field_expiredate command_x,tmptbldata
-		tblnamechop = command_x["sio_viewname"].split("_")[1].chop
+	def field_expiredate tblnamechop,command_x,nd,parent
 		command_x["#{tblnamechop}_expiredate"] = "2099/12/31" if command_x["#{tblnamechop}_expiredate"].nil? or command_x["#{tblnamechop}_expiredate"] == ""
 		return command_x
 	end	

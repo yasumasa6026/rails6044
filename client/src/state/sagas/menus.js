@@ -31,21 +31,21 @@ export function* MenuSaga({ payload: {token,client,uid} }) {
       let message 
       switch (true) {
         case /code.*500/.test(e): message = `${e}: Internal Server Error `
-            if(params.second===true){
-              return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+            if(params.screenFlg==="second"){
+              return  yield put({type:SECOND_FAILURE, payload:{message:message,data}})   
             }else{  
               return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
             }
         case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
-            if(params.second===true){
-                return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+            if(params.screenFlg==="second"){
+                return  yield put({type:SECOND_FAILURE, payload:{message:message,data}})   
             }else{  
                 return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
             }
         default:
             message = `Menu  Something went wrong ${e} `
-              if(params.second===true){
-                  return  yield put({type:SECONDSCREEN_FAILURE, payload:{message:message,data}})   
+              if(params.screenFlg==="second"){
+                  return  yield put({type:SECOND_FAILURE, payload:{message:message,data}})   
               }else{  
                   return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
             }
