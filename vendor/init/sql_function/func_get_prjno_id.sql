@@ -10,7 +10,3 @@ BEGIN
    USING tblid;
 END
 $func$  LANGUAGE plpgsql;
-
-
-
-

@@ -14,7 +14,7 @@ module ScreenLib
 				p "add person to his or her email "
 				raise   ### 別画面に移動する　後で対応
 			end
-			if params[:screenCode] and params[:req] != "import"
+			if params[:screenCode] and (params[:req] != "import" or params[:req] !~ /confirm/)
 				proc_create_grid_editable_columns_info(params)
 			end
 		end
@@ -311,6 +311,7 @@ module ScreenLib
 				end ### command_c.each  do |i,j|###
 				setParams[:where_str] = 	where_str[0..-7]
 			else
+				setParams[:where_str] = ""
 				if grid_columns_info[:init_where_info][:filtered]
 				  if grid_columns_info[:init_where_info][:filtered].size > 1
 					setParams[:where_str] = " where " + grid_columns_info[:init_where_info][:filtered] 

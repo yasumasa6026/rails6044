@@ -147,10 +147,11 @@ module CtlFields
 				end
 			end
 			if missing == false  ###検索のための入力項目はすべて入力されている。
-					rec =  ActiveRecord::Base.connection.select_one(strsql[0..-8] )
+				strsql = strsql[0..-8] 
+				rec =  ActiveRecord::Base.connection.select_one(strsql)
 			else
-					rec = nil
-					findstatus = false
+				rec = nil
+				findstatus = false
 			end
 			if rec  ###viewレコードあり
 					params[:parse_linedata].each do |key,val|  ###結果をセット
@@ -190,18 +191,20 @@ module CtlFields
 								if items[2]  == "id"
 									if items[1] == viewtblnamechop
 										if rec["#{field.sub("#{screentblnamechop}_","")}"]
-											line_data[(field+delm).to_sym]  = rec["#{field.sub("#{screentblnamechop}_","")}"]
+											line_data[key]  = rec["#{field.sub("#{screentblnamechop}_","")}"]
 										end
 									else
 										if rec["#{field.sub("#{screentblnamechop}","#{viewtblnamechop}")}"]   ###purors_opeitm_id ==>puract_opeitm_id
-											line_data[(field+delm).to_sym]  =  rec["#{field.sub("#{screentblnamechop}","#{viewtblnamechop}")}"]
+											line_data[key]  =  rec["#{field.sub("#{screentblnamechop}","#{viewtblnamechop}")}"]
 										end
 									end
 									### オーダ以上を許可するルール未設定
 									###  ###既に状態が変化しているかチェック
 								else	
-									if  val != ""  and field !~ /_gridmessage/ and srctblnamechop =~ /^pur|^prd|^cust/ and field =~ /_sno|_cno/
-										###shpはりに身のテーブルを持たない　goはまとめなので数量チェックは別
+									if  val != ""  and field !~ /_gridmessage/ and ((srctblnamechop =~ /^pur|^prd|^cust/ and srctblnamechop !~ /sch$|ord$/ and field =~ /_cno/) or
+																					(srctblnamechop =~ /^pur|^prd|^cust/ and field =~ /_sno/))
+										###shpはlinktblsテーブルに存在しない。
+										###gnoはまとめなので数量チェックは別
 										strsql = %Q% select sum(link.qty_src) qty_src 
 												from linktbls link
 												inner join   #{srctblnamechop}s srctbl on srctbl.id = link.srctblid
@@ -319,7 +322,8 @@ module CtlFields
 			else
 					##再入力時のNgに対応	
 					if missing == false 
-						if screentblnamechop != viewtblnamechop ### omit self table
+						if screentblnamechop != viewtblnamechop and xno !~ /sno|cno/ ### omit self table
+							### sno,cnoの時は例えば r_puractsにpurord_idを含んでない。(sno_purord,sno_ourdlv等どちらを使用するか不明。)
 							field = (screentblnamechop+"_"+viewtblnamechop+"_id"+delm).to_sym
 							line_data[field] =  ""
 						end
@@ -374,6 +378,10 @@ module CtlFields
 		return err
 	end
 
+	###未コーディング
+	#  screenfields.selection  viewtblchop_tblname_id は必ず選択
+	#  nditms 子どものopeitmsへの存在チェック
+	### 
 	def proc_judge_check_code params,sfd,checkCode  ###item未使用
 		params = __send__("check_#{checkCode}",params,sfd)  ###[1]: nil all,add,updateは画面側で判断
 		return params 
@@ -582,7 +590,7 @@ module CtlFields
 					if pobject_code != linedata[:pobject_code]
 						strsql = %Q%select tfd.id from tblfields tfd
 										inner join fieldcodes fld on tfd.fieldcodes_id  =  fld.id
-										where pobjects_id_fld = #{linedata[:id]}  
+										where pobjects_id_fld = #{linedata[:id]}  and tfd.expiredate > current_date
 								%
 						value = ActiveRecord::Base.connection.select_value(strsql)
 						if value
@@ -614,7 +622,7 @@ module CtlFields
 
 
 	def proc_snolist   ###reqparams["segment"] = ["trn_org"]の対象でもある。
-		{"purschs"=>"PS","purords"=>"PE","purinsts"=>"PH","purdlvs"=>"PV","puracts"=>"PA","purrets"=>"PR",
+		{"purschs"=>"PS","purords"=>"PE","purinsts"=>"PH","purdlvs"=>"PV","puracts"=>"PA",
 			"purreplyinputs"=>"PL","prdreplyinputs"=>"ML",
 			"prdschs"=>"MS","prdords"=>"ME","prdinsts"=>"MH","prdacts"=>"MA","prdrets"=>"MR",
 			"billschs"=>"BS","billords"=>"BE","billinsts"=>"BH","billacts"=>"BA","billrets"=>"BR",
@@ -793,21 +801,24 @@ module CtlFields
 	end	 
 
 	def field_duedate tblnamechop,command_x,nd,parent
-		duedate = parent["starttime"].to_date - 1
+		if nd["shelfnos_id_to_opeitm"] == parent["shelfnos_id_trn"]
+			duedate = parent["starttime"].to_time - 24*3600  ###稼働日
+		else
+			duedate = parent["starttime"].to_time - 2*24*3600  ###稼働日 出庫作業考慮
+		end
 		command_x["#{tblnamechop}_duedate"] = command_x["#{tblnamechop}_duedate"] = duedate.strftime("%Y-%m-%d %H:%M:%S")
 		return command_x
 	end
 
 	
-	def field_toduedate tblnamechop,command_x,nd,parent
-		toduedate = parent["toduedate"].to_date - parent["duration"].to_i  - 1
-		command_x["#{tblnamechop}_toduedate"] = command_x["#{tblnamechop}_toduedate"] = toduedate.strftime("%Y-%m-%d %H:%M:%S")
+	def field_toduedate tblnamechop,command_x,nd,parent  ###先行納品可能納期
+		command_x["#{tblnamechop}_toduedate"] = command_x["#{tblnamechop}_toduedate"] = command_x["#{tblnamechop}_duedate"]
 		return command_x
 	end
 
 
 	def field_starttime tblnamechop,command_x,nd,parent
-		starttime =  command_x["#{tblnamechop}_duedate"].to_date - nd["duration"].to_f
+		starttime =  command_x["#{tblnamechop}_duedate"].to_time - nd["duration"].to_f*24*3600
 		command_x["#{tblnamechop}_starttime"] = starttime.strftime("%Y-%m-%d %H:%M:%S")
 		return command_x
 	end
@@ -858,12 +869,13 @@ module CtlFields
 	def proc_cal_qty_sch(parent_qty,chilnum,parenum,consumunitqty,consumminqty,consumchgoverqty)
 		qty_require = parent_qty.to_f * chilnum.to_f / parenum.to_f
 		#consumunitqty等については親に合わせて計算する。
-		###if nd["consumunitqty"] > 0
-		qty_require = (qty_require /  consumunitqty).ceil *  consumunitqty
+		if consumunitqty.to_f > 0
+			qty_require = (qty_require /  consumunitqty.to_f).ceil *  consumunitqty.to_f
+		end
 		if consumminqty.to_f > qty_require
 			qty_require = consumminqty.to_f  ###最小消費数
 		end	
-		qty_require += consumchgoverqty.to_f
+		qty_require += consumchgoverqty.to_f   ###段取り時に余分に使用(消費)される数量
 	end
 
 	def field_price_amt_tax_contract_price tblnamechop,command_x ,nd,parent
@@ -889,12 +901,12 @@ module CtlFields
 	end	
 
 	def field_consumauto tblnamechop,command_x,nd,parent
-		command_x["#{tblnamechop}_consumauto"] = nd["consumauto"] if command_x["#{tblnamechop}_consumauto"].nil? or  command_x["#{tblnamechop}_consumauto"] == ""
+		command_x["#{tblnamechop}_consumauto"] = (nd["consumauto"]||="")
 		return command_x
 	end
 
 	def field_autocreate tblnamechop,command_x,nd,parent
-		command_x["#{tblnamechop}_autocreate"] = nd["autocreate"] if command_x["#{tblnamechop}_autocreate"].nil? or  command_x["#{tblnamechop}"] == ""
+		command_x["#{tblnamechop}_autocreate"] = (nd["autocreate"] ||="")
 		return command_x
 	end		
 	

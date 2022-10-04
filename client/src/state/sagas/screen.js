@@ -13,7 +13,7 @@ function screenApi({params ,url,headers} ) {
         method: "POST",
         url: url,
         contentType: "application/json",
-        params:params,
+        params:{...params,data:[]},
         headers:headers,
     })
   }
@@ -42,7 +42,8 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
     //params["fetch_data"] = ""  //net error 対策　1024*10 送信時は不要
     try{
       let response  = yield call(screenApi,{params ,url,headers} )
-      // params.sortBy === [] だとrailsに取り込められない　paramsからsortByがなくなる。
+      // params.sortBy === [] だとrailsに取り込められない　paramsからsortByが
+      params = {...params,req:response.data.params.req,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
       switch (response.status) {
         case 200:  
           switch(params.req) {
@@ -61,7 +62,6 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
               else
                 {return yield put({type:SCREEN_CONFIRM7,payload:{data:data,params:params} })} 
             case "mkShpords":  //
-              params.req =  "mkShpords"
               messages[0] = "out count : " + response.data.outcnt
               messages[1] = "shortage count : " + response.data.shortcnt
               return yield put({ type: MKSHPORDS_SUCCESS, payload:{messages:messages}})       
@@ -69,19 +69,14 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
             case "mkShpinsts":  //second画面出力専用　第一画面の修正、追加は不可
                 return yield put({ type:SECOND_SUCCESS7, payload:response})
                 
-            case "mkshpacts":  //second画面出力専用
-              params.req = "mkshpacts"
+            case "mkshpacts":  //second画面専用
               return yield put({ type: MKSHPACTS_RESULT, payload:response})    
               
             case "confirm_all":  //second画面専用
               messages[0] = "out count : " + response.data.outcnt
               return yield put({ type: CONFIRMALL_SUCCESS, payload:{messages:messages}})     
-           
-            case "refshpacts":  //second画面専用
-                params.req = "refshpacts"
-                return yield put({ type: SECOND_SUCCESS7, payload:response})       
-
-            case "fetch_request":  //viewによる存在チェック内容表示
+       
+           case "fetch_request":  //viewによる存在チェック内容表示
                 xparams = {...params,...response.data.params}
                 xparams.req = buttonState.buttonflg
                 break

@@ -110,9 +110,10 @@ module MkordinstLib
 					pare.shelfnos_id_to_pare ,pare.mkprdpurords_id_trngantt mkprdpurords_id
 				 	from trngantts	pare
 					where pare.mkprdpurords_id_trngantt = #{mkprdpurords_id}
+					and (pare.qty_sch > 0 or pare.qty > 0)
 					group by pare.itms_id_pare,pare.processseq_pare,pare.shelfnos_id_pare,pare.prjnos_id,
 							pare.shelfnos_id_pare,pare.shelfnos_id_to_pare,pare.mkprdpurords_id_trngantt
-					having max(pare.mlevel) > 1
+					having max(pare.mlevel) > 0
 					order by max(pare.mlevel),pare.itms_id_pare,pare.processseq_pare,pare.shelfnos_id_pare,pare.prjnos_id,
 							pare.shelfnos_id_pare,pare.shelfnos_id_to_pare
 				&
@@ -143,7 +144,7 @@ module MkordinstLib
 					incnt += sumSchs["incnt"].to_f
 					inqty += sumSchs["qty_require"].to_f
 					### freeの確認
-					sumSchs = schtrn_alloc_to_freetrn(sumSchs)
+					sumSchs = sch_trn_alloc_to_freetrn(sumSchs)
 					###
 					next if sumSchs["qty_require"].to_f <= 0   ###sumSchs["qty_require"].to_f free　qty引当済
 					qty_handover = (sumSchs["qty_require"].to_f / sumSchs["packqty"].to_f).ceil  * sumSchs["packqty"].to_f
@@ -216,6 +217,8 @@ module MkordinstLib
 							end
 						when /duedate|starttime/
 							command_c["#{tblord}_#{key}"] = sumSchs[key].strftime("%Y-%m-%d %H:%M:%S")
+						when /isudate/
+							command_c["#{tblord}_#{key}"] = Time.now
 						when /_qty$/
 							command_c["#{tblord}_#{key}"] = val
 						else	 ###xxxschsとxxxordsと項目は同一が原則　　payments_id_purord
@@ -233,72 +236,47 @@ module MkordinstLib
 					###
 					blk.proc_create_tbldata(command_c)
 					setParams = blk.proc_private_aud_rec(setParams,command_c)
+					base = {"tblname"=> tblord + "s" ,"tblid" => command_c["id"],
+							 "alloc_id" => setParams["alloctbl_ids"][0],
+							"itms_id"=>sumSchs["itms_id"],"processseq" => sumSchs["processseq"],
+							"prjnos_id" => sumSchs["prjnos_id"],"starttime" => command_c["#{tblord}_duedate"] ,
+							"shelfnos_id" => command_c["#{tblord}_shelfno_id_to"],
+							"qty_sch" => 0,"qty" => command_c["#{tblord}_qty"] ,"qty_stk" => 0,
+							"lotno" => "","packno" => "","qty_src" => command_c["#{tblord}_qty"] , "amt_src"=> 0}
+					stkinout = Shipment.proc_lotstkhists_in_out("in",base)  ###在庫の更新
+					stkinout["trngantts_id"] = setParams["trngantts_id"]
+                    ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
+					ope.proc_update_inoutlot_and_src_stk("in","lotstkhists",stkinout)
 					outcnt += 1
 					outqty +=  command_c[symqty]
 					gantt = setParams["gantt"].dup
-					qty = command_c[symqty]
+					qty = command_c[symqty].to_f
 					strsql = %Q&
-			        	select gantt.id trngantts_id,* from trngantts gantt
+			        	select gantt.id trngantts_id,gantt.*,alloc.id alloc_id from trngantts gantt
+							inner join alloctbls alloc on gantt.id = alloc.trngantts_id
 			            	where gantt.mkprdpurords_id_trngantt = #{mkprdpurords_id}
 							and gantt.itms_id_trn = #{sumSchs["itms_id"]} and gantt.locas_id_trn = #{sumSchs["locas_id"]}
 				        	and gantt.processseq_trn = #{sumSchs["processseq"]} and gantt.shelfnos_id_to_trn = #{sumSchs["shelfnos_id_to"]}
+							and alloc.qty_linkto_alloctbl > 0 and alloc.srctblname like '%schs'
 						&
-					ActiveRecord::Base.connection.select_all(strsql).each do |schtrn|   ###trngantts.qty_schの変更
+					ActiveRecord::Base.connection.select_all(strsql).each do |sch_trn|   ###trngantts.qty_schの変更
 						if qty > 0
-							if qty >=schtrn["qty_sch"].to_f 
+							if qty >=sch_trn["qty_sch"].to_f 
 								qty_sch = 0
-								gantt_qty = schtrn["qty_sch"].to_f
+								alloc_qty = sch_trn["qty_sch"].to_f
 							else	 
-								qty_sch = schtrn["qty_sch"].to_f - qty
-								gantt_qty = qty
+								qty_sch = sch_trn["qty_sch"].to_f - qty
+								alloc_qty = qty
 							end
-							update_strsql = %Q&
-										update trngantts set qty_sch = #{qty_sch},qty = qty + #{gantt_qty},
-											remark = 'MkordinstLib line:#{__LINE__}' 
-											where id = #{schtrn["trngantts_id"]}   --- schsのtrngantts_id
-							&		
-							ActiveRecord::Base.connection.update(update_strsql)
-							### new alloc add
-							alloctbl = {"tblname" => tblord + "s","tblid" => command_c["id"],"trngantts_id" => schtrn["trngantts_id"],
-			            				"qty_sch" => 0,"qty" => gantt_qty,"qty_stk" => 0,
-					    				"qty_linkto_alloctbl" => 0,"remark" => "Mkordinst_lib line:#{__LINE__} ",
-					    				"allocfree" => "alloc" }
-							ArelCtl.proc_insert_alloctbls(alloctbl)
-							update_src_alloc = %Q&
-								update alloctbls set  qty_linkto_alloctbl = qty_linkto_alloctbl + #{gantt_qty},
-									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-									remark = 'MkordinstLib line #{__LINE__}'
-									where trngantts_id = #{schtrn["trngantts_id"]}
-									and srctblname ='#{schtrn["tblname"]}' and srctblid ='#{schtrn["tblid"]}' 
-							&
-							ActiveRecord::Base.connection.update(update_src_alloc)
-							### free
-							update_free_alloc = %Q&
-								update alloctbls set  qty_linkto_alloctbl = qty_linkto_alloctbl + #{gantt_qty},
-									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-									remark = 'MkordinstLib line #{__LINE__}'
-									where trngantts_id = #{gantt["trngantts_id"]} 
-									and srctblname ='#{gantt["tblname"]}' and srctblid ='#{gantt["tblid"]}' 
-							&
-							ActiveRecord::Base.connection.update(update_free_alloc)
-
-							src = {"tblname" => schtrn["tblname"],"tblid" => schtrn["tblid"],"trngantts_id" => schtrn["trngantts_id"]}
-							base = {"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"qty_src" => gantt_qty,"amt_src" => 0 }
-							ArelCtl.proc_insert_linktbls(src,base)
+							stkinout["wh"] = "lotstkhists"
+							stkinout["qty_src"] = alloc_qty
+							ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,stkinout,[],[]) 
+							stkinout["qty"]  = command_c["#{tblord}_qty"]
+							ArelCtl.proc_src_base_trn_stk_update(sch_trn,stkinout,alloc_qty)
 						else
 							break
 						end
 					end
-					stkinout = {"itms_id" => sumSchs["itms_id"],"processseq" => sumSchs["processseq"],
-								"shelfnos_id" => sumSchs["shelfnos_id_to"],"shelfnos_id_real" => sumSchs["shelfnos_id_to"],
-								"prjnos_id" => sumSchs["prjnos_id"],"starttime" => sumSchs["duedate"],
-								"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"trngantts_id" => gantt["trngantts_id"],
-								"packno" => "","lotno" => "",
-								"qty_sch" => 0, "qty" => qty,"qty_stk" => 0}
-					stkinout = Shipment.proc_lotstkhists_in_out("in",stkinout)  ###在庫の更新
-					qty_src = qty 
-					opeord = Operation::OpeClass.new(setParams)
-					opeord.proc_update_inoutlot_and_src_stk("in","lotstkhists",stkinout)
 			end
 		end
 		mkordparams[:incnt] = incnt
@@ -311,12 +289,11 @@ module MkordinstLib
 	
 	def set_mkprdpurords_id_in_trngantts_strsql(add_tbl,strwhere,mkprdpurords_id)   ##alocctblのxxxschsは一件のみ
 		%Q&
-		update trngantts bgantt set mkprdpurords_id_trngantt = #{mkprdpurords_id}
+		update trngantts bgantt set mkprdpurords_id_trngantt = #{mkprdpurords_id},remark = 'set_mkprdpurords_id_in_trngantts_strsql'
 				from (select gantt.orgtblid 
 										from trngantts gantt #{add_tbl}
-										inner join alloctbls alloc on gantt.id = alloc.trngantts_id
 										where #{strwhere["org"]} #{strwhere["pare"]} #{strwhere["trn"]}
-											alloc.qty_sch > qty_linkto_alloctbl and gantt.qty_sch > 0 
+											gantt.qty_sch > 0 
 										group by gantt.orgtblid
 					) target
 				where 	bgantt.orgtblid = target.orgtblid     
@@ -512,7 +489,8 @@ module MkordinstLib
 							and gantt.duedate_pare >= term.duedate and gantt.duedate_pare < term.optfixodate
 							and tmp.itms_id = #{handover["itms_id_pare"]} and tmp.processseq = #{handover["processseq_pare"]}  
 							and tmp.shelfnos_id = #{handover["shelfnos_id_pare"]} 
-							and tmp.shelfnos_id_to	= #{handover["shelfnos_id_to_pare"]}			
+							and tmp.shelfnos_id_to	= #{handover["shelfnos_id_to_pare"]}	
+							and (opeitm.prdpurordauto != 'M' or opeitm.prdpurordauto is null)	---prdords,purordsの自動作成はしない。	
 						group by gantt.mkprdpurords_id_trngantt ,gantt.itms_id_pare,gantt.processseq_pare ,gantt.locas_id_pare,
 							gantt.shelfnos_id_pare,gantt.shelfnos_id_to_pare,
 		 					gantt.itms_id_trn,gantt.processseq_trn ,gantt.locas_id_trn ,gantt.parenum,gantt.chilnum,
@@ -592,7 +570,7 @@ module MkordinstLib
 					strwhere << %Q% #{field} #{moreless} to_date('#{val}','yyyy/mm/dd')   and 
 								%
 				when "timestamp(6)"						
-					strwhere << %Q% #{field} #{moreless} to_date('#{val}','yyyy/mm/dd hh24:mi:ss')   and 
+					strwhere << %Q% #{field} #{moreless} to_timestamp('#{val}','yyyy/mm/dd hh24:mi:ss')   and 
 								%
 				end
 			when /sno_billord/
@@ -672,7 +650,7 @@ module MkordinstLib
 		return mkordparams
 	end	
 
-	def schtrn_alloc_to_freetrn(sumSchs)   ###xxxschsをまとめて消費量を決めているので
+	def sch_trn_alloc_to_freetrn(sumSchs)   ###xxxschsをまとめて消費量を決めているので
 	 	###freeを探す　
 	 	required_sch_qty = sumSchs["qty_require"].to_f
 	 	alloc_qty = 0
@@ -680,83 +658,51 @@ module MkordinstLib
 		base = {}
 		###freeのxxxordsは子部品を既に手配済が条件
 	 	ActiveRecord::Base.connection.select_all(getFreeOrdStk(sumSchs)).each do |free|   ### 
-	 		qty_src = 0
-	 		base = ArelCtl.proc_set_stkinout(free)
-	 		if free["alloc_qty_linkto_alloctbl"].to_f >= required_sch_qty
-				if free["tblname"] =~ /ords|insts|reply|dlv/
-					base["qty"] = base["qty"].to_f - required_sch_qty
-				else
-					base["qty_stk"] = base["qty_stk"].to_f - required_sch_qty
-				end
-	 			qty_src = required_sch_qty 
-	 			required_sch_qty = 0
-				free["alloc_qty_linkto_alloctbl"] =  free["alloc_qty_linkto_alloctbl"].to_f - required_sch_qty
-	 		else
-				if free["tblname"] =~ /ords|insts|reply|dlv/
-					base["qty"] = 0
-				else
-					base["qty_stk"] = 0
-				end
-	 			qty_src = free["alloc_qty_linkto_alloctbl"].to_f 
-	 			required_sch_qty -= free["alloc_qty_linkto_alloctbl"].to_f
-				free["alloc_qty_linkto_alloctbl"] = 0
-	 		end		
-			
-			###freeの減
-	 		update_strsql = %Q&
-	 					update trngantts set qty = #{base["qty"]},qty_stk = #{base["qty_stk"]},
-	 											remark = 'Operation.schtrn_alloc_to_freetr free-->alloc' 
-	 					where id = #{free["trngantts_id"]}
-	 					&
-	 		ActiveRecord::Base.connection.update(update_strsql)
-			###Shipment.proc_check_inoutlotstk("out",base)   ###ordsの在庫内訳数変更
+			base = free.dup
 	 		base["amt_src"] = 0
-	 		base["qty_src"] = qty_src
-	 		schtrn_strsql = %Q&
+	 		base["qty_src"] = free["qty_linkto_alloctbl"].to_f
+			base["wh"] = "lotstkhists"
+			strsql = %Q&select srctblid from inoutlotstks 
+						where tblname = '#{free["tblname"]}' and tblid = #{free["tblid"]}
+						and trngantts_id = #{free["trngantts_id"]} and srctblname = 'lotstkhists'  &
+			base["srctblid"] = ActiveRecord::Base.connection.select_value(strsql)
+	 		sch_trn_strsql = %Q&
 				select gantt.id trngantts_id, 
-					gantt.tblname,gantt.tblid,gantt.mkprdpurords_id_trngantt,gantt.qty_sch,gantt.qty,gantt.qty_stk,
-			 		gantt.qty_require,gantt.qty_handover, 
-				 	gantt.duedate_trn duedate,gantt.toduedate_trn,gantt.starttime_trn starttime,
-				 	gantt.locas_id_trn locas_id,gantt.itms_id_trn itms_id,gantt.processseq_trn,gantt.shelfnos_id_to_trn shelfnos_id_to,
-					gantt.prjnos_id,'' lotno,''packno
+						gantt.tblname,gantt.tblid,gantt.mkprdpurords_id_trngantt,gantt.qty_sch,gantt.qty,gantt.qty_stk,
+			 			gantt.qty_require,gantt.qty_handover, 
+				 		gantt.duedate_trn duedate,gantt.toduedate_trn,gantt.starttime_trn starttime,
+				 		gantt.locas_id_trn locas_id,gantt.itms_id_trn itms_id,gantt.processseq_trn processseq,
+						gantt.shelfnos_id_to_trn shelfnos_id,gantt.prjnos_id,'' lotno,''packno,
+						alloc.id alloc_id   ---alloctbls.qty_linkto_alloctbl == gantt.qty_sch when tblname == pur,prdschs
 				 	from trngantts gantt
-				 	where gantt.mkprdpurords_id_trngantt = #{sumSchs["mkprdpurords_id"]} 
-					 and gantt.itms_id_trn = #{sumSchs["itms_id"]} and gantt.processseq_trn = #{sumSchs["processseq"]}  
-					 and gantt.locas_id_trn = #{sumSchs["locas_id"]} and gantt.prjnos_id = #{sumSchs["prjnos_id"]}
-					 and gantt.shelfnos_id_to_trn = #{sumSchs["shelfnos_id_to"]} 
-					 order by  (gantt.duedate_trn)
+					inner join alloctbls alloc on alloc.trngantts_id = gantt.id
+				 		where gantt.mkprdpurords_id_trngantt = #{sumSchs["mkprdpurords_id"]} 
+						and gantt.itms_id_trn = #{sumSchs["itms_id"]} and gantt.processseq_trn = #{sumSchs["processseq"]}  
+					 	and gantt.locas_id_trn = #{sumSchs["locas_id"]} and gantt.prjnos_id = #{sumSchs["prjnos_id"]}
+					 	and gantt.shelfnos_id_to_trn = #{sumSchs["shelfnos_id_to"]} 
+					 	and gantt.qty_sch > 0
+					 	order by  (gantt.duedate_trn)
  				&
-			ActiveRecord::Base.connection.select_all(schtrn_strsql).each do |sch_trn|
-				qty_sch = sch_trn["qty_sch"].to_f
+			ActiveRecord::Base.connection.select_all(sch_trn_strsql).each do |sch_trn|
 				if qty_src >  sch_trn["qty_sch"].to_f
 					qty_src -=  sch_trn["qty_sch"].to_f
-					qty_sch = 0
+					alloc_qty = sch_trn["qty_sch"].to_f
 				else
-					qty_sch = sch_trn["qty_sch"].to_f - qty_src
+					alloc_qty = qty_src
 					qty_src = 0
 				end
 
-				if free["tblname"] =~ /ords|insts|dlvs|reply/
-					qty = sch_trn["qty"].to_f + (sch_trn["qty_sch"].to_f - qty_sch)
-					qty_stk = sch_trn["qty_stk"].to_f
-				else
-					qty_stk = sch_trn["qty_stk"].to_f + (sch_trn["qty_sch"].to_f - qty_sch)
-					qty = sch_trn["qty"].to_f
-				end
-				update_schsql = %Q&
-					update trngantts set qty_sch = #{qty_sch},qty = #{qty},qty_stk = #{qty_stk},
-													remark = 'Operation.schtrn_alloc_to_freetrn qty_sch ==> qty' 
-							where id = #{sch_trn["trngantts_id"]}
-							&
-				ActiveRecord::Base.connection.update(update_schsql)
-				sch_trn["wh"] = "lotstkhists"
-				ArelCtl.proc_src_base_link_alloc_update(sch_trn,base,qty_sch)
-				break if qty_src <= 0
+				base["wh"] = "lotstkhists"
+				ArelCtl.proc_add_linktbls_update_alloctbls(src,base,[],[])
+				ArelCtl.proc_src_base_trn_stk_update(sch_trn,base,alloc_qty)
+				base["qty_src"] -= alloc_qty
+				required_sch_qty -= alloc_qty
+				break if base["qty_src"] <= 0
+				break if required_sch_qty <= 0
 			end
-			###ArelCtl.proc_free_link_alloc_update(free,sch_trn,free["alloc_qty_linkto_alloctbl"])
-	 		break if required_sch_qty <= 0
+			break if required_sch_qty <= 0
 	 	end
-		 ###引当在庫の修正
+		###引当在庫の修正
 		sumSchs["qty_require"] = required_sch_qty
 	 	return sumSchs
 	end	
@@ -775,18 +721,18 @@ module MkordinstLib
 	 	 				gantt.processseq_trn processseq,gantt.mlevel mlevel,
 	 	 				gantt.itms_id_trn itms_id,gantt.prjnos_id,
 	 	 				alloc.srctblname tblname,alloc.srctblid tblid,alloc.trngantts_id trngantts_id,
-	 	 				alloc.id alloctbls_id	,gantt.qty_handover,
+	 	 				alloc.id alloc_id	,gantt.qty_handover,
 	 	 				gantt.qty qty,gantt.qty_stk qty_stk,alloc.qty_linkto_alloctbl alloc_qty_linkto_alloctbl	
 	 	 				from trngantts gantt
-	 	 				inner join alloctbls alloc on gantt.id = alloc.trngantts_id and gantt.orgtblname = alloc.srctblname 
-	 	 												and gantt.orgtblid = alloc.srctblid
-	 	 				where gantt.prjnos_id =  #{sumSchs["prjnos_id"]} and 
+	 	 				inner join alloctbls alloc on gantt.id = alloc.trngantts_id
+	 	 				where gantt.prjnos_id =  #{sumSchs["prjnos_id"]}  
 	 	 					and gantt.orgtblname = gantt.paretblname and gantt.paretblname = gantt.tblname
 	 	 					and gantt.orgtblid = gantt.paretblid  and gantt.paretblid = gantt.tblid
 	 	 					and  gantt.itms_id_trn = #{sumSchs["itms_id"]} and gantt.processseq_trn = #{sumSchs["processseq"]}
 	 	 					and  gantt.shelfnos_id_to_trn = #{sumSchs["shelfnos_id_to"]} ---作成場所、購入先にはこだわらない。
 	 	 					and (gantt.tblname = 'prdords' or gantt.tblname = 'purords'  or gantt.tblname = 'lotstkhists' )
 	 	 					--- freeの在庫　　未定 仮に"lotstkhists"にした。要確認
+							--- xxxordsはxxxinsts,xxxactsに変わってもtrngantts.tblname は xxxordsのまま
 	 	 					and   alloc.qty_linkto_alloctbl > 0
 	 	 					order by priority,due
 	 	 					---for update

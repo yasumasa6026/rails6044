@@ -20,6 +20,7 @@ truncate table custschs;
 truncate table custords cascade;
 truncate table custinsts;
 truncate table custacts;
+truncate table custwhs;
 
 truncate table trngantts cascade;
 truncate table inspschs;
@@ -36,8 +37,14 @@ truncate table processreqs;
 truncate table shpschs;
 truncate table shpords;
 truncate table shpinsts;
-
+truncate table supplierwhs ;
 truncate table shpacts;
+truncate table custwhs ;
+
+truncate table conschs ;
+truncate table conords;
+truncate table conacts ;
+
 truncate table mkordopeitms cascade;
 
 truncate table mkprdpurords  cascade;

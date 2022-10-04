@@ -390,7 +390,7 @@ extend self
 						pobjects_id_sfd = chk_pobject_sfd_and_add viewfield  ###pobjects_id_sfdの返しまたは登録
 						if last_screenfields[viewfield]
 							if last_screenfields[viewfield]["screenfield_expiredate"].to_date > Time.now
-								if last_screenfields[viewfield]["screenfield_updated_at"].to_date > field["updated_at"].to_date
+								if last_screenfields[viewfield]["screenfield_updated_at"].to_time > field["updated_at"].to_time
 								else
 									add_screenfield_record screens_id,pobjects_id_sfd,last_screenfields[viewfield],"update",true
 								end

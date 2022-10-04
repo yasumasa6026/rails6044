@@ -55,18 +55,11 @@ module GanttChart
 	def sql_trn_gantt_alloctbl orgtblname,orgtblid   ###opeitms_idはない。
 	    ### a.trngantt 引当て先　　b.trngantt オリジナル
         %Q& select trn.*,alloc.tblname alloc_tblname,alloc.tblid alloc_tblid,alloc.srctblname,alloc.srctblid,
-					case 
-					when alloc.srctblname like '%schs' then
-						alloc.qty_sch - alloc.qty_linkto_alloctbl
-					when alloc.srctblname like '%acts' then
-						alloc.qty_stk - alloc.qty_linkto_alloctbl
-					else
-						alloc.qty - alloc.qty_linkto_alloctbl
-					end qty_bal		
+					(trn.qty_sch + trn.qty + trn.qty_stk) qty_bal		
 	  			from trngantts trn
 	  				inner join alloctbls alloc on trn.id = alloc.trngantts_id
 	  				where   trn.orgtblname = '#{orgtblname}' and trn.orgtblid = #{orgtblid}
-	  				and (alloc.qty_sch + alloc.qty + trn.qty_stk) > alloc.qty_linkto_alloctbl
+	  				and (trn.qty_sch + trn.qty + trn.qty_stk) > 0
 					and (trn.orgtblname != trn.tblname or trn.orgtblid != trn.tblid)   --- topは除く 
 	  				order by trn.key&
 	end

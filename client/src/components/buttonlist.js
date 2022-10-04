@@ -110,6 +110,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
         dispatch(ButtonFlgRequest(buttonflg,params)) // import export 画面用
         let screenData = []
         let newRow = {}
+        let linedata = {}
         switch (buttonflg) {  //buttonflg ==button_code
           case "reset":
             params= { ...params, req:"reset",disableFilters:false,screenFlg:ownProps.screenFlg}
@@ -139,28 +140,34 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
               params.linedata = {}    
               return  dispatch(ScreenRequest(params,null)) //
 
-          case "mkShpinsts":
-              params= {...params,req:"mkShpinsts",pareScreenCode:pareScreenCode,disableFilters:false,screenFlg:ownProps.screenFlg}
-              return  dispatch(ScreenRequest(params,null)) //  第一画面のボタン、第二画面出力用
+          case "refShpords": //第一画面で選択された親より第二画面表示
+              //linedata = data.map((line) => {return {tblid : line["id"],}})
+              params= {...params,req:"refShpords",disableFilters:true,screenFlg:ownProps.screenFlg}
+              return  dispatch(ScreenRequest(params,null)) //   
 
           case "confirmShpinsts":  //第二画面専用
-              let linedata = data.map((line) => {return {tblname:"shpords",tblid : line["id"],qty:line[shpord_qty],
-                              forInstsShpord_qty_stk_free:line[forInstsShpord_qty_stk_free],forInstsShpord_qty_stk_alloc:line[forInstsShpord_qty_stk_alloc]}})
-              params= {...params,req:"confirmShpinsts",disableFilters:true,linedata:linedata,screenFlg:ownProps.screenFlg}
+              //linedata = data.map((line) => {return {tblid : line["id"],shpord_qty:line["shpord_qty"],}})
+              params= {...params,req:"confirmShpinsts",disableFilters:true,screenFlg:ownProps.screenFlg}
               return  dispatch(ScreenRequest(params,null)) //
 
-          case "mkShpacts":
-                  params= {...params,req:"confirm_all",disableFilters:true,screenFlg:ownProps.screenFlg}
-              return  dispatch(ConfirmAllRequest(params,data)) //
+          case "refShpinsts": //第一画面で選択された親より第二画面表示
+                //linedata = data.map((line) => {return {tblid : line["id"],}})
+                params= {...params,req:"refShpinsts",disableFilters:true,screenFlg:ownProps.screenFlg}
+                return  dispatch(ScreenRequest(params,null)) //
  
-          case "confirmShpacts":
-              params= {...params,req:"refshpacts",pareScreenCode:pareScreenCode,disableFilters:false,screenFlg:ownProps.screenFlg}
-              params.linedata = {}    
-              return  dispatch(ScreenRequest(params,null)) //
+          case "confirmShpacts"://第二画面専用
+                // linedata = data.map((line) => {return {tblid : line["id"],shpinst_qty_stk:line["shpinst_qty_stk"],}})
+                params= {...params,req:"confirmShpacts",disableFilters:true,screenFlg:ownProps.screenFlg}
+                return  dispatch(ScreenRequest(params,null)) //
+
+          case "refShpacts":  //第一画面で選択された親より第二画面表示
+                // linedata = data.map((line) => {return {tblid : line["id"],}})
+                params= {...params,req:"refShpinsts",disableFilters:true,screenFlg:ownProps.screenFlg}
+                return  dispatch(ScreenRequest(params,null)) //
                
           case "yup":
-              params= { ...params,req:"yup",disableFilters:true,screenFlg:ownProps.screenFlg}
-              return  dispatch(YupRequest(params)) //
+                params= { ...params,req:"yup",disableFilters:true,screenFlg:ownProps.screenFlg}
+                return  dispatch(YupRequest(params)) //
 
           case "ganttchart":
               if(params["clickIndex"]){
@@ -170,7 +177,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
               break
 
           case "crt_tbl_view_screen":
-            data.map((row,index)=>{Object.keys(row).map((field,idx)=>
+                data.map((row,index)=>{Object.keys(row).map((field,idx)=>
                         {
                           if(/_code|_expiredate/.test(field)){newRow = {...newRow,[field]:row[field]}                                                            }
                         })

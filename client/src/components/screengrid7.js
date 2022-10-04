@@ -687,9 +687,6 @@ const GridTable = ({
                       row.index % 2 === 0 ? 'ivory' : 'lightgray',
                       },
                   onClick: e => {
-                      let starttime = params.screenCode.split("_")[1].slice(0,-1)+"_starttime" //
-                      let snoOrd = params.screenCode.split("_")[1].slice(0,-1)+"_sno_"+params.screenCode.split("_")[1].slice(0,2)+"ord" //
-                      let snoInst = params.screenCode.split("_")[1].slice(0,-1)+"_sno_"+params.screenCode.split("_")[1].slice(0,2)+"inst"  //
                       let result = -1
                       if(params.clickIndex){
                                 params.clickIndex.map((clickRow,index) => 
@@ -702,8 +699,8 @@ const GridTable = ({
                             toggleAllRowsSelected(true)
                             let tmpClicks = []
                             rows.map((linerow,index) => 
-                              { tmpClicks.push({lineId:linerow.index,id:data[linerow.index]["id"],starttime:data[linerow.index][starttime],
-                                                  snoOrd:data[linerow.index][snoOrd],snoInst:data[linerow.index][snoInst],})
+                              { tmpClicks.push({lineId:linerow.index,id:data[linerow.index]["id"],
+                                                  screenCode:params.screenCode,})
                               })
                               updateParams([{clickIndex:tmpClicks},])
                           }else{
@@ -713,8 +710,8 @@ const GridTable = ({
                       }else{
                         row.toggleRowSelected()
                         if(result===-1){
-                          params.clickIndex.push({lineId:row.index,id:data[row.index]["id"],starttime:data[row.index][starttime],
-                                      snoOrd:data[row.index][snoOrd],snoInst:data[row.index][snoInst]})
+                          params.clickIndex.push({lineId:row.index,id:data[row.index]["id"],
+                                                    screenCode:params.screenCode,})
                           }
                         else{params.clickIndex.splice(result,1)}
                       }

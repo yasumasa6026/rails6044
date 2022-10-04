@@ -63,7 +63,7 @@ module RorBlkCtl
 			when /_edit_|_update_/
 				tbl_edit_arel(" id = #{@tbldata["id"]}")
 			when  /_delete_|_purge_/
-				if @tblname =~ /schs$|ords$|insts$|dlvs$|acts$|rets$/  ##削除なし
+				if @tblname =~ /schs$|ords$|insts$|dlvs$|acts$|inputs$/ and   @tblname !~ /^shp/ ##削除なし
 					@tbldata["qty_sch"] = 0 if @tbldata["qty_sch"]
 					@tbldata["qty"] = 0 if @tbldata["qty"]
 					@tbldata["qty_stk"] = 0 if @tbldata["qty_stk"]
@@ -112,17 +112,15 @@ module RorBlkCtl
 			end
 			setParams["opeitm"] = opeitm.dup
 			setParams["classname"] = command_c["sio_classname"]
+			mkprdpurords_id = setParams["mkprdpurords_id"] 
+			gantt = setGantt(setParams)
 
-        	case @tblname
-        	when /^custs$|^custrcvplcs$|^custwh$|^bills$|^paymnets$/
-            	return setParams 
+			case  @tblname
 			when /^bill|^pay/
 				account = setAccount(setParams)
-			when /^shp/
-				gantt = setGantt(setParams)
+				setParams["account"] = account
 				return setParams
 			when /mkprdpurords/
-				gantt = setGantt(setParams)
 				setParams["segment"] = "mkprdpurords"
 				setParams["gantt"] = gantt.dup
 				setParams["mkprdpurords_id"] = @tbldata["id"]
@@ -130,18 +128,14 @@ module RorBlkCtl
 				processreqs_id ,setParams = ArelCtl.proc_processreqs_add(setParams)		
 				return setParams
 			when /mkbillinsts/
-				gantt = setGantt(setParams)
 				setParams["segment"] = "mkbillinsts"
-				setParams["gantt"] = gantt.dup
 				setParams["mkbillinsts_id"] = @tbldata["id"]
 				setParams["remark"] = " RorBlkCtl.lib.proc_private_aud_rec"
 				processreqs_id ,setParams = ArelCtl.proc_processreqs_add(setParams)	
 				return setParams
 			when /^prdschs|^purschs/
-				gantt = setGantt(setParams)
 				if setParams["gantt"]
 				else
-					gantt = setGantt(setParams)
 					gantt["qty_sch"] = @tbldata["qty_sch"]
 					gantt["qty_handover"] = @tbldata["qty_sch"] 
 					gantt["starttime_trn"] = (@tbldata["duedate"].to_time - opeitm["duration"].to_f*60*60*24).strftime("%Y-%m-%d %H:%M:%S") 
@@ -151,7 +145,6 @@ module RorBlkCtl
 					gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 				end
 			when /^prdords/
-				gantt = setGantt(setParams)  ### setParams["gantt"].nil?==trueのはず
 				gantt["qty"] =  @tbldata["qty"]  ###free
 				gantt["qty_require"] = 0
 				gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
@@ -160,20 +153,19 @@ module RorBlkCtl
 				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
 				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^prdinsts/  ###insts,actsでは trnganttsは作成しない。
-				gantt = setGantt(setParams)
-				gantt["qty"] =  @tbldata["qty"]
-				gantt["starttime_trn"] = @tbldata["commencementdate"]  
-				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
-				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
-				gantt["duedate_trn"] =  gantt["toduedate_trn"] =  @tbldata["replydate"]
+				# gantt = setGantt(setParams)
+				# gantt["qty"] =  @tbldata["qty"]
+				# gantt["starttime_trn"] = @tbldata["commencementdate"]  
+				# gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
+				# gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
+				# gantt["duedate_trn"] =  gantt["toduedate_trn"] =  @tbldata["replydate"]
 			when /^prdacts/
-				gantt = setGantt(setParams)
-				gantt["qty_stk"] = @tbldata["qty_stk"]
-				gantt["duedate_trn"] = gantt["toduedate_trn"] =  @tbldata["cmpldate"]
-				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
-				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
+				# gantt = setGantt(setParams)
+				# gantt["qty_stk"] = @tbldata["qty_stk"]
+				# gantt["duedate_trn"] = gantt["toduedate_trn"] =  @tbldata["cmpldate"]
+				# gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
+				# gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^purords/
-				gantt = setGantt(setParams)  ### setParams["gantt"].nil?==trueのはず
 				gantt["qty"] =  @tbldata["qty"]   ###free
 				gantt["qty_require"] = 0
 				gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
@@ -182,49 +174,49 @@ module RorBlkCtl
 				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
 				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^replyinputs/
-				gantt = setGantt(setParams)
-				gantt["qty"] =  @tbldata["qty"]
-				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
-				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
+				# gantt = setGantt(setParams)
+				# gantt["qty"] =  @tbldata["qty"]
+				# gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
+				# gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^purinsts/
-				gantt = setGantt(setParams)
-				gantt["qty"] =  @tbldata["qty"]
+				# gantt = setGantt(setParams)
+				# gantt["qty"] =  @tbldata["qty"]
 			when /^purdlvs/
-				gantt = setGantt(setParams)
-				gantt["qty_stk"] = @tbldata["qty_stk"]
+				# gantt = setGantt(setParams)
+				# gantt["qty_stk"] = @tbldata["qty_stk"]
 			when /^puracts/
-				gantt = setGantt(setParams)
-				gantt["qty_stk"] = @tbldata["qty_stk"]
-				gantt["duedate_trn"] = gantt["toduedate_trn"] =  @tbldata["rcptdate"]
-				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
-				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
+				# gantt = setGantt(setParams)
+				#  gantt["qty_stk"] = @tbldata["qty_stk"]
+				#  gantt["duedate_trn"] = gantt["toduedate_trn"] =  @tbldata["rcptdate"]
+				#  gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
+				#  gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^custschs/  ### setParams["gantt"].nil?==trueのはず
-				gantt = setGantt(setParams)
 				gantt["qty_sch"] = @tbldata["qty_sch"]
 				gantt["qty_handover"] = @tbldata["qty_sch"] ###下位部品所要量計算用
 				gantt["qty"] = 0
-				gantt["starttime_trn"] = @tbldata["starttime"] = (@tbldata["duedate"].to_date - 1).strftime("%Y-%m-%d %H:%M:%S") 
+				gantt["starttime_trn"] = @tbldata["starttime"] = (@tbldata["duedate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S") 
 				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["cust_loca_id_cust"]
 				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = 0 ###custschs,custords用dummy id
 				gantt["shelfnos_id_to_trn"] =  gantt["shelfnos_id_to_pare"] = 0 
 			when /^custords/  ### setParams["gantt"].nil?==trueのはず
 				###下位部品所要量計算用
 				###自身のschsからordsへの変換用
-				gantt = setGantt(setParams)
 				gantt["qty"] =  gantt["qty_handover"] = gantt["qty_require"] = @tbldata["qty"]
 				gantt["qty_sch"] = 0
-				gantt["starttime_trn"] = @tbldata["starttime"] = (@tbldata["duedate"].to_date - 1).strftime("%Y-%m-%d %H:%M:%S")
+				gantt["starttime_trn"] = @tbldata["starttime"] = (@tbldata["duedate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")
 				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] =  command_c["cust_loca_id_cust"] ###
 				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = 0 ###custschs,custords用dummy id
 				gantt["shelfnos_id_to_trn"] =  gantt["shelfnos_id_to_pare"] = 0 
-			when /acts$|rets$/
-				gantt = setGantt(setParams)
-				gantt["qty_stk"] = @tbldata["qty_stk"]
+			when /acts$/
+				# gantt = setGantt(setParams)
+				# gantt["qty_stk"] = @tbldata["qty_stk"]
 			when /^cust/ ###custschs,custords以外
-				gantt = setGantt(setParams)
+				# gantt = setGantt(setParams)
 			end
 		
-			if @tblname =~ /^prd|^pur|^cust/ and @tblname =~ /insts|dlvs|acts|rets/
+			setParams["gantt"] = gantt.dup
+			if @tblname =~ /^prd|^pur/ and @tblname =~ /insts$|replyinputs$|dlvs$|acts$/  ##schsとordsは除く  
+				###ordsの変更はoperation
 				###custordsの在庫の変更はOperation.custords_alloc_to_custschsで
 				src_qty = @tbldata["qty_sch"].to_f + @tbldata["qty"].to_f + @tbldata["qty_stk"].to_f
 				link_strsql,sql_get_src_alloc = get_src_tbl()
@@ -239,48 +231,53 @@ module RorBlkCtl
 							save_trngantts_id = link["trngantts_id"] if save_trngantts_id == ""
 						end
 					end
-					if src_qty > 0  ###注文数以上の数量増　数量増の可否は画面又はバッチ入り口で
-						if @tblname =~ /dlvs|acts/   ###返品の数量増はない。
-							inc_qty_stk = src_qty
-							inc_qty = 0
-						else
-							inc_qty_stk = 0
-							inc_qty = src_qty
-						end
-						increase_qty_add_free_alloc(save_trngantts_id,inc_qty,inc_qty_stk)
-					end
 				else
 					if sql_get_src_alloc != "" and command_c["sio_classname"] =~  /_add_|_insert_/
-						ActiveRecord::Base.connection.select_all(sql_get_src_alloc).each do |src_alloc|
-							add_update_alloc_add_link(src_alloc,gantt)
+						src_qty = @tbldata["qty_sch"].to_f + @tbldata["qty"].to_f + @tbldata["qty_stk"].to_f
+						###ここでは引当済をセットするのみ
+						linktbl_ids = []
+						alloctbl_ids = []
+						ActiveRecord::Base.connection.select_all(sql_get_src_alloc).each do |src|
+							if src_qty >= src["qty_linkto_alloctbl"].to_f
+								alloc_qty = src["qty_linkto_alloctbl"].to_f
+								src_qty -= src["qty_linkto_alloctbl"].to_f
+							else
+								alloc_qty = src_qty
+								src_qty = 0
+							end
+							base = {"tblname" => @tblname ,	"tblid" => @tbldata["id"],
+										"qty_src" => alloc_qty ,"amt_src" => 0,	"trngantts_id" => src["trngantts_id"]}
+							linktbl_ids,alloctbl_ids = ArelCtl.proc_add_linktbls_update_alloctbls(src,base,linktbl_ids,alloctbl_ids)
+							break if src_qty <= 0
 						end
+						setParams["linktbl_ids"] = linktbl_ids.dup
+						setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
+						processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
 					end
 				end
 			end
 
 			if @tblname =~ /^prd|^pur|^cust/ 
-				setParams["gantt"] = gantt.dup
 				setParams["tbldata"] = @tbldata.dup	###変更されているため再セット
 				case  @tblname
-				when /insts$|acts$|dlvs$|rets$/
-					setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
-					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
 				when /schs$|^custords/
 					# processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
                     ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
-					setParams = ope.proc_trngantts()  ###xxxschs,xxxords
+					setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
 					setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
 					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
 				when /^prdords|^purords/
                     ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
-					setParams = ope.proc_trngantts()  ###xxxschs,xxxords
-					setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
+					setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
+					if mkprdpurords_id == 0
+						setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
+						processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+					else
+						###mkordinstの時はproc_mkprdpurordsで在庫管理
+						### lotstkhists_idをxxxschsとxxxxordsのinoutotstksに引き継ぐため。
+					end
+					setParams["segment"]  = "mkShpschConord"  ### XXXXschs,ordsの時XXXschsを作成
 					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
-					setParams["segment"]  = "mkShipCon"  ### XXXXschs,ordsの時XXXschsを作成
-					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
-				end
-				if gantt["key"] == "00000" and gantt["orgtblid"] != gantt["tblid"]
-					raise
 				end
 			end
 			return setParams
@@ -299,158 +296,150 @@ module RorBlkCtl
 						case key.to_s
 						when  /^sno_/
 							link_strsql = %Q&
-									select src.*,link.qty_src,link.trngantts_id from #{srctblname} src 
+									select src.*,link.qty_src,link.trngantts_id,link.srctblname,link.srctblid,link.tblname,link.tblid  from #{srctblname} src 
 															inner join linktbls link on link.srctblid = src.id 
-															where src.sno = '#{val}' and link["srctblname"] = '#{srctblname}'
+															where src.sno = '#{val}' and link.srctblname = '#{srctblname}'
 															and  link.tblid = #{@tbldata["id"]} and link.tblname = '#{@tblname}'
 															order by link.trngantts_id
 							&
 							sql_get_src_alloc = %Q&
-									select src.*,alloc.qty_sch alloc_qty_sch,alloc.qty alloc_qty,alloc.qty_stk alloc_qty_stk,
-															alloc.qty_linkto_alloctbl,alloc.trngantts_id 
-															from #{srctblname} src 
-															inner join alloctbls alloc on alloc.srctblid = src.id 
-															where src.sno = '#{val}'
-															and  alloc.srctblid = #{@tbldata["id"]} and alloc.srctblname = '#{@tblname}'
-															and (alloc.qty_sch + alloc.qty + alloc.qty_stk) > alloc.qty_linkto_alloctbl
-															--- alloc.qty_sch , alloc.qty , alloc.qty_stk 0以外の数値が入っているのは1つのみ
-															order by alloc.allocfree,alloc.id  ---引き当て済分から次の状態に移行する。
+									select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id,alloc.srctblname tblname,alloc.srctblid tblid,
+											alloc.id alloc_id	from #{srctblname} src 
+												inner join alloctbls alloc on alloc.srctblid = src.id 
+										where src.sno = '#{val}' and  alloc.qty_linkto_alloctbl > 0
+										order by alloc.allocfree,alloc.id  ---引き当て済分から次の状態に移行する。
+										for update
 							&
 						when  /^cno_/
 							case srctblname
 							when /^prd/
 								link_strsql = %Q&
-									select src.*,alloc.qty_sch alloc_qty_sch,alloc.qty alloc_qty,alloc.qty_stk alloc_qty_stk,alloc.trngantts_id 
+									select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id 
 														from #{srctblname} src 
 														inner join alloctbls alloc on alloc.srctblid = src.id
-											where src.cno = '#{val}' and link["srctblname"] = '#{srctblname}'
+											where src.cno = '#{val}' and link.srctblname = '#{srctblname}'
 											and src.workplaces_id = #{@tbldata["workplaces_id"]}
 											and  link.tblid = #{@tbldata["id"]} and link.tblname = '#{@tblname}'
 											order by link.trngantts_id
 								& 
 								sql_get_src_alloc = %Q&
-									select src.*,alloc.qty_sch alloc_qty_sch,alloc.qty alloc_qty,alloc.qty_stk alloc_qty_stk,
-														alloc.qty_linkto_alloctbl,alloc.trngantts_id  
+									select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id,alloc.srctblname tblname,alloc.srctblid tblid  
 														from #{srctblname} src 
 														inner join alloctbls alloc on alloc.srctblid = src.id 
 											where src.cno = '#{val}'
 											and src.workplaces_id = #{@tbldata["workplaces_id"]}
-											and  alloc.srctblid = #{@tbldata["id"]} and alloc.srctblname = '#{tblname}'
-											and (alloc.qty_sch + alloc.qty + alloc.qty_stk) > alloc.qty_linkto_alloctbl
+											and  alloc.qty_linkto_alloctbl > 0
 											order by alloc.allocfree,alloc.id
+											for update
 								& 
 							when /^pur/
 								link_strsql = %Q&
-									select src.*,link.qty_src,link.trngantts_id from #{srctblname} src 										  
+									select src.*,link.qty_src,link.trngantts_id,link.srctblname,link.srctblid,link.tblname,link.tblid  from #{srctblname} src 										  
 											inner join linktbls link on link.srctblid = src.id
-											where src.cno = '#{val}' and link["srctblname"] = '#{srctblname}'
+											where src.cno = '#{val}' and link.srctblname = '#{srctblname}'
 											and src.suppliers_id = #{@tbldata["suppliers_id"]}
 											and  link.tblid = #{@tbldata["id"]} and link.tblname = '#{@tblname}'
 											order by link.trngantts_id
 								& 
 								sql_get_src_alloc = %Q&
-									select src.*,alloc.qty_sch alloc_qty_sch,alloc.qty alloc_qty,alloc.qty_stk alloc_qty_stk,
-														alloc.qty_linkto_alloctbl,alloc.trngantts_id  
+									select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id,alloc.srctblname tblname,alloc.srctblid tblid  
 														from #{srctblname} src 
 														inner join alloctbls alloc on alloc.srctblid = src.id 
 											where src.cno = '#{val}'
 											and src.suppliers_id = #{@tbldata["suppliers_id"]}
-											and  alloc.srctblid = #{@tbldata["id"]} and alloc.srctblname = '#{@tblname}'
-											and (alloc.qty_sch + alloc.qty + alloc.qty_stk) > alloc.qty_linkto_alloctbl
+											and  alloc.qty_linkto_alloctbl > 0
 											order by alloc.allocfree,alloc.id
+											for update
 								& 
 							when /^cust/
 								link_strsql = %Q&
-									select src.*,link.qty_src,link.trngantts_id from #{srctblname} src 										  
+									select src.*,link.qty_src,link.trngantts_id,link.srctblname,link.srctblid,link.tblname,link.tblid  from #{srctblname} src 										  
 											inner join linktbls link on link.srctblid = src.id 
-											where src.cno = '#{val}' and link["srctblname"] = '#{srctblname}'
+											where src.cno = '#{val}' and link.srctblname = '#{srctblname}'
 											and src.custs_id = #{@tbldata["custs_id"]}
 											and  link.tblid = #{@tbldata["id"]} and link.tblname = '#{@tblname}'
 											order by link.trngantts_id
 								& 
 								sql_get_src_alloc = %Q&
-									select src.*,alloc.qty_sch alloc_qty_sch,alloc.qty alloc_qty,alloc.qty_stk alloc_qty_stk,
-														alloc.qty_linkto_alloctbl,alloc.trngantts_id  
+									select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id,alloc.srctblname tblname,alloc.srctblid tblid  
 														from #{srctblname} src 
 														inner join alloctbls alloc on alloc.srctblid = src.id  
 											where src.cno = '#{val}'
 											and src.custs_id = #{@tbldata["custs_id"]}
-											and  alloc.srctblid = #{@tbldata["id"]} and alloc.srctblname = '#{tblname}'
-											and (alloc.qty_sch + alloc.qty + alloc.qty_stk) > alloc.qty_linkto_alloctbl
+											and  alloc.qty_linkto_alloctbl > 0
 											order by alloc.allocfree,alloc.id
+											for update
 								& 
 							end	
 						when  /^gno_/
 							case srctblname
 							when /^prd/
 								link_strsql = %Q&
-									select src.*,link.qty_src,link.trngantts_id from #{srctblname} src 										  
+									select src.*,link.qty_src,link.trngantts_id,link.srctblname,link.srctblid,link.tblname,link.tblid from #{srctblname} src 										  
 											inner join linktbls link on link.srctblid = src.id
-											where src.gno = '#{val}' and link["srctblname"] = '#{srctblname}'
+											where src.gno = '#{val}' and link.srctblname = '#{srctblname}'
 											and src.opeitms_id = #{@tbldata["opeitms_id"]}
 											and src.shelfnos_id_to = #{@tbldata["shelfnos_id_to"]}
-											and src.shelfnos_id_fm = #{@tbldata["shelfnos_id_fm"]}
+											and src.shelfnos_id = #{@tbldata["shelfnos_id"]}
 											and  link.tblid = #{@tbldata["id"]} and link.tblname = '#{@tblname}'
 											order by link.trngantts_id
 								& 
 								sql_get_src_alloc = %Q&
-									select src.*,alloc.qty_sch alloc_qty_sch,alloc.qty alloc_qty,alloc.qty_stk alloc_qty_stk,
-														alloc.qty_linkto_alloctbl,alloc.trngantts_id  
+									select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id,alloc.srctblname tblname,alloc.srctblid tblid  
 														from #{srctblname} src 
 														inner join alloctbls alloc on alloc.srctblid = src.id 
-											where src.gno = '#{val}' and link["srctblname"] = '#{srctblname}'
+											where src.gno = '#{val}' and link.srctblname = '#{srctblname}'
 											and src.opeitms_id = #{@tbldata["opeitms_id"]}
 											and src.shelfnos_id_to = #{@tbldata["shelfnos_id_to"]}
-											and src.shelfnos_id_fm = #{@tbldata["shelfnos_id_fm"]}
-											and  alloc.srctblid = #{@tbldata["id"]} and alloc.srctblname = '#{@tblname}'
-											and (alloc.qty_sch + alloc.qty + alloc.qty_stk) > alloc.qty_linkto_alloctbl
+											and src.shelfnos_id = #{@tbldata["shelfnos_id"]}
+											and  alloc.qty_linkto_alloctbl > 0
 											order by alloc.allocfree,alloc.id
+											for update
 								& 
 							when /^pur/
 								link_strsql = %Q&
-									select src.*,link.qty_src,link.trngantts_id from #{srctblname} src 										  
+									select src.*,link.qty_src,link.trngantts_id,link.srctblname,link.srctblid,link.tblname,link.tblid from #{srctblname} src 										  
 											inner join linktbls link on link.srctblid = src.id
-											where src.gno = '#{val}' and link["srctblname"] = '#{srctblname}'
+											where src.gno = '#{val}' and link.srctblname = '#{srctblname}'
 											and src.opeitms_id = #{@tbldata["opeitms_id"]}
 											and src.shelfnos_id_to = #{@tbldata["shelfnos_id_to"]}
-											and src.shelfnos_id_fm = #{@tbldata["shelfnos_id_fm"]}
+											and src.shelfnos_id = #{@tbldata["shelfnos_id"]}
 											and  link.tblid = #{@tbldata["id"]} and link.tblname = '#{@tblname}'
 											order by link.trngantts_id
 								& 
 								sql_get_src_alloc = %Q&
-									select src.*,alloc.qty_sch alloc_qty_sch,alloc.qty alloc_qty,alloc.qty_stk alloc_qty_stk,
-														alloc.qty_linkto_alloctbl,alloc.trngantts_id  
+									select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id,alloc.srctblname tblname,alloc.srctblid tblid  
 														from #{srctblname} src 
 														inner join alloctbls alloc on alloc.srctblid = src.id 
 											where src.gno = '#{val}'
 											and src.opeitms_id = #{@tbldata["opeitms_id"]}
 											and src.shelfnos_id_to = #{@tbldata["shelfnos_id_to"]}
-											and src.shelfnos_id_fm = #{@tbldata["shelfnos_id_fm"]}
-											and  alloc.srctblid = #{@tbldata["id"]} and alloc.srctblname = '#{@tblname}'
-											and (alloc.qty_sch + alloc.qty + alloc.qty_stk) > alloc.qty_linkto_alloctbl
+											and src.shelfnos_id = #{@tbldata["shelfnos_id"]}
+											and  alloc.qty_linkto_alloctbl > 0
 											order by alloc.allocfree,alloc.id
+											for update
 								& 
 							when /^cust/
 								link_strsql = %Q&
-									select src.*,link.qty_src,link.trngantts_id from #{srctblname} src 										  
+									select src.*,link.qty_src,link.trngantts_id,link.srctblname,link.srctblid,link.tblname,link.tblid from #{srctblname} src 										  
 											inner join linktbls link on link.srctblid = src.id
-											where src.gno = '#{val}' and link["srctblname"] = '#{srctblname}'
+											where src.gno = '#{val}' and link.srctblname = '#{srctblname}'
 											and src.opeitms_id = #{@tbldata["opeitms_id"]}
 											and src.custrcvplcs_id = #{@tbldata["custrcvplcs_id"]}
 											and  link.tblid = #{@tbldata["id"]} and link.tblname = '#{@tblname}'
 											order by link.trngantts_id
 								&
 								sql_get_src_alloc = %Q&
-									select src.*,alloc.qty_sch alloc_qty_sch,alloc.qty alloc_qty,alloc.qty_stk alloc_qty_stk,
-														alloc.qty_linkto_alloctbl,alloc.trngantts_id  
+									select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id,alloc.srctblname tblname,alloc.srctblid tblid  
 														from #{srctblname} src 
 														inner join alloctbls alloc on alloc.srctblid = src.id 
 											where src.gno = '#{val}'
 											and src.opeitms_id = #{@tbldata["opeitms_id"]}
 											and src.custrcvplcs_id = #{@tbldata["custrcvplcs_id"]}
 											and  alloc.srctblid = #{@tbldata["id"]} and alloc.srctblname = '#{@tblname}'
-											and (alloc.qty_sch + alloc.qty + alloc.qty_stk) > alloc.qty_linkto_alloctbl
+											and  alloc.qty_linkto_alloctbl > 0
 											order by alloc.allocfree,alloc.id
+											for update
 								&
 							end
 						end	
@@ -466,7 +455,11 @@ module RorBlkCtl
 				gantt = {}
 				gantt["orgtblname"] = gantt["paretblname"] = @tblname
 				gantt["orgtblid"] = gantt["paretblid"] =  @tbldata["id"]	
-				gantt["trngantts_id"] = ArelCtl.proc_get_nextval("trngantts_seq")
+				if @tblname =~ /schs$|ords$|lotstkhists/
+					gantt["trngantts_id"] = ArelCtl.proc_get_nextval("trngantts_seq")
+				else
+					gantt["trngantts_id"] = 0
+				end
 				gantt["key"] = "00000"
 				gantt["mlevel"] = 0
 				gantt["parenum"] = gantt["chilnum"] = 1
@@ -492,15 +485,6 @@ module RorBlkCtl
 		 	else
 				gantt = setParams["gantt"].dup
 			 	gantt["shuffle_flg"] = (opeitm["shuffle_flg"]||="0")
-			 	# gantt["chrgs_id_pare"]  = gantt["chrgs_id_trn"] 
-			 	# gantt["itms_id_pare"] = gantt["itms_id_trn"] 
-			 	# gantt["processseq_pare"] = gantt["processseq_trn"] 
-			 	# gantt["duedate_pare"] = gantt["duedate_trn"] 
-			 	# gantt["toduedate_pare"] = gantt["toduedate_trn"]
-			 	# gantt["starttime_pare"] = gantt["starttime_trn"]
-				# gantt["locas_id_pare"] = gantt["locas_id_trn"] 
-				# gantt["shelfnos_id_to_pare"] =  gantt["shelfnos_id_to_trn"] 
-				# gantt["shelfnos_id_pare"] =  gantt["shelfnos_id_trn"] 
 				####
 			 	gantt["shelfnos_id_to_trn"] =  @tbldata["shelfnos_id_to"]
 			 	gantt["shelfnos_id_trn"] =  @tbldata["shelfnos_id"]
@@ -520,104 +504,46 @@ module RorBlkCtl
 	
 		def update_alloctbls_linktbl(link,src_qty)
 			strsql = %Q&
-				update linktbls set src_qty = #{src_qty},remark = 'ror_blktbl(#{__LINE__})'
+				update linktbls set qty_src = #{src_qty},remark = 'ror_blktbl.update_alloctbls_linktbl line:(#{__LINE__})',
+								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
 								where id = #{link["id"]}
 			&
 			ActiveRecord::Base.connection.update(strsql)
 			strsql = %Q&
-				update alloctbls set qty_linkto_alloctbl = #{src_qty},remark = 'ror_blktbl(#{__LINE__})'
+				update alloctbls set qty_linkto_alloctbl = #{src_qty},remark = 'ror_blktbl.update_alloctbls_linktbl line:(#{__LINE__})',
+								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
 								where srctblname = '#{link["srctblname"]}' and srctblid = #{link["srctblid"]}
 								and trngantts_id = #{link["trngantts_id"]} 
 			&
 			ActiveRecord::Base.connection.update(strsql)
-			case link["tblname"]
-			when /schs/
-				qty_sch = src_qty
-				qty = qty_stk = 0
-			when /dlvs|acts|rets/
-				qty_stk = src_qty
-				qty = qty_stk = 0
-			else
-				qty = src_qty
-				qty_sch = qty_stk = 0
-			end
 			strsql = %Q&
-				update alloctbls set qty_sch = #{qty_sch},qty = #{qty},qty_stk = #{qty_stk},
-								remark = 'ror_blktbl(#{__LINE__})'
+				update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl  - #{src_qty},
+								remark = 'ror_blktbl.update_alloctbls_linktbl line:(#{__LINE__})',
+								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
 								where srctblname = '#{link["tblname"]}' and srctblid = #{link["tblid"]}
 								and trngantts_id = #{link["trngantts_id"]} 
 				&
 			ActiveRecord::Base.connection.update(strsql)
 		end
 
-		def add_update_alloc_add_link(src_alloc,gantt)  ###前の状態から現状への変更
-			src = {"trngantts_id" => src_alloc["trngantts_id"],"tblname" => src_alloc["srctblname"],
-				"tblid" => src_alloc["srctblid"]}
-			base = {"tblname" => gantt["tblname"] ,
-				"tblid" => gantt["tblid"],
-				"qty_src" =>gantt["qty_sch"].to_f + gantt["qty"].to_f + gantt["qty_stk"].to_f }
-			###
-			ArelCtl.proc_insert_linktbls(src,base)
-			###
-			strsql = %Q&
-				update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl + #{base["qty_src"]},
-								remark = 'ror_blktbl(#{__LINE__})'
-								where id = #{src_alloc["id"]} 
-				&
-			ActiveRecord::Base.connection.update(strsql)
-
-			src = {"trngantts_id" => src_alloc["trngantts_id"],"tblname" => gantt["tblname"] ,
-				"tblid" => gantt["tblid"],"allocfree" => "alloc",
-				"qty_sch" => gantt["qty_sch"],"qty" => gantt["qty"].to_f ,"qty_stk" => gantt["qty_stk"],
-				"qty_linkto_alloctbl" => 0,	"remark" => "ror_blkctl(line #{__LINE__} #{Time.now})"}
-			ArelCtl.proc_insert_alloctbls(src)
-
-			###在庫の修正はOperation.proc_trnganttsで実施
-		end
-
-		def increase_qty_add_free_alloc(save_trngantts_id,inc_qty,inc_qty_stk)
-			strsql = %Q&
-				select trn.* from alloctbls alloc 
-							inner join trngantts trn on trn.tblname = alloc.srctblname and trn.tblid = alloc.srctblid 
-							where alloc.trngantts_id = #{save_trngantts_id} and alloc.srctblname like '%ords' 
-							and orgtblname = paretblname and paretblname = tblname 
-							and orgtblid = paretblid and paretblid = tblid
-							order alloc.id  desc
-			&
-			trn = ActiveRecord::Base.connection.select_one(strsql)
-			update_trngantt = %Q&
-					update trngantts set qty = qty + #{inc_qty},qty_stk = qty_stk + #{inc_qty_stk},
-											remark = 'ror_blkctl(#{__LINE__})'
-							where id = #{trn["id"]}
-			&
-			ActiveRecord::Base.connection.update(update_trngantt)
-
-			update_alloc = %Q&
-					update alloctbls set qty = qty + #{inc_qty},qty_stk = qty_stk + #{inc_qty_stk},remark = 'ror_blktbl(#{__LINE__})'
-							where trngantts_id = #{trn["id"]} and srctblname = '#{trn["tblname"]}'  and srctblid = '#{trn["tblid"]}'
-			&
-			ActiveRecord::Base.connection.update(update_alloc)
-		
-		end
-
 		def insert_sio_r(command_c)  ####レスポンス
-		rec = {}
-        rec["sio_id"] =  ArelCtl.proc_get_nextval("sio.SIO_#{command_c["sio_viewname"]}_SEQ")
-        rec["sio_command_response"] = "R"
-		rec["sio_add_time"] = Time.now
-        rec["sio_result_f"] =  "1"   ## 1 normal end
-        rec["sio_message_contents"] = nil
-          command_init[(@tblname.chop + "_id")] =  command_c["id"] = @tbldata["id"]
-		###画面専用項目は除く
-		command_c.each do |key,val|
+			rec = {}
+        	rec["sio_id"] =  ArelCtl.proc_get_nextval("sio.SIO_#{command_c["sio_viewname"]}_SEQ")
+        	rec["sio_command_response"] = "R"
+			rec["sio_add_time"] = Time.now
+        	rec["sio_result_f"] =  "1"   ## 1 normal end
+        	rec["sio_message_contents"] = nil
+          	command_init[(@tblname.chop + "_id")] =  command_c["id"] = @tbldata["id"]
+			###画面専用項目は除く
+			command_c.each do |key,val|
 			next if key =~ /gridmessage/
 			next if key =~ /^_/
 			next if key == "confirm"
 			next if key == "aud"
 			next if key == "errPath"
 			rec[key] = val
-		end	
-		tbl_add_arel  "SIO_#{command_c["sio_viewname"]}",rec
+			end	
+			tbl_add_arel  "SIO_#{command_c["sio_viewname"]}",rec
 		end   ## 
 		
    ## proc_strwhere
@@ -627,13 +553,13 @@ module RorBlkCtl
 			if command_c["sio_classname"] =~ /_add_/ or command_c["id"] == "" or command_c["id"].nil?
 				@tbldata["created_at"] =  command_c["#{@tblname.chop}_created_at"] = Time.now
 				if  command_c["id"] == "" or command_c["id"].nil?
-					command_c["id"] = @tbldata["id"] = ArelCtl.proc_get_nextval("#{@tblname}_seq")
-					command_c[@tblname.chop+"_id"] = command_c["id"] 
+					command_c["id"] = ArelCtl.proc_get_nextval("#{@tblname}_seq")
+					command_c[@tblname.chop+"_id"] = @tbldata["id"] = command_c["id"] 
 				else
 					@tbldata["id"] = command_c["id"]  ###fields_updateでセット済
 				end
 			else
-				@tbldata["id"] =	command_c["id"]	
+				@tbldata["id"] = command_c["id"]	
 			end	
         	command_c.each do |j,k|
         		j_to_stbl,j_to_sfld = j.to_s.split("_",2)
