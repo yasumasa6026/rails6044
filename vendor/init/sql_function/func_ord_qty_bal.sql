@@ -1,0 +1,14 @@
+--- shpordsÇ…ÇÕégópÇ≈Ç´Ç»Ç¢ÅB
+drop function func_ord_qty_bal;
+create or replace function 
+	func_ord_qty_bal(tblname text,ord_id numeric,OUT qty_bal numeric)
+as $func$
+BEGIN	
+  EXECUTE 'select 	sum(qty_linkto_alloctbl) from alloctbls
+	where  srctblname = $1 and srctblid = $2
+	group by srctblname,srctblid '
+   INTO qty_bal
+   USING  tblname,ord_id;
+END
+$func$  LANGUAGE plpgsql;
+	
