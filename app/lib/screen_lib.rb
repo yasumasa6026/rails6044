@@ -14,7 +14,7 @@ module ScreenLib
 				p "add person to his or her email "
 				raise   ### 別画面に移動する　後で対応
 			end
-			if params[:screenCode] and (params[:req] != "import" or params[:req] !~ /confirm/)
+			if params[:screenCode] and (params[:buttonflg] != "import" or params[:buttonflg] !~ /confirm/)
 				proc_create_grid_editable_columns_info(params)
 			end
 		end
@@ -26,8 +26,8 @@ module ScreenLib
 		end
 		
 		def proc_create_grid_editable_columns_info(params) 
-			req = params[:req]
-			@grid_columns_info = Rails.cache.fetch('screenfield'+$proc_grp_code+screenCode+req) do
+			buttonflg = params[:buttonflg]
+			@grid_columns_info = Rails.cache.fetch('screenfield'+$proc_grp_code+screenCode+buttonflg) do
 				@grid_columns_info = {}
 				###  ダブルコーティション　「"」は使用できない。 
 				sqlstr = "select * from  func_get_screenfield_grpname('#{$email}','#{screenCode}')"
@@ -41,7 +41,7 @@ module ScreenLib
 				nameToCode = {}
 				columns_info = []
 				hiddenColumns = []
-				if (req=='inlineedit7'|| req=="inlineadd7" )
+				if (buttonflg=='inlineedit7'|| buttonflg=="inlineadd7" )
 					columns_info << {:Header=>"confirm",
 									:accessor=>"confirm",
 									:id=>"",
@@ -89,7 +89,7 @@ module ScreenLib
 												end	,
 									###widthが120以下だと右の境界線が消える。	
 									:width => if i["screenfield_width"].to_i < 80 then 80 else  i["screenfield_width"].to_i end,
-									:className=>if  (req==="inlineedit7" or req==="inlineadd7") and 
+									:className=>if  (buttonflg==="inlineedit7" or buttonflg==="inlineadd7") and 
 													(i["screenfield_editable"] === "1" or i["screenfield_editable"] === "2" or i["screenfield_editable"] === "3") 
 														if  i["screenfield_indisp"] === "1" or i["screenfield_indisp"] === "2" ###必須はyupでも
 															case i["screenfield_type"] 
@@ -127,9 +127,9 @@ module ScreenLib
 														end
 												end	
 									}
-					if ((req==="inlineedit7" or req==="inlineadd7") and i["screenfield_editable"] === "1") or
-						(req==="inlineedit7"  and i["screenfield_editable"] === "2") or
-						( req==="inlineadd7" and i["screenfield_editable"] === "3") 
+					if ((buttonflg =="inlineedit7" or buttonflg =="inlineadd7") and i["screenfield_editable"] == "1") or
+						(buttonflg =="inlineedit7"  and i["screenfield_editable"] == "2") or
+						( buttonflg =="inlineadd7" and i["screenfield_editable"] == "3") 
 						columns_info << {:Header=>"#{i["screenfield_name"]}_gridmessage",
 										:accessor=>"#{i["pobject_code_sfd"]}_gridmessage",
 										:id=>"#{i["pobject_code_sfd"]}_gridmessage",
@@ -471,8 +471,8 @@ module ScreenLib
 				###  ダブルコーティション　「"」は使用できない。 
 				sqlstr = "select * from  func_get_screenfield_grpname('#{$email}','#{screenCode}')"
 				ActiveRecord::Base.connection.select_all(sqlstr).each do |i|
+					contents = []
 					if i["screenfield_hideflg"] == "0"
-						contents = []
 						contents << i["pobject_code_sfd"] ###
 						contents << i["screenfield_name"] ###
 						contents <<  if i["screenfield_indisp"] === "1" or i["screenfield_indisp"] === "2"
@@ -491,6 +491,15 @@ module ScreenLib
 								end
 						contents << i["screenfield_type"]   ###未使用
 						download_columns_info[i["pobject_code_sfd"].to_sym] = contents
+					else
+						if i["pobject_code_sfd"] == "id" ###レコードの更新の時必要
+							contents << "id" ###
+							contents << "id" ###
+							contents << "ffffff" ###
+							contents <<  "right"
+							contents << i["screenfield_type"]   ###未使用
+							download_columns_info[i["pobject_code_sfd"].to_sym] = contents
+						end
 					end	
 				end
 			###end
@@ -502,9 +511,10 @@ module ScreenLib
 			setParams = create_filteredstr(params) 
 			downloadFields = ""
 			download_columns_info.each do |key,val|
-					downloadFields << key.to_s + ","
+					downloadFields << (key.to_s + ",") if key.to_s != "id"
 			end
-			strsql = "select #{downloadFields.chop} from  #{screenCode}
+			downloadFields << "id"
+			strsql = "select #{downloadFields} from  #{screenCode}
 							 #{if setParams[:where_str] == '' then '' else setParams[:where_str]   end }  limit 10000	  "
 			pagedata = []
 			ActiveRecord::Base.connection.select_all(strsql).each do |rec|
@@ -526,7 +536,7 @@ module ScreenLib
 			return download_columns_info,pagedata.count, pagedata
 		end	
 
-		def proc_create_upload_editable_columns_info req
+		def proc_create_upload_editable_columns_info buttonflg
 			upload_columns_info = Rails.cache.fetch('uploadscreenfield'+$proc_grp_code+screenCode) do
 				###  ダブルコーティション　「"」は使用できない。 
 				sqlstr = "select * from  func_get_screenfield_grpname('#{$email}','#{screenCode}')"
@@ -567,7 +577,7 @@ module ScreenLib
 									:width => i["screenfield_width"].to_i,
 									:id=>"#{i["screenfield_id"]}",
 									:style=>{:textAlign=>if i["screenfield_type"] == "numeric" then "right" else "left" end}, 
-									:className=>if req == "import"
+									:className=>if buttonflg == "import"
 													if  i["screenfield_type"] == "select" 
 															"00bfff"
 													else
@@ -589,7 +599,7 @@ module ScreenLib
 																		"ffffff"
 												end	
 									}
-					if req == "import" 
+					if buttonflg == "import" 
 						columns_info << {:Header=>"#{i["screenfield_name"]}_gridmessage",
 										:accessor=>"#{i["pobject_code_sfd"]}_gridmessage",
 										:id=>"#{i["screenfield_id"]}_gridmessage",
@@ -754,6 +764,58 @@ module ScreenLib
 			end 
 			return setParams
 		end
+
+		
+		def proc_second_view params,grid_columns_info
+			tmp = []
+			err = ""
+			innerjoinTblName = ""
+			strselects = "("
+			mainTblName = params["screenCode"].split("_",2)[1] 
+
+			(params["clickIndex"]).each_with_index  do |selected,idx|  ###-次のフェーズに進んでないこと。
+				selected = JSON.parse(selected)
+				if idx == 0
+					innerjoinTblName = selected["screenCode"].split("_",2)[1]
+				end
+				strselects << selected["id"]+ ","
+			end
+			strselects = strselects.chop + ")"
+
+			case innerjoinTblName
+			when  /prdords|prdinsts|purords|purinsts/
+				case mainTblName
+				when /shpords|shpinsts|shpacts/
+					str_innerjoin = %Q&
+							inner join (select id second_id from  #{innerjoinTblName} 
+									where id in #{strselects}
+									) second on main.#{mainTblName.chop}_paretblid = second.second_id
+							where main.#{mainTblName.chop}_paretblname = '#{innerjoinTblName}'
+					& 
+					str_orderby = %Q&order by #{mainTblName.chop}_paretblid,id desc &
+					params[:sortBy] = []
+				end
+			end
+			
+			strsql = %Q&select   #{grid_columns_info[:select_fields]} 
+						from (SELECT ROW_NUMBER() OVER (#{str_orderby}) ,#{grid_columns_info[:select_row_fields]} 
+								FROM #{screenCode} main
+						#{str_innerjoin}) x
+							where ROW_NUMBER > #{(params[:pageIndex].to_f)*params[:pageSize].to_f} 
+							and ROW_NUMBER <= #{(params[:pageIndex].to_f + 1)*params[:pageSize].to_f} 
+					&
+			pagedata = ActiveRecord::Base.connection.select_all(strsql)
+		
+			strsql = %Q& select count(*) FROM #{screenCode} main 
+								#{str_innerjoin}
+				&
+		 	###fillterがあるので、table名は抽出条件に合わず使用できない。
+			totalCount = ActiveRecord::Base.connection.select_value(strsql)
+			params[:pageCount] = (totalCount.to_f/params[:pageSize].to_f).ceil
+			params[:totalCount] = totalCount.to_f
+			params[:parse_linedata] = {}
+			return pagedata,params 
+		end	
   
 		def undefined
 		  nil

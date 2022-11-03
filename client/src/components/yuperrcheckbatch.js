@@ -32,7 +32,7 @@ export  function yupErrCheckBatch(lines,screenCode)
                     row = dataCheck7(screenSchema,fd,row) //row:_gridmessageを含む
                     if(row[`${fd}_gridmessage`] !== "ok"){
                           line[`${fd}_gridmessage`] = row[`${fd}_gridmessage`]
-                          line[`${tblnamechop}_confirm_gridmessage`] = `x error ${fd} field:${fd} ` + line[`${tblnamechop}_confirm_gridmessage`]
+                          line[`${tblnamechop}_confirm_gridmessage`] = `x error ${fd} field:${fd} ` + row[`${fd}_gridmessage`]
                           importErrorCheckMaster = true
                           line[`confirm`] = false
                           line = {...line,[fd]:row[fd]}

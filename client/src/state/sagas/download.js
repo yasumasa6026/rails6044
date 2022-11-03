@@ -38,10 +38,10 @@ export function* DownloadSaga({ payload: {params}}) {
           const dataset = {columns:JSON.parse(response.data.excelData.columns),data:JSON.parse(response.data.excelData.data)}
           let columns = []
           Object.keys(dataset.columns).map((cate)=>{columns.push({
-                                              header:dataset.columns[cate][1]
-                                             , key:dataset.columns[cate][0]
-                                             ,style:{fill:{ type: 'pattern', pattern: 'solid',bgColor:{argb:dataset.columns[cate][2]}}
-                                                    ,alignment:{horizontal: dataset.columns[cate][3]}}
+                                              header:dataset.columns[cate][1]   //field  name
+                                             , key:dataset.columns[cate][0]    // field code
+                                             ,style:{fill:{ type: 'pattern', pattern: 'solid',bgColor:{argb:dataset.columns[cate][2]}}  //色
+                                                    ,alignment:{horizontal: dataset.columns[cate][3]}}  //右寄せ(数値)、左寄せ(文字等)
                                                     })})
           let fileName = params.screenName + "_" + wtime + "_Export"
           const workbook = new ExcelJS.Workbook()

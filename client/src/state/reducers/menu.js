@@ -1,9 +1,14 @@
 import {  MENU_REQUEST, MENU_SUCCESS,LOGOUT_REQUEST,MENU_FAILURE,
-          SCREENINIT_REQUEST,SCREEN_SUCCESS7,SCREEN_FAILURE,  } from '../../actions'
+          SCREENINIT_REQUEST,SCREEN_SUCCESS7, 
+          //MKSHPACTS_RESULT,
+           SECOND_CONFIRMALL_SUCCESS,SECOND_REQUEST,SECOND_SUCCESS7,SECOND_CONFIRM7,
+          SECOND_FAILURE,SECONDFETCH_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT,
+              } from '../../actions'
 const initialValues = {
   isSubmitting:false,
   isSignUp:false,
   errors:[],
+  screenFlg:"first",
 }
 
 const menureducer =  (state= initialValues , actions) =>{
@@ -37,14 +42,22 @@ const menureducer =  (state= initialValues , actions) =>{
             hostError: null,
             message:null,
             menuChanging:false,
+            screenFlg:"first",
     }
 
-    case SCREEN_FAILURE:
-      return {...state,
-        hostError: actions.payload.message,
-        loading:false,
-      } 
 
+  //  case MKSHPACTS_RESULT:
+    case SECOND_CONFIRMALL_SUCCESS:
+    case SECOND_REQUEST:
+    case SECOND_SUCCESS7: 
+    case SECOND_CONFIRM7:
+    case SECOND_FAILURE:
+    case SECONDFETCH_REQUEST:
+    case SECONDFETCH_FAILURE:
+    case SECONDFETCH_RESULT:
+        return {...state,
+          screenFlg:"second",
+        }   
 
     case  LOGOUT_REQUEST:
     return {}  

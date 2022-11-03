@@ -188,7 +188,9 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     setParams["parent"] = parent.dup
                                     setParams["child"] = child.dup
                                     if opeitm["shpordauto"] != "M"
-                                        Shipment.proc_create_shpschs(setParams)   ###prd,purordsによる自動作成 
+                                        Shipment.proc_create_shpschs_delete_shpords(setParams) do  ###prd,purordsによる自動作成 
+                                            "shpsch"
+                                        end
                                     end    
                                     if nd["consumtype"] =~ /CON/
                                         Shipment.proc_create_consume(setParams) do   
@@ -200,7 +202,9 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         parent["starttime"] = (parent["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
                                         setParams["child"] = child.dup
                                         setParams["parent"] = parent.dup
-                                        Shipment.proc_create_shpschs(setParams)   ###setParams 親のデータ
+                                        Shipment.proc_create_shpschs_delete_shpords(setParams)   do ###setParams 親のデータ
+                                            "shpsch"
+                                        end
                                     end
                                 end
                             end    

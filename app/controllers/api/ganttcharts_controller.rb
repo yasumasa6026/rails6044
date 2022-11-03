@@ -4,7 +4,7 @@ module Api
             def index
             end
             def create
-                case params[:req] 
+                case params[:buttonflg] 
                 when 'ganttchart'
                     if params[:linedata]
                         command_r = JSON.parse params[:linedata]

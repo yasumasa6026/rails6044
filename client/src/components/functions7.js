@@ -53,9 +53,9 @@ export function  setProtectFunc(field,row){
 }
 
 
-export function  setClassFunc(field,row,className,req){  //error処理
+export function  setClassFunc(field,row,className,buttonflg){  //error処理
 
-                if(req==="viewtablereq7"){return(className)}
+                if(buttonflg==="viewtablereq7"){return(className)}
                 else{
                     let msgid = field + "_gridmessage"
                     if(/error/.test(row.values[msgid])){  // "!"はjavascriptでは正規化の判定がわからない。

@@ -37,7 +37,7 @@ export function* GanttChartSaga({ payload: {params}  }) {
   params["linedata"] = screenState.data[params.clickIndex[0]["lineId"]]
   let {response,error} = yield call(GanttApi,{params ,token,client,uid} )
   if(response || !error){
-      switch(params.req) {
+      switch(params.buttonflg) {
         case "ganttchart":  // create yup schema
               return yield put({ type: GANTTCHART_SUCCESS, payload: response.data} )  
         default:

@@ -236,7 +236,6 @@ module RorBlkCtl
 						src_qty = @tbldata["qty_sch"].to_f + @tbldata["qty"].to_f + @tbldata["qty_stk"].to_f
 						###ここでは引当済をセットするのみ
 						linktbl_ids = []
-						alloctbl_ids = []
 						ActiveRecord::Base.connection.select_all(sql_get_src_alloc).each do |src|
 							if src_qty >= src["qty_linkto_alloctbl"].to_f
 								alloc_qty = src["qty_linkto_alloctbl"].to_f
@@ -247,7 +246,17 @@ module RorBlkCtl
 							end
 							base = {"tblname" => @tblname ,	"tblid" => @tbldata["id"],
 										"qty_src" => alloc_qty ,"amt_src" => 0,	"trngantts_id" => src["trngantts_id"]}
-							linktbl_ids,alloctbl_ids = ArelCtl.proc_add_linktbls_update_alloctbls(src,base,linktbl_ids,alloctbl_ids)
+							linktbl_ids  << ArelCtl.proc_insert_linktbls(src,base)
+							strsql = %Q&
+								update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
+										remark = '#{self}.add_update_alloc_add_link line:(#{__LINE__})'
+									where id = #{src["alloc_id"]} 
+								&
+							ActiveRecord::Base.connection.update(strsql)
+
+							alloc = {"srctblname" => @tblname ,	"srctblid" => @tbldata["id"],
+										"qty_linkto_alloctbl" => alloc_qty ,"trngantts_id" => src["trngantts_id"]}
+							ArelCtl.proc_insert_alloctbls(alloc)
 							break if src_qty <= 0
 						end
 						setParams["linktbl_ids"] = linktbl_ids.dup

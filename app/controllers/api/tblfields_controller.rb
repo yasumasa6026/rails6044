@@ -4,7 +4,7 @@ module Api
           def index
           end
           def create
-            case params[:req] 
+            case params[:buttonflg] 
               when 'yup'
                 yup = YupSchema.proc_create_schema 	
                 foo = File.open("#{Rails.root}/vendor/yup/yupschema.js", "w:UTF-8") # 書き込みモード

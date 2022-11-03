@@ -2,7 +2,8 @@ import { call, put, select } from 'redux-saga/effects'
 import axios         from 'axios'
 import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_CONFIRM7, FETCH_RESULT, FETCH_FAILURE,
         SECOND_SUCCESS7,SECOND_FAILURE,SECOND_CONFIRM7, SECONDFETCH_RESULT,
-        SECONDFETCH_FAILURE,MKSHPORDS_SUCCESS,MKSHPACTS_RESULT,CONFIRMALL_SUCCESS,
+        SECONDFETCH_FAILURE,MKSHPORDS_SUCCESS,SECOND_CONFIRMALL_SUCCESS,
+        //MKSHPACTS_RESULT,
         }
          from '../../actions'
 import {getButtonState} from '../reducers/button'
@@ -43,10 +44,10 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
     try{
       let response  = yield call(screenApi,{params ,url,headers} )
       // params.sortBy === [] だとrailsに取り込められない　paramsからsortByが
-      params = {...params,req:response.data.params.req,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
+      params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
       switch (response.status) {
         case 200:  
-          switch(params.req) {
+          switch(params.buttonflg) {
             case 'viewtablereq7':
             case 'inlineedit7':   //第一画面又は第二画面のみ　両方修正は不可
             case 'inlineadd7':
@@ -56,7 +57,7 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
                   {return yield put({ type:SCREEN_SUCCESS7, payload: response })}
             case "confirm7":
               data[params.index] = {...response.data.linedata}
-              params.req = buttonState.buttonflg
+              params.buttonflg = buttonState.buttonflg
               if(params.screenFlg==="second")
                 {return yield put({type:SECOND_CONFIRM7,payload:{data:data,params:params} })}
               else
@@ -66,19 +67,19 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
               messages[1] = "shortage count : " + response.data.shortcnt
               return yield put({ type: MKSHPORDS_SUCCESS, payload:{messages:messages}})       
            
-            case "mkShpinsts":  //second画面出力専用　第一画面の修正、追加は不可
-                return yield put({ type:SECOND_SUCCESS7, payload:response})
+            // case "mkShpinsts":  //second画面出力専用　第一画面の修正、追加は不可
+            //      return yield put({ type:SECOND_SUCCESS7, payload:response})
                 
-            case "mkshpacts":  //second画面専用
-              return yield put({ type: MKSHPACTS_RESULT, payload:response})    
+            // case "mkshpacts":  //second画面専用
+            //   return yield put({ type: MKSHPACTS_RESULT, payload:response})    
               
-            case "confirm_all":  //second画面専用
-              messages[0] = "out count : " + response.data.outcnt
-              return yield put({ type: CONFIRMALL_SUCCESS, payload:{messages:messages}})     
+           case "confirmSecond":  //second画面専用
+               messages[0] = "out count : " + response.data.outcnt
+                return yield put({ type: SECOND_CONFIRMALL_SUCCESS, payload:{messages:messages}})     
        
            case "fetch_request":  //viewによる存在チェック内容表示
                 xparams = {...params,...response.data.params}
-                xparams.req = buttonState.buttonflg
+                xparams.buttonflg = buttonState.buttonflg
                 break
             case "check_request":   //項目毎のチェック帰りはfetchと同じ
                 xparams = {...params,...response.data.params}

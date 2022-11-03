@@ -16,7 +16,7 @@ module Api
 
             screen = ScreenLib::ScreenClass.new(params)
             #####    
-            case params[:req] 
+            case params[:buttonflg] 
             when 'menureq'   ###大項目
                 sgrp_menue = Rails.cache.fetch('sgrp_menue'+$email) do
                     if Rails.env == "development" 
@@ -26,7 +26,7 @@ module Api
                     end      
                     sgrp_menue = ActiveRecord::Base.connection.select_all(strsql)
                 end
-              render json:  sgrp_menue , status: :ok 
+                render json:  sgrp_menue , status: :ok 
 
             when 'bottunlistreq'  ###大項目内のメニュー
                 screenList = Rails.cache.fetch('screenList'+$email) do
@@ -40,13 +40,17 @@ module Api
                 end
                 render json:  screenList , status: :ok
             
-            when 'viewtablereq7','inlineedit7'
-              pagedata,reqparams = screen.proc_search_blk(params)   ###:pageInfo  -->menu7から未使用
-              render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
+            when 'viewtablereq7'
+                pagedata,reqparams = screen.proc_search_blk(params)   ###:pageInfo  -->menu7から未使用
+                render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
+
+            when 'inlineedit7'
+                pagedata,reqparams = screen.proc_search_blk(params)   ###:pageInfo  -->menu7から未使用
+                render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
              
             when 'inlineadd7'
-              pagedata,reqparams = screen.proc_add_empty_data(params)  ### nil filtered sorting
-              render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}               
+                pagedata,reqparams = screen.proc_add_empty_data(params)  ### nil filtered sorting
+                render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}               
                 
             when "fetch_request"
                 reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
@@ -69,13 +73,17 @@ module Api
                 render json: {:linedata=> reqparams[:parse_linedata],:params=>reqparams}
 
             when 'download7'
-              download_columns_info,totalCount,pagedata = screen.proc_download_data_blk(params)   ### nil filtered sorting
-              render json:{:excelData=>{:columns=>download_columns_info.to_json,:data=>pagedata.to_json},
+                download_columns_info,totalCount,pagedata = screen.proc_download_data_blk(params)   ### nil filtered sorting
+                render json:{:excelData=>{:columns=>download_columns_info.to_json,:data=>pagedata.to_json},
                             :totalCount=>totalCount,:filttered=>params[:filtered] }    
 
             when 'mkShpords'  ###shpschsは作成済が条件。shpschsはpurords,prdords時に自動作成
-                outcnt,shortcnt,err = Shipment.proc_mkShpords(screen.screenCode,params[:clickIndex])
-                render json:{:outcnt=>outcnt,:shortcnt=>shortcnt,:err=>err,:params=>{:req=>"mkShpords"}}    
+                if params[:clickIndex]
+                    outcnt,shortcnt,err = Shipment.proc_mkShpords(screen.screenCode,params[:clickIndex])
+                    render json:{:outcnt=>outcnt,:shortcnt=>shortcnt,:err=>err,:params=>{:buttonflg=>"mkShpords"}}
+                else
+                    render json:{:outcnt=>0,:shortcnt=>0,:err=>" please select",:params=>{:buttonflg=>"mkShpords"}}
+                end
             
             when 'refShpords'   ###purords,prdordsからshpordsを表示
                 if params["clickIndex"]
@@ -84,14 +92,13 @@ module Api
                     reqparams[:filtered] ||= []
                     reqparams[:pageIndex] ||= 0
                     reqparams[:pageSize] ||= 100
-                    reqparams[:req] = "inlineedit7"
-                    reqparams[:screenFlg] = "second" 
+                    reqparams[:buttonflg] = "inlineedit7"
                     reqparams[:screenCode] = "forInsts_shpords"   ###shpordsがshpinstsに変わるため
                     reqparams[:pareTblName] = params[:screenCode].split("_",2)[1]   
-                    subScreen = ScreenLib::ScreenClass.new(reqparams)
-                    subScreen.proc_create_grid_editable_columns_info(reqparams)
-                    pagedata = Shipment.proc_second_shp reqparams,subScreen.grid_columns_info
-                    render json:{:grid_columns_info=>subScreen.grid_columns_info,:data=>pagedata,:params=>reqparams}
+                    secondScreen = ScreenLib::ScreenClass.new(reqparams)
+                    grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
+                    pagedata,reqparams = Shipment.proc_second_shp reqparams,grid_columns_info
+                    render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
                 else
                     render json:{:err=>"please  select Order"}    
                 end
@@ -103,14 +110,13 @@ module Api
                     reqparams[:filtered] ||= []
                     reqparams[:pageIndex] ||= 0
                     reqparams[:pageSize] ||= 100
-                    reqparams[:req] = "inlineedit7"
-                    reqparams[:screenFlg] = "second" 
+                    reqparams[:buttonflg] = "inlineedit7"
                     reqparams[:screenCode] = "foract_shpinsts"   ###shpordsがshpinstsに変わるため
                     reqparams[:pareTblName] = params[:screenCode].split("_",2)[1]   
-                    subScreen = ScreenLib::ScreenClass.new(reqparams)
-                    subScreen.proc_create_grid_editable_columns_info(reqparams)
-                    pagedata = Shipment.proc_second_shp reqparams,subScreen.grid_columns_info
-                    render json:{:grid_columns_info=>subScreen.grid_columns_info,:data=>pagedata,:params=>reqparams}
+                    secondScreen = ScreenLib::ScreenClass.new(reqparams)
+                    grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
+                    pagedata,reqparams = Shipment.proc_second_shp reqparams,grid_columns_info   ###shp専用
+                    render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
                 else
                     render json:{:err=>"please  select Order"}    
                 end
@@ -122,14 +128,13 @@ module Api
                     reqparams[:filtered] ||= []
                     reqparams[:pageIndex] ||= 0
                     reqparams[:pageSize] ||= 100
-                    reqparams[:req] = 'viewtablereq7'
-                    reqparams[:screenFlg] = "second" 
+                    reqparams[:buttonflg] = 'viewtablereq7'
                     reqparams[:screenCode] = "r_shpacts"   ###shpordsがshpinstsに変わるため
                     reqparams[:pareTblName] = params[:screenCode].split("_",2)[1]   
-                    subScreen = ScreenLib::ScreenClass.new(reqparams)
-                    subScreen.proc_create_grid_editable_columns_info(reqparams)
-                    pagedata = Shipment.proc_second_shp reqparams,subScreen.grid_columns_info
-                    render json:{:grid_columns_info=>subScreen.grid_columns_info,:data=>pagedata,:params=>reqparams}
+                    secondScreen = ScreenLib::ScreenClass.new(reqparams)
+                    grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
+                    pagedata,reqparams = secondScreen.proc_second_view reqparams,grid_columns_info  ###共通lib
+                    render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
                 else
                     render json:{:err=>"please  select Order"}    
                 end
@@ -137,16 +142,16 @@ module Api
             when 'confirmShpinsts'
                 reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。
                 outcnt,err = Shipment.proc_confirmShpinsts(params)
-                reqparams[:screenFlg] = "second" 
+                reqparams[:buttonflg] = 'confirmSecond'
                 render json:{:outcnt => outcnt,:err => err,:params => reqparams}    
             
             when 'confirmShpacts'
                 reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。
                 outcnt,err = Shipment.proc_confirmShpacts(params)
-                reqparams[:screenFlg] = "second" 
+                reqparams[:buttonflg] = 'confirmSecond'
                 render json:{:outcnt => outcnt,:err => err,:params => reqparams}    
             else
-                Rails.logger.debug"#{Time.now} : req-->#{req} not support "    
+                Rails.logger.debug"#{Time.now} : buttonflg-->#{buttonflg} not support "    
             end
         end
         def show

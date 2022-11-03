@@ -71,10 +71,10 @@ export function dataCheck7(schema,field,linedata){
                 })
               break
             case "screenfield_indisp":  //変更可能な　/_code/は必須項目。tipが機能しない。
-                if(/_code/.test(linedata["pobject_code_sfd"])&linedata["screenfield_editable"]!=="0")
-                    {if(linedata["screenfield_indisp"]==="1")
+                if(/_code/.test(linedata["pobject_code_sfd"])&&String(linedata["screenfield_editable"])==="1")
+                    {if(String(linedata["screenfield_indisp"])==="1") //excelが数字を自動変換してしまう
                             {linedata[`${field}_gridmessage`] = "ok"}
-                      else{linedata["screenfield_indisp_gridmessage"] = "error!  must be Required"
+                      else{linedata["screenfield_indisp_gridmessage"] = ` error!  must be Required(indisp===1) `
                             }
                 }else{
                             linedata[`${field}_gridmessage`] = "ok"}

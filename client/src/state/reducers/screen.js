@@ -1,8 +1,10 @@
 import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,
   SCREEN_FAILURE,LOGOUT_REQUEST,SCREEN_CONFIRM7,
   FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,YUP_RESULT,
-  INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,SECOND_SUCCESS7,
-  YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_PARAMS_SET, CONFIRMALL_SUCCESS,} 
+  INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
+  //SECOND_SUCCESS7,
+  MKSHPORDS_SUCCESS,
+  YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_PARAMS_SET,} 
   from '../../actions'
 
 export let getScreenState = state => state.screen
@@ -17,7 +19,6 @@ case SCREENINIT_REQUEST:
   return {...state,
     //      params:actions.payload.params,
           loading:true,
-          message: " screen loading ...",
           // editableflg:actions.payload.editableflg
 }
 
@@ -38,7 +39,6 @@ case SCREEN_REQUEST:
 return {...state,
         params:actions.payload.params,
         loading:true,
-        message: "screen loading ...",
         // editableflg:actions.payload.editableflg
 }
 
@@ -109,21 +109,17 @@ case YUP_RESULT:
       message: actions.payload.message,
     }
 
+// case SECOND_SUCCESS7: // 第一画面から移るときの受け渡し
+// return {...state,
+//     loading:false,
+//     second_columns_info:actions.payload.data.grid_columns_info, //第一画面の内容
+// }
 
-
-case CONFIRMALL_SUCCESS:
+  
+case MKSHPORDS_SUCCESS:
   return {...state,
-   loading:false,
-   hostError: actions.payload.messages,
-   disabled:false,
-}
-
-
-case SECOND_SUCCESS7: // 第一画面から移るときの受け渡し
-return {...state,
-    loading:false,
-    second_columns_info:actions.payload.data.grid_columns_info, //第一画面の内容
-}
+      loading:false,
+  }    
 
 case  LOGOUT_REQUEST:
   return {

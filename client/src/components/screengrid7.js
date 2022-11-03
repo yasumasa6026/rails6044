@@ -1,3 +1,6 @@
+//
+//  typeof(xxx)==="undefined"の対応要
+//
 import React, { useState, useMemo, useEffect, } from 'react'
 import { connect } from 'react-redux'
 import { ScreenRequest, FetchRequest,ScreenParamsSet,SecondParamsSet,
@@ -52,7 +55,7 @@ const AutoCell = ({
     column: { id, className },  //id field_code
     setData, data, // This is a custom function that we supplied to our table instance
     row,params, updateParams,dropDownList,fetch_check,
-    params:{req},buttonflg,loading,  //useTableへの登録が必要
+    buttonflg,loading,  //useTableへの登録が必要
     handleScreenRequest,handleFetchRequest,
     }) => {
         // const [newClassName, setNewClassName] = useState(className)
@@ -111,14 +114,14 @@ const AutoCell = ({
             Object.keys(checkFields).map((field)=>linedata[field] = checkFields[field])
             if (linedata["confirm_gridmessage"] === "doing") {
                 updateParams([{ linedata: JSON.stringify(linedata)}, { index: index },
-                        { req: "confirm7" }])
+                        { buttonflg: "confirm7" }])
                 handleScreenRequest(params,data)
             }else{
                 let msg_id = "confirm_gridmessage"
                 updateMyData(index, msg_id, " error " + linedata[msg_id])
                 msg_id = `${linedata["errPath"]}_gridmessage`
                 updateMyData(index, msg_id, " error " + linedata[msg_id])
-                setClassFunc(linedata["errPath"],row,className,req)
+                setClassFunc(linedata["errPath"],row,className,buttonflg)
                 updateMyData(index, "confirm", false)
             }
         }   
@@ -158,7 +161,7 @@ const AutoCell = ({
                      {"checkCode": JSON.stringify({ [id]: fetch_check.checkCode[id] })},
                      {"linedata": JSON.stringify(linedata)},
                      {"index": index},
-                     {"req": "check_request"},
+                     {"buttonflg": "check_request"},
                  ])
                  handleFetchRequest(params)
                  break
@@ -190,7 +193,7 @@ const AutoCell = ({
                          {"linedata": JSON.stringify(row)},
                          {"index": index},
                          {"fetchview": fetch_check.fetchCode[id]},
-                         {"req": "fetch_request"},
+                         {"buttonflg": "fetch_request"},
                  ])
                  handleFetchRequest(params,data) //onBlurFunc7でセットされた項目はfetchでまとめて更新
                  }else{}//未入力keyがある。  
@@ -205,15 +208,15 @@ const AutoCell = ({
             return (
                 <Tooltip content={data[index][id + '_gridmessage']||""}
                 border={true} tagName="span" arrowSize={2}>
-                {buttonflg === "inlineadd7"&&(  //params["req"] === "inlineadd7"?a:b  だとa,b両方処理した。
-                //buttonflg:画面のコントロール　params.req ScreenLibでcolumnsのclassName等をセット
+                {buttonflg === "inlineadd7"&&(  //params["buttonflg"] === "inlineadd7"?a:b  だとa,b両方処理した。
+                //buttonflg:画面のコントロール　params.buttonflg ScreenLibでcolumnsのclassName等をセット
                 <input value={initialValue}
                    //placeholder(入力されたことにならない。) defaultvale（照会内容の残像が残る。)
                    onChange={(e) => setFieldsByonChange(e)}
                     // onFocus={(e) => { setFieldsByonFocus(e)
                     //                 setProtectFunc(id,row)}}
                       onBlur={(e) => setFieldsByonBlur(e)}
-                      className={setClassFunc(id,row,className,req)}
+                      className={setClassFunc(id,row,className,buttonflg)}
                       readOnly={typeof(newReadOnly[id])==="undefined"?false:setNewReadOnly(()=>loading===false?setProtectFunc(id,row):true)}
                       onKeyUp={(e) => {  
                           if (e.key === "Enter" ) 
@@ -222,11 +225,11 @@ const AutoCell = ({
                                 }
                         }}        
                     />)}
-                  {buttonflg === "inlineedit7"&&(//buttonflg:画面のコントロール　params.req ScreenLibでcolumnsのclassName等をセット
+                  {buttonflg === "inlineedit7"&&(//buttonflg:画面のコントロール　params.buttonflg ScreenLibでcolumnsのclassName等をセット
                 <input  value={initialValue} 
                     onChange={(e) => setFieldsByonChange(e)}
                     onBlur={(e) => setFieldsByonBlur(e)}
-                    className={setClassFunc(id,row,className,req)}
+                    className={setClassFunc(id,row,className,buttonflg)}
                     readOnly={typeof(newReadOnly[id])==="undefined"?false:newReadOnly[id]}
                     onKeyUp={(e) => {  
                       if (e.key === "Enter" ) 
@@ -243,7 +246,7 @@ const AutoCell = ({
                     setFieldsByonChange(e)
                     }}
                 > 
-          {JSON.parse(dropDownList[id]).map((option, i) => (
+          {typeof(dropDownList[id])!=="undefined"&&JSON.parse(dropDownList[id]).map((option, i) => (
             <option key={i} value={option.value}>
               {option.label}
             </option>
@@ -263,7 +266,7 @@ const AutoCell = ({
             return (
             <select value={initialValue||""} disabled >
             {
-              JSON.parse(dropDownList[id]).map((option, i) => (
+              typeof(dropDownList[id])!=="undefined"&&JSON.parse(dropDownList[id]).map((option, i) => (
                 <option key={i} value={option.value} >
                 {option.label} 
                 </option>
@@ -277,12 +280,12 @@ const AutoCell = ({
             return (
               <Tooltip content={data[index]['confirm_gridmessage']||""}
               border={true} tagName="span" arrowSize={2}>
-              <label   htmlFor={`confirm${index}`} className={setClassFunc(id,row,className,req)} >
-              {setClassFunc(id,row,className,req)==="checkbox"?"":"error"}
+              <label   htmlFor={`confirm${index}`} className={setClassFunc(id,row,className,buttonflg)} >
+              {setClassFunc(id,row,className,buttonflg)==="checkbox"?"":"error"}
               </label> 
               <input  type="checkbox" checked={data[index]['confirm']===true?"checked":""} 
                       id={`confirm${index}`}
-                      className={setClassFunc(id,row,className,req)}
+                      className={setClassFunc(id,row,className,buttonflg)}
                       readOnly />
               {/*     style={{bakground:"red"}}が有効にならない。*/}
           </Tooltip>)
@@ -303,7 +306,7 @@ const DefaultColumnFilter = ({
                         setFilter(e.target.value || "")
                     }}
                   >
-                    {JSON.parse(dropDownList[id]).map((option, i) => (
+                    {typeof(dropDownList[id])!=="undefined"&&JSON.parse(dropDownList[id]).map((option, i) => (
                       <option key={i} value={option.value}>
                         {option.label}
                       </option>
@@ -339,7 +342,7 @@ let fieldSchema = (field, screenCode) => {
 const ScreenGrid7 = ({ 
     screenCode, screenwidth, hiddenColumns,fetch_check,
     dropDownListOrg, buttonflgOrg, paramsOrg,columnsOrg, dataOrg,screenFlg,
-    //buttonflg 下段のボタン：request params[:req] MenusControllerでの実行ケース
+    //buttonflg 下段のボタン：request params[:buttonflg] MenusControllerでの実行ケース
     loading, hostError, pageSizeList, 
     handleScreenRequest, handleFetchRequest,handleScreenParamsSet,message,
     }) => {
@@ -458,7 +461,7 @@ const ScreenGrid7 = ({
           <div colSpan="10000">
             Loading...
           </div>
-        ) : ((params["req"]!=="viewtablereq7"||params["req"]==="inlineedit7")?<div colSpan="10000" className="td" ></div>:
+        ) : ((params["buttonflg"]!=="viewtablereq7"||params["buttonflg"]==="inlineedit7")?<div colSpan="10000" className="td" ></div>:
             <div colSpan="10000" className="td" >
                {Number(params["totalCount"])===0?"No Record":
                 `Showing ${controlledPageIndex * controlledPageSize + 1} of ~

@@ -1,7 +1,7 @@
 import React from 'react'
 import { connect } from 'react-redux'
 import { Tab, Tabs, TabList,TabPanel , } from 'react-tabs'
-import ScreenGrid7 from './screengrid7.js'
+//import ScreenGrid7 from './screengrid7.js'
 import ImportExcel from './importexcel.js'
 import Download from './download'
 import GanttChart from './ganttchart'
@@ -78,7 +78,7 @@ const  mapStateToProps = (state,ownProps) =>{
       screenCode:state.second.params.screenCode ,  
       screenName:state.second.params.screenName ,  
       uid:state.auth.uid,
-      message:state.button.message,
+      message:state.second.loading?" second_screen Loading ...":"",
       messages:state.button.messages,
       disabled:state.second.disabled?true:false,
       pareScreenCode:state.second.params.screenCode ,  
@@ -93,11 +93,11 @@ const  mapStateToProps = (state,ownProps) =>{
         screenCode:state.screen.params.screenCode ,  
         screenName:state.screen.params.screenName ,  
         uid:state.auth.uid,
-        message:state.button.message,
+        message:state.screen.loading?" screen Loading ...":"",
         messages:state.button.messages,
         downloadloading:state.download.downloadloading,
         disabled:state.button.disabled?true:false,
-        pareScreenCode:state.screen.params.screenCode ,  
+        pareScreenCode:null ,  
         loading:state.screen.loading,  
       }
     }
@@ -113,65 +113,65 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
         let linedata = {}
         switch (buttonflg) {  //buttonflg ==button_code
           case "reset":
-            params= { ...params, req:"reset",disableFilters:false,screenFlg:ownProps.screenFlg}
+            params= { ...params, buttonflg:"reset",disableFilters:false,screenFlg:ownProps.screenFlg}
             return dispatch(ResetRequest(params)) //
 
           case "search":
-              params= { ...params,req:"viewtablereq7",disableFilters:false,screenFlg:ownProps.screenFlg}
+              params= { ...params,buttonflg:"viewtablereq7",disableFilters:false,screenFlg:ownProps.screenFlg}
               return dispatch(ScreenRequest(params,null)) //data=null　再度もとめ直し
         
           case "inlineedit7":
-              params= { ...params,req:"inlineedit7",disableFilters:false,screenFlg:ownProps.screenFlg,}
+              params= { ...params,buttonflg:"inlineedit7",disableFilters:false,screenFlg:ownProps.screenFlg,}
               return dispatch(ScreenRequest(params,null)) //data=null　再度もとめ直し
           
           case "inlineadd7":
-              params= {...params, pages:1,req:"inlineadd7",disableFilters:true,screenFlg:ownProps.screenFlg}
+              params= {...params, pages:1,buttonflg:"inlineadd7",disableFilters:true,screenFlg:ownProps.screenFlg}
               return  dispatch(ScreenRequest(params,null)) //data=null　空白を表示
           
           case "export":
-              params= {...params,req:"download7",disableFilters:false,screenFlg:ownProps.screenFlg}
+              params= {...params,buttonflg:"download7",disableFilters:false,screenFlg:ownProps.screenFlg}
               return  dispatch(DownloadRequest(params)) //
          
           case "import":
               return  //画面表示のみ
 
           case "mkShpords":
-              params= {...params,req:"mkShpords",disableFilters:false,screenFlg:ownProps.screenFlg}
+              params= {...params,buttonflg:"mkShpords",disableFilters:false,screenFlg:ownProps.screenFlg}
               params.linedata = {}    
               return  dispatch(ScreenRequest(params,null)) //
 
           case "refShpords": //第一画面で選択された親より第二画面表示
               //linedata = data.map((line) => {return {tblid : line["id"],}})
-              params= {...params,req:"refShpords",disableFilters:true,screenFlg:ownProps.screenFlg}
+              params= {...params,buttonflg:"refShpords",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
               return  dispatch(ScreenRequest(params,null)) //   
 
           case "confirmShpinsts":  //第二画面専用
               //linedata = data.map((line) => {return {tblid : line["id"],shpord_qty:line["shpord_qty"],}})
-              params= {...params,req:"confirmShpinsts",disableFilters:true,screenFlg:ownProps.screenFlg}
+              params= {...params,buttonflg:"confirmShpinsts",disableFilters:true,screenFlg:ownProps.screenFlg}
               return  dispatch(ScreenRequest(params,null)) //
 
           case "refShpinsts": //第一画面で選択された親より第二画面表示
                 //linedata = data.map((line) => {return {tblid : line["id"],}})
-                params= {...params,req:"refShpinsts",disableFilters:true,screenFlg:ownProps.screenFlg}
+                params= {...params,buttonflg:"refShpinsts",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
                 return  dispatch(ScreenRequest(params,null)) //
  
           case "confirmShpacts"://第二画面専用
                 // linedata = data.map((line) => {return {tblid : line["id"],shpinst_qty_stk:line["shpinst_qty_stk"],}})
-                params= {...params,req:"confirmShpacts",disableFilters:true,screenFlg:ownProps.screenFlg}
+                params= {...params,buttonflg:"confirmShpacts",disableFilters:true,screenFlg:ownProps.screenFlg}
                 return  dispatch(ScreenRequest(params,null)) //
 
           case "refShpacts":  //第一画面で選択された親より第二画面表示
                 // linedata = data.map((line) => {return {tblid : line["id"],}})
-                params= {...params,req:"refShpinsts",disableFilters:true,screenFlg:ownProps.screenFlg}
+                params= {...params,buttonflg:"refShpacts",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
                 return  dispatch(ScreenRequest(params,null)) //
                
           case "yup":
-                params= { ...params,req:"yup",disableFilters:true,screenFlg:ownProps.screenFlg}
+                params= { ...params,buttonflg:"yup",disableFilters:true,screenFlg:ownProps.screenFlg}
                 return  dispatch(YupRequest(params)) //
 
           case "ganttchart":
               if(params["clickIndex"]){
-                  params= { ...params,req:"ganttchart"}
+                  params= { ...params,buttonflg:"ganttchart"}
                   return  dispatch(GanttChartRequest(params)) }//
               else{dispatch(GanttReset())}  
               break
@@ -183,7 +183,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                         })
                         screenData[index] = newRow
                         newRow = {}})
-            params= {...params,req:"createTblViewScreen",data:screenData,screenFlg:ownProps.screenFlg}
+            params= {...params,buttonflg:"createTblViewScreen",data:screenData,screenFlg:ownProps.screenFlg}
               return  dispatch(TblfieldRequest(params)) //
 
           case "unique_index":
@@ -193,7 +193,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                           screenData[index] = newRow
                           newRow = {}
                         })
-              params= {...params,req:"createUniqueIndex",data:screenData,screenFlg:ownProps.screenFlg}
+              params= {...params,buttonflg:"createUniqueIndex",data:screenData,screenFlg:ownProps.screenFlg}
               return  dispatch(TblfieldRequest(params)) 
           default:
             console.log(`not Supported ${buttonflg}`)

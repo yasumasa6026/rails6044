@@ -6,10 +6,15 @@ module PriceLib
 	def proc_price_amt tblnamechop,command_c
 		
 		command_c["#{tblnamechop}_price"] = 0 
-		command_c["#{tblnamechop}_amt_sch"] = 0 
+		case tblnamechop
+		when /sch/
+			command_c["#{tblnamechop}_amt_sch"] = 0
+		else
+			command_c["#{tblnamechop}_amt"] = 0
+		end 
 		command_c["#{tblnamechop}_tax"] = 0 
-		command_c["#{tblnamechop}_contract_price"] = "" 
-		command_c["#{tblnamechop}_itm_code_client"] = "" ###pricemst["itm_code_client"] 
+		###command_c["#{tblnamechop}_contract_price"] = "" 
+		###command_c["#{tblnamechop}_itm_code_client"] = "" ###pricemst["itm_code_client"] 
 		command_c["#{tblnamechop}_crr_id"] = 0  ###pricemst["crrs_id"] 
 
 		return command_c  ### 完了後はcut

@@ -29,7 +29,7 @@ const ImportExcel = ({exceltojson,excelfile,importError,formatError,errHeader,im
     <div>
           {formatError===true&&<p>error please check  file format</p>} 
           {importErrorCheckMaster===true&&<p> error  </p> }
-          {importError===true&&<p> some records have errors (skip commit all data(rollback done))  </p>}
+          {importError===true&&<p> some records have errors (skiped  all data(rollback done))  </p>}
           {normalEnd===true&&<p>  Add or Update records {idx} </p>}  
           {errHeader&&errHeader.map((err) => {if(err){return <p> Error:{err}  </p>}})}         
      </div>

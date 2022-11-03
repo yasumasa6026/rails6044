@@ -177,6 +177,7 @@ module CtlFields
 									end
 								when "itm_code"  
 							   		if line_data[:shelfno_code_fm] == "" and fetchview =~ /itms$/ 
+								   		line_data[:loca_code_shelfno_fm] = rec["loca_code_shelfno_to_opeitm"]  ###opeitm.shelfno_code_to_opeitm 完成後の置き場所゜
 								   		line_data[:shelfno_code_fm] = rec["shelfno_code_to_opeitm"]  ###opeitm.shelfno_code_to_opeitm 完成後の置き場所゜
 								   	###custord.shelfno_code_fm 客先への出荷のための梱包場所
 							   		end
@@ -444,6 +445,33 @@ module CtlFields
 		return params
 	end
 
+	###社内用　loca_codeは社外で使用できない。
+	def check_workplace_loca_code_not_used_suppliers_custwhs params,item
+		linedata = params[:parse_linedata]
+		if linedata[item.to_sym] 
+			case params[:screenCode]
+			when /workplaces/
+				strsql = %Q%
+					select id from r_suppliers where loca_code_supplier = '#{linedata[item.to_sym]}'
+												and supplier_expiredate > current_date
+						union
+					select id from r_custrcvplcs where loca_code_custrcvplc = '#{linedata[item.to_sym]}'
+													and custwh_expiredate > current_date
+				%
+			when /suppliers|custwhs/
+				strsql = %Q%
+					select id from r_workplaces where loca_code_workplace = '#{linedata[item.to_sym]}'
+											and workplace_expiredate > current_date%
+			end
+			if  ActiveRecord::Base.connection.select_value(strsql)
+				params[:err] =  " #{linedata[item.to_sym]}  cant not use  loca_code_workplace same time (suppliers or custwhs) "
+			else
+				params[:err] =  ""
+			end
+		end
+		return params
+	end
+
 	
 	def check_workplaces params,item
 		linedata = params[:parse_linedata]
@@ -459,7 +487,6 @@ module CtlFields
 		end
 		return params
 	end
-
 	
 	def check_suppliers params,item
 		linedata = params[:parse_linedata]

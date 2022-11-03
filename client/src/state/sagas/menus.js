@@ -9,7 +9,7 @@ function MenuGetApi({token,client,uid}) {
   const headers =  { 'access-token':token.token, 
                     client:client.client,
                     uid:uid.uid,}
-  const params =  {uid:uid.uid,req:"menureq"}
+  const params =  {uid:uid.uid,buttonflg:"menureq"}
 
   let getApi = (url, params,headers) => {
     return axios({

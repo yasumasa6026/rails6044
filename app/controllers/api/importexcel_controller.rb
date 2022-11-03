@@ -28,7 +28,7 @@ class ImportexcelController < ApplicationController
         $person_id_upd = person["chrg_person_id_chrg"]
         jparams = params.dup
         jparams[:importData] = {}  ###jparamsではimportdataは使用しない。processreqへの保存対象外
-        jparams[:req] = "import"
+        jparams[:buttonflg] = "import"
         command_c = {}
         screen = ScreenLib::ScreenClass.new(jparams)
         column_info,page_info,where_info,select_fields,fetch_check,dropdownlist,sort_info,nameToCode = 

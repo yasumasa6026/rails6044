@@ -26,7 +26,7 @@ export function* TblfieldSaga({ payload: {params}  }) {
     let response  = yield call(screenApi,{params ,token,client,uid} )
       switch(response.status){
         case 200:
-          switch(params.req) {
+          switch(params.buttonflg) {
             case "yup":  // create yup schema
               return yield put({ type: TBLFIELD_SUCCESS, payload: {message:response.data.params.message} })   
             case  "createTblViewScreen":  // create  or add field table and create or replacr view  and create screen

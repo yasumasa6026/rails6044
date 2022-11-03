@@ -1,6 +1,7 @@
 import {  BUTTONLIST_REQUEST, BUTTONLIST_SUCCESS, BUTTONFLG_REQUEST,GANTT_RESET,SCREENINIT_REQUEST,
-  TBLFIELD_SUCCESS,GANTTCHART_SUCCESS,LOGOUT_REQUEST,MKSHPORDS_SUCCESS,MKSHPACTS_RESULT,
-  SCREEN_SUCCESS7,IMPORTEXCEL_REQUEST,CONFIRMALL_SUCCESS,
+  TBLFIELD_SUCCESS,GANTTCHART_SUCCESS,LOGOUT_REQUEST,MKSHPORDS_SUCCESS,
+    //MKSHPACTS_RESULT,
+  SCREEN_SUCCESS7,IMPORTEXCEL_REQUEST,SECOND_CONFIRMALL_SUCCESS,
   SECOND_SUCCESS7} //RESET_REQUEST
    from '../../actions'
 
@@ -29,7 +30,7 @@ downloadloading:"",
 
 case SCREENINIT_REQUEST:
   return {...state,
-    //buttonflg:actions.payload.params.req, 
+    //buttonflg:actions.payload.params.buttonflg, 
     buttonflg:"search", 
     messages:actions.payload.messages,
     message:actions.payload.message,
@@ -39,7 +40,16 @@ case SCREENINIT_REQUEST:
 case SCREEN_SUCCESS7:
 return {...state,
 disabled:false,
+loading:false,
 }
+
+
+// case SECOND_SUCCESS7:
+// return {...state,
+// disabled:false,
+// buttonflg:"inlineedit7",
+// loading:false,
+// }
 
 case BUTTONLIST_REQUEST:
 return {...state,
@@ -77,11 +87,11 @@ return {...state,
   loading:false,
 }
 
-case MKSHPACTS_RESULT:
-return {...state,
-  buttonflg:"mkshpacts",
-  loading:false,
-}
+// case MKSHPACTS_RESULT:
+// return {...state,
+//   buttonflg:"mkshpacts",
+//   loading:false,
+// }
 case SECOND_SUCCESS7: // payloadに統一
 return {...state,
     disabled:false,
@@ -94,7 +104,7 @@ case IMPORTEXCEL_REQUEST:
           // editableflg:action.payload.editableflg
 }
 
-case CONFIRMALL_SUCCESS:
+case SECOND_CONFIRMALL_SUCCESS:
   return {...state,
    disabled:false,
 }

@@ -761,23 +761,6 @@ class OpeClass
 	end
 
 
-	def custords_alloc_to_custschs(stkinout,custord_alloc)
-		trn_qty = @tbldata["qty"].to_f
-		link_qty = 0
-		src_stkinout = stkinout.dup
-			return if trn_qty <= 0
-			if trn_qty >= rec["free_qty"].to_f   ### rec["free_qty"]:custschsの未引き当て
-				alloc_qty =  rec["free_qty"].to_f
-				trn_qty -= rec["free_qty"].to_f
-			else
-				alloc_qty =  trn_qty
-				trn_qty = 0
-			end
-		ArelCtl.proc_add_linktbls_update_alloctbls(src,base,[],[])
-		
-	end	
-
-
 	def proc_update_inoutlot_and_src_stk(inout,wh,lotstk)
 		if inout == "out"
 			plusminus = -1

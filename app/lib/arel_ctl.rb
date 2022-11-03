@@ -325,7 +325,7 @@ module ArelCtl
 		return linktbl_id
 	end
 
-	def insert_alloctbls(rec_alloc)
+	def proc_insert_alloctbls(rec_alloc)
 		alloctbl_id = proc_get_nextval("alloctbls_seq")
 		strsql = %Q&
 		insert into alloctbls(id,
@@ -426,7 +426,7 @@ module ArelCtl
 										else
 											"alloc"
 										end}
-		alloctbl_id = insert_alloctbls(alloc)
+		alloctbl_id = proc_insert_alloctbls(alloc)
 		return linktbl_id,alloctbl_id
 	end
 	
@@ -467,23 +467,23 @@ module ArelCtl
 		###
 		strsql = %Q&
 			 update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
-							 remark = 'ror_blktbl.add_update_alloc_add_link line:(#{__LINE__})'
+							 remark = '#{self}.add_update_alloc_add_link line:(#{__LINE__})'
 							 where id = #{src["alloc_id"]} 
 			 &
 		 ActiveRecord::Base.connection.update(strsql)
 
-		# strsql = %Q&
-		# 	  update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
-		# 					  remark = 'ror_blktbl.add_update_alloc_add_link line:(#{__LINE__})'
-		# 					  where id = #{base["alloc_id"]} 
-		# 	  &
-		# ActiveRecord::Base.connection.update(strsql)
+		strsql = %Q&
+		 	  update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
+		 					  remark = '#{self}.add_update_alloc_add_link line:(#{__LINE__})'
+		 					  where id = #{base["alloc_id"]} 
+		 	  &
+		ActiveRecord::Base.connection.update(strsql)
 
 		alloc = {"trngantts_id" => src["trngantts_id"],"srctblname" => base["tblname"] ,
 			 "srctblid" => base["tblid"],"allocfree" => "alloc",
 			"qty_linkto_alloctbl" => base["qty_src"],
-			 "remark" => "ror_blkctl.add_update_alloc_add_link (line: #{__LINE__} #{Time.now})"}
-		alloctbl_ids << insert_alloctbls(alloc)
+			 "remark" => "#{self}.add_update_alloc_add_link (line: #{__LINE__} #{Time.now})"}
+		alloctbl_ids << proc_insert_alloctbls(alloc)
 
 		# ###在庫の修正はproc_src_base_trn_stk_update
 		return linktbl_ids ,alloctbl_ids
@@ -497,42 +497,72 @@ module ArelCtl
 		###src 引当もと旧のリンク数,###数量変更はsrcの相手側
 		###src["trngantts_id"] の数量
 		src_lot = src.dup   ##lotstkhists修正用
-		case src["tblname"]  
-		when	/ords|insts|dlvs|reply/
-			qty = src["qty"].to_f - alloc_qty
-			qty_stk = src["qty_stk"].to_f
-			qty_sch = src["qty_sch"].to_f
-			src_lot["qty"] = alloc_qty  ###在庫修正　在庫マイナス
-			src_lot["qty_sch"] = src_lot["qty_stk"] =  0
-		when /schs/
-			qty_sch = src["qty_sch"].to_f - alloc_qty
-			qty_stk = src["qty_stk"].to_f
-			qty = src["qty"].to_f
-			src_lot["qty_sch"] = alloc_qty
-			src_lot["qty"] = src_lot["qty_stk"] =  0
-		else
-			qty_sch = src["qty_sch"].to_f 
-			qty_stk = src["qty_stk"].to_f - alloc_qty
-			qty = src["qty"].to_f
-			src_lot["qty_stk"] = alloc_qty
-			src_lot["qty_sch"] = src_lot["qty"] =  0
-		end
 		case base["tblname"]  
 		when	/ords|insts|dlvs|reply/
-			qty = base["qty"].to_f + alloc_qty
-			qty_stk = base["qty_stk"].to_f
-			qty_sch = base["qty_sch"].to_f
-		when /schs/
-			qty_sch = base["qty_sch"].to_f + alloc_qty
-			qty_stk = base["qty_stk"].to_f
-			qty = base["qty"].to_f
-		else
-			qty_sch = base["qty_sch"].to_f 
-			qty_stk = base["qty_stk"].to_f + alloc_qty
-			qty = base["qty"].to_f
+			if  base["tblname"] =~ /ords/  
+				qty = alloc_qty
+				if src["tblname"] =~ /schs/
+					qty_sch = -alloc_qty
+				else
+					qty_sch = 0
+				end
+			else
+				qty = 0
+			end
+			qty_stk = 0
+			 ###在庫修正　在庫マイナス
+			if src["tblname"] =~ /schs/
+				src_lot["qty_sch"] = alloc_qty
+				src_lot["qty"] =0
+			else	
+				src_lot["qty"] = alloc_qty
+				src_lot["qty_sch"] = 0
+			end 
+			src_lot["qty_stk"] =  0
+		when /acts/
+			qty_stk = alloc_qty
+			if  src["tblname"] =~ /ords|insts|dlvs|reply/  
+				qty = -alloc_qty
+				qty_sch = 0
+			else
+				qty = 0
+				if src["tblname"] =~ /schs/
+					qty_sch = -alloc_qty
+				else
+					qty_sch = 0
+				end
+			end
+			###在庫修正　在庫マイナス
+		   if src["tblname"] =~ /schs/
+			   src_lot["qty_sch"] = alloc_qty
+			   src_lot["qty"] = 0
+		   else	
+				if  src["tblname"] =~ /ords|insts|dlvs|reply/  
+				   	src_lot["qty"] = alloc_qty
+			   		src_lot["qty_sch"] = 0
+				else
+					src_lot["qty"] = 0
+					src_lot["qty_sch"] = 0
+				end
+		   end 
+		   src_lot["qty_stk"] =  0
 		end
+		# case base["tblname"]  
+		# when	/ords|insts|dlvs|reply/
+		# 	qty = base["qty"].to_f + alloc_qty
+		# 	qty_stk = base["qty_stk"].to_f
+		# 	qty_sch = base["qty_sch"].to_f
+		# when /schs/
+		# 	qty_sch = base["qty_sch"].to_f + alloc_qty
+		# 	qty_stk = base["qty_stk"].to_f
+		# 	qty = base["qty"].to_f
+		# else
+		# 	qty_sch = base["qty_sch"].to_f 
+		# 	qty_stk = base["qty_stk"].to_f + alloc_qty
+		# 	qty = base["qty"].to_f
+		# end
 		update_schsql = %Q&
-			update trngantts set qty_sch = #{qty_sch},qty = #{qty},qty_stk = #{qty_stk},
+			update trngantts set qty_sch = qty_sch + #{qty_sch},qty = qty + #{qty},qty_stk = qty_stk + #{qty_stk},
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 									remark = 'ArelCtl.proc_src_base_trn_stk_update line:#{__LINE__}' 
 					where id = #{src["trngantts_id"]}
@@ -541,21 +571,17 @@ module ArelCtl
 		###		
 		###引き当て元の数量変更
 		case base["tblname"]  
-		when	/ords|insts|dlvs|reply/
-			qty = base["qty"].to_f - alloc_qty
-			qty_stk = base["qty_stk"].to_f
-			qty_sch = base["qty_sch"].to_f
-		when /schs/
-			qty_sch = base["qty_sch"].to_f - alloc_qty
-			qty_stk = base["qty_stk"].to_f
-			qty = base["qty"].to_f
-		else
-			qty_sch = base["qty_sch"].to_f 
-			qty_stk = base["qty_stk"].to_f - alloc_qty
-			qty = base["qty"].to_f
+		when	/ords/
+			qty = -alloc_qty
+			qty_stk = 0
+			qty_sch = 0
+		when /acts/
+			qty_stk = -alloc_qty
+			qty = 0
+			qty_sch = 0
 		end
 		update_schsql = %Q&
-			update trngantts set qty_sch = #{qty_sch},qty = #{qty},qty_stk = #{qty_stk},
+			update trngantts set qty_sch = qty_sch + #{qty_sch},qty = qty + #{qty},qty_stk = qty_stk + #{qty_stk},
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 									remark = 'ArelCtl.proc_src_base_trn_stk_update  line:#{__LINE__}' 
 					where id = #{base["trngantts_id"]}
@@ -692,42 +718,53 @@ module ArelCtl
     end
 	
     def proc_trnganttSql(parent)
-        %Q%
-            select trn.itms_id_trn itms_id, trn.processseq_trn processseq,
-               max(trn.consumtype) consumtype,max(trn.parenum) parenum,max(trn.chilnum) chilnum,
-               max(trn.consumunitqty) consumunitqty,max(trn.consumminqty) consumminqty,max(trn.consumchgoverqty) consumchgoverqty,
-               pare.shelfnos_id_trn,   ---親作業場所
-               trn.shelfnos_id_to_trn shelfnos_id_to,   ---子の保管先
-			   max(ope.units_id_case_shp) units_id_case_shp,
-			   sum(pare.qty_linkto_alloctbl) qty_sch,max(ope.consumauto) consumauto,max(ope.shpordauto) shpordauto
-            from trngantts trn
-               inner join (select p.*, alloc.qty_linkto_alloctbl 
-                           from trngantts p 
-                           inner join alloctbls alloc on alloc.trngantts_id = p.id
-						   			where alloc.srctblname = '#{parent["tblname"]}' and alloc.srctblid = #{parent["tblid"]} 
-									and qty_linkto_alloctbl > 0) pare 
-                   on  trn.orgtblname = pare.orgtblname and   trn.orgtblid = pare.orgtblid  
-                   and trn.paretblname = pare.tblname and   trn.paretblid = pare.tblid 
-				inner join opeitms ope on trn.itms_id_trn = ope.itms_id and trn.processseq_trn = ope.processseq
-								and trn.shelfnos_id_trn = ope.shelfnos_id_opeitm
-			where (trn.paretblname != trn.tblname or trn.paretblid != trn.tblid)
-			group by trn.itms_id_trn , trn.processseq_trn , pare.shelfnos_id_trn,trn.shelfnos_id_to_trn
-        %  
+         %Q%
+             select trn.itms_id_trn itms_id, trn.processseq_trn processseq,
+                max(trn.consumtype) consumtype,max(trn.parenum) parenum,max(trn.chilnum) chilnum,
+                max(trn.consumunitqty) consumunitqty,max(trn.consumminqty) consumminqty,max(trn.consumchgoverqty) consumchgoverqty,
+                pare.shelfnos_id_trn,   ---親作業場所
+                trn.shelfnos_id_to_trn shelfnos_id_to,   ---子の保管先
+	 		   max(ope.units_id_case_shp) units_id_case_shp,
+	 		   sum(pare.qty_linkto_alloctbl) qty_sch,max(ope.consumauto) consumauto,max(ope.shpordauto) shpordauto
+             from trngantts trn
+                inner join (select p.*, alloc.qty_linkto_alloctbl 
+                            from trngantts p 
+                            inner join alloctbls alloc on alloc.trngantts_id = p.id
+	 					   			where alloc.srctblname = '#{parent["tblname"]}' and alloc.srctblid = #{parent["tblid"]} 
+	 								and alloc.qty_linkto_alloctbl > 0) pare 
+                    on  trn.orgtblname = pare.orgtblname and   trn.orgtblid = pare.orgtblid  
+                    and trn.paretblname = pare.tblname and   trn.paretblid = pare.tblid 
+	 			inner join opeitms ope on trn.itms_id_trn = ope.itms_id and trn.processseq_trn = ope.processseq
+	 							and trn.shelfnos_id_trn = ope.shelfnos_id_opeitm
+	 		where (trn.paretblname != trn.tblname or trn.paretblid != trn.tblid)
+	 		group by trn.itms_id_trn ,trn.processseq_trn ,pare.shelfnos_id_trn,trn.shelfnos_id_to_trn
+         %  
     end
 	
     def proc_PrevConSql(parent,child,prev_contblname)
         %Q$
-            select link.srctblname prev_paretblname,link.srctblid prev_paretblid,alloc.qty_linkto_alloctbl,link.qty_src  ,
-					link.trngantts_id ,link.tblname paretblname,link.tblid paretblid
-				from linktbls link
-				inner join alloctbls alloc on link.srctblname = alloc.srctblname 
-											and link.srctblid  = alloc.srctblid and link.trngantts_id = alloc.trngantts_id 
-				inner join #{prev_contblname} con on con.paretblid  = link.srctblid 
-				where link.trngantts_id = alloc.trngantts_id  
-				and link.tblname = '#{parent["tblname"]}' and link.tblid = #{parent["id"]}
-				and con.itms_id = #{child["itms_id"]} and con.processseq = #{child["processseq"]}  
-				and con.shelfnos_id_fm = #{child["shelfnos_id_fm"]}
-				--- and  (link.srctblname != link.tblname  or link.srctblid  != link.tblid)
+            --- select pare.srctblname prev_paretblname,pare.srctblid prev_paretblid,pare.qty_src  ,
+			--- 		trn.id trngantts_id ,pare.tblname_pare paretblname,pare.tblid_pare paretblid
+			--- 	from trngantts trn 
+			--- 	inner join (select link.*,t.orgtblname,t.orgtblid,link.tblname tblname_pare,link.tblid tblid_pare,
+			--- 							t.tblname tblname_sch,t.tblid tblid_sch,
+			--- 							t.shelfnos_id_trn pare_shelfnos_id from trngantts t 
+			--- 				inner join linktbls link on t.id = link.trngantts_id
+			--- 				where link.tblname = '#{parent["tblname"]}' and link.tblid = #{parent["id"]}) pare
+			--- 		on trn.orgtblid = pare.orgtblid and trn.orgtblname = pare.orgtblname
+			--- 		and trn.paretblid = pare.tblid_sch and trn.paretblname = pare.tblname_sch
+			--- 	inner join #{prev_contblname} con on con.paretblid  = pare.srctblid 
+			--- 	where  con.itms_id = #{child["itms_id"]} and con.processseq = #{child["processseq"]}  
+			--- 	and con.shelfnos_id_fm = #{child["shelfnos_id_fm"]}
+			--- 	and trn.itms_id_trn = #{child["itms_id"]} and trn.processseq_trn = #{child["processseq"]}  
+			--- 	and pare.pare_shelfnos_id = #{child["shelfnos_id_fm"]}
+
+			select prevcon.paretblname prev_paretblname,prevcon.paretblid prev_paretblid,link.qty_src,link.trngantts_id 
+					from  #{prev_contblname}  prevcon
+				inner join  linktbls link on link.srctblid = prevcon.paretblid
+				where  prevcon.itms_id = #{child["itms_id"]} and prevcon.processseq = #{child["processseq"]} 
+				and prevcon.shelfnos_id_fm = #{child["shelfnos_id_fm"]}
+				and link.tblid =#{parent["id"]} and link.tblname = '#{parent["tblname"]}'
         $
     end
 	

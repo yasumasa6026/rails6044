@@ -72,12 +72,18 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
                 }
             }
             break
-        case /shelfno_code_fm_opeitm/.test(id):
-                if(screenCode.match(/custords|custschs/)&&lineData["shelfno_code_fm"] ===""){
-                    lineData["shelfno_code_fm"] = lineData[id]
-                    autoAddFields["shelfno_code_fm"] = lineData["shelfno_code_fm"]
-                }
-            break
+        // case /locas_code_shelfno_to_opeitm/.test(id):
+        //     if(screenCode.match(/custords|custschs/)&&lineData["loca_code_shelfno_fm"] ===""){
+        //                 lineData["loca_code_shelfno_fm"] = lineData[id]
+        //                 autoAddFields["loca_code_shelfno_fm"] = lineData["loca_code_shelfno_fm"]
+        //     }
+        //     break
+        // case /shelfno_code_fm_opeitm/.test(id):
+        //         if(screenCode.match(/custords|custschs/)&&lineData["shelfno_code_fm"] ===""){
+        //             lineData["shelfno_code_fm"] = lineData[id]
+        //             autoAddFields["shelfno_code_fm"] = lineData["shelfno_code_fm"]
+        //         }
+        //     break
         default:
              break    
         }

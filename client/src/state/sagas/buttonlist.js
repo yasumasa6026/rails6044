@@ -8,7 +8,7 @@ function ButtonListGetApi({token,client,uid}) {
 
   const headers =  { 'access-token':token.token, 
                     client:client.client,uid:uid.uid}
-  const params =  {uid:uid.uid,req:'bottunlistreq'}
+  const params =  {uid:uid.uid,buttonflg:'bottunlistreq'}
 
   const options ={method:'POST',
                   params: params,

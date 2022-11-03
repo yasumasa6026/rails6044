@@ -10,7 +10,6 @@ const ganttchartreducer =  (state= initialValues , actions) =>{
        return {...state,
         params:actions.payload.params,
         ganttChartData:null,
-        message:"loading",
         loading:true,
      }
 

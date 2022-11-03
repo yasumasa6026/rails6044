@@ -23,76 +23,81 @@ module Shipment
 				tblrec = ActiveRecord::Base.connection.select_one(strsql)
 				case screenCode.split("_")[1] ###shpordsを作成する親を特定する。
 				when /ords$/
-					strsql = %Q&
-							select id from trngantts 
-									where orgtblname = '#{parent["tblname"]}' and  orgtblid = #{parent["tblid"]}
-									and	paretblname = '#{parent["tblname"]}' and  paretblid = #{parent["tblid"]}
-									and	tblname = '#{parent["tblname"]}' and  tblid = #{parent["tblid"]}  
+					ord_strsql = %Q&
+						select t.itms_id_trn itms_id,t.processseq_trn processseq,inout.lotno,inout.packno,inout.qty_sch,inout.qty,inout.qty_stk,
+								link.tblname ord_tblname,link.tblid ord_tblid ,t.id trngantts_id, t.prjnos_id,t.chrgs_id_trn,t.id trngantts_id,
+								t.consumtype,t.parenum,t.chilnum,t.consumunitqty,t.consumminqty,t.consumchgoverqty,
+								t.shelfnos_id_pare,   ---親作業場所
+								t.shelfnos_id_to_trn shelfnos_id_to,   ---子の保管先
+								ope.units_id_case_shp,ope.consumauto,ope.shpordauto
+							from trngantts t
+							inner join	linktbls link
+								on t.paretblname = link.srctblname and t.paretblid = link.srctblid ---t.paretblname,link.srctblname:xxxschs
+							inner join (select  l.lotno,l.packno,i.qty_sch,i.qty,i.qty_stk,i.trngantts_id,i.tblname,i.tblid
+												from  inoutlotstks i inner join lotstkhists l
+												on i.srctblid = l.id 
+												where i.srctblname = 'lotstkhists' and (i.tblname like 'prd%' or i.tblname like 'pur%')  
+												and (i.qty_sch > 0 or i.qty > 0 or i.qty_stk > 0)  ) inout     
+								on inout.trngantts_id = t.id
+							inner join opeitms ope on t.itms_id_trn = ope.itms_id and t.processseq_trn = ope.processseq
+											and t.shelfnos_id_trn = ope.shelfnos_id_opeitm
+							inner join alloctbls alloc on alloc.trngantts_id = t.id and alloc.qty_linkto_alloctbl  > 0
+							where link.tblname = '#{parent["tblname"]}' and  link.tblid = #{parent["tblid"]}
+							and	link.srctblname like '%schs'  and t.shelfnos_id_pare != t.shelfnos_id_to_trn 
+							and alloc.srctblname = inout.tblname and alloc.srctblid = inout.tblid		
+							and not exists(select 1 from shpords s where paretblname = '#{parent["tblname"]}' and  paretblid = #{parent["tblid"]}
+													and s.itms_id = t.itms_id_trn)					
+						
 					&
-					ord_parents = [{"tblname" => parent["tblname"],"tblid" => parent["tblid"],
-									"trngantts_id" =>  ActiveRecord::Base.connection.select_value(strsql),
-									"prev_qty" => tblrec["qty"]}]
+					shpschs_sql = %Q$
+						select tblname ord_tblname,tblid ord_tblid ,link.trngantts_id from linktbls link
+									where link.tblname = '#{parent["tblname"]}' and  link.tblid = #{parent["tblid"]}
+									and	link.srctblname like '%schs' 	
+									and not exists(select 1 from shpords s where paretblname = '#{parent["tblname"]}' and  paretblid = #{parent["tblid"]}
+													---既にshpordsを作成済の時は削除するshpschsはない。
+															)				
+						$
+					ord_shpschs = ActiveRecord::Base.connection.select_all(shpschs_sql)	
 				when /insts$/   ##sno_xxxordは使用できない。　n:1の時もあるため
 					ord_strsql = %Q&
-								select link.srctblname tblname,link.srctblid tblid,link.trngantts_id,
-												alloc.qty_linkto_alloctbl prev_qty 
-									from  linktbls link ---linktblsには使用されてないlinkの履歴もある。
-									inner join alloctbls alloc on link.trngantts_id = alloc.trngantts_id
-																and link.tblname = alloc.srctblname and link.tblid = alloc.srctblid
-										where link.tblname = '#{parent["tblname"]}'
-										and  link.tblid = #{parent["tblid"]} and alloc.qty_linkto_alloctbl > 0
-										and link.srctblname = '#{parent["tblname"].sub("insts","ords")}'
+						select t.itms_id_trn itms_id,t.processseq_trn processseq,inout.lotno,inout.packno,inout.qty_sch,inout.qty,inout.qty_stk,
+							link.tblname ord_tblname,link.tblid ord_tblid ,t.id trngantts_id, t.prjnos_id,t.chrgs_id_trn,,t.id trngantts_id,
+							t.consumtype,t.parenum,t.chilnum,t.consumunitqty,t.consumminqty,t.consumchgoverqty,
+							t.shelfnos_id_pare,   ---親作業場所
+							t.shelfnos_id_to_trn shelfnos_id_to,   ---子の保管先
+							ope.units_id_case_shp,ope.consumauto,ope.shpordauto,ope.shuffle_flg
+							from trngantts t
+							inner join (select ord.* from linktbls ord
+														inner join	linktbls inst
+																	on ord.tblname = inst.srctblname and ord.tblid = inst.srctblid
+											where inst.tblname = '#{parent["tblname"]}' and  inst.tblid = #{parent["tblid"]}
+											and	inst.srctblname like '%ords' and  ord.srctblid like '%schs') link
+								on t.paretblname = link.srctblname and t.paretblid = link.srctblid 
+							inner join (select  l.lotno,l.packno,i.qty_sch,i.qty,i.qty_stk,i.trngantts_id,i.tblname,i.tblid
+													from  inoutlotstks i inner join lotstkhists l
+													on i.srctblid = l.id 
+													where i.srctblname = 'lotstkhists' and (i.tblname like 'prd%' or i.tblname like 'pur%')
+													and (i.qty_sch > 0 or  i.qty > 0 or i.qty_stk > 0)) inout     
+								on inout.trngantts_id = t.id
+							inner join opeitms ope on t.itms_id_trn = ope.itms_id and t.processseq_trn = ope.processseq
+													and t.shelfnos_id_trn = ope.shelfnos_id_opeitm
+							inner join alloctbls alloc on alloc.trngantts_id = t.id and alloc.qty_linkto_alloctbl  > 0
+							and not exists(select 1 from shpords s where paretblname = '#{parent["tblname"]}' and  paretblid = #{parent["tblid"]}
+													and s.itms_id = t.itms_id_trn)					
 					&
-					ord_parents = ActiveRecord::Base.connection.select_all(ord_strsql)
+					shpschs_sql = %Q$select inst.srctblname ord_tblname,inst.srctblid ord_tblid,inst.trngantts_id   from linktbls inst
+											where inst.tblname = '#{parent["tblname"]}' and  inst.tblid = #{parent["tblid"]}
+											and	inst.srctblname like '%ords' 	
+											and not exists(select 1 from shpords s where paretblname = '#{parent["tblname"]}' and  paretblid = #{parent["tblid"]}
+																	)				
+					$
+					ord_shpschs = ActiveRecord::Base.connection.select_all(shpschs_sql)	
 				when /replyinputs/   ### xxxordsへの回答
 					###出庫指示済のはず		
 					outcnt = 0
 					shortcnt = 0
-					err = " please select prdords,purords,prdinsts,purinsts"
+					err = " please select prdords,purords,prdinsts,purinsts "
 					return outcnt,shortcnt,err
-            		# Rails.logger.debug" 出庫指示済のはず"
-            		# Rails.logger.debug" 出庫指示済のはず"
-            		# Rails.logger.debug" 出庫指示済のはず"
-            		# raise			
-					# if tblrec["sno_#{parent["tblname"][0..2]}ord"]
-					# 	sno_ord =  tblrec["sno_#{parent["tblname"][0..2]}ord"]
-					# 	tblname = parent["tblname"][0..2] + "ords"
-					# 	sno_strsql = %Q& select id,qty from #{tblname} where sno = '#{sno_ord}' &
-					# 	recBySno = ActiveRecord::Base.connection.select_one(sno_strsql)
-					# 	trngantts_strsql = %Q&
-					# 							select id from trngantts s
-					# 								where orgtblname = '#{tblname}' and  orgtblid = #{tblid}
-					# 								and	paretblname = '#{tblname}' and  paretblid = #{tblid}
-					# 								and	tblname = '#{tblname}' and  tblid = #{tblid}  
-					# 						&
-					# 	ord_parents =[{"tblname" => tblname ,"tblid" =>  recBySno["id"],
-					# 					"trngantts_id" =>  ActiveRecord::Base.connection.select_value(trngantts_strsql),
-					# 					"prev_qty" => recBySno["qty"]}]
-					# else    ### xxxinstsへの回答
-					# 	if tblrec["sno_#{parent["tblname"][0..2]}inst"]
-					# 		sno_inst = tblrec["sno_#{parent["tblname"][0..2]}inst"]
-					# 		tblname = parent["tblname"][0..2] + "insts"
-					# 		ordtblname = parent["tblname"][0..2] + "ords"
-					# 		ord_strsql = %Q&
-					# 						select base.srctblname tblname,base.srctblid tblid ,base.trngantts_id,
-					# 								base.qty_src prev_qty
-					# 							from linktbls base
-					# 							inner join	(select link.srctblname ,link.srctblid  from  linktbls link 
-					# 												---linktblsには使用されてないlinkの履歴もある。
-					# 												inner join alloctbls alloc on link.trngantts_id = alloc.trngantts_id
-					# 													and link.tblname = alloc.srctblname and link.tblid = alloc.srctblid
-					# 											where link.tblname = '#{parent["tblname"]}'
-					# 											and  link.tblid = #{parent["tblid"]} and alloc.qty_linkto_alloctbl > 0
-					# 											and link.srctblname like '%insts') link1
-					# 								on base.tblname = link1.srctblname and base.tblid = link1.srctblid
-					# 							inner join trngantts trn on base.trngantts_id = trn.id
-					# 							where base.srctblname like '%ords' 
-					# 							and trn.orgtblname = trn.paretblname and trn.paretblname = trn.tblname
-					# 							and trn.orgtblid = trn.paretblid and trn.paretblid = trn.tblid
-					# 					&
-					# 		ord_parents = ActiveRecord::Base.connection.select_all(ord_strsql)
-					# 	end
-					# end
 				else
 					outcnt = 0
 					shortcnt = 0
@@ -100,61 +105,209 @@ module Shipment
 					return outcnt,shortcnt,err
 				end
 				###在庫の確認
-				ord = {"tblname" => "","tblid" =>""}
-				ord_parents.each do |ord_parent|
-					ord["tblid"] << ord_parent["tblid"]+","
-				end  ###ord_parents.each 
-				ord["tblname"] = ord_parents[0]["tblname"]   ###parent["tblname"] --> xxxinstsの時もある。
-				ord["trngantts_id"] = ord_parents[0]["trngantts_id"]  ###複数のordsを纏めている時は代表だけ
-				ord["tblid"] = ord_parents[0]["tblid"]  ###複数のordsを纏めている時は代表だけ
 				err = ""
 				outcnt = shortcnt = 0
                 child = {}
-                ActiveRecord::Base.connection.select_all(ArelCtl.proc_trnganttSql(ord)).each do |nd|
+				save_itms_id = save_processseq = ""
+				save_qty = 0
+                ActiveRecord::Base.connection.select_all(ord_strsql).each do |nd|
 					if nd["consumtype"] =~ /CON|MET/  ###出庫 消費と金型・設備の使用
-						if nd["shpordauto"] != "M"
-							strsql = %Q&
-									select * from shpschs shp 
-											inner join #{ord["tblname"]} 	ord on shp.paretblid = ord.id
-											where ord.id = #{ord["tblid"]}
-											and shp.itms_id = #{nd["itms_id"]} and shp.processseq = #{nd["processseq"]}	
-											and shp.shelfnos_id_fm = #{nd["shelfnos_id_to"]}
-									&
-							shp = ActiveRecord::Base.connection.select_one(strsql)
-							next if shp.nil?  ### 移動無又は出庫対象外
-							shp["pare_qty"] = tblrec["qty"]
-							shp["pare_starttime"] = tblrec["starttime"].to_time
-							shpord_create_by_shpsch(shp,nd)   ###prd,purordsによる自動作成 
-							if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
-								 ###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
-								shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
-								shpord_create_by_shpsch(shp,nd)   ###
+						if nd["shpordauto"] != "M"   ###手動出庫は除く
+							if save_itms_id == nd["itms_id"] and save_processseq == nd["processseq"]
+								next if save_qty <= 0
+								qty = save_qty
+							else
+								if save_qty > 0
+									shp["qty"] = save_qty
+									shp["qty_shortage"] = save_qty
+									save_qty = 0
+									shpord_create_by_shpsch(shp,save_nd,stk)   ###prd,purordsによる自動作成 
+									outcnt += 1
+									shortcnt += 1
+									if save_nd["consumtype"] =~ /MET/ and save_nd["consumauto"] == "A"   ###使用後自動返却
+								 		###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
+										shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
+										shp["shelfnos_id_fm"] = save_nd["shelfnos_id_pare"]
+										shp["shelfnos_id_to"] = save_nd["shelfnos_id_to"]  
+										shpord_create_by_shpsch(shp,save_nd,stk)   ###
+									end
+								end
+								shp = {}
+								shp["pare_qty"] = tblrec["qty"]
+								shp["pare_starttime"] = tblrec["starttime"].to_time
+								shp["trngantts_id"] = nd["trngantts_id"]
+								shp["shelfnos_id_to"] = nd["shelfnos_id_pare"]
+								shp["shelfnos_id_fm"] = nd["shelfnos_id_to"]  
+								shp["transports_id"] = 0  ###CtlFields.trnsport_idに変更のこと
+								shp["paretblname"] = parent["tblname"]
+								shp["paretblid"] = parent["tblid"]
+								shp["itms_id"]  = nd["itms_id"]
+								shp["processseq"] = nd["processseq"]
+								shp["prjnos_id"] = nd["prjnos_id"]
+								shp["chrgs_id"] = nd["chrgs_id_trn"]
+								shp["qty_case"] = 0
+								qty = save_qty = CtlFields.proc_cal_qty_sch(shp["pare_qty"].to_f,
+																		nd["chilnum"].to_f,nd["parenum"].to_f,nd["consumunitqty"].to_f,
+																		nd["consumminqty"].to_f,nd["consumchgoverqty"].to_f)
+								save_itms_id = nd["itms_id"]
+								save_processseq = nd["processseq"]
+							end
+							stk_sql = %Q$
+									select * from lotstkhists lot
+										where itms_id = #{shp["itms_id"]} and processseq = #{shp["processseq"]} and prjnos_id = #{shp["prjnos_id"]}
+										and shelfnos_id = #{shp["shelfnos_id_fm"]} and lotno = '#{nd["lotno"]}' and packno = '#{nd["packno"]}'
+										order by starttime desc limit 1  
+							$
+							stk = ActiveRecord::Base.connection.select_one(stk_sql)
+							if stk
+								if stk["qty_stk"].to_f >= save_qty
+									shp["qty"] = save_qty
+									shp["qty_shortage"] = 0 
+									save_qty = 0
+									shpord_create_by_shpsch(shp,nd,stk)   
+									outcnt += 1
+									if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
+								 		###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
+										shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
+										shp["shelfnos_id_fm"] = nd["shelfnos_id_pare"]
+										shp["shelfnos_id_to"] = nd["shelfnos_id_to"]  
+										shpord_create_by_shpsch(shp,nd,stk)   ###
+									end
+								else
+									if stk["qty_stk"].to_f > 0
+										shp["qty"] = stk["qty_stk"].to_f
+										shp["qty_shortage"] = 0 
+										save_qty -= stk["qty_stk"].to_f
+										shpord_create_by_shpsch(shp,nd,stk)  
+										outcnt += 1 
+										if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
+											 ###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
+											shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
+											shp["shelfnos_id_fm"] = nd["shelfnos_id_pare"]
+											shp["shelfnos_id_to"] = nd["shelfnos_id_to"]  
+											shpord_create_by_shpsch(shp,nd,stk)   ###
+										end
+									else
+										if nd["shuffle_flg"] == "S"   ###他に在庫があれば引当いるケース
+											shuffle_sql = %Q$
+													select * from lotstkhists stk
+														inner join (select itms_id,processseq,shelfnos_id,prjnos_id,lotno,packno,
+																		max(starttime) starttime from lotstkhists 
+																		where itms_id = #{shp["itms_id"]} and processseq = #{shp["processseq"]} and prjnos_id = #{shp["prjnos_id"]}
+																		and shelfnos_id = #{shp["shelfnos_id_fm"]} 
+																		group by itms_id,processseq,shelfnos_id,prjnos_id,lotno,packno) lot
+															on stk.itms_id = lot.itms_id and stk.processseq = lot.processseq and stk.shelfnos_id = lot.shelfnos_id
+																and stk.prjnos_id = lot.prjnos_id and stk.lotno = lot.lotno and stk.packno = lot.packno and stk.starttime = lot.starttime
+														where stk.qty_stk > 0
+											$
+											ActiveRecord::Base.connection.select_all(shuffle_sql).each do |shuffle_stk|
+												if shuffle_stk["qty_stk"].to_f >= save_qty
+													shp["qty"] = save_qty
+													outcnt += 1 
+													save_qty = 0
+												else
+													shp["qty"] = shuffle_stk["qty_stk"].to_f
+													outcnt += 1 
+													save_qty -= shuffle_stk["qty_stk"].to_f
+												end
+												shpord_create_by_shpsch(shp,nd,shuffle_stk)   ###prd,purordsによる自動作成 
+												if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
+												 	###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
+													shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
+													shp["shelfnos_id_fm"] = nd["shelfnos_id_pare"]
+													shp["shelfnos_id_to"] = nd["shelfnos_id_to"]  
+													shpord_create_by_shpsch(shp,nd,shuffle_stk)   ###
+												end
+												break if save_qty <= 0
+											end
+											if save_qty > 0 
+												shp["qty"] = save_qty
+												shp["qty_shortage"] =  save_qty
+												save_qty = 0
+												shpord_create_by_shpsch(shp,nd,shuffle_stk)   ###prd,purordsによる自動作成 
+												save_qty = 0
+												outcnt += 1 
+												shortcnt += 1
+												if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
+												 		###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
+														shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
+														shp["shelfnos_id_fm"] = nd["shelfnos_id_pare"]
+														shp["shelfnos_id_to"] = nd["shelfnos_id_to"]  
+														shpord_create_by_shpsch(shp,nd,shuffle_stk)   ###
+												end
+											end
+										else
+											shp["qty"] = save_qty
+											shp["qty_shortage"] = save_qty 
+											save_qty = 0
+											shpord_create_by_shpsch(shp,nd,stk)   ###prd,purordsによる自動作成 
+											if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
+												 ###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
+												shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
+												shp["shelfnos_id_fm"] = nd["shelfnos_id_pare"]
+												shp["shelfnos_id_to"] = nd["shelfnos_id_to"]  
+												shpord_create_by_shpsch(shp,nd,stk)   ###
+											end
+										end
+									end
+								end
+							else
+								shp["qty"] = save_qty
+								shp["qty_shortage"] = save_qty
+								save_qty = 0
+								shortage_sql = %Q$
+										select * from lotstkhists lot
+											where itms_id = #{shp["itms_id"]} and processseq = #{shp["processseq"]} and prjnos_id = #{shp["prjnos_id"]}
+											and shelfnos_id = #{shp["shelfnos_id_fm"]} 
+											order by starttime desc limit 1  
+								$
+								shortage_stk = ActiveRecord::Base.connection.select_one(shortage_sql)
+								shpord_create_by_shpsch(shp,nd,shortage_stk)   ###prd,purordsによる自動作成 
+								if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
+									 ###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
+									shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
+									shp["shelfnos_id_fm"] = nd["shelfnos_id_pare"]
+									shp["shelfnos_id_to"] = nd["shelfnos_id_to"]  
+									shpord_create_by_shpsch(shp,nd,shortage_stk)   ###
+								end
 							end
 						end    
 					end
+					save_nd = nd.dup
 				end
-				ord_parents.each do |ord_parent|  ###shpschsの減
+				
+				if save_qty > 0
+					shp["qty"] = save_qty
+					shp["qty_shortage"] = save_qty
+					shpord_create_by_shpsch(shp,save_nd,stk)   ###prd,purordsによる自動作成 
+					outcnt += 1
+					shortcnt += 1
+					if save_nd["consumtype"] =~ /MET/ and save_nd["consumauto"] == "A"   ###使用後自動返却
+						 ###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
+						shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
+						shp["shelfnos_id_fm"] = save_nd["shelfnos_id_pare"]
+						shp["shelfnos_id_to"] = save_nd["shelfnos_id_to"]  
+						shpord_create_by_shpsch(shp,save_nd,stk)   ###
+					end
+				end
+
+				ord_shpschs.each do |ord|  ###shpschsの減
 					strsql = %Q&
-							select * from #{ord_parent["tblname"]} where id = #{ord_parent["tblid"]}
+							select * from #{ord["ord_tblname"]} where id = #{ord["ord_tblid"]}
 					&
 					rec = ActiveRecord::Base.connection.select_one(strsql)
-					rec["qty"] = ord_parent["prev_qty"].to_f * -1
-					rec["tblname"] = ord_parent["tblname"]
-					rec["tblid"] = ord_parent["tblid"]
-					gantt = {"trngantts_id" => ord_parent["trngantts_id"]}
+					rec["qty"] = ord["prev_qty"].to_f * -1
+					rec["tblname"] = ord["ord_tblname"]
+					rec["tblid"] = ord["ord_tblid"]
+					gantt = {"trngantts_id" => ord["trngantts_id"]}
 					setParams = {"parent" =>rec,"mkprdpurords_id" => 0,"gantt" => gantt}
-					ActiveRecord::Base.connection.select_all(ArelCtl.proc_trnganttSql(ord_parent)).each do |nd|
-						if nd["consumtype"] =~ /CON|MET/  ###出庫 消費と金型・設備の使用
-							if nd["shpordauto"] != "M"
-								setParams["child"] = nd.dup 
-								proc_create_shpschs(setParams)   ###prd,purordsによる自動作成 
-								if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
-									 ###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
-									rec["starttime"] = (rec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
-									setParams["parent"] = rec.dup
-									proc_create_shpschs(setParams)   ###setParams 親のデータ
-								end
-							end    
+					shp_sql = %Q&
+							select * from shpschs where  paretblname =  '#{ord["ord_tblname"]}'  and paretblid = #{ord["ord_tblid"]}
+					&
+					ActiveRecord::Base.connection.select_all(shp_sql).each do |nd|
+						setParams["child"] = nd.dup 
+						proc_create_shpschs_delete_shpords(setParams)  do  ###prd,purordsによる自動作成 も含まれる。
+							"shpord"
 						end
 					end
 				end  ###ord_parents.each 
@@ -173,7 +326,6 @@ module Shipment
 
 	def proc_second_shp params,grid_columns_info
 		tmp = []
-		outcnt = 0
 		err = ""
 		pareTblName = ""
 		strselect = "("
@@ -255,6 +407,7 @@ module Shipment
 												FROM #{screenCode} shp where
 												#{tblnamechop}_paretblname = '#{pareTblName}' and
 												#{tblnamechop}_paretblid in #{strselect} and 
+												#{strqty} > 0 and --- 完了済(マイナス出庫分)は除く
 												not exists(select 1 from #{nextTblName} next where
 															paretblname = '#{pareTblName}' and
 												 			paretblid in #{strselect} and 
@@ -270,89 +423,109 @@ module Shipment
 		
 		strsql = " select count(*) FROM #{screenCode} shp where
 					#{tblnamechop}_paretblname = '#{pareTblName}' and
-					#{tblnamechop}_paretblid in #{strselect} and 
+					#{tblnamechop}_paretblid in #{strselect} and
+					shp.#{strqty} > 0 and
 					not exists(select 1 from #{nextTblName} inst where
 								paretblname = '#{pareTblName}' and
 								 paretblid in #{strselect} and 
 								inst.itms_id = shp.#{tblnamechop}_itm_id and 
 								inst.processseq = shp.#{tblnamechop}_processseq and 
 								inst.lotno = shp.#{tblnamechop}_lotno and inst.packno = shp.#{tblnamechop}_packno and
-								shp.#{strqty} >= inst.qty_stk  )"
+								shp.#{strqty} >= inst.qty_stk     )"
 		 ###fillterがあるので、table名は抽出条件に合わず使用できない。
 		totalCount = ActiveRecord::Base.connection.select_value(strsql)
 		params[:pageCount] = (totalCount.to_f/params[:pageSize].to_f).ceil
 		params[:totalCount] = totalCount.to_f
 		params[:parse_linedata] = {}
-		return pagedata 
+		return pagedata,params 
 	end	
 	
 	###shp用
-	def proc_create_shpschs(reqparams)  ### shpordsは対象外
+	def proc_create_shpschs_delete_shpords(reqparams)  ### shpordsは対象外
 			###自分自身のshpschs を作成   
+		###
+		#  yield=shpsch --> create
+		#  yield=shpord --> 入り出の減
+		#  yield=shpinst -->出の減
+		#  yield=shpact --> 入りの減
+		###
 		parent = reqparams["parent"]  ###親
-		child = reqparams["child"]  ###出庫対象
-		tblnamechop = "shpsch"  
+		child = reqparams["child"]  #
+		case yield
+		when "shpsch" 
+			tblnamechop = "shpsch"
+		when "shpord" 
+			tblnamechop = "shpsch"  ###新規に作成し入出庫対象の減 child=shp
+		when "shpinst" 
+			tblnamechop = "shpord"  ###新規に作成し出庫対象の減 child=shp
+		when "shpact"
+			tblnamechop = "shpord" ###新規に作成し入り対象の減 child=shp
+		end
 		blk = RorBlkCtl::BlkClass.new("r_#{tblnamechop}s")
 		command_c = blk.command_init
-		if child["shelfnos_id_to"] != parent["shelfnos_id"]  ###子部品の保管場所!=shelfnos_id_fm親の作業場所
+		stkinout = {}
+		if child["shelfnos_id_to"] != parent["shelfnos_id"] or yield != "shpsch" ###子部品の保管場所!=shelfnos_id_fm親の作業場所
 				command_c["sio_classname"] = "shpschs_add_"
 				command_c["#{tblnamechop}_id"] = "" 
 				command_c["#{tblnamechop}_isudate"] = Time.now
 				### child["shelfnos_id_to"]:購入,製造後の保管場所
-				command_c["#{tblnamechop}_shelfno_id_fm"] = child["shelfnos_id_to"] ###自身の保管先から出庫
-				command_c["#{tblnamechop}_shelfno_id_to"] = parent["shelfnos_id"]  ###親の作業場所へ納品
-				command_c["#{tblnamechop}_duedate"] = (parent["starttime"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")   ###稼働日考慮
-				command_c["#{tblnamechop}_depdate"] = (parent["starttime"].to_time - 2*24*3600).strftime("%Y-%m-%d %H:%M:%S")
-				command_c["#{tblnamechop}_gno"] = parent["sno"] 
 				command_c["#{tblnamechop}_transport_id"] = 0 
-				command_c["#{tblnamechop}_paretblname"] = parent["tblname"] 
-				command_c["#{tblnamechop}_paretblid"] = parent["tblid"]
 				command_c["#{tblnamechop}_itm_id"] = child["itms_id"]   ### from shpords
 				command_c["#{tblnamechop}_processseq"] = child["processseq"]
-				command_c["#{tblnamechop}_prjno_id"] = parent["prjnos_id"]
-				command_c["#{tblnamechop}_chrg_id"] = parent["chrgs_id"]
 				command_c["#{tblnamechop}_sno"] = ""
 				command_c["#{tblnamechop}_unit_id_case_shp"] = child["units_id_case_shp"]
-				stkinout = {}
-
-				qty_sch = CtlFields.proc_cal_qty_sch(parent["qty"].to_f,
-													child["chilnum"].to_f,child["parenum"].to_f,child["consumunitqty"].to_f,
-													child["consumminqty"].to_f,child["consumchgoverqty"].to_f)
-				command_c["#{tblnamechop}_qty_sch"] = stkinout["qty_sch"] = qty_sch
-				stkinout["qty"] = stkinout["qty_stk"] = stkinout["qty_real"] = 0
 				command_c["#{tblnamechop}_packno"] = ""  
 				command_c["#{tblnamechop}_lotno"] = ""
-			
-				if parent["tblname"] =~ /^pur/   ###tblname= 'feepayment'--->有償支給
-					strsql =%Q&select * from pricemsts where tblname= 'feepayment' and expiredate >= current_date
-									and itms_id = #{command_c["#{tblnamechop}_itm_id"]} 
-									and processseq = #{command_c["#{tblnamechop}_processseq"]}
-									and (locas_id = (select locas_id_shelfno from shelfnos  where id = #{parent["shelfnos_id"]}) or 
-										locas_id = (select id from locas where code = 'dummy' ))
-									order by expiredate limit 1
-					& 
-					rec = ActiveRecord::Base.connection.select_one(strsql)
-					if rec
-						###日付、数量による再設定
-						command_c["#{tblnamechop}_price"] = rec["price"] 	
-						command_c["#{tblnamechop}_amt_sch"] = rec["price"].to_f * command_c["#{tblnamechop}_qty_sch"].to_f
-						command_c["#{tblnamechop}_tax"] = 0 
-					else
-						command_c["#{tblnamechop}_price"] = 0 	
-						command_c["#{tblnamechop}_amt_sch"] = 0
-						command_c["#{tblnamechop}_tax"] = 0 	
-					end
-				else
-					command_c["#{tblnamechop}_price"] = 0 	 
-					command_c["#{tblnamechop}_amt_sch"] = 0
-					command_c["#{tblnamechop}_tax"] = 0 		
-				end		
+				case yield
+				when /shpsch/
+					command_c["#{tblnamechop}_shelfno_id_fm"] = child["shelfnos_id_to"] ###自身の保管先から出庫
+					command_c["#{tblnamechop}_gno"] = parent["sno"] 
+					command_c["#{tblnamechop}_paretblname"] = parent["tblname"] 
+					command_c["#{tblnamechop}_paretblid"] = parent["tblid"]
+					command_c["#{tblnamechop}_prjno_id"] = parent["prjnos_id"]
+					command_c["#{tblnamechop}_chrg_id"] = parent["chrgs_id"]
+					qty_sch = CtlFields.proc_cal_qty_sch(parent["qty"].to_f,
+														child["chilnum"].to_f,child["parenum"].to_f,child["consumunitqty"].to_f,
+														child["consumminqty"].to_f,child["consumchgoverqty"].to_f)
+					command_c["#{tblnamechop}_qty_sch"] = stkinout["qty_sch"] = qty_sch
+					stkinout["qty"] = stkinout["qty_stk"] = stkinout["qty_real"] = 0
+					command_c["#{tblnamechop}_shelfno_id_to"] = parent["shelfnos_id"]  ###親の作業場所へ納品
+					command_c["#{tblnamechop}_duedate"] = (parent["starttime"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")   ###稼働日考慮
+					command_c["#{tblnamechop}_depdate"] = (parent["starttime"].to_time - 2*24*3600).strftime("%Y-%m-%d %H:%M:%S")
+					stkinout["tblname"] = "shpschs"
+				when /shpord/
+					command_c["#{tblnamechop}_shelfno_id_fm"] = child["shelfnos_id_fm"] ###自身の保管先から出庫
+					command_c["#{tblnamechop}_qty_sch"] = stkinout["qty_sch"] =  child["qty_sch"].to_f * -1
+					stkinout["qty"] = stkinout["qty_stk"] = stkinout["qty_real"] = 0
+					command_c["#{tblnamechop}_gno"] = child["gno"] 
+					command_c["#{tblnamechop}_paretblname"] = child["paretblname"] 
+					command_c["#{tblnamechop}_paretblid"] = child["paretblid"]
+					command_c["#{tblnamechop}_prjno_id"] = child["prjnos_id"]
+					command_c["#{tblnamechop}_chrg_id"] = child["chrgs_id"]
+					command_c["#{tblnamechop}_shelfno_id_to"] = child["shelfnos_id_to"]  
+					command_c["#{tblnamechop}_duedate"] = child["duedate"]
+					command_c["#{tblnamechop}_depdate"] = child["depdate"]
+					stkinout["tblname"] = "shpschs"
+				when /shpinst|shpact/
+					command_c["#{tblnamechop}_shelfno_id_fm"] = child["shelfnos_id_fm"] ###自身の保管先から出庫
+					command_c["#{tblnamechop}_qty"] = stkinout["qty"] = child["qty"].to_f * -1
+					stkinout["qty_sch"] = stkinout["qty_stk"] = stkinout["qty_real"] = 0
+					command_c["#{tblnamechop}_gno"] = child["gno"] 
+					command_c["#{tblnamechop}_paretblname"] = child["paretblname"] 
+					command_c["#{tblnamechop}_paretblid"] = child["paretblid"]
+					command_c["#{tblnamechop}_prjno_id"] = child["prjnos_id"]
+					command_c["#{tblnamechop}_chrg_id"] = child["chrgs_id"]
+					command_c["#{tblnamechop}_shelfno_id_to"] = child["shelfnos_id_to"]  
+					command_c["#{tblnamechop}_duedate"] = child["duedate"]
+					command_c["#{tblnamechop}_depdate"] = child["depdate"]
+					stkinout["tblname"] = "shpords"
+				end
+	
 
 				blk.proc_create_tbldata(command_c) ##
 				blk.proc_private_aud_rec(reqparams,command_c)
 				
 				stkinout["wh"] = "lotstkhists"
-				stkinout["tblname"] = "shpschs"
 				stkinout["tblid"] = command_c["id"]
 				stkinout["trngantts_id"] = reqparams["gantt"]["trngantts_id"]  ###親 purords,prdordsのtrngantts_id
 				stkinout["expiredate"] = command_c[tblnamechop+"_expiredate"]
@@ -365,40 +538,54 @@ module Shipment
 				stkinout["units_id_case_shp"] = command_c[tblnamechop+"_unit_id_case_shp"]
 				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_fm"]   ###出
 				stkinout["remark"] = "Shipment line #{__LINE__}"
-				stkinout = proc_lotstkhists_in_out("out",stkinout)
-				proc_insert_inoutlotstk_sql(-1,stkinout)
-				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]   ###入り
-				stkinout = proc_lotstkhists_in_out("in",stkinout)   ###入りと出は同一日
-				proc_insert_inoutlotstk_sql(1,stkinout)
+				case yield
+				when /shpsch|shpord/
+					stkinout = proc_lotstkhists_in_out("out",stkinout)
+					proc_insert_inoutlotstk_sql(-1,stkinout)
+					stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]   ###入り
+					stkinout = proc_lotstkhists_in_out("in",stkinout)   ###入りと出は同一日
+					proc_insert_inoutlotstk_sql(1,stkinout)
+				when /shpinst/
+					stkinout = proc_lotstkhists_in_out("out",stkinout)
+					proc_insert_inoutlotstk_sql(-1,stkinout)
+				when /shpact/
+					stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]   ###入り
+					stkinout = proc_lotstkhists_in_out("in",stkinout)   ###入りと出は同一日
+					proc_insert_inoutlotstk_sql(1,stkinout)
+				end
 
 				###
 				#  業者倉庫の時は業者倉庫も更新
 				###
-				sql_check_supplier = %Q&
+				if yield =~ /shpsch|shpord|shpinst/
+					sql_check_supplier = %Q&
 						select s.id from suppliers s  
 							inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-				 			where s2.id = #{command_c["#{tblnamechop}_shelfno_id_fm"]}
-					&
-				suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
-				if  suppliers_id
-					stkinout["wh"] = "supplierwhs"
-					stkinout["suppliers_id"] = suppliers_id
-					stkinout["remark"] = "Shipment line #{__LINE__}"
-					stkinout = proc_mk_supplierwhs_rec("out",stkinout)
-					proc_insert_inoutlotstk_sql(1,stkinout)
+				 			where s2.id = #{command_c["#{tblnamechop}_shelfno_id_fm"]} and s.expiredate > current_date
+						&
+					suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
+					if  suppliers_id
+						stkinout["wh"] = "supplierwhs"
+						stkinout["suppliers_id"] = suppliers_id
+						stkinout["remark"] = "Shipment line #{__LINE__}"
+						stkinout = proc_mk_supplierwhs_rec("out",stkinout)
+						proc_insert_inoutlotstk_sql(1,stkinout)
+					end
 				end
-				sql_check_supplier = %Q&
-					select s.id from suppliers s  
-						inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-				 		where s2.id = #{command_c["#{tblnamechop}_shelfno_id_to"]}
-					&
-				suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
-				if  suppliers_id
-					stkinout["wh"] = "supplierwhs"
-					stkinout["suppliers_id"] = suppliers_id
-					stkinout = proc_mk_supplierwhs_rec("in",stkinout)
-					stkinout["remark"] = "Shipment line #{__LINE__}"
-					proc_insert_inoutlotstk_sql(1,stkinout)
+				if yield =~ /shpsch|shpord|shpact/
+					sql_check_supplier = %Q&
+							select s.id from suppliers s  
+								inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
+				 				where s2.id = #{command_c["#{tblnamechop}_shelfno_id_to"]} and s.expiredate > current_date
+						&
+					suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
+					if  suppliers_id
+						stkinout["wh"] = "supplierwhs"
+						stkinout["suppliers_id"] = suppliers_id
+						stkinout = proc_mk_supplierwhs_rec("in",stkinout)
+						stkinout["remark"] = "Shipment line #{__LINE__}"
+						proc_insert_inoutlotstk_sql(1,stkinout)
+					end
 				end
 		end ###出庫処理
 	end 
@@ -471,8 +658,10 @@ module Shipment
 		nextshpchop = nextshp.chop
 		prevshpchop = prevshp.chop
 		command_c["sio_classname"] = "#{nextshp}_add_"
+		shpord = {}
 		shp.each do |k,val|
 			tblchop,field = k.to_s.split("_",2)
+			shpord[field.sub("_id","s_id")] = val if tblchop == prevshpchop
 			next if field =~ /^qty|^sno|^id$|^isudate|^duedate|^depdate/
 			if tblchop == prevshpchop
 				command_c["#{nextshpchop}_#{field}"] = val
@@ -481,7 +670,7 @@ module Shipment
 		command_c["#{nextshpchop}_isudate"] = Time.now
 		command_c["#{nextshpchop}_sno"] = command_c["#{nextshpchop}_id"] = "" 	
 
-		case prevsch
+		case prevshp
 		when "shpords"
 			command_c["shpinst_depdate"] =  (shp["shpord_depdate"]||=Time.now)
 			command_c["shpinst_qty_stk"] =  shp["shpord_qty"]
@@ -530,7 +719,7 @@ module Shipment
 			sql_check_supplier = %Q&
 						select s.id from suppliers s  
 								inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-								 where s2.id = #{stkinout["shelfnos_id"]}
+								 where s2.id = #{stkinout["shelfnos_id"]} and s.expiredate > current_date
 			&
 			suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
 			if  suppliers_id
@@ -548,19 +737,24 @@ module Shipment
 			&
 			stkinout["trngantts_id"] = ActiveRecord::Base.connection.select_value(strsql)
 			proc_insert_inoutlotstk_sql(-1,stkinout)
+			gantt = {"trngantts_id" => stkinout["trngantts_id"]}
+			setParams = {"mkprdpurords_id" => 0,"gantt" => gantt,"child" => shpord,"parent" => {"shelfnos_id" => "-1"}}
+			proc_create_shpschs_delete_shpords(setParams)  do  ###prd,purordsによる自動作成 も含まれる。
+				"shpinst"
+			end
 		else  ###shpacts
 			stkinout["starttime"] = command_c["#{nextshpchop}_rcptdate"]
 			stkinout["shelfnos_id"] =  command_c["#{nextshpchop}_shelfno_id_to"]
 			sql_check_supplier = %Q&
 					select s.id from suppliers s  
 							inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-		 					where s2.id = #{stkinout["shelfnos_id"]}
+		 					where s2.id = #{stkinout["shelfnos_id"]} and s.expiredate > current_date
 				&
 			suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
 			if  suppliers_id
 				stkinout["wh"] = "supplierwhs"
 				stkinout["suppliers_id"] = suppliers_id
-				stkinout = proc_mk_supplierwhs_rec("out",stkinout)
+				stkinout = proc_mk_supplierwhs_rec("in",stkinout)
 			else	
 				stkinout["wh"] = "lotstkhists"
 				stkinout = proc_lotstkhists_in_out("in",stkinout)
@@ -572,6 +766,13 @@ module Shipment
 			&
 			stkinout["trngantts_id"] = ActiveRecord::Base.connection.select_value(strsql)
 			proc_insert_inoutlotstk_sql(1,stkinout)
+			gantt = {"trngantts_id" => stkinout["trngantts_id"]}
+			shpord["qty"] = shpord["qty_stk"]
+			shpord["qty_stk"] = 0
+			setParams = {"mkprdpurords_id" => 0,"gantt" => gantt,"child" => shpord,"parent" => {"shelfnos_id" => "-1"}}
+			proc_create_shpschs_delete_shpords(setParams)  do  ###prd,purordsによる自動作成 も含まれる。
+				"shpact"
+			end
 		end
 	end
 
@@ -671,7 +872,7 @@ module Shipment
 			strsql = %Q&
 					select s.id from suppliers s  
 						inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-						 where s2.id = #{child["shelfnos_id_fm"]}
+						 where s2.id = #{child["shelfnos_id_fm"]} and s.expiredate > current_date
 					&
 			stkinout["suppliers_id"] = ActiveRecord::Base.connection.select_value(strsql)
 			supplierwh_stkinout = proc_mk_supplierwhs_rec("out",stkinout)
@@ -697,13 +898,13 @@ module Shipment
 			prev_stkinout["qty_sch"] = prev_stkinout["qty"] = prev_stkinout["qty_stk"] = prev_stkinout["qty_real"] = 0   
 			ActiveRecord::Base.connection.select_all(ArelCtl.proc_PrevConSql(parent,child,prev_contblname)).each do |conlink|
 				prev_stkinout["trngantts_id"] = stkinout["trngantts_id"] = conlink["trngantts_id"]
-				stkinout[str_con_qty] = conlink["qty_src"].to_f
-				proc_insert_inoutlotstk_sql(-1,stkinout)  ###今回の消費の明細
-				###  前の状態のリセット
-				next if conlink["prev_paretblname"] == conlink["paretblname"] and conlink["prev_paretblid"] == conlink["paretblid"]  
-				prev_stkinout[str_con_qty] = CtlFields.proc_cal_qty_sch(  conlink["qty_src"].to_f * -1,
+				stkinout[str_con_qty] = CtlFields.proc_cal_qty_sch(  conlink["qty_src"].to_f,
 												child["chilnum"],child["parenum"],child["consumunitqty"],
 												child["consumminqty"],child["consumchgoverqty"])
+				proc_insert_inoutlotstk_sql(-1,stkinout)  ###今回の消費の明細
+				###  前の状態のリセット
+				###next if conlink["prev_paretblname"] == conlink["paretblname"] and conlink["prev_paretblid"] == conlink["paretblid"]  
+				prev_stkinout[prev_str_con_qty] = stkinout[str_con_qty] 
 				strsql = %Q&
 						select duedate from #{conlink["prev_paretblname"]} where id = #{conlink["prev_paretblid"]}
 				&
@@ -713,7 +914,7 @@ module Shipment
 					strsql = %Q&
 							select s.id from suppliers s  
 									inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-									 where s2.id = #{child["shelfnos_id_fm"]}
+									 where s2.id = #{child["shelfnos_id_fm"]} and s.expiredate > current_date
 					&
 					prev_stkinout["suppliers_id"] = ActiveRecord::Base.connection.select_value(strsql)
 					prev_stkinout = proc_mk_supplierwhs_rec("in",prev_stkinout)   ###マイナス在庫の入り
@@ -810,7 +1011,7 @@ module Shipment
 			sql_check_supplier = %Q&
 					select s.id from suppliers s  
 						inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-						 where s2.id = #{shp["shelfnos_id_fm"]}
+						 where s2.id = #{shp["shelfnos_id_fm"]} and s.expiredate > current_date
 				&
 			suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
 			if  suppliers_id
@@ -825,7 +1026,7 @@ module Shipment
 			sql_check_supplier = %Q&
 				select s.id from suppliers s  
 					inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-					 where s2.id = #{shp["shelfnos_id_to"]}
+					 where s2.id = #{shp["shelfnos_id_to"]} and s.expiredate > current_date
 				&
 			suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
 			if  suppliers_id
@@ -1100,64 +1301,7 @@ module Shipment
 		return stkinout
 	end
 
-	def get_qty_stk_sqlForShp(ordtblname,ordtblids,shp)
-		%Q&
-		 	select  child.itms_id_trn itms_id,child.processseq_trn processseq ,inout.lotno,inout.packno,
-		 			child.shelfnos_id_to_trn shelfnos_id,
-		 			sum(inout.qty_sch) qty_sch,sum(inout.qty) qty,sum(inout.qty_stk) qty_stk,
-					max(ope.packqty) packqty
-	 			from trngantts child
-	 			inner join (select gantt.*,alloc.qty_linkto_alloctbl parent_qty from trngantts gantt
-								 inner join alloctbls alloc on	alloc.trngantts_id = gantt.id
-				 					where alloc.srctblname = '#{ordtblname}' and  alloc.srctblid in (#{ordtblids})
-			 		) pare
-		 			on child.orgtblid = pare.orgtblid and child.paretblid = pare.tblid and child.paretblid != child.tblid 
-	 			inner join (select stk.packno,stk.lotno,stk.itms_id,stk.processseq,i.trngantts_id,
-								 i.qty_sch,i.qty,i.qty_stk,i.tblname,i.tblid from inoutlotstks i 
-				 			inner join lotstkhists stk on i.srctblid = stk.id
-				 			where i.srctblname = 'lotstkhists'	and (i.qty_sch > 0 or i.qty > 0	or i.qty_stk > 0 )	
-				 			and stk.itms_id =  #{shp["itms_id"]}
-				 			and stk.processseq =  #{shp["processseq"]} 
-				 			and   stk.shelfnos_id =  #{shp["shelfnos_id_fm"]}
-				 			)	inout on child.id = inout.trngantts_id
-				inner join opeitms ope on ope.itms_id = child.itms_id_trn and  ope.processseq = child.processseq_trn 
-										and ope.priority = 999	
-	 				where (inout.qty_sch > 0 or inout.qty > 0 or inout.qty_stk > 0) 
-	 				and   child.itms_id_trn = #{shp["itms_id"]} and child.processseq_trn = 33333 
-	 				and   child.shelfnos_id_to_trn = #{shp["shelfnos_id_fm"]}
-	 				and child.paretblid != child.tblid 
-	 				and (ope.shuffle_flg != 'S'  or ope.shuffle_flg is null )---出庫指示の早い順でない。引当を優先
-	 		group by child.itms_id_trn,child.processseq_trn,child.shelfnos_id_to_trn,inout.lotno,inout.packno
-		union
-			select inout.itms_id, inout.processseq ,inout.lotno,inout.packno,inout.shelfnos_id shelfnos_id,
-	 				sum(inout.qty_sch) qty_sch,
-					sum(inout.qty - (case when shpord.qty is null then 0 else shpord.qty end)) qty,
-					sum(inout.qty_stk) qty_stk,max(ope.packqty) packqty
-	 			from  (select * from lotstkhists stk
-						 where itms_id = #{shp["itms_id"]} and processseq = #{shp["processseq"]} 
-				 		and   shelfnos_id = #{shp["shelfnos_id_fm"]} order by starttime desc limit 1
-				 		)	inout 
-	 			left join (select itms_id ,processseq,shelfnos_id_fm,sum(qty - qty_shortage) qty from shpords ord
-					 			where  itms_id = #{shp["itms_id"]} and processseq = #{shp["processseq"]} 
-					 			and   shelfnos_id_fm = #{shp["shelfnos_id_fm"]}
-					 			and not exists (select 1 from shpinsts inst where ord.paretblname  = inst.paretblname 
-																 and ord.paretblid  = inst.paretblid
-																 and ord.itms_id = inst.itms_id
-																 and ord.processseq = inst.processseq 
-																 and ord.shelfnos_id_fm = inst.shelfnos_id_fm)
-									 group by itms_id ,processseq,shelfnos_id_fm)
-			 				shpord on  inout.itms_id = shpord.itms_id and inout.processseq = shpord.processseq 
-						 				and   inout.shelfnos_id = shpord.shelfnos_id_fm
-				inner join opeitms ope on ope.itms_id = inout.itms_id and  ope.processseq = inout.processseq 
-										 and ope.priority = 999	
-	 			where inout.itms_id = #{shp["itms_id"]} and inout.processseq = #{shp["processseq"]} 
-	 					and   inout.shelfnos_id = #{shp["shelfnos_id_fm"]}
-						and ope.shuffle_flg = 'S'  ---出庫指示の早い順。引当を無視
-				group by inout.itms_id,inout.processseq,inout.shelfnos_id,inout.lotno,inout.packno
-		&
-	end
-
-	def shpord_create_by_shpsch(shp,nd)  ###
+	def shpord_create_by_shpsch(shp,nd,stk)  ###
 		###自分自身のshpschs を作成   
 		blk = RorBlkCtl::BlkClass.new("r_shpords")
 		command_c = blk.command_init
@@ -1176,84 +1320,83 @@ module Shipment
 		command_c["shpord_prjno_id"] = shp["prjnos_id"]
 		command_c["shpord_chrg_id"] = shp["chrgs_id"]
 
-		command_c["shpord_price"] =  shp["price"]
+		if shp["paretblname"] =~ /^pur/   ###tblname= 'feepayment'--->有償支給
+			command_c = PriceLib.proc_price_amt("shpord",command_c)
+		else
+			command_c["shpord_crr_id"] = 0
+			command_c["shpord_price"] = 0
+			command_c["shpord_tax"] = 0
+		end		
 		command_c["shpord_qty_case"] =  shp["qty_case"]
-		command_c["shpord_price"] = shp["price"] 	 
 		command_c["shpord_tax"] = 0   ###CtlFieldsから求める。
 		command_c["shpord_sno"] = "" 	
-		qty = CtlFields.proc_cal_qty_sch(shp["pare_qty"].to_f,
-													nd["chilnum"].to_f,nd["parenum"].to_f,nd["consumunitqty"].to_f,
-													nd["consumminqty"].to_f,nd["consumchgoverqty"].to_f)
-		
-		ActiveRecord::Base.connection.select_all(get_qty_stk_sqlForShp(shp["paretblname"],shp["paretblid"],shp)).each do |stk|
-			command_c["shpord_qty"] = stk["qty_sch"].to_f + stk["qty"].to_f + stk["qty_stk"].to_f
-			command_c["shpord_qty_shortage"] = stk["qty_sch"].to_f + stk["qty"].to_f 
-			command_c["shpord_qty_case"] =  if stk["packqty"].to_f == 0 
+
+		command_c["shpord_qty"] = shp["qty"]
+		command_c["shpord_qty_shortage"] = shp["qty_shortage"].to_f  
+		command_c["shpord_qty_case"] =  if stk["packqty"].to_f == 0 
 												1
 											else
 												(qty / stk["packqty"].to_f).ceil
 											end
-			command_c["shpord_amt"] = command_c["shpord_qty"] * command_c["shpord_price"].to_f  ###CtlFieldsから求める。
-			command_c["shpord_packno"] = stk["packno"]  
-			command_c["shpord_lotno"] = stk["lotno"]
+		command_c["shpord_amt"] = command_c["shpord_qty"] * command_c["shpord_price"].to_f  ###CtlFieldsから求める。
+		command_c["shpord_packno"] = stk["packno"]  
+		command_c["shpord_lotno"] = stk["lotno"]
 
-			blk.proc_create_tbldata(command_c) ##
-			command_c = blk.proc_private_aud_rec({},command_c)
+		blk.proc_create_tbldata(command_c) ##
+		blk.proc_private_aud_rec({},command_c)
 		
-			stkinout = {}
-			stkinout["tblname"] = "shpords"
-			stkinout["tblid"] = command_c["id"]
-			stkinout["trngantts_id"] = shp["trngantts_id"]  ###親tableのtrngannts_id
-			stkinout["expiredate"] = command_c["shpord_expiredate"]
-			stkinout["lotno"] =   command_c["shpord_lotno"] 
-			stkinout["packno"] =  command_c["shpord_packno"] 
-			stkinout["prjnos_id"] = command_c["shpord_prjno_id"]
-			stkinout["itms_id"] = command_c["shpord_itm_id"]
-			stkinout["processseq"] = command_c["shpord_processseq"]
-			stkinout["starttime"] = command_c["shpord_depdate"]
-			stkinout["qty_sch"] = 0
-			stkinout["qty"] =  command_c["shpord_qty"]
-			stkinout["qty_stk"] = stkinout["qty_real"] = 0
-			stkinout["shelfnos_id"] = command_c["shpord_shelfno_id_fm"]
-			stkinout["wh"] = "lotstkhists"
-			stkinout["remark"] = "Shipment line #{__LINE__}"
-			stkinout = proc_lotstkhists_in_out("out",stkinout)
-			proc_insert_inoutlotstk_sql(-1,stkinout)
-			stkinout["starttime"] = command_c["shpord_duedate"]
-			stkinout["shelfnos_id"] =  command_c["shpord_shelfno_id_to"]
-			stkinout["remark"] = "Shipment line #{__LINE__}"
-			stkinout = proc_lotstkhists_in_out("in",stkinout)
-			proc_insert_inoutlotstk_sql(1,stkinout)
+		stkinout = {}
+		stkinout["tblname"] = "shpords"
+		stkinout["tblid"] = command_c["id"]
+		stkinout["trngantts_id"] = shp["trngantts_id"]  ###親tableのtrngannts_id
+		stkinout["expiredate"] = command_c["shpord_expiredate"]
+		stkinout["lotno"] =   command_c["shpord_lotno"] 
+		stkinout["packno"] =  command_c["shpord_packno"] 
+		stkinout["prjnos_id"] = command_c["shpord_prjno_id"]
+		stkinout["itms_id"] = command_c["shpord_itm_id"]
+		stkinout["processseq"] = command_c["shpord_processseq"]
+		stkinout["starttime"] = command_c["shpord_depdate"]
+		stkinout["qty_sch"] = 0
+		stkinout["qty"] =  command_c["shpord_qty"]
+		stkinout["qty_stk"] = stkinout["qty_real"] = 0
+		stkinout["shelfnos_id"] = command_c["shpord_shelfno_id_fm"]
+		stkinout["wh"] = "lotstkhists"
+		stkinout["remark"] = "Shipment line #{__LINE__}"
+		stkinout = proc_lotstkhists_in_out("out",stkinout)
+		proc_insert_inoutlotstk_sql(-1,stkinout)
+		stkinout["starttime"] = command_c["shpord_duedate"]
+		stkinout["shelfnos_id"] =  command_c["shpord_shelfno_id_to"]
+		stkinout["remark"] = "Shipment line #{__LINE__}"
+		stkinout = proc_lotstkhists_in_out("in",stkinout)
+		proc_insert_inoutlotstk_sql(1,stkinout)
 		###
 		#  業者倉庫の時は業者倉庫も更新
 		###
-			sql_check_supplier = %Q&
+		sql_check_supplier = %Q&
 					select s.id from suppliers s  
 							inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-		 					where s2.id = #{shp["shelfnos_id_fm"]}
+		 					where s2.id = #{shp["shelfnos_id_fm"]} and s.expiredate > current_date
 			&
-			suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
-			if  suppliers_id
+		suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
+		if  suppliers_id
 				stkinout["wh"] = "supplierwhs"
 				stkinout["suppliers_id"] = suppliers_id
 				stkinout["remark"] = "Shipment line #{__LINE__}"
 				stkinout = proc_mk_supplierwhs_rec("out",stkinout)
 				proc_insert_inoutlotstk_sql(1,stkinout)
-			end
-			sql_check_supplier = %Q&
+		end
+		sql_check_supplier = %Q&
 					select s.id from suppliers s  
 							inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-		 					where s2.id = #{shp["shelfnos_id_to"]}
+		 					where s2.id = #{shp["shelfnos_id_to"]} and s.expiredate > current_date
 				&
-			suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
-			if  suppliers_id
+		suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
+		if  suppliers_id
 				stkinout["wh"] = "supplierwhs"
 				stkinout["suppliers_id"] = suppliers_id
 				stkinout["remark"] = "Shipment line #{__LINE__}"
 				stkinout = proc_mk_supplierwhs_rec("in",stkinout)
 				proc_insert_inoutlotstk_sql(1,stkinout)
-			end
 		end
 	end	
-
 end    

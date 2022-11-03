@@ -18,7 +18,7 @@ const titleNameSet = (screenName) =>{ return (
 }
 
 const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,grid_columns_info,hostError,
-            isSignUp,menuChanging,uid,token,client,second_columns_info}) =>{
+            isSignUp,uid,token,client,screenFlg}) =>{
     if(params){}else{params = {}}
     params["token"] = token
     params["client"] = client
@@ -52,7 +52,7 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,grid_columns_i
                     grp_name===val.grp_name&&
                     <Tab key={idx} >
                       <Button   type="submit"
-                      onClick ={() => {
+                      onClick ={() => { 
                                         getScreen(val.screen_code,val.scr_name,val.view_name,params)
                                       }
                       }>
@@ -69,10 +69,9 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,grid_columns_i
                 </TabPanel> 
               )}
             </Tabs>
-              {(grid_columns_info&&menuChanging===false)&&<div> <ScreenGrid7 screenFlg = "first" /></div>}
+              {grid_columns_info&&<div> <ScreenGrid7 screenFlg = "first" /></div>}
               <p> {hostError?hostError:""} </p>
-              {(second_columns_info&&menuChanging===false)&&<div> <ScreenGrid7 screenFlg = "second" /></div>}
-              <p> {hostError?hostError:""} </p>
+              <div> {screenFlg==="second"?<ScreenGrid7 screenFlg = "second" />:""}</div>
         </div>
       )
     }else{
@@ -100,13 +99,13 @@ const  mapStateToProps = (state,ownProps) =>({
   params:state.screen.params,
   message:state.menu.message,
   grid_columns_info:state.screen.grid_columns_info,
-  screenCode:state.screen.params?state.screen.params.screenCode:"",
   hostError: state.screen.hostError,
   menuChanging:state.menu.menuChanging,
   uid:state.auth.uid ,
   token:state.auth.token ,
   client:state.auth.client ,
   second_columns_info:state.screen.second_columns_info,
+  screenFlg:state.menu.screenFlg,
 })
 
 const mapDispatchToProps = (dispatch,ownProps ) => ({
@@ -114,9 +113,9 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
         titleNameSet(screenName)
         params= { ...params,screenName:  (screenName||""),disableFilters:false,
                         parse_linedata:{},
-                        filtered:[],where_str:"",sortBy:[],
+                        filtered:[],where_str:"",sortBy:[],screenFlg:"first",
                         screenCode:screenCode,pageIndex:0,pageSize:20,
-                        req:"viewtablereq7",viewName:view_name} 
+                        buttonflg:"viewtablereq7",viewName:view_name} 
         dispatch(ScreenInitRequest(params,null))}   //data:null
           })    
 export default connect(mapStateToProps,mapDispatchToProps)(Menus7)
