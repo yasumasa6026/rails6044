@@ -600,7 +600,7 @@ module CtlFields
 		# else	
 		# 			params[:err] =  "error   ---> #{field} can not change because #{view} already used "
 		# end
-		line_data = params[:parse_linedata]
+		line_data = params[:parse_linedata].dup
 		if line_data[:id] and line_data[:id] != ""  ###変更の時 
 			case params[:screenCode]
 			when /itms/
@@ -647,6 +647,11 @@ module CtlFields
 	end
 
 	def judge_check_taxrate params,item  ###MkInvoiveNoの時のみ
+		line_data = params[:parse_linedata].dup
+		case params[:screenCode]
+		when /pur|shp/
+		when /cust/
+		end
 		return params
 	end
 
