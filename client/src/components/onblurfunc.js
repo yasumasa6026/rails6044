@@ -9,9 +9,10 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
     let qty_case
     let gno
     let autoAddFields = {}
+    let itm_code_client
     lineData["confirm_gridmessage"] = "ok"
     switch( true ){
-        // case /itm_code$/.test(id):　　　//ScreenLib.proc_add_empty_dataで対応
+        case /itm_code$/.test(id)://ScreenLib.proc_add_empty_dataで対応
         //     if(/schs$|ords$/.test(screenCode)){
         //         if(lineData["opeitm_processseq"]===""||lineData["opeitm_processseq"]===null||lineData["opeitm_processseq"]===undefined){
         //             lineData["opeitm_processseq"] = "999"
@@ -20,7 +21,13 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
         //             lineData["opeitm_priority"] = "999"
         //         }
         //     }
-        //     break
+            if(/custschs|custords/.test(screenCode)){ //受注の時はopeitmのLT(duration)は使用できない。
+                itm_code_client = id.split("_")[0] + "_itm_code_client"
+                if(lineData[itm_code_client]===""){
+                    lineData[itm_code_client] = lineData[id] 
+                    autoAddFields[itm_code_client] = lineData[itm_code_client]}
+                }
+            break
         case /_duedate/.test(id):
                 moment.defaultFormat = "YYYY-MM-DD HH:mm"
                 starttime = id.split("_")[0] + "_starttime" 

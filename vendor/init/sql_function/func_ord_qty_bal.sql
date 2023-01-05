@@ -1,4 +1,4 @@
---- shpordsには使用できない。
+--- prd,pur用　cust,shpordsには使用できない。
 drop function func_ord_qty_bal;
 create or replace function 
 	func_ord_qty_bal(tblname text,ord_id numeric,OUT qty_bal numeric)

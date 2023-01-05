@@ -22,9 +22,9 @@ const Download = ({screenName,filtered,totalCount,}) => {
       button:state.button,
       screenCode:state.screen.params.screenCode,
       screenName:state.screen.params.screenName,
-      filtered:state.download.filtered?state.download.filtered:[], 
-      totalCount:state.download.totalCount,
-      errors:state.download.errors,
+      filtered:state.button.filtered?state.download.filtered:[], 
+      totalCount:state.button.totalCount,
+      errors:state.button.errors,
     })
     
     const mapDispatchToProps = () => ({

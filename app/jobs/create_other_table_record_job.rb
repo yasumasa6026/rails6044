@@ -86,8 +86,8 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 %
                             ActiveRecord::Base.connection.update(strsql)
 
-                        when "consume_exception"
-                            ###出庫の前の完成,完成時の員数可変による消費数対応
+                        # when "consume_exception"
+                        #     ###出庫の前の完成,完成時の員数可変による消費数対応
 
                         when "mkbillinsts"
                             mkbillinstparams = {}
@@ -215,21 +215,50 @@ class CreateOtherTableRecordJob < ApplicationJob
                             gantt["qty_stk_pare"] = 0 
                             case gantt["orgtblname"] ###parent = orgtbl
                             when "custords"
-                                strsql = %Q&select qty_linkto_alloctbl from alloctbls 
-                                                    where srctblname = 'custords' and srctblid = #{gantt["tblid"]}
-                                                    and trngantts_id = #{gantt["trngantts_id"]} &
-                                qty_sch = ActiveRecord::Base.connection.select_value(strsql).to_f
-                                gantt["qty_handover"] =  tbldata["qty_handover"] =  gantt["qty"] = qty_sch
-                                gantt["qty_sch"] = gantt["qty"]
-                                gantt["qty"] = 0
+                                qty =  gantt["qty"].to_f
+                                ### free custschsへの引き当て
+                                get_free_custschs_sql = %Q&
+                                            select  t.id trngantts_id,link.qty_src,t.orgtblname tblname,t.orgtblid tblid,link.id link_id from trngantts t 
+                                                            inner join linkcusts link on link.srctblid = t.tblid  and t.id = link.trngantts_id
+                                                                                    and link.srctblname = link.tblname and link.srctblid = link.tblid
+                                                                                    and link.srctblname = 'custschs' and link.qty_src > 0 
+                                                            where t.orgtblname = 'custschs' and t.paretblname = 'custschs' and t.tblname = 'custschs'
+                                                                    and t.orgtblid = t.paretblid and t.tblid = t.paretblid
+                                                                    and t.locas_id_pare = #{gantt["locas_id_pare"]} and t.prjnos_id = #{gantt["prjnos_id"]} 
+                                                                    and itms_id_pare = #{gantt["itms_id_pare"]} and processseq_pare = #{gantt["processseq_pare"]}
+                                                                    and link.srctblname = t.orgtblname 
+                                                            order by t.duedate_org
+
+                                &
+                                ActiveRecord::Base.connection.select_all(get_free_custschs_sql).each do |sch|
+                                    if qty >= sch["qty_src"].to_f
+                                            qty_src = sch["qty_src"].to_f
+                                            qty -= qty_src
+                                            sch["qty_src"] = 0
+                                    else
+                                        qty_src = qty
+                                        sch["qty_src"] = sch["qty_src"].to_f - qty
+                                        qty = 0
+                                    end
+                                    src = {"trngantts_id" => sch["trngantts_id"],"tblname"=> sch["tblname"],"tblid"=> sch["tblid"]}
+                                    base = {"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"qty_src" => qty_src,"amt_src" => 0,
+                                                "remark" => "#{self} line:#{__LINE__}"}
+                                    ArelCtl.proc_insert_linkcusts(src,base)
+                                    update_sql = %Q&
+                                            update linkcusts set qty_src = #{sch["qty_src"]},remark = '#{self} line:#{__LINE__}'
+                                                    where id = #{sch["link_id"]}
+                                    &
+                                    ActiveRecord::Base.connection.update(update_sql)
+                                end
+                                gantt["qty_handover"] = tbldata["qty_handover"] =  gantt["qty_sch"] = qty
                             when "custschs"
                                 gantt["qty_handover"] = tbldata["qty_handover"] =  gantt["qty_sch"]
-                                qty_sch = gantt["qty_sch"]
-                                gantt["qty"] = 0
                             else
                                 3.times{Rails.logger.debug" orgtblname:#{gantt["orgtblname"]} error "}
                                 raise
                             end
+                            qty_sch = gantt["qty_sch"]
+                            gantt["qty"] = 0
                             gantt["qty_require"] = tbldata["qty_require"] = gantt["qty_handover"] 
                             child = {"itms_id_nditm" => gantt["itms_id_trn"],"processseq_nditm" => gantt["processseq_trn"] ,
                                     "opeitms_id"=> tbldata["opeitms_id"],
@@ -315,23 +344,23 @@ class CreateOtherTableRecordJob < ApplicationJob
 		return command_c,qty_require
     end
         
-    def  custxxx_strsql tbldata
-        strsql = %Q%select id from r_opeitms where itm_code = 'dummyship' and opeitm_processseq = 999
-            %
-        val  = ActiveRecord::Base.connection.select_value(strsql)
-        if val.nil? ###nditmは自動作成
-            Rails.logger.debug" missing item 'dummyship' please entry"
-            Rails.logger.debug" missing item 'dummyship' please entry"
-            Rails.logger.debug" missing item 'dummyship' please entry"
-            raise
-        end    ###opeitms itm_code : dummyship
-        strsql = %Q&select itms_id,processseq from opeitms where id = #{tbldata["opeitms_id"]}
-        &
-        opeitm  = ActiveRecord::Base.connection.select_one(strsql)
-        strsql = %Q%select * from nditms where expiredate > current_date and 
-                opeitms_id = #{val} and itms_id_nditm = #{opeitm["itms_id"]} 
-                and processseq_nditm = #{opeitm["processseq"]} limit 1
-        %
-        return strsql
-    end
+    # def  custxxx_strsql tbldata
+    #     strsql = %Q%select id from r_opeitms where itm_code = 'dummyship' and opeitm_processseq = 999
+    #         %
+    #     val  = ActiveRecord::Base.connection.select_value(strsql)
+    #     if val.nil? ###nditmは自動作成
+    #         Rails.logger.debug" missing item 'dummyship' please entry"
+    #         Rails.logger.debug" missing item 'dummyship' please entry"
+    #         Rails.logger.debug" missing item 'dummyship' please entry"
+    #         raise
+    #     end    ###opeitms itm_code : dummyship
+    #     strsql = %Q&select itms_id,processseq from opeitms where id = #{tbldata["opeitms_id"]}
+    #     &
+    #     opeitm  = ActiveRecord::Base.connection.select_one(strsql)
+    #     strsql = %Q%select * from nditms where expiredate > current_date and 
+    #             opeitms_id = #{val} and itms_id_nditm = #{opeitm["itms_id"]} 
+    #             and processseq_nditm = #{opeitm["processseq"]} limit 1
+    #     %
+    #     return strsql
+    # end
 end

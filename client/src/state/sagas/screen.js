@@ -2,7 +2,7 @@ import { call, put, select } from 'redux-saga/effects'
 import axios         from 'axios'
 import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_CONFIRM7, FETCH_RESULT, FETCH_FAILURE,
         SECOND_SUCCESS7,SECOND_FAILURE,SECOND_CONFIRM7, SECONDFETCH_RESULT,
-        SECONDFETCH_FAILURE,MKSHPORDS_SUCCESS,SECOND_CONFIRMALL_SUCCESS,
+        SECONDFETCH_FAILURE,MKSHPORDS_SUCCESS,CONFIRMALL_SUCCESS,SECOND_CONFIRMALL_SUCCESS,
         //MKSHPACTS_RESULT,
         }
          from '../../actions'
@@ -14,7 +14,7 @@ function screenApi({params ,url,headers} ) {
         method: "POST",
         url: url,
         contentType: "application/json",
-        params:{...params,data:[]},
+        params:{...params,data:[],parse_linedata:{}},
         headers:headers,
     })
   }
@@ -39,12 +39,10 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
     //   console.log("delay")
     //   yield delay(100)
     // }
-    let xparams = {}
     //params["fetch_data"] = ""  //net error 対策　1024*10 送信時は不要
     try{
       let response  = yield call(screenApi,{params ,url,headers} )
       // params.sortBy === [] だとrailsに取り込められない　paramsからsortByが
-      params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
       switch (response.status) {
         case 200:  
           switch(params.buttonflg) {
@@ -57,6 +55,7 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
                   {return yield put({ type:SCREEN_SUCCESS7, payload: response })}
             case "confirm7":
               data[params.index] = {...response.data.linedata}
+              params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
               params.buttonflg = buttonState.buttonflg
               if(params.screenFlg==="second")
                 {return yield put({type:SECOND_CONFIRM7,payload:{data:data,params:params} })}
@@ -73,31 +72,39 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
             // case "mkshpacts":  //second画面専用
             //   return yield put({ type: MKSHPACTS_RESULT, payload:response})    
               
-           case "confirmSecond":  //second画面専用
+           case "confirmAll":  //
+           case "MkPackingListNo":  //
                messages[0] = "out count : " + response.data.outcnt
-                return yield put({ type: SECOND_CONFIRMALL_SUCCESS, payload:{messages:messages}})     
+               messages[1] = "out qty : " + response.data.outqty
+               messages[2] = "out amt : " + response.data.outamt
+                return yield put({ type: CONFIRMALL_SUCCESS, payload:{messages:messages}})     
+              
+            case "confirmSecond":  //second画面専用
+              messages[0] = "out count : " + response.data.outcnt
+              return yield put({ type: SECOND_CONFIRMALL_SUCCESS, payload:{messages:messages}})     
        
            case "fetch_request":  //viewによる存在チェック内容表示
-                xparams = {...params,...response.data.params}
-                xparams.buttonflg = buttonState.buttonflg
-                break
-            case "check_request":   //項目毎のチェック帰りはfetchと同じ
-                xparams = {...params,...response.data.params}
+           case "check_request":   //項目毎のチェック帰りはfetchと同じ
+                params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,
+                            screenCode:response.data.params.screenCode,...response.data.params}
+                params.buttonflg = buttonState.buttonflg
                 break      
             default:
                 return {}
             }
           if(response.data.params.err){
+                params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
                 if(params.screenFlg==="second"){
-                    yield put({ type: SECONDFETCH_FAILURE,payload:{params:xparams}}) 
+                    yield put({ type: SECONDFETCH_FAILURE,payload:{params:params}}) 
                 }else{
-                    yield put({ type: FETCH_FAILURE, payload:{params:xparams}}) 
+                    yield put({ type: FETCH_FAILURE, payload:{params:params}}) 
                 }
           }else{
+                params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
                 if(params.screenFlg==="second"){
-                    yield put({type: SECONDFETCH_RESULT, payload:{params:xparams}}) 
+                    yield put({type: SECONDFETCH_RESULT, payload:{params:params}}) 
                 }else{  
-                    yield put({type: FETCH_RESULT, payload:{params:xparams}}) 
+                    yield put({type: FETCH_RESULT, payload:{params:params}}) 
                 }  
           }  
           break  

@@ -105,7 +105,7 @@ extend self
     def fetchCodesql screencode
          %Q%select pobject_code_sfd,screenfield_paragraph
                     from r_screenfields
-                    where trim(screenfield_paragraph) != '' and screenfield_subindisp is not null and
+                    where trim(screenfield_paragraph) != '' and screenfield_paragraph is not null and
                     screenfield_expiredate > current_date
                     #{if screencode then " and pobject_code_scr = '#{screencode}' " else "" end }%
     end     

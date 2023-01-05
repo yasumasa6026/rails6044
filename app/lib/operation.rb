@@ -113,9 +113,31 @@ class OpeClass
 					###schsが減された時:ords,insts,actsをfreeに　qty_schが増、減されたときshp,conの変更、###在庫の処理を含む
 					###trnganttsは修正済  alloctblsは一件のみ
 				when /^custschs|^custords/
-					###linktblsの変更はしない。
-					###custschsか増減してもlinktblsは変更しない。custordsにfreeはない。
-					###custordsが減数しても、一度引き当てたcustschsは変更なし。custordsの数量増はない。
+					###引当済以下の数量減は不可。画面,importでチェック済のこと
+					qty =  @tbldata[@str_qty].to_f
+					strsql = %Q&
+							select * from linkcusts where tblname = '#{@tblname}' and tblid = #{@tblid}
+					&
+					ActiveRecord::Base.connection.select_all(strsql).each do |link|
+						if qty < link["qty_src"].to_f
+							update_sql = %Q&
+								update linkcusts 
+									set qty_src = #{qty},remark = ' #{self} line:#{__LINE__}' 
+									where id = #{link["id"]}
+							&
+							ActiveRecord::Base.connection.update(update_sql)
+							update_sql = %Q&
+								update linkcusts 
+									set qty_src = qty_src + #{link["qty_src"]} - #{qty},remark = ' #{self} line:#{__LINE__}' 
+									where tblname = '#{link["srctblname"]}}' and tblid = #{link["srctblid"]}
+									and srctblname = '#{link["srctblname"]}}' and srctblid = #{link["srctblid"]}
+							&
+							ActiveRecord::Base.connection.update(update_sql)
+							qty = 0
+						else
+							qty -= link["qty_src"].to_f
+						end
+					end
 				when /ords$/  ###既に引き当てられている数以下にはできない。画面でチェック済
 					###linktblsとlink先のalloctblの変更
 					strsql = %Q&
@@ -277,7 +299,7 @@ class OpeClass
 							"conacts"
 						end
 					end
-				when /insts$|replyinputs$/
+				when /purinsts$|purreplyinputs$|prdinsts$/
 					ActiveRecord::Base.connection.select_all(ArelCtl.proc_ChildConSql(@tbldata)).each do |conord|
 						dupParams = @reqparams.dup
 						dupParams["child"] = conord
@@ -325,7 +347,7 @@ class OpeClass
 			strsql = %Q&
 					select srctblname tblname,srctblid tblid,trngantts_id,qty_src,
 							tblname savetblname,tblid savetblid
-						from linktbls
+						from #{if @tblname =~ /^cust/  then "linkcusts" else "linktbls" end}
 						where id in(#{@reqparams["linktbl_ids"].join(",")})
 						and  qty_src > 0
 			&
@@ -682,42 +704,6 @@ class OpeClass
 					processreqs_id ,@reqparams = ArelCtl.proc_processreqs_add @reqparams
 			end
 		when /^custschs|^custords/
-			@tbldata["shelfnos_id"] =  @tbldata["shelfnos_id_fm"]
-			if @tblname =~ /^custords/
-				strsql = %Q&  ---custschs登録済　custords新規登録の時
-						select sch.qty_sch   free_qty,
-								sch.qty_sch,0 qty,0 qty_stk,
-								sch.id srctblid,alloc.trngantts_id trngantts_id,alloc.id alloc_id,
-								ord.id ord_id,sch.duedate src_duedate,sch.shelfnos_id_fm shelfnos_id,
-								'custschs' srctblname,ord.qty ord_qty
-						from custschs sch
-							inner join alloctbls alloc on sch.id = alloc.srctblid
-							inner join custords ord	on sch.opeitms_id = ord.opeitms_id 
-													and sch.custs_id = ord.custs_id
-													and sch.prjnos_id = ord.prjnos_id
-						where alloc.srctblname = 'custschs' and alloc.qty_linkto_alloctbl > 0 
-						and ord.id = #{@tbldata["tblid"]}
-				&
-				custord_qty =  @tbldata["qty"].to_f
-				base = {"trngantts_id" => @reqparams["trngantts_id"],"srctblname" => "custords" ,
-						"qty_sch" => 0,"qty" => @tbldata["qty"] ,"qty_stk" => 0,"alloc_id" => alloc_id,
-			 			"srctblid" => @tbldata["tblid"],"allocfree" => "alloc",
-						"wh" => "lotstkhists",
-			 			"remark" => "Operation.init_trngantts_add_detail (line: #{__LINE__} #{Time.now})"}
-				ActiveRecord::Base.connection.select_all(strsql).each do |src|
-					break if custord_qty < 0
-					if custord_qty >= src["free_qty"].to_f
-						alloc_qty = src["free_qty"].to_f
-						custord_qty -= alloc_qty
-					else
-						alloc_qty = src["ord_qty"].to_f
-						custord_qty = 0
-					end
-					base["qty_src"] = alloc_qty
-					ArelCtl.proc_add_linktbls_update_alloctbls(src,base,[],[])  ###custschsへの引き当て
-					ArelCtl.proc_src_base_trn_stk_update(src,base,alloc_qty)
-				end
-			end
 			@reqparams["segment"]  = "mkprdpurchildFromCustxxxs"   ###構成展開		
 			@reqparams["remark"]  = "Operation.init_trngantts_add_detail  pur,prd by custschs,ords"  
 			processreqs_id ,@reqparams = ArelCtl.proc_processreqs_add @reqparams
@@ -770,7 +756,7 @@ class OpeClass
 		
 		link_sql = %Q&   ---
 					select link.srctblname,link.srctblid,link.tblname,link.tblid,link.trngantts_id,link.qty_src
-						from  linktbls link
+						from  #{if @tblname =~ /^cust/ then "linkcusts" else "linktbls" end} link
 						where link.tblname ='#{@tblname}' and link.tblid = #{@tblid} and link.qty_src > 0
 							--- and (link.tblid != link.srctblid or link.tblname != link.srctblname)
 					&  ###

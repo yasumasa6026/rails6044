@@ -1,4 +1,4 @@
-import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,
+import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
   SCREEN_FAILURE,LOGOUT_REQUEST,SCREEN_CONFIRM7,
   FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,YUP_RESULT,
   INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
@@ -59,7 +59,16 @@ return {...state,
   params:actions.payload.params,
   loading:false,
   hostError:actions.payload.data[actions.payload.params.index].confirm_message
-}  
+}
+
+case CONFIRMALL_SUCCESS:
+  return {...state,
+   loading:false,
+   hostError: null,
+   disabled:false,
+   messages:actions.payload.messages,
+}
+
 
 case  DROPDOWNVALUE_SET:
     let {index,field,val} = {...actions.payload.dropDownValue}

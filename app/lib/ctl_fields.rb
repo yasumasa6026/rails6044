@@ -3,8 +3,8 @@ module CtlFields
 	extend self		
 	def  proc_chk_fetch_rec params  
 		params[:err] = nil
-		fetch_data,keys,findstatus,mainviewflg,missing = get_fetch_rec(params)
-		params[:parse_linedata] = fetch_data.dup
+		line_data,keys,findstatus,mainviewflg,missing = get_fetch_rec(params)
+		params[:parse_linedata] = line_data.dup
 	  	if findstatus
 			if mainviewflg   ##mainviewflg = true 自分自身の登録
 				if 	params[:parse_linedata]["aud"] == "add" or params["buttonflg"] =~ /add/
@@ -36,6 +36,7 @@ module CtlFields
 				if missing  ###検索に必要な項目まだ未入力
 				else
 					params[:err] =  "error 3  --->not find code:#{keys},line:#{params[:index]}  "
+					params[:parse_linedata]["confirm"] = false
 					keys.split(",").each do |key| ###コードが変更されたとき既に使用されている？
 						params[:parse_linedata][key.split(":")[0]+"_gridmessage"] = "error 3 not find code #{key} "
 						if params[:parse_linedata][:errPath].nil? 
@@ -50,7 +51,6 @@ module CtlFields
 	end  
 
 	def get_fetch_rec(params)
-			strsql = ""
 			keys = ""
 			xno = ""
 			srctblnamechop = ""
@@ -59,8 +59,7 @@ module CtlFields
 			viewtblnamechop = fetchview.split("_")[1].chop
 			line_data = params[:parse_linedata].dup
 			mainviewflg = true  ##自分自身の登録か？
-			missing = true
-			findstatus = false
+			findstatus = true
 			if params[:screenCode].split("_")[1] != fetchview.split("_")[1] 
 					mainviewflg = false
 			else
@@ -73,8 +72,11 @@ module CtlFields
 								 and screenfield_paragraph = '#{params[:fetchview]}'"
 			delm = ""
 			missing = false   ###missing:true パラメータが未だ未設定　　false:チェックok
-			strsql = " select * from #{fetchview}  where "
-			ActiveRecord::Base.connection.select_all(fetcfieldgetsql).each do |fetch|
+			where_strsql = ""
+			fetchs = ActiveRecord::Base.connection.select_all(fetcfieldgetsql)
+			cnt = 0
+			fetchs.each do |fetch|
+				cnt += 1 
 				valOfField = params[:parse_linedata][fetch["pobject_code_sfd"].to_sym]
 				fetchtblnamechop,xno,srctblnamechop = fetch["pobject_code_sfd"].split("_") 
 				if valOfField =~ /,/				 ###入力項目に「,」が入っていた時
@@ -85,233 +87,191 @@ module CtlFields
 					break
 				else
 					if valOfField == "" or valOfField.nil?   ###未入力
-						if fetch["pobject_code_sfd"] 	=~ /_sno_.*inst$|_cno_.*inst$/
-							if params[:parse_linedata][fetch["pobject_code_sfd"].sub(/inst$/,"ord")]
-								missing = false
-								mainviewflg = true
-							else
-								if params[:parse_linedata][fetch["pobject_code_sfd"].sub(/inst$/,"replyinput")]
-									missing = false
-									mainviewflg = true
-								else
-									missing = true
-								end	
-							end
+						missing = true
+					else
+						keys <<  "#{fetch["pobject_code_sfd"]}: '#{valOfField}',"
+						case fetch["pobject_code_sfd"] 
+						when /_sno_|_cno_|_packinglistno_/
+							 ### 
+							where_strsql << " #{viewtblnamechop}_#{xno} = '#{params[:parse_linedata][fetch["pobject_code_sfd"].to_sym]}'       and"
+						# when /linkhead_sno|linkhead_cno|linkhead_packingListNo/
+						# 	###何もしない
 						else
-							if fetch["pobject_code_sfd"] 	=~ /_sno_.*replyinput$|_cno_.*replyinput$/
-								if params[:parse_linedata][fetch["pobject_code_sfd"].sub(/replyinput$/,"ord")]
-									missing = false
-									mainviewflg = true
-								else
-									if params[:parse_linedata][fetch["pobject_code_sfd"].sub(/replyinput$/,"inst")]
-										missing = false
-										mainviewflg = true
-									else
-										missing = true
-									end	
-								end
+							delm = (params[:fetchview].split(":")[1]||="")  ###/_sno_|_cno_|_gno_|_packinglistno_/の時はdelm意味なし
+							if delm == ""
+								where_strsql << "  #{fetch["pobject_code_sfd"]} = '#{params[:parse_linedata][fetch["pobject_code_sfd"].to_sym]}'        and"
 							else
-								if fetch["pobject_code_sfd"] 	=~ /_sno_.*ord$|_cno_.*ord$/
-									if params[:parse_linedata][fetch["pobject_code_sfd"].sub(/ord$/,"inst")]
-										missing = false
-										mainviewflg = true
-									else
-										if params[:parse_linedata][fetch["pobject_code_sfd"].sub(/ord$/,"replyinput")]
-											missing = false
-											mainviewflg = true
-										else
-											missing = true
-										end	
-									end
-								else
-									missing = true
-								end
+								where_strsql << "  #{fetch["pobject_code_sfd"].split(delm)[0]} = '#{params[:parse_linedata][fetch["pobject_code_sfd"].to_sym]}'       and"
 							end
 						end
-						missing = true
-						next
-					else
-							keys <<  "#{fetch["pobject_code_sfd"]}: '#{valOfField}',"
-							if fetch["pobject_code_sfd"] 	=~ /_sno_|_cno_/
-								 ### 
-								strsql << " #{srctblnamechop}_#{xno} = '#{params[:parse_linedata][fetch["pobject_code_sfd"]]}'       and"
-							else
-								delm = (params[:fetchview].split(":")[1]||="")  ###/_sno_|_cno_|_gno_/の時はdelm意味なし
-								if delm == ""
-									strsql << "  #{fetch["pobject_code_sfd"]} = '#{params[:parse_linedata][fetch["pobject_code_sfd"]]}'        and"
-								else
-									strsql << "  #{fetch["pobject_code_sfd"].split(delm)[0]} = '#{params[:parse_linedata][fetch["pobject_code_sfd"]]}'       and"
-								end
-							end
 					end
 				end
-			end
-			if missing == false  ###検索のための入力項目はすべて入力されている。
-				strsql = strsql[0..-8] 
-				rec =  ActiveRecord::Base.connection.select_one(strsql)
-			else
-				rec = nil
-				findstatus = false
-			end
-			if rec  ###viewレコードあり
+				if missing == false  ###検索のための入力項目はすべて入力されている。
+					if cnt >= fetchs.to_a.size
+						case fetch["pobject_code_sfd"]
+						when  /_sno_|_cno_|_packinglistno_/ ###duedate,starttime,expiredateの引継ぎがあるとき
+							viewstrsql = "select * from  func_get_screenfield_grpname('#{$email}','#{fetchview}')"
+							select_fields = ""
+							ActiveRecord::Base.connection.select_all(viewstrsql).each_with_index do |i|			
+								select_fields = 	select_fields + 
+														case i["screenfield_type"]
+														when "timestamp(6)" 
+															%Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd hh24:mi') #{i["pobject_code_sfd"]}% + " ,"
+														when "date" 
+															%Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd ') #{i["pobject_code_sfd"]}% + " ,"
+														else 												
+															i["pobject_code_sfd"] + " ,"
+														end		
+							end
+							strsql = " select #{select_fields.chop} from #{fetchview}  where " + where_strsql[0..-8] 
+						# when  /linkhead_sno|linkhead_cno|linkhead_packingListNo/ 
+						# 	line = params[:parse_linedata]
+						# 	strsql = "select * from funcmkcustact_linkheads"
+						# 	strsql << %Q&('#{line[:linkhead_sno]}','#{line[:loca_code_cust]}','#{line[:linkhead_cno]}','#{line[:linkhead_packingListNO]}') &							
+						else
+							strsql = " select * from #{fetchview}  where " + where_strsql[0..-8] 
+						end
+						rec =  ActiveRecord::Base.connection.select_one(strsql)
+					else
+						next
+					end
+				else
+					rec = nil
+					findstatus = false
+				end
+				if rec  ###viewレコードあり
+					### line_data = params[:parse_linedata].dup loop 中に内容の変更はできない。 
 					params[:parse_linedata].each do |key,val|  ###結果をセット
-						next if key.to_s == "id" 
+						if key.to_s == "id"
+							line_data[:id] = line_data[(screentblnamechop+"_id").to_sym] = "" if params[:parse_linedata][:aud] =~ /add|insert/
+							next
+						end 
 						next if key.to_s =~ /person.*upd/  
 						###画面の項目を分解　tableName.chop_fieldName(_delm),viewtblnamechop.fieldName(_delm),tableName.chop_viewtblnamechop_id(_dlem)
 						items = key.to_s.split("_")
 						if delm != ""
-							next if key.to_s !~ /#{delm}$/
+							next if key.to_s !~ /#{delm}$/  ###同一viewでkeyが異なる。
 							field = key.to_s.sub(delm,"")
 						else
 							field = key.to_s
 						end
 						if rec[field]  ###id,sno,cnoから求められた同一項目を画面にセットする。
-							line_data[(field+delm).to_sym] =  rec[field] ###rec:検索結果
+							line_data[key] =  rec[field]  if line_data[key].nil? or line_data[key] == "" or line_data[key].to_s == "0" ###rec:検索結果
 							###自動セット項目 onblurfunc.js 参照(tableをgetしないとき利用)
-							case screentblnamechop 
-							when /^custsch|^custord/ 
- 								case  field 
-								when "loca_code_cust"  
-									if line_data[:crr_code] == "" and fetchview =~ /custs$/ 
-										line_data[:crr_code] = rec["crr_code_bill"]
+							### qty,qty_stkの修正のため	nextしない。
+						else
+							 ### sno,cnoからデータを求めた時は同一項目でなくてもdelmが同じであればセットする。
+							if items[0] == screentblnamechop
+								if (val == ""  or val.nil? or val.to_s == "0" ) 
+									if items[1] == viewtblnamechop 
+										if items[2]  == "id"
+							 				if rec["#{field.sub("#{screentblnamechop}_","")}"]  ###r_opeitms ==>opeitm_id
+							 						line_data[key]  = rec["#{field.sub("#{screentblnamechop}_","")}"]	
+											end
+										end
+									else ###項目の引継ぎ  purord_opeitm_xxx => puract_opeitm_xxx
+										next if field =~ /_sno$|_cno$|_gno$|_isudate|_created_at|_updated_at|_remark|_contents|_seqno/
+										if rec["#{field.sub(/^#{screentblnamechop}/,"#{viewtblnamechop}")}"]  
+											line_data[key]  = rec["#{field.sub(/^#{screentblnamechop}/,"#{viewtblnamechop}")}"]  
+										end
 									end
-								when "itm_code"  
-							   		if line_data[:shelfno_code_fm] == "" and fetchview =~ /itms$/ 
-								   		line_data[:loca_code_shelfno_fm] = rec["loca_code_shelfno_to_opeitm"]  ###opeitm.shelfno_code_to_opeitm 完成後の置き場所゜
-								   		line_data[:shelfno_code_fm] = rec["shelfno_code_to_opeitm"]  ###opeitm.shelfno_code_to_opeitm 完成後の置き場所゜
-								   	###custord.shelfno_code_fm 客先への出荷のための梱包場所
-							   		end
 								end
 							end
-						else ### sno,cnoからデータを求めた時は同一項目でなくてもdelmが同じであればセットする。
-							### screentblnamechop,xno,srctblnamechop = rec["pobject_code_sfd"].split("_") 
-							# if  field =~ /_sno_|_cno_|_go_/  and rec[field.gsub(screentblnamechop,srctblnamechop)]  and field =~ /_id/ 
-							#  	fetch_data[field+delm] =  rec[field.gsub(screentblnamechop,srctblnamechop)] ###rec:検索結果
-							# end
-							if items[0] == screentblnamechop
-								if items[2]  == "id"
-									if items[1] == viewtblnamechop
-										if rec["#{field.sub("#{screentblnamechop}_","")}"]
-											line_data[key]  = rec["#{field.sub("#{screentblnamechop}_","")}"]
-										end
-									else
-										if rec["#{field.sub("#{screentblnamechop}","#{viewtblnamechop}")}"]   ###purors_opeitm_id ==>puract_opeitm_id
-											line_data[key]  =  rec["#{field.sub("#{screentblnamechop}","#{viewtblnamechop}")}"]
-										end
-									end
-									### オーダ以上を許可するルール未設定
-									###  ###既に状態が変化しているかチェック
-								else	
-									if  val != ""  and field !~ /_gridmessage/ and ((srctblnamechop =~ /^pur|^prd|^cust/ and srctblnamechop !~ /sch$|ord$/ and field =~ /_cno/) or
-																					(srctblnamechop =~ /^pur|^prd|^cust/ and field =~ /_sno/))
-										###shpはlinktblsテーブルに存在しない。
-										###gnoはまとめなので数量チェックは別
-										strsql = %Q% select sum(link.qty_src) qty_src 
-												from linktbls link
-												inner join   #{srctblnamechop}s srctbl on srctbl.id = link.srctblid
-												where srctbl.#{key.split("_")[1]} = '#{val}' ---key.split("_")[1] :sno　ok,  cno:未対応
-												and link.srctblname = '#{srctblnamechop}s'
-												and (link.srctblname != link.tblname or link.srctblid != link.tblid)
-												group by srctbl.id
-											%  ###次のステータスに移行していないqtyを求める。　
-										org =  ActiveRecord::Base.connection.select_one(strsql)
-										org ||= {}
-										if org["qty_src"]   ###既に状態が変化しているかチェック
-											case srctblnamechop
-											when /act$/
-												case screentblnamechop
-												when  /act$/
-													if params[:parse_linedata]["#{screentblnamechop}_qty_stk"]
-														line_data[("#{screentblnamechop}_qty_stk").to_sym] =  rec["#{srctblnamechop}_qty_stk"].to_f - org["qty_src"].to_f
-														if line_data[("#{screentblnamechop}_qty_stk").to_sym] <= 0
-															params[:err] =  "error   --->over qty line:#{params[:index]} "
-															line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
-														end
-													end
-												else
-													if params[:parse_linedata]["#{screentblnamechop}_qty"]
-														line_data[("#{screentblnamechop}_qty").to_sym] =  rec["#{srctblnamechop}_qty_stk"].to_f - org["qty_src"].to_f
-														if line_data[("#{screentblnamechop}_qty").to_sym] <= 0
-															params[:err] =  "error   --->over qty line:#{params[:index]} "
-															line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
-														end
-													end
-												end
-											when /sch$/
-												if screentblnamechop =~ /schs$/
-													if params[:parse_linedata]["#{screentblnamechop}_qty_sch"]
-														line_data[("#{screentblnamechop}_qty_sch").to_sym] = rec["#{srctblnamechop}_qt_sch"].to_f  - org["qty_src"].to_f
-														if line_data[("#{screentblnamechop}_qty_sch").to_sym] <= 0
-															params[:err] =  "error   --->over qty  line:#{params[:index]} "
-															line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
-														end
-													end
-												else	
-													if params[:parse_linedata]["#{screentblnamechop}_qty"]
-														line_data[("#{screentblnamechop}_qty").to_sym] = rec["#{srctblnamechop}_qty_sch"].to_f  - org["qty_src"].to_f
-														if line_data[("#{screentblnamechop}_qty").to_sym] <= 0
-															params[:err] =  "error   --->over qty  line:#{params[:index]} "
-															line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
-														end
-													end
-												end
-											else
-												if screentblnamechop =~ /act$/
-													if params[:parse_linedata]["#{screentblnamechop}_qty_stk"]
-														line_data[("#{screentblnamechop}_qty_stk").to_sym] = rec["#{srctblnamechop}_qty"].to_f  - org["qty_src"].to_f
-														if line_data[("#{screentblnamechop}_qty_stk").to_sym] <= 0
-															params[:err] =  "error   --->over qty  line:#{params[:index]} "
-															line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
-														end
-													end
-												else	
-													if params[:parse_linedata]["#{screentblnamechop}_qty"]
-														line_data[("#{screentblnamechop}_qty").to_sym] = rec["#{srctblnamechop}_qty"].to_f  - org["qty_src"].to_f
-														if line_data[("#{screentblnamechop}_qty").to_sym] <= 0
-															params[:err] =  "error   --->over qty line:#{params[:index]} "
-															line_data[(field+delm+"_gridmessage").to_sym] =  "error   --->over qty"
-														end
-													end
-												end
-											end
-										else
-											case srctblnamechop 
-											when	/act$/
-												case screentblnamechop 
-												when	/act$/
-													if params[:parse_linedata]["#{screentblnamechop}_qty_stk"]		
-														line_data[("#{screentblnamechop}_qty_stk").to_sym] =  rec["#{srctblnamechop}_qty_stk"].to_f 
-													end
-												else
-													if params[:parse_linedata]["#{screentblnamechop}_qty"]		
-														line_data[("#{screentblnamechop}_qty").to_sym] =  rec["#{srctblnamechop}_qty_stk"].to_f 
-													end
-												end	
-											when /sch/	
-												case screentblnamechop 
-												when	/sch$/
-													if params[:parse_linedata]["#{screentblnamechop}_qty_sch"]		
-														line_data[("#{screentblnamechop}_qty_sch").to_sym] =  rec["#{srctblnamechop}_qty_sch"].to_f 
-													end
-												else
-													if params[:parse_linedata]["#{screentblnamechop}_qty"]		
-														line_data[("#{screentblnamechop}_qty").to_sym] =  rec["#{srctblnamechop}_qty_sch"].to_f 
-													end
-												end	
-											else	
-												if screentblnamechop =~ /act$/
-													if params[:parse_linedata]["#{screentblnamechop}_qty_stk"]		
-														line_data[("#{screentblnamechop}_qty_stk").to_sym] =  rec["#{srctblnamechop}_qty"].to_f 
-													end
-												else
-													if params[:parse_linedata]["#{screentblnamechop}_qty"]		
-														line_data[("#{screentblnamechop}_qty").to_sym] =  rec["#{srctblnamechop}_qty"].to_f 
-													end
-												end	
-											end
-										end
-									end
-								end
+						end
+					end
+					if fetch["pobject_code_sfd"] 	=~ /_sno_/
+						str_srctbl_qty = "" ###次のステータスに移行していないqtyを求める。　
+						org = nil
+						### qtyのセット
+						if  (viewtblnamechop =~ /sch$/ and screentblnamechop =~ /ord$/) 
+							if params[:parse_linedata][(screentblnamechop+"_qty").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
+								str_srctbl_qty = "max(srctbl.qty_sch) srctbl_qty"
+							end
+						end
+						if	(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /inst$/) or 
+							(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /replyinput/) or
+							(viewtblnamechop =~ /inst$/ and screentblnamechop =~ /replyinput/)   
+							if params[:parse_linedata][(screentblnamechop+"_qty").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
+								str_srctbl_qty = "max(srctbl.qty) srctbl_qty"
+							end
+						end
+						if 	(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /dlv$|act$/) or 
+							(viewtblnamechop =~ /inst$/ and screentblnamechop =~ /dlv$|act$/) or
+							(viewtblnamechop =~ /replyinput$/ and screentblnamechop =~ /dlv$|act$/)   
+							if params[:parse_linedata][(screentblnamechop+"_qty_stk").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
+								str_srctbl_qty = "max(srctbl.qty) srctbl_qty"
+							end
+						end
+						if str_srctbl_qty != ""
+							strsql = %Q% select sum(link.qty_src) qty_src ,#{str_srctbl_qty}
+											from #{viewtblnamechop}s srctbl 
+											left join  linktbls link  on srctbl.id = link.srctblid	and link.srctblname = '#{viewtblnamechop}s'
+																		and (link.srctblname != link.tblname or link.srctblid != link.tblid)
+											where srctbl.sno = '#{params[:parse_linedata][(screentblnamechop+"_sno_"+viewtblnamechop).to_sym]}' ---key.split("_")[1] :sno
+											group by srctbl.id
+										%  
+							org =  ActiveRecord::Base.connection.select_one(strsql)
+						end
+						next if str_srctbl_qty == ""
+					end
+					if fetch["pobject_code_sfd"] 	=~ /_cno_/
+						org = nil					
+						str_loca_code = ""
+						str_srctbl_qty = ""
+						if  line_data[(screentblnamechop+"_shelfno_id").to_sym] != ""  and  !line_data[(screentblnamechop+"_shelfno_id").to_sym].nil? and
+							screentblnamechop =~ /pur/
+								str_loca_code = "and shelfnos_id = #{line_data[(screentblnamechop+"_shelfno_id").to_sym]}"
+						end
+						if  params[:parse_linedata][(screentblnamechop+"_shelfno_id").to_sym] != ""  and  !line_data[(screentblnamechop+"_shelfno_id").to_sym].nil? and
+							screentblnamechop =~ /cust/
+								str_loca_code = " and locas_id_cust = #{line_data[(screentblnamechop+"_loca_id").to_sym]}"
+						end ###次のステータスに移行していないqtyを求める。　
+						if line_data[(screentblnamechop+"_qty").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
+							if  (viewtblnamechop =~ /sch$/ and screentblnamechop =~ /ord$/) 
+								str_srctbl_qty = "max(srctbl.qty_sch) srctbl_qty"
+							end
+							if	(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /inst$/) or 
+								(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /replyinput/) or
+								(viewtblnamechop =~ /inst$/ and screentblnamechop =~ /replyinput/)   
+									str_srctbl_qty = "max(srctbl.qty) srctbl_qty"
+							end
+						end
+						if params[:parse_linedata][(screentblnamechop+"_qty_stk").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
+							if 	(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /dlv$|act$/) or 
+								(viewtblnamechop =~ /inst$/ and screentblnamechop =~ /dlv$|act$/) or
+								(viewtblnamechop =~ /replyinput$/ and screentblnamechop =~ /dlv$|act$/)   
+									str_srctbl_qty = "max(srctbl.qty) srctbl_qty"
+							end
+						end
+						if str_srctbl_qty != ""
+							strsql = %Q% select sum(link.qty_src) qty_src, #{str_srctbl_qty}
+											from #{viewtblnamechop}s srctbl 
+											left join linktbls link  on srctbl.id = link.srctblid	and link.srctblname = '#{viewtblnamechop}s'
+																		and (link.srctblname != link.tblname or link.srctblid != link.tblid)
+											where srctbl.cno = '#{params[:parse_linedata][(screentblnamechop+"_cno_"+viewtblnamechop).to_sym]}'  #{str_loca_code}  
+											group by srctbl.id
+										% 
+							org =  ActiveRecord::Base.connection.select_one(strsql)
+						end
+						next if str_srctbl_qty == ""
+					end
+					if org
+						###既に状態が変化しているかチェック
+						if org["qty_src"].to_f >= org["srctbl_qty"].to_f 
+							params[:err] =  "error   --->over qty  line:#{params[:index]} "
+							case screentblnamechop
+							when /ord$|inst$|replyinput/
+										line_data[(screentblnamechop+"_qty_gridmessage").to_sym] =  "error   --->over qty"
+							when /dlv$|act$/
+										line_data[(screentblnamechop+"_qty_stk_gridmessage").to_sym] =  "error   --->over qty"
+							end
+						else
+							params[:err] =  nil
+							case screentblnamechop
+							when /ord$|inst$|replyinput/
+										line_data[(screentblnamechop+"_qty").to_sym] = org["srctbl_qty"].to_f   - org["qty_src"].to_f  
+							when /dlv$|act$/
+										line_data[(screentblnamechop+"_qty_stk").to_sym] =  org["srctbl_qty"].to_f   - org["qty_src"].to_f
 							end
 						end
 					end	
@@ -319,22 +279,34 @@ module CtlFields
 					# 	field = screentblnamechop+"_"+viewtblnamechop+"_id"+delm
 					# 	line_data[field] =  rec["id"]
 					# end
-					findstatus = true
-			else
+					case screentblnamechop 
+					when /^custsch|^custord/ 
+							if line_data[:crr_code] == "" and fetchview =~ /custs$/ 
+								line_data[:crr_code] = rec["crr_code_bill"]
+							end
+							if line_data[:shelfno_code_fm] == "" and fetchview =~ /itms$/ 
+								   line_data[:loca_code_shelfno_fm] = rec["loca_code_shelfno_to_opeitm"]  ###opeitm.shelfno_code_to_opeitm 完成後の置き場所゜
+								   line_data[:shelfno_code_fm] = rec["shelfno_code_to_opeitm"]  ###opeitm.shelfno_code_to_opeitm 完成後の置き場所゜
+								###custord.shelfno_code_fm 客先への出荷のための梱包場所
+							end
+					end
+				else
 					##再入力時のNgに対応	
 					if missing == false 
-						if screentblnamechop != viewtblnamechop and xno !~ /sno|cno/ ### omit self table
+						if screentblnamechop != viewtblnamechop and xno !~ /_sno|_cno|_packinglistno/ ### omit self table
 							### sno,cnoの時は例えば r_puractsにpurord_idを含んでない。(sno_purord,sno_ourdlv等どちらを使用するか不明。)
 							field = (screentblnamechop+"_"+viewtblnamechop+"_id"+delm).to_sym
 							line_data[field] =  ""
+							findstatus = false
 						end
 					else
 					end
+				end
 			end
 		return line_data,keys,findstatus,mainviewflg,missing
 	end		
 
-	def proc_blkuky_check tbl,linedata   ###重複チェック
+	def proc_blkuky_check tbl,line_data   ###重複チェック
 		save_blkuky_grp = nil
 		keys = []
 		err = {}
@@ -344,7 +316,7 @@ module CtlFields
 		ActiveRecord::Base.connection.select_all(strsql).each do |rec|
 			if save_blkuky_grp != rec["blkuky_grp"] 
 				if  !save_blkuky_grp.nil? and keys.exclude?("id")
-					err = blkuky_check_detail tbl,keys,linedata,err
+					err = blkuky_check_detail tbl,keys,line_data,err
 					keys = []
 				end
 				save_blkuky_grp = rec["blkuky_grp"]
@@ -352,21 +324,21 @@ module CtlFields
 			keys << rec["pobject_code_fld"]
 		end
 		if !keys.empty? and keys.exclude?("id")  ### id付きの検索keysはたんなるindexのためskip
-			err = blkuky_check_detail tbl,keys,linedata,err
+			err = blkuky_check_detail tbl,keys,line_data,err
 		end
 		return err
 	end	
 
-	def blkuky_check_detail tbl,keys,linedata,err
+	def blkuky_check_detail tbl,keys,line_data,err
 		strwhere = " where "
 		tblchop = tbl.chop
 		keys.each do |key|
 			symkey = (tblchop + "_" + key.gsub("s_id","_id")).to_sym
-			if linedata[symkey].nil? or linedata[symkey]  == ""
+			if line_data[symkey].nil? or line_data[symkey]  == ""
 				strwhere = "       #{symkey} must be select      "
 				break
 			else
-				strwhere << "  #{key} = '#{linedata[symkey]}'     and "
+				strwhere << "  #{key} = '#{line_data[symkey]}'     and "
 			end
 		end
 		if strwhere =~ /where/ 
@@ -384,44 +356,68 @@ module CtlFields
 	#  nditms 子どものopeitmsへの存在チェック
 	### 
 	def proc_judge_check_code params,sfd,checkCode  ###item未使用
-		params = __send__("check_#{checkCode}",params,sfd)  ###[1]: nil all,add,updateは画面側で判断
+		params = __send__("judge_check_#{checkCode}",params,sfd)  ###[1]: nil all,add,updateは画面側で判断
 		return params 
 	end	
 
-	def check_paragraph params,item ### proc_judge_check_codeからcallされる。
-		linedata = params[:parse_linedata]
-		if linedata[:screenfield_paragraph] == ""
-			if linedata[:pobject_code_sfd] =~ /_code/ and params[:screenCode].split("_")[1].chop == linedata["pobject_code_sfd"].split("_"[0])
-				params[:err] =  "error1   --->view or field  #{linedata["screenfield_paragraph"]}　not find line:#{params[:index]} "
+	def judge_check_paragraph params,item ### proc_judge_check_codeからcallされる。
+		line_data = params[:parse_linedata]
+		if line_data[:screenfield_paragraph] == ""
+			if line_data[:pobject_code_sfd] =~ /_code/ and params[:screenCode].split("_")[1].chop == line_data["pobject_code_sfd"].split("_"[0])
+				params[:err] =  "error1   --->view or field  #{line_data["screenfield_paragraph"]}　not find line:#{params[:index]} "
 			else	
 				params[:err] =  nil
 			end
 		else	
-			if linedata[:screenfield_paragraph]
-				screen,delm = linedata[:screenfield_paragraph].split(":",2)
-				if linedata[:pobject_code_sfd] =~ /_sno_|_cno_|_gno_/
-					case linedata[:pobject_code_sfd] 
+			if line_data[:screenfield_paragraph]
+				screen,delm = line_data[:screenfield_paragraph].split(":",2)
+				if line_data[:pobject_code_sfd] =~ /_sno_|_cno_|_gno_|_packinglistno_/
+					case line_data[:pobject_code_sfd] 
+					when /_tblname/
+						field =  line_data[:pobject_code_sfd]
 					when /_sno_/
-						field = linedata[:pobject_code_sfd].split("_sno_")[1] + "_sno"
+						field = line_data[:pobject_code_sfd].split("_sno_")[1] + "_sno"
 					when /_cno_/
-						field = linedata[:pobject_code_sfd].split("_cno_")[1] + "_cno"
+						field = line_data[:pobject_code_sfd].split("_cno_")[1] + "_cno"
 					when /_gno_/
-						field = linedata[:pobject_code_sfd].split("_gno_")[1] + "_gno"
+						field = line_data[:pobject_code_sfd].split("_gno_")[1] + "_gno"
+					when /_packinglistno_/  ###invoiceに梱包と保守が含まれるときgnoは使用できない。
+						field = line_data[:pobject_code_sfd].split("_packinglistno_")[1] + "_packinglistno"
 					else
 					end
 				else
 					if delm
-						field =  linedata[:pobject_code_sfd].gsub(delm,"")
+						field =  line_data[:pobject_code_sfd].gsub(delm,"")
 					else	
-						field =  linedata[:pobject_code_sfd]
+						field =  line_data[:pobject_code_sfd]
 					end
 				end
-				strsql = %Q%select 1 from r_screenfields where pobject_code_scr ='#{screen}' and pobject_code_sfd = '#{field}' %
+				strsql = %Q%
+							SELECT	pg_views.viewname AS view_name,column_name
+		   						FROM   pg_views
+			   					inner join information_schema.columns on table_name = pg_views.viewname 
+		   						WHERE	   schemaname = current_schema() 
+			   					and pg_views.viewname = '#{screen}' 
+			   					and column_name = '#{field}'
+						union --- MATERIALIZED VIEW columns
+							SELECT 
+							  	mv.relname as view_name  , ---matview_name
+										  att.attname as column_name
+								from pg_catalog.pg_attribute att
+								join pg_catalog.pg_class mv ON mv.oid = att.attrelid
+								join pg_catalog.pg_namespace nsp ON nsp.oid = mv.relnamespace
+								where mv.relkind = 'm' 
+								AND not att.attisdropped 
+								and att.attnum > 0
+								and mv.relname = '#{screen}'
+								and nsp.nspname =  current_schema()
+								and att.attname = '#{field}'			   				
+						%
 				rec = ActiveRecord::Base.connection.select_one(strsql)
 				if rec
 					params[:err] = nil
 				else
-					params[:err] =  "error2   --->view or field  #{linedata[:screenfield_paragraph]}　not find line:#{params[:index]} "
+					params[:err] =  "error2   --->view or field  #{line_data[:screenfield_paragraph]}　not find line:#{params[:index]} "
 				end
 			else
 			end
@@ -429,12 +425,12 @@ module CtlFields
 		return params
 	end	
 
-	def check_strorder params,item
-		linedata = params[:parse_linedata]
-		if linedata[:screen_strorder] and linedata[:screen_strorder] != ""
-			ary_select_fields = linedata.keys
+	def judge_check_strorder params,item
+		line_data = params[:parse_linedata]
+		if line_data[:screen_strorder] and line_data[:screen_strorder] != ""
+			ary_select_fields = line_data.keys
 			sort_info = {}
-			sort_info[:default] = linedata[:screen_strorder]
+			sort_info[:default] = line_data[:screen_strorder]
 			sort_info = proc_detail_check_strorder sort_info,ary_select_fields
 			if sort_info[:err] 
 				params[:err] =  sort_info[:err] + "line:#{params[:index]}" 
@@ -446,87 +442,87 @@ module CtlFields
 	end
 
 	###社内用　loca_codeは社外で使用できない。
-	def check_workplace_loca_code_not_used_suppliers_custwhs params,item
-		linedata = params[:parse_linedata]
-		if linedata[item.to_sym] 
+	def judge_check_workplace_loca_code_not_used_suppliers_custwhs params,item
+		line_data = params[:parse_linedata]
+		if line_data[item.to_sym] 
 			case params[:screenCode]
 			when /workplaces/
 				strsql = %Q%
-					select id from r_suppliers where loca_code_supplier = '#{linedata[item.to_sym]}'
+					select id from r_suppliers where loca_code_supplier = '#{line_data[item.to_sym]}'
 												and supplier_expiredate > current_date
 						union
-					select id from r_custrcvplcs where loca_code_custrcvplc = '#{linedata[item.to_sym]}'
+					select id from r_custrcvplcs where loca_code_custrcvplc = '#{line_data[item.to_sym]}'
 													and custwh_expiredate > current_date
 				%
-			when /suppliers|custwhs/
+			when /suppliers|custwhs|custrcvplcs/
 				strsql = %Q%
-					select id from r_workplaces where loca_code_workplace = '#{linedata[item.to_sym]}'
+					select id from r_workplaces where loca_code_workplace = '#{line_data[item.to_sym]}'
 											and workplace_expiredate > current_date%
 			end
 			if  ActiveRecord::Base.connection.select_value(strsql)
-				params[:err] =  " #{linedata[item.to_sym]}  cant not use  loca_code_workplace same time (suppliers or custwhs) "
+				params[:err] =  " #{line_data[item.to_sym]}  cant not use  loca_code_workplace same time (suppliers or custwhs) "
 			else
-				params[:err] =  ""
+				params[:err] =  nil
 			end
 		end
 		return params
 	end
 
 	
-	def check_workplaces params,item
-		linedata = params[:parse_linedata]
-		if linedata[item.to_sym] 
+	def judge_check_workplaces params,item
+		line_data = params[:parse_linedata]
+		if line_data[item.to_sym] 
 			strsql = %Q%
-				select id from r_workplaces where loca_code_workplace = '#{linedata[item.to_sym]}'
+				select id from r_workplaces where loca_code_workplace = '#{line_data[item.to_sym]}'
 											and workplace_expiredate > current_date
 			%
 			if  ActiveRecord::Base.connection.select_value(strsql)
 			else
-				params[:err] =  " #{linedata[item.to_sym]} not workplaces"
+				params[:err] =  " #{line_data[item.to_sym]} not workplaces"
 			end
 		end
 		return params
 	end
 	
-	def check_suppliers params,item
-		linedata = params[:parse_linedata]
-		if linedata[item.to_sym] 
+	def judge_check_suppliers params,item
+		line_data = params[:parse_linedata]
+		if line_data[item.to_sym] 
 			strsql = %Q%
-				select id from r_suppliers where loca_code_supplier = '#{linedata[item.to_sym]}'
+				select id from r_suppliers where loca_code_supplier = '#{line_data[item.to_sym]}'
 											and supplier_expiredate > current_date
 			%
 			if  ActiveRecord::Base.connection.select_value(strsql)
 			else
-				params[:err] =  " #{linedata[item.to_sym]} not suppliers"
+				params[:err] =  " #{line_data[item.to_sym]} not suppliers"
 			end
 		end
 		return params
 	end
 
 	
-	def check_workplaces_suppliers params,item
-		linedata = params[:parse_linedata]
-		case linedata[:opeitm_prdpur]
+	def judge_check_workplaces_suppliers params,item
+		line_data = params[:parse_linedata]
+		case line_data[:opeitm_prdpur]
 		when "pur"
-			if linedata[item.to_sym] 
+			if line_data[item.to_sym] 
 				strsql = %Q%
-					select id from r_suppliers where loca_code_supplier = '#{linedata[item.to_sym]}'
+					select id from r_suppliers where loca_code_supplier = '#{line_data[item.to_sym]}'
 											and supplier_expiredate > current_date
 				%
 				if  ActiveRecord::Base.connection.select_value(strsql)
 				else
-					params[:err] =  " #{linedata[item.to_sym]} not suppliers"
+					params[:err] =  " #{line_data[item.to_sym]} not suppliers"
 				end
 			end
 		when "prd"
-			if linedata[item.to_sym] 
+			if line_data[item.to_sym] 
 				strsql = %Q%
-					select id from r_workplaces where loca_code_workplace = '#{linedata[item.to_sym]}'
+					select id from r_workplaces where loca_code_workplace = '#{line_data[item.to_sym]}'
 												and workplace_expiredate > current_date
 				%
 				if  ActiveRecord::Base.connection.select_value(strsql)
 				else
-					params[:err] =  " #{linedata[item.to_sym]} not workplaces"
+					params[:err] =  " #{line_data[item.to_sym]} not workplaces"
 				end
 			end
 		end
@@ -553,18 +549,18 @@ module CtlFields
 		return sort_info
 	end	
 
-	def check_qty params,item
+	def judge_check_qty params,item
 		###　get_fetch_recで実施済
 	 	return params
 	end	
 
-	 def check_loca_code_to params,item
-	 	linedata = params[:parse_linedata]
+	 def judge_check_loca_code_to params,item
+	 	line_data = params[:parse_linedata]
 	 	tblname =  params[:screenCode].split("_")[1]
-	 	id = linedata["#{tblname.chop}_id"]
+	 	id = line_data["#{tblname.chop}_id"]
 	 	if id != ""  ###更新の時のみ　ords-->insts  insts -->actsに既にどれだけ変化しているか？
 	 		sym = "loca_code_to"
-	 		if linedata[sym] == ""
+	 		if line_data[sym] == ""
 	 			params[:err] =  "error   --->#{sym} missing line:#{params[:index]} "
 	 		else
 	 			strsql = %Q%select sum(qty) from trngantts where orgtblname ='#{tblname}' and orgtblid = #{id} 
@@ -574,7 +570,7 @@ module CtlFields
 	 			strsql = %Q%select loca_code_to,#{tblname.chop}_qty from r_#{tblname} where id = #{id} %
 	 			rec = ActiveRecord::Base.connection.select_one(strsql)
 	 			if (chng_qty != rec["#{tblname.chop}_qty"] or rec["#{tblname.chop}_qty"]  != trn_qty) and 
-	 					linedata[sym] != rec["loca_code_to"]
+	 					line_data[sym] != rec["loca_code_to"]
 	 				checkstatus = false
 	 				params[:err] =  "error   ---> loca_code_to must be >= #{rec["loca_code_to"]} line:#{params[:index]} "
 				 else
@@ -585,7 +581,7 @@ module CtlFields
 	 	return params
 	 end	
 
-	def check_already_used params,item  ###あるidで登録されたcodeが別のテーブルに既に登録されているとき、codeの変更は不可
+	def judge_check_already_used params,item  ###あるidで登録されたcodeが別のテーブルに既に登録されているとき、codeの変更は不可
 		###外部keyでチェックすべき???
 		# check_code,views = checkCode.split(",")
 		# strsql = %Q&select #{field} from #{view} where #{field} = '#{params[:parse_linedata][item]}'
@@ -604,20 +600,20 @@ module CtlFields
 		# else	
 		# 			params[:err] =  "error   ---> #{field} can not change because #{view} already used "
 		# end
-		linedata = params[:parse_linedata]
-		if linedata[:id] and linedata[:id] != ""  ###変更の時 
+		line_data = params[:parse_linedata]
+		if line_data[:id] and line_data[:id] != ""  ###変更の時 
 			case params[:screenCode]
 			when /itms/
 			when /locas/
 			when /pobjects/
-				strsql = %Q%select code from pobjects where id = #{linedata[:id]}						
+				strsql = %Q%select code from pobjects where id = #{line_data[:id]}						
 				%
 				pobject_codes = ActiveRecord::Base.connection.select_values(strsql)
 				pobject_codes.each do |pobject_code|
-					if pobject_code != linedata[:pobject_code]
+					if pobject_code != line_data[:pobject_code]
 						strsql = %Q%select tfd.id from tblfields tfd
 										inner join fieldcodes fld on tfd.fieldcodes_id  =  fld.id
-										where pobjects_id_fld = #{linedata[:id]}  and tfd.expiredate > current_date
+										where pobjects_id_fld = #{line_data[:id]}  and tfd.expiredate > current_date
 								%
 						value = ActiveRecord::Base.connection.select_value(strsql)
 						if value
@@ -633,9 +629,9 @@ module CtlFields
 			end
 		end		
 		if params[:screenCode] =~ /pobjects/   ###将来　履歴専用のtblを作成しこのチェックはなくす。
-			if linedata[:objecttype] == "view"
-				if linedata[:code] =~ /cust|prd|pur|shp/ and linedata[:code] =~ /schs|ords|oinsts|reply|dlvs|acts|rets/
-					if linedata[:code].split("_")[0]  == "r"
+			if line_data[:objecttype] == "view"
+				if line_data[:code] =~ /cust|prd|pur|shp/ and line_data[:code] =~ /schs$|ords$|oinsts$|replyinputs$|dlvs$|acts$|rets$/
+					if line_data[:code].split("_")[0]  == "r"
 					else
 						params[:err] =  "error   ---> view:#{code}   must be r_xxxxxxx 参照 Operation.get_last_rec  "
 					end
@@ -646,6 +642,14 @@ module CtlFields
 		return params	
 	end
 
+	def judge_check_same_loca_code_bill params,item  ###MkInvoiveNoの時のみ
+		return params
+	end
+
+	def judge_check_taxrate params,item  ###MkInvoiveNoの時のみ
+		return params
+	end
+
 
 
 	def proc_snolist   ###reqparams["segment"] = ["trn_org"]の対象でもある。
@@ -654,8 +658,19 @@ module CtlFields
 			"prdschs"=>"MS","prdords"=>"ME","prdinsts"=>"MH","prdacts"=>"MA","prdrets"=>"MR",
 			"billschs"=>"BS","billords"=>"BE","billinsts"=>"BH","billacts"=>"BA","billrets"=>"BR",
 			"payschs"=>"YS","payords"=>"YE","payinsts"=>"YH","payacts"=>"YA","payrets"=>"YR",
-			"custschs"=>"CS","custords"=>"CQ","custinsts"=>"CJ","custacts"=>"CA","custrets"=>"CR",
+			"custschs"=>"CS","custords"=>"CQ","custinsts"=>"CJ","custdlvs"=>"CV","custacts"=>"CA","custrets"=>"CR",
 			"shpschs"=>"SS","shpords"=>"SE","shpinsts"=>"SH","shpacts"=>"SA","shprets"=>"SR"}
+	end
+
+	
+	def proc_gnolist   ###reqparams["segment"] = ["trn_org"]の対象でもある。
+		{"purschs"=>"GPS","purords"=>"GPE","purinsts"=>"GPH","purdlvs"=>"GPV","puracts"=>"GPA",
+			"purreplyinputs"=>"GPL","prdreplyinputs"=>"GML",
+			"prdschs"=>"GMS","prdords"=>"GME","prdinsts"=>"GMH","prdacts"=>"GMA","prdrets"=>"GMR",
+			"billschs"=>"GBS","billords"=>"GBE","billinsts"=>"GBH","billacts"=>"GBA","billrets"=>"GBR",
+			"payschs"=>"GYS","payords"=>"GYE","payinsts"=>"GYH","payacts"=>"GYA","payrets"=>"GYR",
+			"custschs"=>"GCS","custords"=>"GCQ","custinsts"=>"GCJ","custdlvs"=>"GCV","custacts"=>"GCA","custrets"=>"GCR",
+			"shpschs"=>"GSS","shpords"=>"GSE","shpinsts"=>"GSH","shpacts"=>"GSA","shprets"=>"GSR"}
 	end
 
 	### prd,pur ・・・schs,ords,insts,acts,retsのレコード作成　	
@@ -710,6 +725,7 @@ module CtlFields
 			# when "itm_code_client"  ###保留 amt tax  を含む
 			# 	command_x = field_itm_code_client(tblnamechop,command_x,nd,parent) 
 			when "gno" ###画面の時用にror_blkctl.create_src_tblでもsetしてる
+				command_x["#{tblnamechop}_gno"]  = proc_field_gno(tblnamechop,command_x["id"])
 			when "sno"  ###tblfield_seqnoはidの後であること。###画面の時用にror_blkctl.create_src_tblでもsetしてる
 				command_x["#{tblnamechop}_sno"]  = proc_field_sno(tblnamechop,command_x["id"])
 			when "cno"  ###画面の時用にror_blkctl.crete_src_tblでもsetしてる
@@ -918,8 +934,8 @@ module CtlFields
 		 format('%07d', id)
 	end
 
-	def proc_field_gno id
-		 format('%07d', id) 
+	def proc_field_gno(tblnamechop,id)
+		proc_snolist["#{tblnamechop}s"] + format('%07d', id) 
 	end	
 
 	def field_prjnos_id tblnamechop,command_x,nd,parent
@@ -940,5 +956,9 @@ module CtlFields
 	def field_expiredate tblnamechop,command_x,nd,parent
 		command_x["#{tblnamechop}_expiredate"] = "2099/12/31" if command_x["#{tblnamechop}_expiredate"].nil? or command_x["#{tblnamechop}_expiredate"] == ""
 		return command_x
-	end	
+	end
+	
+	def proc_billord_exists(linedata)  ###既に請求書発行済?
+		false
+	end
 end   ##module

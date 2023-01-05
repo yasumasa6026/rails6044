@@ -23,6 +23,7 @@ export const SCREEN_REQUEST = 'SCREEN_REQUEST'
 export const SCREEN_SUCCESS7 = 'SCREEN_SUCCESS7'
 export const SCREEN_PARAMS_SET = 'SCREEN_PARAMS_SET'
 export const SCREEN_CONFIRM7 = 'SCREEN_CONFIRM7'
+export const CONFIRMALL_SUCCESS = 'CONFIRMALL_SUCCESS'
 
 export const SCREEN_FAILURE = 'SCREEN_FAILURE'
 
@@ -45,7 +46,6 @@ export const FETCH_FAILURE = 'FETCH_FAILURE'
 export const MKSHPORDS_SUCCESS = 'MKSHPORDS_SUCCESS'
 export const MKSHPORDS_RESULT = 'MKSHPORDS_RESULT'
 //export const MKSHPACTS_RESULT = 'MKSHPACTS_RESULT'
-export const CONFIRMALL_REQUEST = 'CONFIRMALL_REQUEST'
 export const SECOND_CONFIRMALL_SUCCESS = 'SECOND_CONFIRMALL_SUCCESS'
 
 export const SECOND_REQUEST = 'SECOND_REQUEST'
@@ -237,11 +237,6 @@ export const SecondFailure = (errors) => ({
 export const MkShpordsResult = (data,params) => ({
   type: MKSHPORDS_RESULT,
   payload: { data,params}
-})
-
-export const ConfirmAllRequest = (params,data) => ({
-  type: CONFIRMALL_REQUEST,
-  payload:{params,data}
 })
 
 export const InputFieldProtectRequest = () => ({

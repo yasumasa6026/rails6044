@@ -160,7 +160,7 @@ module MkordinstLib
 					### freeの確認
 					sumSchs = sch_trn_alloc_to_freetrn(sumSchs)
 					# ###
-					qty_handover = (sumSchs["qty_handover"].to_f / sumSchs["packqty"].to_f).ceil  * sumSchs["packqty"].to_f
+					qty_handover = (sumSchs["qty_require"].to_f / sumSchs["packqty"].to_f).ceil  * sumSchs["packqty"].to_f
 					update_sql = %Q&
 					 				update mkordorgs set qty_handover = #{qty_handover} where id = #{sumSchs["mkordorgs_id"]}
 					 	&
@@ -187,9 +187,10 @@ module MkordinstLib
 					command_c[symqty] = qty_handover
 					command_c["sio_classname"] = "_add_ord_by_mkordinst"
 					opeitm = {}
-					field_check_sql = " select column_name from information_schema.columns
-									where 	table_catalog='#{ActiveRecord::Base.configurations["development"]["database"]}' 
-									and 	table_name = 'r_#{tblord}s' and column_name like 'opeitm_%'"
+					env = ActiveRecord::Base.configurations["#{ENV["RAILS_ENV"]}"]["database"]
+					field_check_sql = %Q& select column_name from information_schema.columns
+									where 	table_catalog='#{env}' 
+									and 	table_name = 'r_#{tblord}s' and column_name like 'opeitm_%' &
 					fields_opeitm = ActiveRecord::Base.connection.select_values(field_check_sql)	
 					schRec.each do |key,val|   ###schRec:xxxschs
 						case key
@@ -303,7 +304,8 @@ module MkordinstLib
 	
 	def set_mkprdpurords_id_in_trngantts_strsql(add_tbl,strwhere,mkprdpurords_id)   ##alocctblのxxxschsは一件のみ
 		%Q&
-		update trngantts bgantt set mkprdpurords_id_trngantt = #{mkprdpurords_id},remark = 'set_mkprdpurords_id_in_trngantts_strsql'
+		update trngantts bgantt set mkprdpurords_id_trngantt = #{mkprdpurords_id},remark = 'set_mkprdpurords_id_in_trngantts_strsql',
+				updated_at = current_timestamp  
 				from (select gantt.orgtblid 
 										from trngantts gantt #{add_tbl}
 										where	gantt.qty_sch > 0 
@@ -638,7 +640,8 @@ module MkordinstLib
 			billordsql = "select ord.id,ord.amt from billords ord  " +  strjoin + strwhere[0..-7]
 			ActiveRecord::Base.connection.select_all(billordsql).each do |billord|
 				src = {"trngantts_id" => 0,"tblname" => "billords","tblid" => billord["id"]}
-				base = {"tblname"=>"billinsts","tblid"=>command_c["id"],"qty_src" => 0,"amt_src"=>billord["amt_src"]}
+				base = {"tblname"=>"billinsts","tblid"=>command_c["id"],"qty_src" => 0,"amt_src"=>billord["amt_src"],
+						"remark" => "#{self} line:#{__LINE__}"}
 				ArelCtl.proc_insert_linktbls(src,base)
 			end
 		end
@@ -676,13 +679,13 @@ module MkordinstLib
 	 	ActiveRecord::Base.connection.select_all(getFreeOrdStk(sumSchs)).each do |free|   ### 
 			base = free.dup
 	 		base["amt_src"] = 0
-	 		base["qty_src"] = free["qty_linkto_alloctbl"].to_f
+	 		base["qty_src"] = free_qty = free["qty_linkto_alloctbl"].to_f
 			base["wh"] = "lotstkhists"
 			strsql = %Q&select srctblid from inoutlotstks 
 						where tblname = '#{free["tblname"]}' and tblid = #{free["tblid"]}
 						and trngantts_id = #{free["trngantts_id"]} and srctblname = 'lotstkhists'  &
 			base["srctblid"] = ActiveRecord::Base.connection.select_value(strsql)
-	 		sch_trn_strsql = %Q&
+	 		sch_trn_strsql = %Q&   ---sumSchsから個別のqty_schをもとめる。
 				select gantt.id trngantts_id, 
 						gantt.tblname,gantt.tblid,gantt.mkprdpurords_id_trngantt,gantt.qty_sch,gantt.qty,gantt.qty_stk,
 			 			gantt.qty_require,gantt.qty_handover, 
@@ -700,22 +703,41 @@ module MkordinstLib
 					 	order by  (gantt.duedate_trn)
  				&
 			ActiveRecord::Base.connection.select_all(sch_trn_strsql).each do |sch_trn|
-				if base["qty_src"] >  sch_trn["qty_sch"].to_f
-					base["qty_src"] -=  sch_trn["qty_sch"].to_f
-					alloc_qty = sch_trn["qty_sch"].to_f
+				if free_qty >  sch_trn["qty_sch"].to_f
+					base["qty_src"] =  sch_trn["qty_sch"].to_f
+					free_qty -= sch_trn["qty_sch"].to_f
+					sch_trn["qty_sch"]  = 0
 				else
-					alloc_qty = base["qty_src"]
-					base["qty_src"] = 0
+					sch_trn["qty_sch"] = sch_trn["qty_sch"].to_f - base["qty_src"]  
+					free_qty = 0
 				end
 
 				base["wh"] = "lotstkhists"
 				ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base,[],[])
 				ArelCtl.proc_src_base_trn_stk_update(sch_trn,base,alloc_qty)
-				base["qty_src"] -= alloc_qty
-				required_sch_qty -= alloc_qty
-				break if base["qty_src"] <= 0
-				break if required_sch_qty <= 0
+				required_sch_qty -= base["qty_src"]
+				sch_update_sql = %Q&
+						update trngantts set qty_sch = #{sch_trn["qty_sch"]},
+												remark = '#{self} line:#{__LINE__}',updated_at = current_timestamp
+								where id = #{sch_trn["trngantts_id"]}
+				&
+				ActiveRecord::Base.connection.update(sch_update_sql)
+				break if free_qty <= 0
 			end
+			case base["tblname"]
+			when /ords$|insts$|replyinputs$|dlvs$/
+				cng_free_qty = free["qty_linkto_alloctbl"].to_f - free_qty
+				cng_free_qty_stk = 0
+			when /acts$|inoutlotstks/
+				cng_free_qty_stk = free["qty_linkto_alloctbl"].to_f - free_qty
+				cng_free_qty = 0 
+			end
+			free_update_sql = %Q&
+					update trngantts set qty = qty - #{cng_free_qty},qty_stk = qty_stk - #{cng_free_qty_stk},
+											remark = '#{self} line:#{__LINE__}',updated_at = current_timestamp
+											where id = #{free["trngantts_id"]}
+			&
+			ActiveRecord::Base.connection.update(free_update_sql)
 			break if required_sch_qty <= 0
 	 	end
 		###引当在庫の修正
@@ -738,7 +760,7 @@ module MkordinstLib
 	 	 				gantt.itms_id_trn itms_id,gantt.prjnos_id,
 	 	 				alloc.srctblname tblname,alloc.srctblid tblid,alloc.trngantts_id trngantts_id,
 	 	 				alloc.id alloc_id	,gantt.qty_handover,
-	 	 				gantt.qty qty,gantt.qty_stk qty_stk,alloc.qty_linkto_alloctbl alloc_qty_linkto_alloctbl	
+	 	 				gantt.qty qty,gantt.qty_stk qty_stk,alloc.qty_linkto_alloctbl qty_linkto_alloctbl	
 	 	 				from trngantts gantt
 	 	 				inner join alloctbls alloc on gantt.id = alloc.trngantts_id
 	 	 				where gantt.prjnos_id =  #{sumSchs["prjnos_id"]}  

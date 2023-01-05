@@ -34,10 +34,10 @@ class ImportexcelController < ApplicationController
         column_info,page_info,where_info,select_fields,fetch_check,dropdownlist,sort_info,nameToCode = 
                   screen.proc_create_upload_editable_columns_info "import" 
         
-        strsql = "select	column_name from 	information_schema.columns 
-                  where 	table_catalog='#{ActiveRecord::Base.configurations["development"]["database"]}' 
-                  and table_name='#{screen.screenCode}' and  column_name not like  '%person_id_upd' "
-        keyids = ActiveRecord::Base.connection.select_values(strsql)
+        # strsql = "select	column_name from 	information_schema.columns 
+        #           where 	table_catalog='#{ActiveRecord::Base.configurations["development"]["database"]}' 
+        #           and table_name='#{screen.screenCode}' and  column_name not like  '%person_id_upd' "
+        # keyids = ActiveRecord::Base.connection.select_values(strsql)
         
         performSeqNos = []
         results = {}   
@@ -66,7 +66,7 @@ class ImportexcelController < ApplicationController
         lines = params[:importData][:importexcel]
         lines.each do |linevalues|
             jparams[:parse_linedata] = linevalues.dup
-            keyids.each do |idkey|   ###keyids--->view項目
+            select_fields.split(",").each do |idkey|   ### select_fields.split(","):元keyidsから変更--->view項目
                     if jparams[:parse_linedata][idkey].nil?
                         jparams[:parse_linedata][idkey] = ""
                     end    
@@ -85,7 +85,7 @@ class ImportexcelController < ApplicationController
                         if jparams[:err].nil?
                             if checkCode[field] and val != ""
                                 jparams = CtlFields.proc_judge_check_code jparams,field,checkCode[field]
-                                if jparams[:err]
+                                if jparams[:err]   ###CtlFields.proc_judge_check_codeの結果
                                         importError = true
                                         jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
                                 end
@@ -119,13 +119,13 @@ class ImportexcelController < ApplicationController
                             else
                                 if command_c["id"] != rec["id"]
                                     importError = true  
-                                    parse_linedata["confirm"] = false  
+                                    parse_linedata["confirm"] = false 
                                     parse_linedata["#{tblname.chop}_confirm_gridmessage"] = "error key:#{key}"
                                 end
                             end  
                             if  parse_linedata["aud"] == "add" and  rec["id"] 
                                 importError = true
-                                parse_linedata["confirm"] = false  
+                                parse_linedata["confirm"] = false 
                                 parse_linedata["#{tblname.chop}_confirm_gridmessage"] = "error already exist key:#{key}"
                             end 
                         end	

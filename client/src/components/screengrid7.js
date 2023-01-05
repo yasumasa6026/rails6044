@@ -54,16 +54,18 @@ const AutoCell = ({
     row: { index,values },
     column: { id, className },  //id field_code
     setData, data, // This is a custom function that we supplied to our table instance
+    setChangeData,changeData,
     row,params, updateParams,dropDownList,fetch_check,
     buttonflg,loading,  //useTableへの登録が必要
     handleScreenRequest,handleFetchRequest,
     }) => {
         // const [newClassName, setNewClassName] = useState(className)
-        const [newReadOnly, setNewReadOnly] = useState(false)
+        //const [newReadOnly, setNewReadOnly] = useState(false)
         const setFieldsByonChange = (e) => {
             if(e.target){
                  values[id] =  e.target.value
                  updateMyData(index, id, values[id] ) //dataの内容が更新されない。但しとると、画面に入力内容が表示されない。
+                 updateChangeData(index,id,values[id])
                }   
         } 
         // const setFieldsByonFocus = (e) => {//
@@ -140,6 +142,21 @@ const AutoCell = ({
             )
         }
 
+        
+        const updateChangeData = (rowIndex, columnId, value) => {
+          setChangeData(old=>
+            old.map((row, index) => {
+              if (index === rowIndex) {
+                  row =  {
+                    ...old[rowIndex],
+                  [columnId]: value,
+                  }
+              }
+            return row
+            })
+          )
+      }
+
         const updateLineData = (index, data,autoAddFields) => {
           Object.keys(autoAddFields).map((field)=>{if(data[field]===""||data[field]===undefined)
                                                 { updateMyData(index, field, autoAddFields[field])}
@@ -153,21 +170,8 @@ const AutoCell = ({
           case /confirm$/.test(id):
             break
           default:
-             if(fetch_check.checkCode[id]){
-                 let chkcondtion = fetch_check.checkCode[id].split(",")[1]
-                 if (chkcondtion === undefined || (chkcondtion === "add" & linedata[id] === "") ||
-                     (chkcondtion === "update" & linedata[id] !== "")) {
-                     updateParams([
-                     {"checkCode": JSON.stringify({ [id]: fetch_check.checkCode[id] })},
-                     {"linedata": JSON.stringify(linedata)},
-                     {"index": index},
-                     {"buttonflg": "check_request"},
-                 ])
-                 handleFetchRequest(params)
-                 break
-                 }
-             }
-             //チェック項目と検索項目は兼用できない。
+             let fetchCheckFlg = false
+             //
              if(fetch_check.fetchCode[id]){
                  let idKeys=[]
                  let flg = true
@@ -195,10 +199,28 @@ const AutoCell = ({
                          {"fetchview": fetch_check.fetchCode[id]},
                          {"buttonflg": "fetch_request"},
                  ])
-                 handleFetchRequest(params,data) //onBlurFunc7でセットされた項目はfetchでまとめて更新
+                 //handleFetchRequest(params,data) //onBlurFunc7でセットされた項目はfetchでまとめて更新
+                 fetchCheckFlg = true
                  }else{}//未入力keyがある。  
              }
              else{updateLineData(index,data,autoAddFields) } //onBlurFunc7でセットされた項目を画面に反映
+             
+             if(fetch_check.checkCode[id]){
+              let chkcondtion = fetch_check.checkCode[id].split(",")[1]
+              if (chkcondtion === undefined || (chkcondtion === "add" & linedata[id] === "") ||
+                  (chkcondtion === "update" & linedata[id] !== "")) {
+                  updateParams([
+                  {"checkCode": JSON.stringify({ [id]: fetch_check.checkCode[id] })},
+                  {"linedata": JSON.stringify(linedata)},
+                  {"index": index},
+                  {"buttonflg": "check_request"},
+              ])
+              //handleFetchRequest(params)
+              //break
+              fetchCheckFlg = true
+              }
+          }
+             if(fetchCheckFlg){handleFetchRequest(params,data)}
            break
           }
         }
@@ -217,7 +239,8 @@ const AutoCell = ({
                     //                 setProtectFunc(id,row)}}
                       onBlur={(e) => setFieldsByonBlur(e)}
                       className={setClassFunc(id,row,className,buttonflg)}
-                      readOnly={typeof(newReadOnly[id])==="undefined"?false:setNewReadOnly(()=>loading===false?setProtectFunc(id,row):true)}
+                      //readOnly={typeof(newReadOnly[id])==="undefined"?false:setNewReadOnly(()=>loading===false?setProtectFunc(id,row):true)}
+                      readOnly={loading?true:false}
                       onKeyUp={(e) => {  
                           if (e.key === "Enter" ) 
                                 {
@@ -230,7 +253,8 @@ const AutoCell = ({
                     onChange={(e) => setFieldsByonChange(e)}
                     onBlur={(e) => setFieldsByonBlur(e)}
                     className={setClassFunc(id,row,className,buttonflg)}
-                    readOnly={typeof(newReadOnly[id])==="undefined"?false:newReadOnly[id]}
+                    //readOnly={typeof(newReadOnly[id])==="undefined"?false:newReadOnly[id]}
+                      readOnly={loading?true:false}
                     onKeyUp={(e) => {  
                       if (e.key === "Enter" ) 
                           {
@@ -353,9 +377,11 @@ const ScreenGrid7 = ({
            let key = Object.keys(ary)[0]
            params[key] = ary[key]
            return ""
-         })}
+            })}
         const [data, setData] = useState(dataOrg) 
+        const [changeData, setChangeData] = useState([]) 
         useEffect(()=>{setData(dataOrg)},[dataOrg])
+        useEffect(()=>{setInitChangeData(dataOrg)},[dataOrg])
         useEffect(()=>{setFetchData(Number(paramsOrg.index),paramsOrg.parse_linedata)},[paramsOrg.parse_linedata])
         const setFetchData = (index, fetch_data) => {
           setData(old=>
@@ -366,6 +392,16 @@ const ScreenGrid7 = ({
               return row
             })
             return newData
+          })
+        }
+
+        
+        const setInitChangeData = (dataOrg) => {
+          setChangeData(old=>
+            {let newChangeData = dataOrg.map((row, idx) => {
+              return {}
+            })
+            return newChangeData
           })
         }
 
@@ -424,6 +460,7 @@ const ScreenGrid7 = ({
           screenwidth={screenwidth} >
           <GridTable  columns={columns}  screenCode={screenCode}
             data={data} setData={setData} dropDownListOrg={dropDownListOrg}
+            setChangeData={setChangeData} changeData={changeData}
             loading={loading} handleScreenParamsSet={handleScreenParamsSet}
             controlledPageIndex={controlledPageIndex}  controlledPageSize={controlledPageSize} buttonflg={buttonflg}
             pageSizeList={pageSizeList}  fetch_check={fetch_check}
@@ -433,7 +470,7 @@ const ScreenGrid7 = ({
             hiddenColumns={hiddenColumns} handleScreenRequest={handleScreenRequest} 
             handleFetchRequest={handleFetchRequest}
             getHeaderProps={column => ({  //セルのサイズ合わせとclick　keyが重複するのを避けるため
-              onClick: (e) =>{if(e.shiftKey){  //sort時はshift　keyが必須
+              onClick: (e) =>{if(e.ctrlKey){  //sort時はctrlKey　keyが必須
                                 switch(column.isSorted){
                                 case true:
                                   switch(column.isSortedDesc){
@@ -461,7 +498,8 @@ const ScreenGrid7 = ({
           <div colSpan="10000">
             Loading...
           </div>
-        ) : ((params["buttonflg"]!=="viewtablereq7"||params["buttonflg"]==="inlineedit7")?<div colSpan="10000" className="td" ></div>:
+        ) : (
+          //(params["buttonflg"]!=="viewtablereq7"||params["buttonflg"]==="cinlineedit7")?<div colSpan="10000" className="td" ></div>:
             <div colSpan="10000" className="td" >
                {Number(params["totalCount"])===0?"No Record":
                 `Showing ${controlledPageIndex * controlledPageSize + 1} of ~
@@ -550,7 +588,7 @@ const defaultPropGetter = () => ({})
 ///
 const GridTable = ({
     columns,screenCode,
-    data,setData, dropDownListOrg,
+    data,setData, dropDownListOrg,setChangeData,changeData,
     loading,fetch_check,
     //controlledPageIndex, controlledPageSize,pageSizeList,
     params, updateParams,
@@ -567,7 +605,6 @@ const GridTable = ({
     const [dropDownList, setDropDownList] = useState(dropDownListOrg)
   
     useEffect(() => {
-                  // updateParams([{sortBy:[]},{filtered:[]},{clickIndex:[]}])},
                   params = {...params,sortBy:[],filtered:[],clickIndex:[]}},
                     [screenCode]) 
 
@@ -607,13 +644,13 @@ const GridTable = ({
         prepareRow, 
         toggleAllRowsSelected,   
         setAllFilters,setSortBy,
-        state:{filters,sortBy}  //:{controlledPageIndex,controlledPageSize},  //hiddenColumns,}
+        state:{filters,sortBy,selectedRowIds}  //:{controlledPageIndex,controlledPageSize},  //hiddenColumns,}
     } = useTable(
         {
             columns,
-            data,
+            data,changeData,
             params,updateParams,
-            dropDownList,fetch_check,buttonflg,loading,setData,
+            dropDownList,fetch_check,buttonflg,loading,setData,setChangeData,
             defaultColumn,
             manualPagination: false,
             manualFilters: true,
@@ -690,34 +727,56 @@ const GridTable = ({
                       row.index % 2 === 0 ? 'ivory' : 'lightgray',
                       },
                   onClick: e => {
-                      let result = -1
-                      if(params.clickIndex){
-                                params.clickIndex.map((clickRow,index) => 
-                                      {if(clickRow.id===data[row.index]["id"])
-                                            {result = index}
-                                      })}
-                      else{ params = { ...params,clickIndex:[]}}
-                      if(e.shiftKey){
-                          if(result===-1){
+                      // let result = -1
+                      let sNo
+                      switch(params.screenCode){
+                        case 'fmcustord_custinsts':
+                          sNo = "custinst_sno_custord"
+                          break
+                        case 'fmcustinst_custdlvs':
+                          sNo = "custdlv_sno_custinst"
+                          break
+                        default:
+                          sNo = "sno"
+                      }
+                      // if(params.clickIndex){
+                      //       switch(params.screenCode){
+                      //         case "fmcustord_custinsts":
+                      //           params.clickIndex.map((clickRow,index) => 
+                      //                 {if(clickRow.custord_id===data[row.index]["custord_id"])
+                      //                       {result = index}
+                      //                 })
+                      //           break
+                      //         default:
+                      //           params.clickIndex.map((clickRow,index) => 
+                      //                 {if(clickRow.id===data[row.index]["id"])
+                      //                       {result = index}
+                      //                 })}
+                      // }
+                      // else{ params = { ...params,clickIndex:[]}}
+                      if(e.ctrlKey){
+                          if(Object.keys(selectedRowIds).length===0){
                             toggleAllRowsSelected(true)
                             let tmpClicks = []
-                            rows.map((linerow,index) => 
-                              { tmpClicks.push({lineId:linerow.index,id:data[linerow.index]["id"],
-                                                  screenCode:params.screenCode,})
-                              })
-                              updateParams([{clickIndex:tmpClicks},])
+                            data.map((line,idx) => tmpClicks.push({lineId:idx,id:line["id"],
+                                                    screenCode:params.screenCode,sNo:line[sNo]})
+                            )
+                            updateParams([{clickIndex:tmpClicks},])
                           }else{
                             toggleAllRowsSelected(false)
-                            updateParams([{clickIndex:[]},])
+                            updateParams([{clickIndex:[]},])  //変更内容は変化しない
                           }
                       }else{
-                        row.toggleRowSelected()
-                        if(result===-1){
-                          params.clickIndex.push({lineId:row.index,id:data[row.index]["id"],
-                                                    screenCode:params.screenCode,})
+                        if(row.isSelected){
+                          params.clickIndex[row.index] = {}
+                          row.toggleRowSelected(false)
                           }
-                        else{params.clickIndex.splice(result,1)}
+                        else{
+                          row.toggleRowSelected(true)
+                          params.clickIndex[row.index] = {lineId:row.index,id:data[row.index]["id"],
+                                                            screenCode:params.screenCode,sNo:data[row.index][sNo]}}
                       }
+                      params = {...params,changeData:changeData}
                       handleScreenParamsSet(params)  
                     },
                   })

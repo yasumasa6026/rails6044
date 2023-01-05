@@ -111,11 +111,29 @@ const  mapStateToProps = (state,ownProps) =>({
 const mapDispatchToProps = (dispatch,ownProps ) => ({
       getScreen : (screenCode, screenName,view_name, params) =>{
         titleNameSet(screenName)
-        params= { ...params,screenName:  (screenName||""),disableFilters:false,
+        switch(screenCode){
+          case "fmcustord_custinsts":
+            case "fmcustinst_custdlvs":
+            params = { ...params,screenName:  (screenName||""),disableFilters:false,
+                        parse_linedata:{},
+                        filtered:[],where_str:"",sortBy:[],screenFlg:"first",
+                        screenCode:screenCode,pageIndex:0,pageSize:20,
+                        buttonflg:"inlineedit7",viewName:view_name} 
+            break
+          case "custact_linkheads":  //初期画面は追加画面
+              params = { ...params,screenName:  (screenName||""),disableFilters:false,
+                          parse_linedata:{},
+                          filtered:[],where_str:"",sortBy:[],screenFlg:"first",
+                          screenCode:screenCode,pageIndex:0,pageSize:20,
+                          buttonflg:"inlineadd7",viewName:view_name} 
+              break
+          default:
+            params = { ...params,screenName:  (screenName||""),disableFilters:false,
                         parse_linedata:{},
                         filtered:[],where_str:"",sortBy:[],screenFlg:"first",
                         screenCode:screenCode,pageIndex:0,pageSize:20,
                         buttonflg:"viewtablereq7",viewName:view_name} 
+        }
         dispatch(ScreenInitRequest(params,null))}   //data:null
           })    
 export default connect(mapStateToProps,mapDispatchToProps)(Menus7)

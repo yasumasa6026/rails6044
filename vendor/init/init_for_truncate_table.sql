@@ -20,6 +20,7 @@ truncate table custschs;
 truncate table custords cascade;
 truncate table custinsts;
 truncate table custacts;
+truncate table custdlvs;
 truncate table custwhs;
 
 truncate table trngantts cascade;
@@ -44,6 +45,10 @@ truncate table custwhs ;
 truncate table conschs ;
 truncate table conords;
 truncate table conacts ;
+truncate table linkheads ;
+truncate table custactheads;
+truncate table linktbls;
+truncate table linkcusts;
 
 truncate table mkordopeitms cascade;
 
@@ -104,6 +109,7 @@ to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'));
 ;
 commit;
 
+truncate table sio.sio_custact_linkheads;
 truncate table sio.sio_r_purschs;
 truncate table sio.sio_r_purords;
 truncate table sio.sio_r_purinsts;
@@ -114,6 +120,7 @@ truncate table sio.sio_r_outstks;
 truncate table sio.sio_r_inamts;
 truncate table sio.sio_r_outamts;
 truncate table sio.sio_r_lotstkhists;
+truncate table sio.sio_r_custactheads;
 
 truncate table sio.sio_r_alloctbls cascade;
 
@@ -126,6 +133,9 @@ truncate table sio.sio_r_prdacts;
 truncate table sio.sio_r_custschs;
 truncate table sio.sio_r_custords;
 truncate table sio.sio_r_custinsts;
+truncate table sio.sio_r_custdlvs;
+truncate table sio.sio_fmcustinst_custdlvs ;
+truncate table sio.sio_fmcustord_custinsts;
 truncate table sio.sio_r_custacts;
 
 truncate table sio.sio_r_trngantts cascade;

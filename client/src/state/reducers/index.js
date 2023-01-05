@@ -8,7 +8,7 @@ import  menureducer  from './menu'
 import  screenreducer  from './screen'
 import  uploadreducer  from './upload'
 import  buttonreducer  from './button'
-import  downloadreducer  from './download'
+//import  downloadreducer  from './download'
 import  ganttchartreducer  from './ganttchart'
 import  secondreducer  from './second'
 
@@ -20,7 +20,7 @@ const reducer = combineReducers({
   screen:screenreducer,
   upload:uploadreducer,
   button:buttonreducer,
-  download:downloadreducer,
+  //download:downloadreducer,
   ganttchart:ganttchartreducer,
   second:secondreducer,
   routing: routerReducer,

@@ -61,8 +61,14 @@ module Api
             when "check_request"  
                 reqparams = params.dup
                 reqparams[:parse_linedata] = JSON.parse(params[:linedata])
+                if params[:fetchview] and params[:fetchview] != ""
+                    reqparams = CtlFields.proc_chk_fetch_rec reqparams
+                end
                 JSON.parse(params[:checkCode]).each do |sfd,checkcode|
                   reqparams = CtlFields.proc_judge_check_code reqparams,sfd,checkcode
+                end
+                if params[:fetchview] and params[:fetchview] != ""
+                    reqparams = CtlFields.proc_chk_fetch_rec reqparams
                 end
                 render json: {:params=>reqparams}   
 
@@ -76,6 +82,219 @@ module Api
                 download_columns_info,totalCount,pagedata = screen.proc_download_data_blk(params)   ### nil filtered sorting
                 render json:{:excelData=>{:columns=>download_columns_info.to_json,:data=>pagedata.to_json},
                             :totalCount=>totalCount,:filttered=>params[:filtered] }    
+
+            when 'confirmAll'   ###purords,prdordsからshpordsを表示
+                if params["clickIndex"]
+                    outcnt = 0
+                    reqparams = params.dup
+                    ActiveRecord::Base.connection.begin_db_transaction()
+                    params["clickIndex"].each_with_index do |strselected,idx|
+                        next if strselected == "undefined"
+                        selected = JSON.parse(strselected)
+                        if params[:screenCode] == selected["screenCode"]
+                            grid_columns_info = screen.proc_create_grid_editable_columns_info(reqparams)
+                            if selected["id"] == "" or selected["id"].nil? 
+                                case params[:screenCode]
+                                when "fmcustord_custinsts"
+                                    strSno = %Q& custinst_sno_custord  = '#{selected["sNo"]}' &
+                                else
+                                    Rails.logger.debug%Q&#{Time.now self} line:#{__LINE__} screnCode ummatch params[screenCode]:#{params[:screenCode]}  selected[screenCode]:#{selected["screenCode"]} &
+                                    raise
+                                end
+                                strsql = %Q&select #{grid_columns_info[:select_fields]} from #{params[:screenCode]} where #{strSno}&
+                            else
+                                fields =  ActiveRecord::Base.connection.select_values(%Q&
+                                                select pobject_code_sfd from func_get_screenfield_grpname('#{$mail}','r_#{params[:screenCode].split("_")[1]}')&)
+                                strsql = %Q& select #{fields.join(",")} from r_#{params[:screenCode].split("_")[1]} 
+                                                    where id = #{strselected["id"]} & 
+                            end
+                            reqparams[:parse_linedata] = ActiveRecord::Base.connection.select_one(strsql)
+                            if params[:changeData]
+                                JSON.parse(params[:changeData][idx]).each do |k,v|
+                                    if reqparams[:parse_linedata][k]
+                                        reqparams[:parse_linedata][k] = v
+                                    end
+                                end
+                            end
+                            reqparams = screen.proc_confirm_screen(reqparams)
+                            if reqparams[:err].nil?
+                                outcnt += 1
+                            else
+                                ActiveRecord::Base.connection.rollback_db_transaction()
+                                command_c["sio_result_f"] = "9"  ##9:error
+                                command_c["sio_message_contents"] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
+                                command_c["sio_errline"] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
+                                Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
+                                Rails.logger.debug"error class #{self} : $!: #{$!} "
+                                Rails.logger.debug"  command_c: #{command_c} "
+                                render json:{:err=>reqparams[:err]}
+                                raise    
+                            end
+                        else
+                            Rails.logger.debug%Q&#{Time.now} #{self} line:#{__LINE__} screnCode ummatch  params[:screenCode]:#{params[:screenCode]}  selected[screenCode]:#{selected["screenCode"]} &
+                            raise
+                        end
+                    end
+                    ##  pagedata,reqparams = screen.proc_search_blk(reqparams)   ###:pageInfo  -->menu7から未使用
+                    ##  render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams,:outcnt => outcnt,:err => ""}
+                    ActiveRecord::Base.connection.commit_db_transaction()
+                    render json:{:outcnt => outcnt,:err => ""}
+                else
+                    render json:{:err=>"please  select Order"}    
+                end  
+
+            when 'MkPackingListNo'   ###purords,prdordsからshpordsを表示
+                if params["clickIndex"]
+                    outcnt = 0
+                    reqparams = params.dup
+                    packingListNo = "P-" + format('%06d',ArelCtl.proc_get_nextval("packinglistno_seq"))
+                    strPackingListNo = "#{params[:screenCode].split("_")[1].chop}_packinglistno"
+                    ActiveRecord::Base.connection.begin_db_transaction()
+                    params["clickIndex"].each_with_index do |strselected,idx|
+                        next if strselected == "undefined"
+                        selected = JSON.parse(strselected)
+                        if params[:screenCode] == selected["screenCode"]
+                            grid_columns_info = screen.proc_create_grid_editable_columns_info(reqparams)
+                            if selected["id"] == "" or selected["id"].nil? 
+                                case params[:screenCode]
+                                when "fmcustinst_custdlvs"
+                                    strSno = %Q& custdlv_sno_custinst  = '#{selected["sNo"]}' &
+                                else
+                                    Rails.logger.debug%Q&#{Time.now self} line:#{__LINE__} screnCode ummatch params[screenCode]:#{params[:screenCode]}  selected[screenCode]:#{selected["screenCode"]} &
+                                    raise
+                                end
+                                strsql = %Q&select #{grid_columns_info[:select_fields]} from #{params[:screenCode]} where #{strSno}&
+                            else
+                                fields =  ActiveRecord::Base.connection.select_values(%Q&
+                                                select pobject_code_sfd from func_get_screenfield_grpname('#{$mail}','r_#{params[:screenCode].split("_")[1]}')&)
+                                strsql = %Q& select #{fields.join(",")} from r_#{params[:screenCode].split("_")[1]} 
+                                                    where id = #{strselected["id"]} & 
+                            end
+                            reqparams[:parse_linedata] = ActiveRecord::Base.connection.select_one(strsql)
+                            if params[:changeData]
+                                JSON.parse(params[:changeData][idx]).each do |k,v|
+                                    if reqparams[:parse_linedata][k]
+                                        reqparams[:parse_linedata][k] = v
+                                    end
+                                end
+                            end
+                            reqparams[:parse_linedata][strPackingListNo] =  packingListNo
+                            reqparams = screen.proc_confirm_screen(reqparams)
+                            if reqparams[:err].nil?
+                                outcnt += 1
+                            else
+                                ActiveRecord::Base.connection.rollback_db_transaction()
+                                command_c["sio_result_f"] = "9"  ##9:error
+                                command_c["sio_message_contents"] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
+                                command_c["sio_errline"] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
+                                Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
+                                Rails.logger.debug"error class #{self} : $!: #{$!} "
+                                Rails.logger.debug"  command_c: #{command_c} "
+                                render json:{:err=>reqparams[:err]}
+                                raise    
+                            end
+                        else
+                            Rails.logger.debug%Q&#{Time.now} #{self} line:#{__LINE__} screnCode ummatch  params[:screenCode]:#{params[:screenCode]}  selected[screenCode]:#{selected["screenCode"]} &
+                            raise
+                        end
+                    end
+                    ##  pagedata,reqparams = screen.proc_search_blk(reqparams)   ###:pageInfo  -->menu7から未使用
+                    ##  render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams,:outcnt => outcnt,:err => ""}
+                    ActiveRecord::Base.connection.commit_db_transaction()
+                    render json:{:outcnt => outcnt,:err => ""}
+                else
+                    render json:{:err=>"please  select Order"}    
+                end
+
+            when 'MkInvoiceNo'   ###purords,prdordsからshpordsを表示
+                if params["clickIndex"]
+                    outcnt = 0
+                    totalAmt =  0
+                    totalTax = 0
+                    reqparams = params.dup
+                    invoiceNo = "Inv-" + format('%06d',ArelCtl.proc_get_nextval("invoiceno_seq"))
+                    strInvoiceNo = "custacthead_invoiceno"
+                    ActiveRecord::Base.connection.begin_db_transaction()
+                    params["clickIndex"].each_with_index do |strselected,idx|
+                        next if strselected == "undefined"
+                        selected = JSON.parse(strselected)
+                        if params[:screenCode] == selected["screenCode"]
+                            grid_columns_info = screen.proc_create_grid_editable_columns_info(reqparams)
+                            if selected["id"] == "" or selected["id"].nil? 
+                                render json:{:err=>"please  select after add custacts "}   ###mesaage    
+                                return
+                            else
+                                fields =  ActiveRecord::Base.connection.select_values(%Q&
+                                                select pobject_code_sfd from func_get_screenfield_grpname('#{$mail}','r_#{params[:screenCode].split("_")[1]}')&)
+                                strsql = %Q& select #{fields.join(",")} from r_#{params[:screenCode].split("_")[1]} 
+                                                    where id = #{strselected["id"]} & 
+                            end
+                            reqparams[:parse_linedata] = ActiveRecord::Base.connection.select_one(strsql)
+                            if params[:changeData]
+                                JSON.parse(params[:changeData][idx]).each do |k,v|
+                                    if reqparams[:parse_linedata][k]
+                                        if k != strInvoiceNo 
+                                            reqparams[:parse_linedata][k] = v
+                                        else
+                                            if val != "" and val
+                                                if CtlFields.proc_billord_exists(reqparams[:parse_linedata])
+                                                    render json:{:err=>" already issue billords "}   ###mesaage
+                                                    return    
+                                                end
+                                            else ###新しいInvoiceNoに変更される。
+                                                ###ここでは何もしない。
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            reqparams[:parse_linedata][strInvoiceNo] =  invoiceNo
+                            reqparams["heads"] = []  ###amtの計算用
+                            reqparams = screen.proc_confirm_screen(reqparams)
+                            if reqparams[:err].nil?
+                                outcnt += 1
+                            else
+                                ActiveRecord::Base.connection.rollback_db_transaction()
+                                command_c["sio_result_f"] = "9"  ##9:error
+                                command_c["sio_message_contents"] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
+                                command_c["sio_errline"] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
+                                Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
+                                Rails.logger.debug"error class #{self} : $!: #{$!} "
+                                Rails.logger.debug"  command_c: #{command_c} "
+                                render json:{:err=>reqparams[:err]}
+                                raise    
+                            end
+                        else
+                            Rails.logger.debug%Q&#{Time.now} #{self} line:#{__LINE__} screnCode ummatch  params[:screenCode]:#{params[:screenCode]}  selected[screenCode]:#{selected["screenCode"]} &
+                            raise
+                        end
+                    end
+                    amtTaxRate = {}
+                    reqparams["heads"].each do |head|
+                        totalAmt += head["amt"]
+                        totalTax += totalAmt * head["taxrate"]  / 100 ###変更要
+                        if amtTaxRate[head["taxrate"]]
+                            amtTaxRate[head["taxrate"]]["amt"] += head["amt"]
+                            amtTaxRate[head["taxrate"]]["count"] += 1
+                        else
+                            amtTaxRate[head["taxrate"]] ={"amt" => head["amt"],"count" => 1}
+                        end
+                    end
+                    custactHead =  RorBlkCtl::BlkClass.new("r_custactheads")
+                    custactHeadCommand_c = custactHead.command_init
+                    reqparams["heads"].each do |head|
+                        custactHeadCommand_c["id"] = head["custacthead_id"]   ###修正のみ
+                        custactHeadCommand_c["custacthead_amt"] = totalAmt
+                        custactHeadCommand_c["custacthead_tax"] = totaltax
+                        custactHeadCommand_c["custacthead_taxjson"] = amtTaxRate.to_json 
+                        custactHeadCommand_c = custactHead.proc_create_tbldata(command_c)
+                        custactHead.proc_private_aud_rec({},custactHeadCommand_c)
+                    end
+                    ActiveRecord::Base.connection.commit_db_transaction()
+                    render json:{:outcnt => outcnt,:err => ""}
+                else
+                    render json:{:err=>"please  select Order"}    
+                end
 
             when 'mkShpords'  ###shpschsは作成済が条件。shpschsはpurords,prdords時に自動作成
                 if params[:clickIndex]

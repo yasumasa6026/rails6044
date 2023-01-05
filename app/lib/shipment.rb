@@ -674,7 +674,7 @@ module Shipment
 		when "shpords"
 			command_c["shpinst_depdate"] =  (shp["shpord_depdate"]||=Time.now)
 			command_c["shpinst_qty_stk"] =  shp["shpord_qty"]
-			if shp["shpord_unit_id_case_shp"] == shp["itm_unit_id"]
+			if shp["shpord_unit_id_case_shp"] == shp["shpord_unit_id_case_shp"]
 				command_c["shpinst_qty_real"] =  shp["shpord_qty"]
 			else
 				strsql = %Q&

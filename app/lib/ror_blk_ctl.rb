@@ -27,6 +27,45 @@ module RorBlkCtl
             @command_init
         end
 
+		def proc_create_tbldata(command_c) ##
+			if command_c["sio_classname"] =~ /_add_|_insert_/ or command_c["id"] == "" or command_c["id"].nil?
+				@tbldata["created_at"] =  command_c["#{@tblname.chop}_created_at"] = Time.now
+				if  command_c["id"] == "" or command_c["id"].nil?
+					command_c["id"] = ArelCtl.proc_get_nextval("#{@tblname}_seq")
+					command_c[@tblname.chop+"_id"] = @tbldata["id"] = command_c["id"] 
+				else
+					@tbldata["id"] = command_c["id"]  ###fields_updateでセット済
+				end
+			else
+				@tbldata["id"] = command_c["id"]	
+			end	
+        	command_c.each do |j,k|
+        		j_to_stbl,j_to_sfld = j.to_s.split("_",2)
+				if  j_to_stbl == @tblname.chop  and j_to_sfld !~ /_gridmessage/ and j_to_sfld != "id" and
+					j_to_sfld != "code_upd" and  j_to_sfld != "name_upd"   and  j_to_sfld != "id_upd"##本体の更新
+			    	if  k
+	            		@tbldata[j_to_sfld.sub("_id","s_id")] = k
+						@tbldata[j_to_sfld] = nil  if k  == "\#{nil}"  ##
+						if k == ""  or k.nil?
+							case 	  j_to_sfld
+							when 'sno'
+								command_c[@tblname.chop+"_sno"] = @tbldata["sno"] = CtlFields.proc_field_sno(@tblname.chop,command_c["id"])
+							when 'cno'
+								command_c[@tblname.chop+"_cno"] = @tbldata["cno"] = CtlFields.proc_field_cno(command_c["id"])
+							when 'gno'
+								command_c[@tblname.chop+"_gno"] = @tbldata["gno"] = CtlFields.proc_field_gno(@tblname.chop,command_c["id"])
+							end
+						else
+						end
+					else
+					end
+            	end   ## if j_to_s.
+			end ## command_c.each
+        	@tbldata["persons_id_upd"] = command_c["#{@tblname.chop}_person_id_upd"] = $person_id_upd ###
+			@tbldata["updated_at"] = command_c["#{@tblname.chop}_updated_at"] = Time.now
+			return command_c
+		end
+
 		def proc_add_update_table(params,command_c)  
 			begin
 				ActiveRecord::Base.connection.begin_db_transaction()
@@ -217,8 +256,7 @@ module RorBlkCtl
 			setParams["gantt"] = gantt.dup
 			if @tblname =~ /^prd|^pur/ and @tblname =~ /insts$|replyinputs$|dlvs$|acts$/  ##schsとordsは除く  
 				###ordsの変更はoperation
-				###custordsの在庫の変更はOperation.custords_alloc_to_custschsで
-				src_qty = @tbldata["qty_sch"].to_f + @tbldata["qty"].to_f + @tbldata["qty_stk"].to_f
+				src_qty = @tbldata["qty"].to_f + @tbldata["qty_stk"].to_f
 				link_strsql,sql_get_src_alloc = get_src_tbl()
 				if link_strsql != "" and command_c["sio_classname"] =~ /_edit_|_update_|_delete_|_purge_/
 					save_trngantts_id = ""
@@ -226,14 +264,16 @@ module RorBlkCtl
 						if src_qty > link["qty_src"].to_f
 							src_qty -= link["qty_src"].to_f
 						else
-							update_alloctbls_linktbl(link,src_qty)
+							###linktbls,alloctblsの更新のみ。在庫とtrnganttsの変更はArelCtl.proc_src_base_trn_stk_update
+							update_alloctbls_linktbl(link,src_qty)  
 							src_qty = 0
 							save_trngantts_id = link["trngantts_id"] if save_trngantts_id == ""
 						end
 					end
-				else
+				else   ###新規 prd,pur /insts$|replyinputs$|dlvs$|acts$/ 
+					###linktbls,alloctblsの更新のみ。在庫とtrnganttsの変更はArelCtl.proc_src_base_trn_stk_update
 					if sql_get_src_alloc != "" and command_c["sio_classname"] =~  /_add_|_insert_/
-						src_qty = @tbldata["qty_sch"].to_f + @tbldata["qty"].to_f + @tbldata["qty_stk"].to_f
+						src_qty = @tbldata["qty"].to_f + @tbldata["qty_stk"].to_f  ### @tbldata["qty"], @tbldata["qty_stk"]どちらかはnil(nil.to_f=>0)
 						###ここでは引当済をセットするのみ
 						linktbl_ids = []
 						ActiveRecord::Base.connection.select_all(sql_get_src_alloc).each do |src|
@@ -248,7 +288,7 @@ module RorBlkCtl
 										"qty_src" => alloc_qty ,"amt_src" => 0,	"trngantts_id" => src["trngantts_id"]}
 							linktbl_ids  << ArelCtl.proc_insert_linktbls(src,base)
 							strsql = %Q&
-								update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
+								update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{alloc_qty},
 										remark = '#{self}.add_update_alloc_add_link line:(#{__LINE__})'
 									where id = #{src["alloc_id"]} 
 								&
@@ -262,6 +302,112 @@ module RorBlkCtl
 						setParams["linktbl_ids"] = linktbl_ids.dup
 						setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
 						processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+					end
+				end
+			end
+
+			
+			if @tblname =~ /^cust/ and @tblname =~ /insts$|dlvs$|acts$/  ##schsとordsは除く  
+				###ordsの変更はoperation
+				src_qty = @tbldata["qty"].to_f + @tbldata["qty_stk"].to_f
+				if command_c["sio_classname"] =~ /_edit_|_update_|_delete_|_purge_/
+					save_trngantts_id = ""
+					link_strsql = %Q&
+								select * from linkcusts where tblname = '#{@tblname}' and tblid = #{@tblid}
+					&
+					ActiveRecord::Base.connection.select_all(link_strsql).each do |link|
+						if src_qty > link["qty_src"].to_f
+							src_qty -= link["qty_src"].to_f
+						else
+							###linkcusts,の更新のみ。在庫とtrnganttsの変更はArelCtl.proc_src_base_trn_stk_update
+							strsql = %Q&
+										update linkcusrs set qty_src = #{src_qty},remark = '#{self}.update_alloctbls_linktbl line:(#{__LINE__})',
+												updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
+												where id = #{link["id"]}
+								&
+							ActiveRecord::Base.connection.update(strsql)
+							src_qty = 0
+							save_trngantts_id = link["trngantts_id"] if save_trngantts_id == ""
+						end
+					end
+				else   ###新規 prd,pur /insts$|replyinputs$|dlvs$|acts$/ 
+					###linkcustsの更新のみ。在庫の変更はlink_lotstkhists_update
+					if command_c["sio_classname"] =~  /_add_|_insert_/
+						qty = @tbldata["qty"].to_f + @tbldata["qty_stk"].to_f  ### @tbldata["qty"], @tbldata["qty_stk"]どちらかはnil(nil.to_f=>0)
+						case screenCode
+						when "fmcustord_custinsts","r_custinsts"  ###custinsts作成時は追加が必要
+							link_strsql = %Q&
+									select src.*,link.qty_src,link.trngantts_id,link.srctblname ,link.srctblid,link.tblname,link.tblid,link.id link_id  from custords src 
+													inner join linkcusts link on link.tblid = src.id 
+													where src.sno = '#{@tbldata["sno_custord"]}' and link.tblname = 'custords'
+													order by link.trngantts_id
+							&
+						when "fmcustinst_custdlvs","r_custdlvs" 
+							link_strsql = %Q&
+									select src.*,link.qty_src,link.trngantts_id,link.srctblname ,link.srctblid,link.tblname,link.tblid,link.id link_id  from custinsts src 
+													inner join linkcusts link on link.tblid = src.id 
+													where src.sno = '#{@tbldata["sno_custinst"]}' and link.tblname = 'custinsts'
+													order by link.trngantts_id
+							&
+						when "r_custacts" 
+							if @tbldata["sno_custord"] and @tbldata["sno_custord"] != ""
+								link_strsql = %Q&
+									select src.*,link.qty_src,link.trngantts_id,link.srctblname ,link.srctblid,link.tblname,link.tblid,link.id link_id  
+													from custords src 
+													inner join linkcusts link on link.tblid = src.id 
+													where src.sno = '#{@tbldata["sno_custord"]}' and link.tblname = 'custords'
+													order by link.trngantts_id
+								&
+							else
+								if @tbldata["cno_custord"] and @tbldata["cno_custord"] != ""
+									link_strsql = %Q&
+										select src.*,link.qty_src,link.trngantts_id,link.srctblname ,link.srctblid,link.tblname,link.tblid,link.id link_id  
+														from custords src 
+														inner join linkcusts link on link.tblid = src.id 
+														where src.sno = '#{@tbldata["cno_custord"]}' and link.tblname = 'custords'
+														and src.custs_id = #{@tbldata["custs_id"]}
+														order by link.trngantts_id
+									&
+								else
+									if @tbldata["sno_custdlv"] and @tbldata["cno_custdlv"] != ""
+										link_strsql = %Q&
+											select src.*,link.qty_src,link.trngantts_id,link.srctblname ,link.srctblid,link.tblname,link.tblid,link.id link_id  
+															from custdlvs src 
+															inner join linkcusts link on link.tblid = src.id 
+															where src.sno = '#{@tbldata["sno_custdlv"]}' and link.tblname = 'custdlvs'
+															order by link.trngantts_id
+										&
+									end
+								end
+							end
+						end
+							###ここでは引当済をセットするのみ
+						linktbl_ids = []
+						ActiveRecord::Base.connection.select_all(link_strsql).each do |src|
+							if qty >= src["qty_src"].to_f
+								qty -= src["qty_src"].to_f
+								qty_src = src["qty_src"].to_f
+								src["qty_src"] = 0
+							else
+								qty_src = qty
+								src["qty_src"] = src["qty_src"].to_f - qty
+								qty = 0
+							end
+							base = {"tblname" => @tblname ,	"tblid" => @tbldata["id"],
+										"qty_src" => qty_src ,"amt_src" => 0,	"trngantts_id" => src["trngantts_id"]}
+							linktbl_ids  << ArelCtl.proc_insert_linkcusts(src,base)
+							update_strsql = %Q&
+									update  linkcusts link set qty_src = #{src["qty_src"]},	remark = '#{self} line:#{__LINE__}'
+													where id  = '#{src["link_id"]}'
+							&
+							ActiveRecord::Base.connection.update(update_strsql)
+							break if qty <= 0
+						end
+						###if @tblname =~ /dlvs$|acts$/  
+							setParams["linktbl_ids"] = linktbl_ids.dup
+							setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
+							processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+						###end
 					end
 				end
 			end
@@ -304,21 +450,24 @@ module RorBlkCtl
 						srctblname = key.to_s.split("_")[1] + "s" 
 						case key.to_s
 						when  /^sno_/
-							link_strsql = %Q&
-									select src.*,link.qty_src,link.trngantts_id,link.srctblname,link.srctblid,link.tblname,link.tblid  from #{srctblname} src 
+							case srctblname
+							when /^prd|^pur/
+								link_strsql = %Q&
+										select src.*,link.qty_src,link.trngantts_id,link.srctblname,link.srctblid,link.tblname,link.tblid  from #{srctblname} src 
 															inner join linktbls link on link.srctblid = src.id 
 															where src.sno = '#{val}' and link.srctblname = '#{srctblname}'
 															and  link.tblid = #{@tbldata["id"]} and link.tblname = '#{@tblname}'
 															order by link.trngantts_id
-							&
-							sql_get_src_alloc = %Q&
-									select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id,alloc.srctblname tblname,alloc.srctblid tblid,
+									&
+								sql_get_src_alloc = %Q&
+										select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id,alloc.srctblname tblname,alloc.srctblid tblid,
 											alloc.id alloc_id	from #{srctblname} src 
 												inner join alloctbls alloc on alloc.srctblid = src.id 
-										where src.sno = '#{val}' and  alloc.qty_linkto_alloctbl > 0
-										order by alloc.allocfree,alloc.id  ---引き当て済分から次の状態に移行する。
-										for update
-							&
+											where src.sno = '#{val}' and  alloc.qty_linkto_alloctbl > 0
+											order by alloc.allocfree,alloc.id  ---引き当て済分から次の状態に移行する。
+											for update
+									&
+							end
 						when  /^cno_/
 							case srctblname
 							when /^prd/
@@ -356,25 +505,6 @@ module RorBlkCtl
 														inner join alloctbls alloc on alloc.srctblid = src.id 
 											where src.cno = '#{val}'
 											and src.suppliers_id = #{@tbldata["suppliers_id"]}
-											and  alloc.qty_linkto_alloctbl > 0
-											order by alloc.allocfree,alloc.id
-											for update
-								& 
-							when /^cust/
-								link_strsql = %Q&
-									select src.*,link.qty_src,link.trngantts_id,link.srctblname,link.srctblid,link.tblname,link.tblid  from #{srctblname} src 										  
-											inner join linktbls link on link.srctblid = src.id 
-											where src.cno = '#{val}' and link.srctblname = '#{srctblname}'
-											and src.custs_id = #{@tbldata["custs_id"]}
-											and  link.tblid = #{@tbldata["id"]} and link.tblname = '#{@tblname}'
-											order by link.trngantts_id
-								& 
-								sql_get_src_alloc = %Q&
-									select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id,alloc.srctblname tblname,alloc.srctblid tblid  
-														from #{srctblname} src 
-														inner join alloctbls alloc on alloc.srctblid = src.id  
-											where src.cno = '#{val}'
-											and src.custs_id = #{@tbldata["custs_id"]}
 											and  alloc.qty_linkto_alloctbl > 0
 											order by alloc.allocfree,alloc.id
 											for update
@@ -428,28 +558,6 @@ module RorBlkCtl
 											order by alloc.allocfree,alloc.id
 											for update
 								& 
-							when /^cust/
-								link_strsql = %Q&
-									select src.*,link.qty_src,link.trngantts_id,link.srctblname,link.srctblid,link.tblname,link.tblid from #{srctblname} src 										  
-											inner join linktbls link on link.srctblid = src.id
-											where src.gno = '#{val}' and link.srctblname = '#{srctblname}'
-											and src.opeitms_id = #{@tbldata["opeitms_id"]}
-											and src.custrcvplcs_id = #{@tbldata["custrcvplcs_id"]}
-											and  link.tblid = #{@tbldata["id"]} and link.tblname = '#{@tblname}'
-											order by link.trngantts_id
-								&
-								sql_get_src_alloc = %Q&
-									select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id,alloc.srctblname tblname,alloc.srctblid tblid  
-														from #{srctblname} src 
-														inner join alloctbls alloc on alloc.srctblid = src.id 
-											where src.gno = '#{val}'
-											and src.opeitms_id = #{@tbldata["opeitms_id"]}
-											and src.custrcvplcs_id = #{@tbldata["custrcvplcs_id"]}
-											and  alloc.srctblid = #{@tbldata["id"]} and alloc.srctblname = '#{@tblname}'
-											and  alloc.qty_linkto_alloctbl > 0
-											order by alloc.allocfree,alloc.id
-											for update
-								&
 							end
 						end	
 					end
@@ -513,13 +621,13 @@ module RorBlkCtl
 	
 		def update_alloctbls_linktbl(link,src_qty)
 			strsql = %Q&
-				update linktbls set qty_src = #{src_qty},remark = 'ror_blktbl.update_alloctbls_linktbl line:(#{__LINE__})',
+				update linktbls set qty_src = #{src_qty},remark = '#{self}.update_alloctbls_linktbl line:(#{__LINE__})',
 								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
 								where id = #{link["id"]}
 			&
 			ActiveRecord::Base.connection.update(strsql)
 			strsql = %Q&
-				update alloctbls set qty_linkto_alloctbl = #{src_qty},remark = 'ror_blktbl.update_alloctbls_linktbl line:(#{__LINE__})',
+				update alloctbls set qty_linkto_alloctbl = #{src_qty},remark = '#{self}.update_alloctbls_linktbl line:(#{__LINE__})',
 								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
 								where srctblname = '#{link["srctblname"]}' and srctblid = #{link["srctblid"]}
 								and trngantts_id = #{link["trngantts_id"]} 
@@ -527,7 +635,7 @@ module RorBlkCtl
 			ActiveRecord::Base.connection.update(strsql)
 			strsql = %Q&
 				update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl  - #{src_qty},
-								remark = 'ror_blktbl.update_alloctbls_linktbl line:(#{__LINE__})',
+								remark = '#{self}.update_alloctbls_linktbl line:(#{__LINE__})',
 								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
 								where srctblname = '#{link["tblname"]}' and srctblid = #{link["tblid"]}
 								and trngantts_id = #{link["trngantts_id"]} 
@@ -557,46 +665,7 @@ module RorBlkCtl
 		
    ## proc_strwhere
 
-
-		def proc_create_tbldata(command_c) ##
-			if command_c["sio_classname"] =~ /_add_/ or command_c["id"] == "" or command_c["id"].nil?
-				@tbldata["created_at"] =  command_c["#{@tblname.chop}_created_at"] = Time.now
-				if  command_c["id"] == "" or command_c["id"].nil?
-					command_c["id"] = ArelCtl.proc_get_nextval("#{@tblname}_seq")
-					command_c[@tblname.chop+"_id"] = @tbldata["id"] = command_c["id"] 
-				else
-					@tbldata["id"] = command_c["id"]  ###fields_updateでセット済
-				end
-			else
-				@tbldata["id"] = command_c["id"]	
-			end	
-        	command_c.each do |j,k|
-        		j_to_stbl,j_to_sfld = j.to_s.split("_",2)
-				if  j_to_stbl == @tblname.chop  and j_to_sfld !~ /_gridmessage/ and j_to_sfld != "id" and
-					j_to_sfld != "code_upd" and  j_to_sfld != "name_upd"   and  j_to_sfld != "id_upd"##本体の更新
-			    	if  k
-	            		@tbldata[j_to_sfld.sub("_id","s_id")] = k
-						@tbldata[j_to_sfld] = nil  if k  == "\#{nil}"  ##
-						if k == ""
-							case 	  j_to_sfld
-							when 'sno'
-								command_c[@tblname.chop+"_sno"] = @tbldata["sno"] = CtlFields.proc_field_sno(@tblname.chop,command_c["id"])
-							when 'cno'
-								command_c[@tblname.chop+"_cno"] = @tbldata["cno"] = CtlFields.proc_field_cno(command_c["id"])
-							when 'gno'
-								command_c[@tblname.chop+"_gno"] = @tbldata["gno"] = CtlFields.proc_field_gno(command_c["id"])
-							end
-						else
-						end
-					end
-            	end   ## if j_to_s.
-			end ## command_c.each
-        	@tbldata["persons_id_upd"] = command_c["#{@tblname.chop}_person_id_upd"] = $person_id_upd ###
-			@tbldata["updated_at"] = command_c["#{@tblname.chop}_updated_at"] = Time.now
-			return command_c
-		end
-
-    	def undefined
+	   	def undefined
     		nil
     	end
 
@@ -634,15 +703,15 @@ module RorBlkCtl
 									%Q& to_timestamp('#{val.gsub("-","/")}','yyyy/mm/dd hh24:mi'),&
 								end
 							else
-							   Rails.logger.debug " line #{__LINE__} : error val.class #{ftype}  key #{key} "
-							   Rails.logger.debug" line #{__LINE__} : error val.class #{ftype}  key #{key} "
+							   Rails.logger.debug " line #{__LINE__} : error val.class #{val.class}: #{ftype}  key #{key} "
+							   Rails.logger.debug" line #{__LINE__} : error val.class  #{val.class}: #{ftype}  key #{key} "
 							end	
 						else
 							if reqTblName.downcase =~ /^sio_|^bk_/
 								%Q&'#{val.to_s.gsub("'","''")}',&
 							else
-								Rails.logger.debug " line #{__LINE__} : error val.class #{ftype}  key #{key} "
-								Rails.logger.debug" line #{__LINE__} : error val.class #{ftype}  key #{key} "
+								Rails.logger.debug " line #{__LINE__} : error val.class  #{val.class}: #{ftype}  key #{key} "
+								Rails.logger.debug" line #{__LINE__} : error val.class  #{val.class}: #{ftype}  key #{key} "
 							end	
 			 			end
 			end
@@ -660,6 +729,7 @@ module RorBlkCtl
 			strset = ""
 			strset = ""
 			@tbldata.each do |key,val|
+				next if key.to_s == "id"
 				# strsql = %Q&select fieldcode_ftype from r_fieldcodes where  pobject_code_fld = '#{key.to_s}'&
 				# ftype = ActiveRecord::Base.connection.select_value(strsql)
 				ftype = $ftype[key.to_s]
@@ -672,8 +742,10 @@ module RorBlkCtl
 			   			case val.class.to_s  ### ruby type
 			   			when  /Time|Date/
 				   			case key.to_s
-							when "created_at","updated_at"
-								%Q& #{key.to_s} =  to_timestamp('#{val.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),&
+							when "created_at"
+								next
+							when "updated_at"
+								%Q& #{key.to_s} =  to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),&
 				   			when "expiredate"
 					   			%Q&  #{key.to_s} = to_date('#{val.strftime("%Y/%m/%d")}','yyyy/mm/dd'),&
 							else
@@ -681,8 +753,10 @@ module RorBlkCtl
 				   			end
 			   			when "String"	 
 				   			case key.to_s
-							when "created_at","updated_at"
-								%Q&  #{key.to_s} = to_timestamp('#{val.gsub("-","/")}','yyyy/mm/dd hh24:mi:ss'),&
+							when "created_at"
+								next
+							when "updated_at"
+							    %Q& #{key.to_s} =  to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),&
 				   			when "expiredate"
 					   			%Q&  #{key.to_s} = to_date('#{val.gsub("-","/")}','yyyy/mm/dd'),&
 							else

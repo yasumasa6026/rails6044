@@ -354,7 +354,7 @@ module ScreenLib
 														and ROW_NUMBER <= #{(setParams[:pageIndex] + 1)*setParams[:pageSize] } 
 																  "
 			pagedata = ActiveRecord::Base.connection.select_all(strsql)
-			if where_str =~ /where/ 
+			if where_str =~ /where/ or screenCode =~ /^fmcust/
 				strsql = "SELECT count(*) FROM #{screenCode} #{where_str}"
 			else
 				strsql = "SELECT count(*) FROM #{screenCode.split("_")[1]} "
@@ -399,11 +399,13 @@ module ScreenLib
 							temp[cell[:accessor]] = $person_code_chrg
 						when /prjno_code/	
 							temp[cell[:accessor]] = "0"
+						when /custinst_starttime/
+							temp[cell[:accessor]] = Time.now.strftime("%Y/%m/%d")
 						else
 						end
 					end
 					case screenCode
-					when "r_mkprdpurords"
+					when "r_mkprdpurords"  ###オーダー作成時の抽出条件初期値
 						case cell[:accessor]
 						when /loca_code_|itm_code_|person_code_chrg/	
 							temp[cell[:accessor]] = "dummy"
@@ -421,6 +423,11 @@ module ScreenLib
 						case cell[:accessor]
 						when /pobject_objecttype_sfd/	
 							temp[cell[:accessor]] = "view_field"
+						end
+					when /opeitms/
+						case cell[:accessor]
+						when /opeitm_stktaking_proc_/	
+							temp[cell[:accessor]] = "1"  ###棚卸有
 						end
 					end
 				end	
@@ -645,28 +652,29 @@ module ScreenLib
 			tblnamechop = screenCode.split("_")[1].chop
 			yup_fetch_code = grid_columns_info[:fetch_check][:fetchCode]
 			yup_check_code = grid_columns_info[:fetch_check][:checkCode]
-			parse_linedata = params[:parse_linedata].dup
+			###parse_linedata = params[:parse_linedata].dup
 			addfield = {}
 			setParams = params.dup
 			setParams[:err] = nil
+			parse_linedata = params[:parse_linedata].dup  ###(can't add a new key into hash during iteration):
 			parse_linedata.each do |field,val|
 			  	if yup_fetch_code[field] 
-					##setParams["fetchCode"] = %Q%{"#{field}":"#{val}"}%  ###clientのreq='fetch_request'で利用
-					if setParams[:parse_linedata][:id] == ""  ###tableのユニークid
-						setParams[:parse_linedata][:aud]= "add" 
-					end  
-					setParams[:fetchview] = yup_fetch_code[field]
-					setParams = CtlFields.proc_chk_fetch_rec setParams  
-					if setParams[:err] 
-				  		setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
-				  		setParams[:parse_linedata][:confirm] = false 
-				  		setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
-						  if setParams[:parse_linedata][:errPath].nil? 
-							  setParams[:parse_linedata][:errPath] = [field+"_gridmessage"]
-						  end
-				  		break
-					end
-			  	end
+				# 	##setParams["fetchCode"] = %Q%{"#{field}":"#{val}"}%  ###clientのreq='fetch_request'で利用
+				 	if setParams[:parse_linedata][:id] == ""  ###tableのユニークid
+				 		setParams[:parse_linedata][:aud]= "add" ###
+				 	end  
+				 	setParams[:fetchview] = yup_fetch_code[field]
+				 	setParams = CtlFields.proc_chk_fetch_rec setParams  
+				 	if setParams[:err] 
+				   		setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
+				   		setParams[:parse_linedata][:confirm] = false 
+				   		setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
+				 		  if setParams[:parse_linedata][:errPath].nil? 
+				 			  setParams[:parse_linedata][:errPath] = [field+"_gridmessage"]
+				 		  end
+				   		break
+				 	end
+			  	 end
 			 	if setParams[:err].nil?
 					if yup_check_code[field] 
 				  		setParams = CtlFields.proc_judge_check_code setParams,field,yup_check_code[field]  
@@ -681,12 +689,12 @@ module ScreenLib
 				  		end
 					end
 			  	end 
-				setParams[:parse_linedata][field] = val    
+				###setParams[:parse_linedata][field] = val    
 			end	
 			if  setParams[:err].nil?
 				blk =  RorBlkCtl::BlkClass.new(screenCode)
 				command_c = blk.command_init
-			  	parse_linedata = setParams[:parse_linedata].dup
+				parse_linedata = setParams[:parse_linedata].dup
 			  	parse_linedata.each do |key,val|
 					if key.to_s =~ /_id/ and val == ""   and tblnamechop == key.to_s.split("_")[0] and
 						key.to_s !~ /_gridmessage$/ and  key.to_s !~ /_person_id_upd$/ and  key.to_s != "#{tblnamechop}_id"
@@ -716,29 +724,32 @@ module ScreenLib
 					end	
 			  	end	
 			end
-			if  setParams[:err].nil? and screenCode =~ /tblfields/
+			case screenCode  ###前処理
+			when /tblfields/
+				if  setParams[:err].nil?  
 					strsql =  %Q%  select screenfield_seqno,pobject_code_sfd from r_screenfields  
 						  where screenfield_expiredate > current_date and 
 						  id in (select id from r_screenfields where pobject_code_scr = '#{screenCode}') and
 						  pobject_code_sfd in('screenfield_starttime','screenfield_duedate','screenfield_qty','screenfield_qty_case')
 			  			%
-			  	seqchkfields ={}
-			  	recs = ActiveRecord::Base.connection.select_all(strsql)
-			  	recs.each do |rec|
-					seqchkfields[rec["pobject_code_sfd"]] = rec["screenfield_seqno"]
-			  	end  
-			  	seqchkfields[setParams[:parse_linedata][:pobject_code_sfd]] = setParams[:parse_linedata][:screenfield_seqno]
-			  	if (seqchkfields["screenfield_starttime"]||="99999") <  (seqchkfields["screenfield_duedate"]||="0")
-					setParams[:err] =  " starttime seqno > duedate seqno  line:#{setParams[:index]} "
-					setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
-					setParams[:parse_linedata][:confirm] = false 
-			  	else
-					if (seqchkfields["screenfield_qty_case"]||="99999") <  (seqchkfields["screenfield_qty"]||="0")
-						setParams[:err] =  " qty_case seqno > qty seqno  line:#{setParams[:index]} "  ###画面表示順　　包装単位の計算ため
+			  		seqchkfields ={}
+			  		recs = ActiveRecord::Base.connection.select_all(strsql)
+			  		recs.each do |rec|
+						seqchkfields[rec["pobject_code_sfd"]] = rec["screenfield_seqno"]
+			  		end  
+			  		seqchkfields[setParams[:parse_linedata][:pobject_code_sfd]] = setParams[:parse_linedata][:screenfield_seqno]
+			  		if (seqchkfields["screenfield_starttime"]||="99999") <  (seqchkfields["screenfield_duedate"]||="0")
+						setParams[:err] =  " starttime seqno > duedate seqno  line:#{setParams[:index]} "
 						setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
 						setParams[:parse_linedata][:confirm] = false 
-					end
-			  	end
+			  		else
+						if (seqchkfields["screenfield_qty_case"]||="99999") <  (seqchkfields["screenfield_qty"]||="0")
+							setParams[:err] =  " qty_case seqno > qty seqno  line:#{setParams[:index]} "  ###画面表示順　　包装単位の計算ため
+							setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
+							setParams[:parse_linedata][:confirm] = false 
+						end
+			  		end
+				end
 			end
 			if  setParams[:err].nil?
 			  	if command_c["id"] == "" or  command_c["id"].nil?   ### add画面で同一lineで二度"enter"を押されたとき errorにしない
@@ -748,18 +759,66 @@ module ScreenLib
 					command_c["sio_classname"] = "_edit_update_grid_linedata"
 			  	end
 			  	command_c = blk.proc_create_tbldata(command_c) ##
-			  	setParams,command_c = blk.proc_add_update_table(setParams,command_c)
-			  	if command_c["sio_result_f"]  == "9"
-					setParams[:parse_linedata][:confirm] = false  
-					err_message = command_c["sio_message_contents"].split(":")[1][0..100] + 
-							  command_c["sio_errline"].split(":")[1][0..100]  
-					setParams[:parse_linedata][:confirm_gridmessage] = err_message
-			  	else
-					setParams[:parse_linedata][:id] = command_c["id"]
-					setParams[:parse_linedata][(tblnamechop+"_id").to_sym] = command_c[tblnamechop+"_id"]
-					setParams[:parse_linedata][:confirm] = true  
-					setParams[:parse_linedata][:confirm_gridmessage] = "done"
-					ArelCtl.proc_materiallized tblnamechop+"s"
+				###一画面分纏めてcommit
+				if  setParams[:buttonflg] =~ /confirmAll|MkPackingListNo|MkInvoiceNo/
+					setParams = blk.proc_private_aud_rec(params,command_c) 
+					case screenCode
+					when /custactheads/
+						strsql = nil
+						setParams[:parse_linedata].each do |field,val|
+							if val and val != ""
+								case field
+								when /_sno_/
+									tblnamechop = val.split("_sno_")[1] 
+									strsql = %Q&select * from r_#{tblnamechop}s where #{tblnamechop}_sno = '#{val}'& 
+								when /_cno_/
+									tblnamechop = val.split("_cno_")[1]
+									strsql = %Q&select * from r_#{tblnamechop}s where #{tblnamechop}_cno = '#{val}'
+												and #{tblnamechop}_cust_id  = #{setParams[:parse_linedata]["custacthead_cust_id"]} &
+								when /_packinglistno_/
+									tblnamechop = val.split("_packinglistno_")[1] 
+									strsql = %Q&select * from r_#{tblnamechop}s where #{tblnamechop}_packinglistno = '#{val}'
+												and #{tblnamechop}_cust_id  = #{setParams[:parse_linedata]["custacthead_cust_id"]} &
+								else
+									next
+								end
+								if strsql
+									ActiveRecord::Base.connection.select_all(strsql).each do |fmView|  ###rec:custords custdlvs
+										linksql = %Q&
+											select id from linkcusts where srctblname = '#{tblnamechop}s' and srctblid = #{rec["id"]}
+											&
+										link = ActiveRecord::Base.connection.select_one(linksql)
+										if link
+											if link["tblname"] == "custacts"  ###修正できるのはpclinglistnoとinvoicenoのみ
+												head = ArelCtl.proc_createDetailTableFmHead "custactheads",tblnamechop+"s",command_c,fmView,"_update_"
+											else
+												setParams[:err] = " error #{key} logic error line:#{setParams[:index]} "
+												break
+											end
+										else
+											head = ArelCtl.proc_createDetailTableFmHead  "custactheads",tblnamechop+"s",command_c,fmView,"_add_"
+										end
+									end
+									setParams["heads"] << head
+									break
+								end
+							end
+						end
+					end
+				else
+			  		setParams,command_c = blk.proc_add_update_table(setParams,command_c)
+			  		if command_c["sio_result_f"]  == "9"
+						setParams[:parse_linedata][:confirm] = false  
+						err_message = command_c["sio_message_contents"].split(":")[1][0..100] + 
+													command_c["sio_errline"].split(":")[1][0..100]  
+						setParams[:parse_linedata][:confirm_gridmessage] = err_message
+			  		else
+						setParams[:parse_linedata][:id] = command_c["id"]
+						setParams[:parse_linedata][(tblnamechop+"_id").to_sym] = command_c[tblnamechop+"_id"]
+						setParams[:parse_linedata][:confirm] = true  
+						setParams[:parse_linedata][:confirm_gridmessage] = "done"
+						ArelCtl.proc_materiallized tblnamechop+"s"
+					end
 			  	end
 			end 
 			return setParams

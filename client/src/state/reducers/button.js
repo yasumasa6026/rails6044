@@ -1,8 +1,8 @@
 import {  BUTTONLIST_REQUEST, BUTTONLIST_SUCCESS, BUTTONFLG_REQUEST,GANTT_RESET,SCREENINIT_REQUEST,
-  TBLFIELD_SUCCESS,GANTTCHART_SUCCESS,LOGOUT_REQUEST,MKSHPORDS_SUCCESS,
+  TBLFIELD_SUCCESS,GANTTCHART_SUCCESS,MKSHPORDS_SUCCESS, DOWNLOAD_REQUEST,
+  DOWNLOAD_SUCCESS,LOGOUT_REQUEST,RESET_REQUEST, DOWNLOAD_FAILURE,
     //MKSHPACTS_RESULT,
-  SCREEN_SUCCESS7,IMPORTEXCEL_REQUEST,SECOND_CONFIRMALL_SUCCESS,
-  SECOND_SUCCESS7} //RESET_REQUEST
+  SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,IMPORTEXCEL_REQUEST,SECOND_CONFIRMALL_SUCCESS, SECOND_SUCCESS7,} //
    from '../../actions'
 
 export let getButtonState = state => state.button
@@ -30,8 +30,8 @@ downloadloading:"",
 
 case SCREENINIT_REQUEST:
   return {...state,
-    //buttonflg:actions.payload.params.buttonflg, 
-    buttonflg:"search", 
+    buttonflg:actions.payload.params.buttonflg, 
+    //buttonflg:"search", 
     messages:actions.payload.messages,
     message:actions.payload.message,
           // editableflg:action.payload.editableflg
@@ -43,6 +43,12 @@ disabled:false,
 loading:false,
 }
 
+
+case CONFIRMALL_SUCCESS:
+return {...state,
+disabled:false,
+loading:false,
+}
 
 // case SECOND_SUCCESS7:
 // return {...state,
@@ -110,8 +116,55 @@ case SECOND_CONFIRMALL_SUCCESS:
 }
 
 
+case DOWNLOAD_REQUEST:
+return {...state,
+excelData:null,
+totalCount:null,
+params:actions.payload.params,
+downloadloading:"doing",
+messages:null,
+message:null,
+errors:null,
+}
+
+case DOWNLOAD_SUCCESS:
+return {...state,
+excelData:actions.payload.data.excelData,
+totalCount:actions.payload.data.totalCount,
+fillered:actions.payload.data.fillered,
+downloadloading:"done",
+errors:null,
+}
+
+case  DOWNLOAD_FAILURE:
+return {...state,
+errors:actions.errors,
+disabled:false,
+messages:null,
+message:null,
+}
+
+
+case GANTTCHART_SUCCESS:
+return {...state,
+disabled:false,
+messages:null,
+message:null,
+}
+
+
 case  LOGOUT_REQUEST:
 return {}  
+
+case RESET_REQUEST:
+return {...state,
+  excelData:null,
+  totalCount:null,
+  buttonflg:null,
+  downloadloading:"",
+  disabled:false,
+}
+
 
 default:
 return state

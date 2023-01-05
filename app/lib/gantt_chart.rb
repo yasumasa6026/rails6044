@@ -744,7 +744,7 @@ module GanttChart
 					case value["alloctbl_destblname"]
 						when /^prdacts/
 							@bgantts[sprintf("%04d",idx)][:duedate] = alloc["prdact_cmpldate"]
-						when /^puracts|^ipracts/
+						when /^puracts/
 							@bgantts[sprintf("%04d",idx)][:duedate] = alloc["puract_rcptdate"]
 					end
 				else

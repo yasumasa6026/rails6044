@@ -11,8 +11,7 @@ import "../index.css"
 import {ScreenRequest,DownloadRequest,GanttChartRequest,GanttReset,
         //ScreenInitRequest,
         ButtonFlgRequest,
-        YupRequest,TblfieldRequest,ResetRequest, 
-        ConfirmAllRequest, } from '../actions'
+        YupRequest,TblfieldRequest,ResetRequest, } from '../actions'
 
  const  ButtonList = ({buttonListData,setButtonFlg,buttonflg,
                         screenCode,data,params,downloadloading,
@@ -95,7 +94,7 @@ const  mapStateToProps = (state,ownProps) =>{
         uid:state.auth.uid,
         message:state.screen.loading?" screen Loading ...":"",
         messages:state.button.messages,
-        downloadloading:state.download.downloadloading,
+        downloadloading:state.button.downloadloading,
         disabled:state.button.disabled?true:false,
         pareScreenCode:null ,  
         loading:state.screen.loading,  
@@ -110,7 +109,6 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
         dispatch(ButtonFlgRequest(buttonflg,params)) // import export 画面用
         let screenData = []
         let newRow = {}
-        let linedata = {}
         switch (buttonflg) {  //buttonflg ==button_code
           case "reset":
             params= { ...params, buttonflg:"reset",disableFilters:false,screenFlg:ownProps.screenFlg}
@@ -127,6 +125,18 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           case "inlineadd7":
               params= {...params, pages:1,buttonflg:"inlineadd7",disableFilters:true,screenFlg:ownProps.screenFlg}
               return  dispatch(ScreenRequest(params,null)) //data=null　空白を表示
+
+          case "confirmAll"://
+              params= {...params,buttonflg:"confirmAll",disableFilters:true,screenFlg:ownProps.screenFlg}
+              return  dispatch(ScreenRequest(params,null)) //
+
+          case "MkPackingListNo"://
+              params= {...params,buttonflg:"MkPackingListNo",disableFilters:true,screenFlg:ownProps.screenFlg}
+              return  dispatch(ScreenRequest(params,null)) //
+
+          case "MkInvoiceNo"://
+              params= {...params,buttonflg:"MkInvoiceNo",disableFilters:true,screenFlg:ownProps.screenFlg}
+              return  dispatch(ScreenRequest(params,null)) //
           
           case "export":
               params= {...params,buttonflg:"download7",disableFilters:false,screenFlg:ownProps.screenFlg}
@@ -141,12 +151,10 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
               return  dispatch(ScreenRequest(params,null)) //
 
           case "refShpords": //第一画面で選択された親より第二画面表示
-              //linedata = data.map((line) => {return {tblid : line["id"],}})
               params= {...params,buttonflg:"refShpords",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
               return  dispatch(ScreenRequest(params,null)) //   
 
           case "confirmShpinsts":  //第二画面専用
-              //linedata = data.map((line) => {return {tblid : line["id"],shpord_qty:line["shpord_qty"],}})
               params= {...params,buttonflg:"confirmShpinsts",disableFilters:true,screenFlg:ownProps.screenFlg}
               return  dispatch(ScreenRequest(params,null)) //
 
