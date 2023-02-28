@@ -82,7 +82,9 @@ extend self
         checkCode ={}
         ActiveRecord::Base.connection.select_all(checkCodesql(screencode)).each do |rec|   
             if rec["screenfield_subindisp"]  
-                checkCode[rec["pobject_code_sfd"]] = rec["screenfield_subindisp"]
+                rec["screenfield_subindisp"].split(",").each do |checkproc|
+                    checkCode[rec["pobject_code_sfd"]] = checkproc
+                end
             end    
         end 
         return checkCode           

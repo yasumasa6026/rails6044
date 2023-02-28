@@ -40,6 +40,9 @@ module ScreenLib
 				sort_info = {}
 				nameToCode = {}
 				columns_info = []
+				subform_info = []
+				line_subform = []
+				columncnt = 1
 				hiddenColumns = []
 				if (buttonflg=='inlineedit7'|| buttonflg=="inlineadd7" )
 					columns_info << {:Header=>"confirm",
@@ -57,7 +60,7 @@ module ScreenLib
 									}
 					hiddenColumns << "confirm_gridmessage"
 				end		
-				ActiveRecord::Base.connection.select_all(sqlstr).each_with_index do |i,cnt|			
+				ActiveRecord::Base.connection.select_all(sqlstr).each_with_index do |i,cnt|		
 					select_fields = 	select_fields + 
 											case i["screenfield_type"]
 											when "timestamp(6)" 
@@ -89,43 +92,7 @@ module ScreenLib
 												end	,
 									###widthが120以下だと右の境界線が消える。	
 									:width => if i["screenfield_width"].to_i < 80 then 80 else  i["screenfield_width"].to_i end,
-									:className=>if  (buttonflg==="inlineedit7" or buttonflg==="inlineadd7") and 
-													(i["screenfield_editable"] === "1" or i["screenfield_editable"] === "2" or i["screenfield_editable"] === "3") 
-														if  i["screenfield_indisp"] === "1" or i["screenfield_indisp"] === "2" ###必須はyupでも
-															case i["screenfield_type"] 
-															when "select"
-																	"SelectEditableRequire"
-															when "check"
-																	"CheckEditableRequire"
-															when "numeric"
-																	"EditableRequire Numeric "
-															else
-																	"EditableRequire"
-															end
-														else
-															case i["screenfield_type"] 
-															when "select"
-																	"SelectEditable"
-															when "check"
-																	"CheckEditable"
-															when "numeric"
-																	"Editable Numeric "
-															else
-																	"Editable"
-															end
-														end
-												else	
-														case i["screenfield_type"]
-															when "select"
-																"SelectNonEditable"
-															when "check"
-																"CheckNonEditable"
-															when "numeric"
-																"NonEditable Numeric "
-															else
-																"NonEditable"
-														end
-												end	
+									:className=>classNameset(buttonflg,i)
 									}
 					if ((buttonflg =="inlineedit7" or buttonflg =="inlineadd7") and i["screenfield_editable"] == "1") or
 						(buttonflg =="inlineedit7"  and i["screenfield_editable"] == "2") or
@@ -141,14 +108,15 @@ module ScreenLib
 					end																
 					init_where_info[i["pobject_code_sfd"].to_sym] = i["screenfield_type"]	
 					if cnt == 0
-								init_where_info[:filtered] = (i["screen_strwhere"]||="")
-								@grid_columns_info[:pageSizeList] = []
-								i["screen_rowlist"].split(",").each do |list|
-									@grid_columns_info[:pageSizeList]  <<  list.to_i
-								end
-								if i["screen_strorder"] 
-									sort_info[:default] = i["screen_strorder"]
-								end	
+						init_where_info[:filtered] = (i["screen_strwhere"]||="")
+						@grid_columns_info[:pageSizeList] = []
+						i["screen_rowlist"].split(",").each do |list|
+							@grid_columns_info[:pageSizeList]  <<  list.to_i
+						end
+						if i["screen_strorder"] 
+							sort_info[:default] = i["screen_strorder"]
+						end	
+					else	
 				 	end
 					if  i["screenfield_type"] == "select" and i["screenfield_hideflg"] == "0"
 						if i["screenfield_edoptvalue"] 
@@ -169,17 +137,34 @@ module ScreenLib
 					end	
 					if   i["screenfield_hideflg"] == "0" 
 						screenwidth = screenwidth +  i["screenfield_width"].to_i
+						if 	i["screenfield_rowpos"] == "1" or (columncnt + i["screenfield_edoptcols"].to_i > 10)
+							if line_subform != []
+								subform_info << line_subform  
+							end
+							line_subform = []
+							columncnt =  1 
+						else
+							columncnt +=  (1 + i["screenfield_edoptcols"].to_i)	
+						end
+						tmp_sunform = {}
+						tmp_subform = {label:i["screenfield_name"]}
+						tmp_subform[:id] = i["pobject_code_sfd"]
+						tmp_subform[:edoptcols]	= i["screenfield_edoptcols"]	
+						tmp_subform[:edoptrows]	= i["screenfield_edoptrow"]	
+						tmp_subform[:className] = classNameset(buttonflg,i)
+						line_subform << tmp_subform
 					else
 						hiddenColumns << i["pobject_code_sfd"]
 					end
-				##end
 				end
+				subform_info << line_subform
 				@grid_columns_info[:columns_info] = columns_info
 				@grid_columns_info[:hiddenColumns] = hiddenColumns
 				@grid_columns_info[:fetch_check] = {}
 				@grid_columns_info[:fetch_check][:fetchCode] = YupSchema.proc_create_fetchCode   screenCode
 				@grid_columns_info[:fetch_check][:checkCode] = YupSchema.proc_create_checkCode   screenCode
 				@grid_columns_info[:fetch_data] = {}
+				@grid_columns_info[:subform_info] = subform_info
 
 				dropdownlist.each do |key,val|
 					tmpval="["
@@ -203,6 +188,46 @@ module ScreenLib
 				@grid_columns_info[:select_row_fields] = select_row_fields.chop
 				@grid_columns_info
 			end
+		end
+
+		def classNameset buttonflg,i ###i : screenfields
+			if  (buttonflg==="inlineedit7" or buttonflg==="inlineadd7") and 
+				(i["screenfield_editable"] === "1" or i["screenfield_editable"] === "2" or i["screenfield_editable"] === "3") 
+					if  i["screenfield_indisp"] === "1" or i["screenfield_indisp"] === "2" ###必須はyupでも
+						case i["screenfield_type"] 
+						when "select"
+							"SelectEditableRequire"
+						when "check"
+							"CheckEditableRequire"
+						when "numeric"
+							"EditableRequire Numeric "
+						else
+							"EditableRequire"
+						end
+					else
+						case i["screenfield_type"] 
+						when "select"
+							"SelectEditable"
+						when "check"
+							"CheckEditable"
+						when "numeric"
+							"Editable Numeric "
+						else
+							"Editable"
+						end
+					end
+			else	
+				case i["screenfield_type"]
+					when "select"
+						"SelectNonEditable"
+					when "check"
+						"CheckNonEditable"
+					when "numeric"
+						"NonEditable Numeric "
+					else
+						"NonEditable"
+				end
+			end	
 		end
 	
 		def create_filteredstr(params) 
@@ -698,7 +723,7 @@ module ScreenLib
 			  	parse_linedata.each do |key,val|
 					if key.to_s =~ /_id/ and val == ""   and tblnamechop == key.to_s.split("_")[0] and
 						key.to_s !~ /_gridmessage$/ and  key.to_s !~ /_person_id_upd$/ and  key.to_s != "#{tblnamechop}_id"
-							setParams[:parse_linedata][:confirm_gridmessage] = " key #{key.to_s} missing"
+							setParams[:parse_linedata][:confirm_gridmessage] = " error key #{key.to_s} missing"
 							setParams[:parse_linedata][:confirm] = false 
 							setParams[:err] = "error  key #{key.to_s} missing"
 							if setParams[:parse_linedata][:errPath].nil? 
@@ -739,12 +764,12 @@ module ScreenLib
 			  		end  
 			  		seqchkfields[setParams[:parse_linedata][:pobject_code_sfd]] = setParams[:parse_linedata][:screenfield_seqno]
 			  		if (seqchkfields["screenfield_starttime"]||="99999") <  (seqchkfields["screenfield_duedate"]||="0")
-						setParams[:err] =  " starttime seqno > duedate seqno  line:#{setParams[:index]} "
+						setParams[:err] =  " error starttime seqno > duedate seqno  line:#{setParams[:index]} "
 						setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
 						setParams[:parse_linedata][:confirm] = false 
 			  		else
 						if (seqchkfields["screenfield_qty_case"]||="99999") <  (seqchkfields["screenfield_qty"]||="0")
-							setParams[:err] =  " qty_case seqno > qty seqno  line:#{setParams[:index]} "  ###画面表示順　　包装単位の計算ため
+							setParams[:err] =  " error qty_case seqno > qty seqno  line:#{setParams[:index]} "  ###画面表示順　　包装単位の計算ため
 							setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
 							setParams[:parse_linedata][:confirm] = false 
 						end
@@ -811,7 +836,8 @@ module ScreenLib
 						setParams[:parse_linedata][:confirm] = false  
 						err_message = command_c["sio_message_contents"].split(":")[1][0..100] + 
 													command_c["sio_errline"].split(":")[1][0..100]  
-						setParams[:parse_linedata][:confirm_gridmessage] = err_message
+						setParams[:parse_linedata][:confirm_gridmessage] = err_message  
+						setParams[:err] = err_message
 			  		else
 						setParams[:parse_linedata][:id] = command_c["id"]
 						setParams[:parse_linedata][(tblnamechop+"_id").to_sym] = command_c[tblnamechop+"_id"]

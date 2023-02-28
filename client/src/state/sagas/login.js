@@ -28,14 +28,14 @@ export function* LoginSaga({ payload: { email, password } }) {
     let {response,error} = yield call(loginApi, { email, password} )
       if(response || !error){
         yield put({ type: LOGIN_SUCCESS, payload: response.headers })
-        const token = {token:response.headers["access-token"]}
-        const client = {client:response.headers["client"]}
-        const uid = {uid:response.headers["uid"]}
+        // const token = {token:response.headers["access-token"]}
+        // const client = {client:response.headers["client"]}
+        // const uid = {uid:response.headers["uid"]}
         //yield put({ type: MENU_REQUEST, action: (token,client,uid) })
 
-        yield put(MenuRequest(token,client,uid) )
+        yield put(MenuRequest(response.headers) )
       
-        yield put(ButtonListRequest(token,client,uid) )
+        yield put(ButtonListRequest(response.headers) )
       }else{  
 
          let message

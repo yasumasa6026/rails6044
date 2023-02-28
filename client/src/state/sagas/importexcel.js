@@ -50,7 +50,7 @@ function batchcheck(sheet,nameToCode,screenCode) {
                       })
                 lines.push(lineData)}
             else{
-                errHeader.push(`${tblchop}_confirm_gridmessage:"can not proceed for above error"`)
+                errHeader.push(`${tblchop}_confirm_gridmessage:"error can not proceed for above error"`)
             }
         }
         lineData = {}

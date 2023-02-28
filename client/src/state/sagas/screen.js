@@ -1,12 +1,13 @@
 import { call, put, select } from 'redux-saga/effects'
 import axios         from 'axios'
-import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_CONFIRM7, FETCH_RESULT, FETCH_FAILURE,
-        SECOND_SUCCESS7,SECOND_FAILURE,SECOND_CONFIRM7, SECONDFETCH_RESULT,
+import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_CONFIRM7_SUCCESS, FETCH_RESULT, FETCH_FAILURE,
+        SECOND_SUCCESS7,SECOND_FAILURE,SECOND_CONFIRM7_SUCCESS, SECONDFETCH_RESULT,
         SECONDFETCH_FAILURE,MKSHPORDS_SUCCESS,CONFIRMALL_SUCCESS,SECOND_CONFIRMALL_SUCCESS,
         //MKSHPACTS_RESULT,
         }
          from '../../actions'
 import {getButtonState} from '../reducers/button'
+import {getAuthState} from '../reducers/auth'
 
 function screenApi({params ,url,headers} ) {
   
@@ -14,17 +15,15 @@ function screenApi({params ,url,headers} ) {
         method: "POST",
         url: url,
         contentType: "application/json",
-        params:{...params,data:[],parse_linedata:{}},
+        params:{...params,data:[],parse_linedata:{}},  //railsではscreen全ての情報を送れない。send lenggth max errorになる。(1024*・・・
         headers:headers,
     })
   }
 
  // const delay = (ms) => new Promise(res => setTimeout(res, ms)) 
-export function* ScreenSaga({ payload: {params,data,}  }) {
+export function* ScreenSaga({ payload: {params}  }) {
   const buttonState = yield select(getButtonState) //buttonStateの変更は不可　思わぬことが発生。
-  let token = params.token       
-  let client = params.client         
-  let uid = params.uid
+  const auth = yield select(getAuthState) //buttonStateの変更は不可　思わぬことが発生。
   let url = ""
   let tmp 
   // let sagaCallTime = new Date()
@@ -32,7 +31,7 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
   //             
   url = 'http://localhost:3001/api/menus7'
 
-  const headers = {'access-token':token,'client':client,'uid':uid }
+  const headers = {'access-token':auth.token,'client':auth.client,'uid':auth.uid }
     let message
     let messages = []
     // while (loading===true) {
@@ -44,23 +43,32 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
       let response  = yield call(screenApi,{params ,url,headers} )
       // params.sortBy === [] だとrailsに取り込められない　paramsからsortByが
       switch (response.status) {
-        case 200:  
+        case 200: 
           switch(params.buttonflg) {
             case 'viewtablereq7':
             case 'inlineedit7':   //第一画面又は第二画面のみ　両方修正は不可
             case 'inlineadd7':
+              params = {...response.data.params,err:null,parse_linedata:{}}
               if(params.screenFlg==="second")
-                  {return yield put({type:SECOND_SUCCESS7,payload:response })}
+                  {return yield put({type:SECOND_SUCCESS7,payload:{data:response.data,params:params} })}
               else
-                  {return yield put({ type:SCREEN_SUCCESS7, payload: response })}
+                  {return yield put({ type:SCREEN_SUCCESS7, payload:{data:response.data,params:params}})}
             case "confirm7":
-              data[params.index] = {...response.data.linedata}
-              params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
-              params.buttonflg = buttonState.buttonflg
+              let linedata  = response.data.linedata
+              params = {...params,buttonflg:buttonState.buttonflg,screenFlg:response.data.params.screenFlg,
+                          screenCode:response.data.params.screenCode,err:response.data.params.err}
               if(params.screenFlg==="second")
-                {return yield put({type:SECOND_CONFIRM7,payload:{data:data,params:params} })}
+                {return yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{linedata:linedata,params:params} })}
               else
-                {return yield put({type:SCREEN_CONFIRM7,payload:{data:data,params:params} })} 
+                {return yield put({type:SCREEN_CONFIRM7_SUCCESS,payload:{linedata:linedata,params:params} })} 
+            case "delete":
+                  data[params.index] = {...response.data.linedata}
+                  params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
+                  params.buttonflg = buttonState.buttonflg
+                  if(params.screenFlg==="second")
+                    {return yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{data:data,params:params} })}
+                  else
+                    {return yield put({type:SCREEN_CONFIRM7_SUCCESS,payload:{data:data,params:params} })} 
             case "mkShpords":  //
               messages[0] = "out count : " + response.data.outcnt
               messages[1] = "shortage count : " + response.data.shortcnt
@@ -85,54 +93,47 @@ export function* ScreenSaga({ payload: {params,data,}  }) {
        
            case "fetch_request":  //viewによる存在チェック内容表示
            case "check_request":   //項目毎のチェック帰りはfetchと同じ
-                params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,
-                            screenCode:response.data.params.screenCode,...response.data.params}
-                params.buttonflg = buttonState.buttonflg
+                params = {...params,...response.data.params,buttonflg:buttonState.buttonflg,screenFlg:response.data.params.screenFlg,
+                            screenCode:response.data.params.screenCode,err:response.data.params.err} 
+                if(response.data.params.err){
+                            if(params.screenFlg==="second"){
+                                    yield put({ type: SECONDFETCH_FAILURE,payload:{params:params}}) 
+                            }else{
+                                    yield put({ type: FETCH_FAILURE, payload:{params:params}}) 
+                            }
+                }else{
+                            if(params.screenFlg==="second"){
+                                yield put({type: SECONDFETCH_RESULT, payload:{params:params}}) 
+                            }else{  
+                                yield put({type: FETCH_RESULT, payload:{params:params}}) 
+                            }  
+                          }
                 break      
             default:
-                return {}
-            }
-          if(response.data.params.err){
-                params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
-                if(params.screenFlg==="second"){
-                    yield put({ type: SECONDFETCH_FAILURE,payload:{params:params}}) 
-                }else{
-                    yield put({ type: FETCH_FAILURE, payload:{params:params}}) 
-                }
-          }else{
-                params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
-                if(params.screenFlg==="second"){
-                    yield put({type: SECONDFETCH_RESULT, payload:{params:params}}) 
-                }else{  
-                    yield put({type: FETCH_RESULT, payload:{params:params}}) 
-                }  
-          }  
+                          }
           break  
-        case 500: message = `${response.status}: Internal Server Error ${response.statusText}`
-                    data[params.index]["confirm_gridmessage"] = message
+        case 500: message = `error ${response.status}: Internal Server Error ${response.statusText}`
                     break
-        case 401: message = `${response.status}: Invalid credentials or Login TimeOut ${response.statusText}`
-                    data[params.index]["confirm_gridmessage"] = message
+        case 401: message = `error ${response.status}: Invalid credentials or Login TimeOut ${response.statusText}`
                     break
         default:
-                    data[params.index]["confirm_gridmessage"] = message
-                    message = `${response.status}: Screen Something went wrong ${response.statusText} `
+                    message = `error ${response.status}: Screen Something went wrong ${response.statusText} `
       }
       if(params.screenFlg==="second"){
-            return  yield put({type:SECOND_FAILURE,payload:{message:message,data}})   
+            return  yield put({type:SECOND_FAILURE,payload:{message:message,}})   
       }else{  
-            return  yield put({type:SCREEN_FAILURE,payload:{message:message,data}})   
+            return  yield put({type:SCREEN_FAILURE,payload:{message:message,}})   
       }
     }
     catch(e){
         switch (true) {
             case /code.*500/.test(e): message = `${e}: Internal Server Error `
-                  return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
+                  return  yield put({type:SCREEN_FAILURE, payload:{message:message,params}})   
             case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
-                    return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
+                    return  yield put({type:SCREEN_FAILURE, payload:{message:message,params}})   
             default:
                 message = ` Screen Something went wrong ${e} `
-                      return  yield put({type:SCREEN_FAILURE, payload:{message:message,data}})   
+                      return  yield put({type:SCREEN_FAILURE, payload:{message:message,params}})   
       }
     }
   }

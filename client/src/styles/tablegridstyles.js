@@ -108,7 +108,11 @@ ${'' /* These styles are required for a horizontaly scrollable table overflow */
   th {
      input { width:95%;
             height:15px;}
-  }        
+  }       
+  
+thead.subtablehead {height:15px}
+tr.subtablehead {height:10px;}
+td.subformtdlabel {text-align: right}
 
 .Editable {background:lightblue}
 .EditableRequire {background:skyblue}

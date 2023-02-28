@@ -4,6 +4,7 @@ import {LoginRequest} from '../actions'
 import { useForm } from 'react-hook-form'
 import  Menus7  from './menus7'
 import  SignUp  from './signup'
+import "../index.css"
 
 const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
   const { register, handleSubmit, formState: { errors }, } = useForm()
@@ -23,7 +24,7 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
   else{
     return(
     <div>
-    <p>Login</p>
+    <h1>Login</h1>
     <form  onSubmit={handleSubmit(onSubmit)}>
       <label htmlFor="email">
       email:
@@ -46,6 +47,20 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
       <button type="submit" >
       Submit
       </button>
+      <h1>概要</h1>
+          <p>独学でruby,rails,react,postgresqlを学習し社内物流システムを作成してみた。</p>
+          <p>ruby,rails,react,postgresqlについては素人なのでソースを参照するときは原本のマニュアルで確認すること</p>
+        <h2>・画面の説明（利用したreactの説明）</h2>
+        <h2>・利用したrailsの説明</h2>
+        <h2>・社内物流の概要</h2>
+        <h2>・導入方法</h2>
+        <h2>・基本操作</h2>
+          <h3>・・gridでのデータ追加・更新</h3>
+            <p>－－－＞Enterで行ごとに追加・更新</p>
+          <h3>・・grid内でのsort</h3>
+            <p>－－－＞ヘッダーの項目をCtrl+クリック</p>
+        
+      <h1 className="error">注意事項　あくまでも案であって利用に関しては各自十分に検証し自己責任で利用すること</h1>
     </form>
         <div style={{ color: 'red' }}>
           {Object.keys(errors).length > 0 &&

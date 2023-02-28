@@ -2,6 +2,7 @@ import {  BUTTONLIST_REQUEST, BUTTONLIST_SUCCESS, BUTTONFLG_REQUEST,GANTT_RESET,
   TBLFIELD_SUCCESS,GANTTCHART_SUCCESS,MKSHPORDS_SUCCESS, DOWNLOAD_REQUEST,
   DOWNLOAD_SUCCESS,LOGOUT_REQUEST,RESET_REQUEST, DOWNLOAD_FAILURE,
     //MKSHPACTS_RESULT,
+  SCREEN_REQUEST,
   SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,IMPORTEXCEL_REQUEST,SECOND_CONFIRMALL_SUCCESS, SECOND_SUCCESS7,} //
    from '../../actions'
 
@@ -31,10 +32,15 @@ downloadloading:"",
 case SCREENINIT_REQUEST:
   return {...state,
     buttonflg:actions.payload.params.buttonflg, 
-    //buttonflg:"search", 
     messages:actions.payload.messages,
     message:actions.payload.message,
           // editableflg:action.payload.editableflg
+}
+
+
+case SCREEN_REQUEST:
+  return {...state,
+    loading:true,
 }
 
 case SCREEN_SUCCESS7:
@@ -57,11 +63,6 @@ loading:false,
 // loading:false,
 // }
 
-case BUTTONLIST_REQUEST:
-return {...state,
-disabled:true,
-messages:null,
-message:null,}
 
 case GANTT_RESET:
   return {...state,

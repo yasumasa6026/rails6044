@@ -1,6 +1,6 @@
-import {  MENU_REQUEST, MENU_SUCCESS,LOGOUT_REQUEST,MENU_FAILURE,
-          SCREENINIT_REQUEST,SCREEN_SUCCESS7, 
-          //MKSHPACTS_RESULT,
+import {MENU_REQUEST,MENU_SUCCESS,LOGOUT_REQUEST,MENU_FAILURE,
+          SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7, 
+           SCREEN_CONFIRM7,LOGIN_SUCCESS,CHANGE_SHOW_SCREEN,
            SECOND_CONFIRMALL_SUCCESS,SECOND_REQUEST,SECOND_SUCCESS7,SECOND_CONFIRM7,
           SECOND_FAILURE,SECONDFETCH_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT,
               } from '../../actions'
@@ -16,48 +16,91 @@ const menureducer =  (state= initialValues , actions) =>{
     
     case MENU_REQUEST:
       return {...state,
-        token:actions.payload.token,
-        client:actions.payload.client,
-        uid:actions.payload.uid,}
+        showScreen:false,
+      }
 
     case MENU_SUCCESS:
-      return {...state,
-        hostError: null,
-        message:null,
-        menuListData:actions.action,
-      }
+        return {...state,
+          hostError: null,
+          message:null,
+          menuListData:actions.action,
+          showScreen:false,
+        }
 
     case MENU_FAILURE:
       return {...state,
         message:actions.errors,
     }    
+
+    case CHANGE_SHOW_SCREEN:
+      return { ...state,
+              showScreen:actions.payload.showScreen}
     
     case SCREENINIT_REQUEST:
       return {...state,
-        menuChanging:true,
+        loading:true,
+        screenFlg:null,
+      }
+
+      
+    case SCREEN_REQUEST:
+      return {...state,
+        loading:true,
+        screenFlg:null,
+       // showScreen:false,
       }
 
     case SCREEN_SUCCESS7:
           return {...state,
+            showScreen:true,
             hostError: null,
             message:null,
-            menuChanging:false,
             screenFlg:"first",
+            loading:false,
     }
+
+    
+    case SCREEN_CONFIRM7:
+    case SECOND_CONFIRM7:
+          return {...state,
+                    loading:false,
+      }
+
+      case LOGIN_SUCCESS:
+            return {...state,
+              showScreen:false,
+      }
+    
+    case SECOND_SUCCESS7:
+    case SECONDFETCH_RESULT:
+          return {...state,
+            hostError: null,
+            message:null,
+            screenFlg:"second",
+            loading:false,
+            showScreen:true,
+    }
+  
 
 
   //  case MKSHPACTS_RESULT:
-    case SECOND_CONFIRMALL_SUCCESS:
     case SECOND_REQUEST:
-    case SECOND_SUCCESS7: 
-    case SECOND_CONFIRM7:
-    case SECOND_FAILURE:
     case SECONDFETCH_REQUEST:
-    case SECONDFETCH_FAILURE:
-    case SECONDFETCH_RESULT:
         return {...state,
           screenFlg:"second",
+          loading:true,
+          showScreen:false,
         }   
+        
+    case SECOND_CONFIRMALL_SUCCESS:
+      case SECOND_REQUEST:
+      case SECOND_FAILURE:
+      case SECONDFETCH_FAILURE:
+          return {...state,
+            screenFlg:"second",
+            loading:false,
+            showScreen:false,
+          }   
 
     case  LOGOUT_REQUEST:
     return {}  

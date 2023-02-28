@@ -12,7 +12,7 @@ module CtlFields
 					params[:keys] = []
 					keys.split(",").each do |key| 
 				  		params[:keys] =  [key.split(":")[0].gsub(" ","")] 
-						params[:parse_linedata][key+"_gridmessage"] = "error duplicate code #{key} "
+						params[:parse_linedata][key+"_gridmessage"] = "error 1 duplicate code #{key} "
 						if params[:parse_linedata][:errPath].nil? 
 							params[:parse_linedata][:errPath] = [key.split(":")[0]+"_gridmessage"]
 						end
@@ -81,7 +81,7 @@ module CtlFields
 				fetchtblnamechop,xno,srctblnamechop = fetch["pobject_code_sfd"].split("_") 
 				if valOfField =~ /,/				 ###入力項目に「,」が入っていた時
 					params[:err] =  "error   --->not input comma:#{params[:index]} "
-					line_data[(fetch["pobject_code_sfd"]+"_gridmessage").to_sym] =  "error   --->not input comma"  ###!!!
+					line_data[(fetch["pobject_code_sfd"]+"_gridmessage").to_sym] =  "error  4 --->not input comma"  ###!!!
 					missing = true
 					findstatus = false
 					break
@@ -156,20 +156,22 @@ module CtlFields
 							field = key.to_s
 						end
 						if rec[field]  ###id,sno,cnoから求められた同一項目を画面にセットする。
-							line_data[key] =  rec[field]  if line_data[key].nil? or line_data[key] == "" or line_data[key].to_s == "0" ###rec:検索結果
+							if line_data[key].nil? or line_data[key] == "" or line_data[key].to_s == "0" ###rec:検索結果
+								line_data[key] =  rec[field]  
+							end
 							###自動セット項目 onblurfunc.js 参照(tableをgetしないとき利用)
 							### qty,qty_stkの修正のため	nextしない。
 						else
 							 ### sno,cnoからデータを求めた時は同一項目でなくてもdelmが同じであればセットする。
 							if items[0] == screentblnamechop
-								if (val == ""  or val.nil? or val.to_s == "0" ) 
-									if items[1] == viewtblnamechop 
-										if items[2]  == "id"
-							 				if rec["#{field.sub("#{screentblnamechop}_","")}"]  ###r_opeitms ==>opeitm_id
-							 						line_data[key]  = rec["#{field.sub("#{screentblnamechop}_","")}"]	
-											end
+								if items[1] == viewtblnamechop 
+									if items[2]  == "id"
+							 			if rec["#{field.sub("#{screentblnamechop}_","")}"]  ###r_opeitms ==>opeitm_id
+							 					line_data[key]  = rec["#{field.sub("#{screentblnamechop}_","")}"]	
 										end
-									else ###項目の引継ぎ  purord_opeitm_xxx => puract_opeitm_xxx
+									end
+								else ###項目の引継ぎ  purord_opeitm_xxx => puract_opeitm_xxx
+									if (val == ""  or val.nil? or val.to_s == "0" ) 
 										next if field =~ /_sno$|_cno$|_gno$|_isudate|_created_at|_updated_at|_remark|_contents|_seqno/
 										if rec["#{field.sub(/^#{screentblnamechop}/,"#{viewtblnamechop}")}"]  
 											line_data[key]  = rec["#{field.sub(/^#{screentblnamechop}/,"#{viewtblnamechop}")}"]  
@@ -261,9 +263,9 @@ module CtlFields
 							params[:err] =  "error   --->over qty  line:#{params[:index]} "
 							case screentblnamechop
 							when /ord$|inst$|replyinput/
-										line_data[(screentblnamechop+"_qty_gridmessage").to_sym] =  "error   --->over qty"
+										line_data[(screentblnamechop+"_qty_gridmessage").to_sym] =  "error 5  --->over qty"
 							when /dlv$|act$/
-										line_data[(screentblnamechop+"_qty_stk_gridmessage").to_sym] =  "error   --->over qty"
+										line_data[(screentblnamechop+"_qty_stk_gridmessage").to_sym] =  "error 5  --->over qty"
 							end
 						else
 							params[:err] =  nil
@@ -618,9 +620,6 @@ module CtlFields
 						value = ActiveRecord::Base.connection.select_value(strsql)
 						if value
 							params[:err] =  "error   ---> #{pobject_code} can not change because table:tblfields already used line:#{params[:index]} "
-							# if params[:parse_linedata][:errPath].nil? 
-							# 	params[:parse_linedata][:errPath] = [key.split(":")[0]+"_gridmessage"]
-							# end
 						else
 							params[:err] = nil
 						end
@@ -646,38 +645,355 @@ module CtlFields
 		return params
 	end
 
-	def judge_check_taxrate params,item  ###MkInvoiveNoの時のみ
+	def judge_check_supplierprice params,item  ###M
 		line_data = params[:parse_linedata].dup
 		case params[:screenCode]
-		when /pur|shp/
-		when /cust/
+		when "purords"
+			strsql = %Q&
+						select * from suppliers where locas_id_supplier = #{line_data[:shelfno_loca_id_shelfno]}
+									and expiredate > current_date
+			&
+			supplier = ActiveRecord::Base.connection.select_one(strsql)
+			strsql = %Q&
+						select * from supplierprices 
+									where suppliers_id = #{supplier["id"]} and opeitms_id = #{line_data[:purord_opeitm_id]}
+									and maxqty >= #{line_data[:purord_qty]}
+									and #{case supplier["contract_price"]
+											when "1"
+												"expiredate >= to_date('#{line_data[:purord_isudate]}','yyyy/mm/dd')" 
+											when "2"
+												"expiredate >= to_date('#{line_data[:purord_duedate]}','yyyy/mm/dd')"
+											when "3"
+												"expiredate >= to_date('#{line_data[:purord_duedate]}','yyyy/mm/dd')"
+											end											
+											}
+									order by expiredate ,maxqty limit 1
+			&
+			price = ActiveRecord::Base.connection.select_one(strsql)
+			if price
+				params[:parse_linedata][:purord_price] = params[:parse_linedata][:purord_masterprice] = price["price"]
+				params[:parse_linedata][:purord_contract_price] = supplier["contract_price"]
+				params[:parse_linedata][:purord_amt] = params[:parse_linedata][:purord_qty] * price["price"]
+				if params[:parse_linedata][:purord_crr_id]
+					strsql = %Q&
+							select decimal from crrs where id = #{params[:parse_linedata][:purord_crr_id]}
+					&
+					decimal = ActiveRecord::Base.connection.select_value(strsql)
+					case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
+					when "1"
+						params[:parse_linedata][:purord_amt] = params[:parse_linedata][:purord_amt].floor(decimal.to_i + 1)
+					when "2"
+						params[:parse_linedata][:purord_amt] = params[:parse_linedata][:purord_amt].round(decimal.to_i + 1)
+					when "3"
+						params[:parse_linedata][:purord_amt] = params[:parse_linedata][:purord_amt].ceil(decimal.to_i + 1)
+					end
+				else
+				end
+			else
+				params[:parse_linedata][:purord_price] = params[:parse_linedata][:purord_masterprice] = 0
+				params[:parse_linedata][:purord_amt] = 0
+				params[:parse_linedata][:purord_contract_price] = "C"
+			end
+		when "purdlvs"  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
+			 if params[:parse_linedata][:purdlv_contract_price]  == "2"
+				strsql = %Q&
+							select * from suppliers where locas_id_supplier = #{line_data[:shelfno_loca_id_shelfno]}
+										and expiredate > current_date
+				&
+				supplier = ActiveRecord::Base.connection.select_one(strsql)
+				strsql = %Q&
+							select * from supplierprices 
+										where suppliers_id = #{supplier["id"]} and opeitms_id = #{line_data[:purdlv_opeitm_id]}
+										and maxqty >= #{line_data[:purdlv_qty]}
+										and  expiredate >= to_date('#{line_data[:purdlv_depdate]}','yyyy/mm/dd')
+										order by expiredate ,maxqty limit 1
+				&
+				price = ActiveRecord::Base.connection.select_one(strsql)
+				decimal = params[:parse_linedata][:crr_decimal].to_i
+				case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
+				when "1"
+					params[:parse_linedata][:purdlv_amt] = params[:parse_linedata][:purdlv_amt].floor(decimal + 1)
+				when "2"
+					params[:parse_linedata][:purdlv_amt] = params[:parse_linedata][:purdlv_amt].round(decimal + 1)
+				when "3"
+					params[:parse_linedata][:purdlv_amt] = params[:parse_linedata][:purdlv_amt].ceil(decimal + 1)
+				end
+			end
+		when "puracts"  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
+			if params[:parse_linedata][:puract_contract_price]  == "3"
+				strsql = %Q&
+							select * from suppliers where locas_id_supplier = #{line_data[:shelfno_loca_id_shelfno]}
+										and expiredate > current_date
+				&
+				supplier = ActiveRecord::Base.connection.select_one(strsql)
+			    strsql = %Q&
+						   select * from supplierprices 
+									   where suppliers_id = #{supplier["id"]} and opeitms_id = #{line_data[:puract_opeitm_id]}
+									   and maxqty >= #{line_data[:puract_qty]}
+									   and  expiredate >= to_date('#{line_data[:puract_rcptdate]}','yyyy/mm/dd')
+									   order by expiredate ,maxqty limit 1
+			   &
+			   price = ActiveRecord::Base.connection.select_one(strsql)
+			   decimal = params[:parse_linedata][:crr_decimal].to_i
+			   case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
+			   when "1"
+				   params[:parse_linedata][:puract_amt] = params[:parse_linedata][:puract_amt].floor(decimal + 1)
+			   when "2"
+				   params[:parse_linedata][:puract_amt] = params[:parse_linedata][:puract_amt].round(decimal + 1)
+			   when "3"
+				   params[:parse_linedata][:puract_amt] = params[:parse_linedata][:puract_amt].ceil(decimal + 1)
+			   end
+		   end
 		end
 		return params
 	end
 
-
-
-	def proc_snolist   ###reqparams["segment"] = ["trn_org"]の対象でもある。
-		{"purschs"=>"PS","purords"=>"PE","purinsts"=>"PH","purdlvs"=>"PV","puracts"=>"PA",
-			"purreplyinputs"=>"PL","prdreplyinputs"=>"ML",
-			"prdschs"=>"MS","prdords"=>"ME","prdinsts"=>"MH","prdacts"=>"MA","prdrets"=>"MR",
-			"billschs"=>"BS","billords"=>"BE","billinsts"=>"BH","billacts"=>"BA","billrets"=>"BR",
-			"payschs"=>"YS","payords"=>"YE","payinsts"=>"YH","payacts"=>"YA","payrets"=>"YR",
-			"custschs"=>"CS","custords"=>"CQ","custinsts"=>"CJ","custdlvs"=>"CV","custacts"=>"CA","custrets"=>"CR",
-			"shpschs"=>"SS","shpords"=>"SE","shpinsts"=>"SH","shpacts"=>"SA","shprets"=>"SR"}
+	def judge_check_taxrate params,item  ###MkInvoiveNoの時のみ
+		line_data = params[:parse_linedata].dup
+		case params[:screenCode]
+		when /puracts/  ###再度求める
+			case line_data[:itm_taxflg]
+			when "A"
+				if line_data[:puract_sno_purord] != "" and !line_data[:puract_sno_purord].nil?
+					strsql = %Q&
+						select isudate from purords where sno = #{line_data[:puract_sno_purord]}
+					&
+					base_date =  ActiveRecord::Base.connection.select_value(strsql)
+				else  ###purordsを纏めるとき同一taxrateであること
+					strsql = %Q&
+						select * from linktbls where tblid = #{line_data[:puract_id]} and tblname = 'puracts'
+					&
+					src =  ActiveRecord::Base.connection.select_one(strsql)
+					case src["srctblname"]
+					when "purords"
+						strsql = %Q&
+							select isudate from purords where id = #{src["srctblid"]}
+						&
+						base_date =  ActiveRecord::Base.connection.select_value(strsql)
+					when "purinsts"  ### taxflが異なるものを纏めないこと
+						strsql = %Q&
+							select isudate from purords ord
+										inner join linktbls link on link.srctblid = ord.idc
+								where link.srctblname = 'purords' and link.tblname = 'puroinsts' and tblid = #{src["tblid"]}
+						&
+						base_date =  ActiveRecord::Base.connection.select_value(strsql)
+					when "purreplyinputs"
+						strsql = %Q&
+							select * from linktbls where tblid = #{src["srctblid"]} and tblname = 'purreplyinputs'
+						&
+						reply =  ActiveRecord::Base.connection.select_one(strsql)
+						case reply["srctblname"]
+						when "purords"
+							strsql = %Q&
+								select isudate from purords where id = #{reply["srctblid"]}
+							&
+							base_date =  ActiveRecord::Base.connection.select_value(strsql)
+						when "purinsts"
+							strsql = %Q&
+								select isudate from purords ord
+											inner join linktbls link on link.srctblid = ord.id
+									where link.srctblname = 'purords' and link.tblname = 'puroinsts' and tblid = #{reply["tblid"]}
+							&
+							base_date =  ActiveRecord::Base.connection.select_value(strsql)
+						end
+					when "purdlvs"
+						strsql = %Q&
+							select * from linktbls where tblid = #{src["srctblid"]} and tblname = 'purdlvs'
+						&
+						dlv =  ActiveRecord::Base.connection.select_one(strsql)
+						case dlv["srctblname"]
+						when "purords"
+							strsql = %Q&
+								select isudate from purords where id = #{dlv["srctblid"]}
+							&
+							base_date =  ActiveRecord::Base.connection.select_value(strsql)
+						when "purinsts"
+							strsql = %Q&
+								select isudate from purords ord
+											inner join linktbls link on link.srctblid = ord.id
+									where link.srctblname = 'purords' and link.tblname = 'puroinsts' and tblid = #{dlv["tblid"]}
+							&
+							base_date =  ActiveRecord::Base.connection.select_value(strsql)
+						when "purreplyinputs"
+							strsql = %Q&
+								select * from linktbls where tblid = #{dlv["srctblid"]} and tblname = 'purreplyinputs'
+							&
+							reply =  ActiveRecord::Base.connection.select_one(strsql)
+							case reply["srctblname"]
+							when "purords"
+								strsql = %Q&
+									select isudate from purords where id = #{reply["srctblid"]}
+								&
+								base_date =  ActiveRecord::Base.connection.select_value(strsql)
+							when "purinsts"
+								strsql = %Q&
+									select isudate from purords ord
+												inner join linktbls link on link.srctblid = ord.id
+										where link.srctblname = 'purords' and link.tblname = 'puroinsts' and tblid = #{reply["tblid"]}
+								&
+								base_date =  ActiveRecord::Base.connection.select_value(strsql)
+							end
+						end
+					end
+				end
+			when "0","1","9"
+				base_date =  line_data[:puract_rcptdate]
+			else
+				Rails.logger.debug"taxflg error paymants_id : #{line_data[:paymets_id]} LINE:#{__LINE__} "
+				raise
+			end
+			strsql = %Q&
+						select taxrate from taxtbls where taxflg = '#{line_date[:itm_taxflg]}' 
+													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													order by expiredate limit 1
+			&
+			params[:parse_linedata][:puract_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+		when /purrets/
+			strsql = %Q&
+				select taxrate from puracts where sno_puract = #{line_data[:purret_sno_puract]}
+			&
+			params[:parse_linedata][:puract_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+		when /purords/
+			case line_data[:itm_taxflg]
+			when "0","1","9"
+				base_date =  line_data[:purord_duedate]
+			when "A"
+				base_date =   line_data[:purord_isudate]
+			end
+			strsql = %Q&
+						select taxrate from taxtbls where taxflg = '#{line_date[:itm_taxflg]}' 
+													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													order by expiredate limit 1
+			&
+			params[:parse_linedata][:purord_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+		when /purschs/
+			case line_data[:itm_taxflg]
+			when "0","1","9"
+				base_date =  line_data[:pursch_duedate]
+			when "A"
+				base_date =   line_data[:pursch_isudate]
+			end
+			strsql = %Q&
+						select taxrate from taxtbls where taxflg = '#{line_date[:itm_taxflg]}' 
+													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													order by expiredate limit 1
+			&
+			params[:parse_linedata][:pursch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+		when /pur/
+			### purinsts等の作成時に前の状態から引き継ぐ
+		when /shpschs/  ###shpacts以外は求めて表示するだけ
+			base_date =   line_data[:shpsch_isudate]
+			strsql = %Q&
+						select taxrate from taxtbls where taxflg = '#{line_date[:itm_taxflg]}' 
+													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													order by expiredate limit 1
+			&
+			params[:parse_linedata][:shpsch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+		when /shpacts/  ###shpacts以外は求めて表示するだけ
+			base_date =   line_data[:shpact_rcptdate]
+			strsql = %Q&
+						select taxrate from taxtbls where taxflg = '#{line_date[:itm_taxflg]}' 
+													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													order by expiredate limit 1
+			&
+			params[:parse_linedata][:shpsch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+		when /custacts/ ###再度求める
+			case line_data[:itm_taxflg]
+			when "A"
+				if line_data[:custact_sno_custord] != "" and !line_data[:custact_sno_custord].nil?
+					strsql = %Q&
+						select isudate from custords where sno = #{line_data[:custact_sno_custord]}
+					&
+					base_date =  ActiveRecord::Base.connection.select_value(strsql)
+				else  ###purordsを纏めるとき同一taxrateであること
+					strsql = %Q&
+						select * from linkcusts where tblid = #{line_data[:custact_id]} and tblname = 'custacts'
+					&
+					src =  ActiveRecord::Base.connection.select_one(strsql)
+					case src["srctblname"]
+					when "custords"
+						strsql = %Q&
+							select isudate from custords where id = #{src["srctblid"]}
+						&
+						base_date =  ActiveRecord::Base.connection.select_value(strsql)
+					when "custinsts"  ### taxflが異なるものを纏めないこと
+						strsql = %Q&
+							select isudate from custords ord
+										inner join linkcusts link on link.srctblid = ord.idc
+								where link.srctblname = 'custords' and link.tblname = 'custinsts' and tblid = #{src["tblid"]}
+						&
+						base_date =  ActiveRecord::Base.connection.select_value(strsql)
+					when "custdlvs"
+						strsql = %Q&
+							select * from linkcusts where tblid = #{src["srctblid"]} and tblname = 'custdlvs'
+						&
+						dlv =  ActiveRecord::Base.connection.select_one(strsql)
+						case dlv["srctblname"]
+						when "custords"
+							strsql = %Q&
+								select isudate from custords where id = #{dlv["srctblid"]}
+							&
+							base_date =  ActiveRecord::Base.connection.select_value(strsql)
+						when "custinsts"
+							strsql = %Q&
+								select isudate from custords ord
+											inner join linktbls link on link.srctblid = ord.id
+									where link.srctblname = 'purords' and link.tblname = 'puroinsts' and tblid = #{dlv["tblid"]}
+							&
+							base_date =  ActiveRecord::Base.connection.select_value(strsql)
+						end
+					end
+				end
+			when "0","1","9"
+				strsql = %Q&
+					select saledate from custacts where  id = #{line_data[:custact_id]}
+				&
+				base_date =  ActiveRecord::Base.connection.select_value(strsql)
+			else
+				Rails.logger.debug"taxflg error paymants_id : #{line_data[:paymets_id]} LINE:#{__LINE__} "
+				raise
+			end
+			strsql = %Q&
+						select taxrate from taxtbls where taxflg = '#{line_date[:itm_taxflg]}' 
+													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													order by expiredate limit 1
+			&
+			params[:parse_linedata][:custact_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+		
+		when /custrets/
+			strsql = %Q&
+				select taxrate from custacts where sno_puract = #{line_data[:custret_sno_custact]}
+			&
+			params[:parse_linedata][:custact_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+		when /custordss/
+			case line_data[:itm_taxflg]
+			when "A"
+				base_date =  line_data[:custord_duedate]
+			else
+				base_date =  line_data[:custord_isudate]
+			end
+			strsql = %Q&
+						select taxrate from taxtbls where taxflg = '#{line_date[:itm_taxflg]}' 
+													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													order by expiredate limit 1
+			&
+			params[:parse_linedata][:custord_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+		when /custschs/
+			case line_data[:itm_taxflg]
+			when "A"
+				base_date =  line_data[:custsch_duedate]
+			else
+				base_date =  line_data[:custsch_isudate]
+			end
+			strsql = %Q&
+						select taxrate from taxtbls where taxflg = '#{line_date[:itm_taxflg]}' 
+													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													order by expiredate limit 1
+			&
+			params[:parse_linedata][:custsch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+		end
+		return params
 	end
-
-	
-	def proc_gnolist   ###reqparams["segment"] = ["trn_org"]の対象でもある。
-		{"purschs"=>"GPS","purords"=>"GPE","purinsts"=>"GPH","purdlvs"=>"GPV","puracts"=>"GPA",
-			"purreplyinputs"=>"GPL","prdreplyinputs"=>"GML",
-			"prdschs"=>"GMS","prdords"=>"GME","prdinsts"=>"GMH","prdacts"=>"GMA","prdrets"=>"GMR",
-			"billschs"=>"GBS","billords"=>"GBE","billinsts"=>"GBH","billacts"=>"GBA","billrets"=>"GBR",
-			"payschs"=>"GYS","payords"=>"GYE","payinsts"=>"GYH","payacts"=>"GYA","payrets"=>"GYR",
-			"custschs"=>"GCS","custords"=>"GCQ","custinsts"=>"GCJ","custdlvs"=>"GCV","custacts"=>"GCA","custrets"=>"GCR",
-			"shpschs"=>"GSS","shpords"=>"GSE","shpinsts"=>"GSH","shpacts"=>"GSA","shprets"=>"GSR"}
-	end
-
 	### prd,pur ・・・schs,ords,insts,acts,retsのレコード作成　	
 	def proc_schs_fields_making nd,parent,screenCode ,command_c  ###xxxschsの作成のみ
 		command_x = command_c.dup
@@ -805,9 +1121,6 @@ module CtlFields
 	# 	return command_x
 	# end 
 
-
-
-	###end 
 
 	def field_shelfnos_id tblnamechop,command_x,nd,parent
 		command_x["#{tblnamechop}_shelfno_id"] = nd["shelfnos_id_opeitm"] ##
@@ -959,11 +1272,35 @@ module CtlFields
 	end		
 	
 	def field_expiredate tblnamechop,command_x,nd,parent
-		command_x["#{tblnamechop}_expiredate"] = "2099/12/31" if command_x["#{tblnamechop}_expiredate"].nil? or command_x["#{tblnamechop}_expiredate"] == ""
+		if command_x["#{tblnamechop}_expiredate"].nil? or command_x["#{tblnamechop}_expiredate"] == ""
+			command_x["#{tblnamechop}_expiredate"] = "2099/12/31" 
+		end
 		return command_x
 	end
 	
 	def proc_billord_exists(linedata)  ###既に請求書発行済?
 		false
 	end
+
+	def proc_snolist   ###reqparams["segment"] = ["trn_org"]の対象でもある。
+		{"purschs"=>"PS","purords"=>"PE","purinsts"=>"PH","purdlvs"=>"PV","puracts"=>"PA",
+			"purreplyinputs"=>"PL","prdreplyinputs"=>"ML",
+			"prdschs"=>"MS","prdords"=>"ME","prdinsts"=>"MH","prdacts"=>"MA","prdrets"=>"MR",
+			"billschs"=>"BS","billords"=>"BE","billinsts"=>"BH","billacts"=>"BA","billrets"=>"BR",
+			"payschs"=>"YS","payords"=>"YE","payinsts"=>"YH","payacts"=>"YA","payrets"=>"YR",
+			"custschs"=>"CS","custords"=>"CQ","custinsts"=>"CJ","custdlvs"=>"CV","custacts"=>"CA","custrets"=>"CR",
+			"shpschs"=>"SS","shpords"=>"SE","shpinsts"=>"SH","shpacts"=>"SA","shprets"=>"SR"}
+	end
+
+	
+	def proc_gnolist   ###reqparams["segment"] = ["trn_org"]の対象でもある。
+		{"purschs"=>"GPS","purords"=>"GPE","purinsts"=>"GPH","purdlvs"=>"GPV","puracts"=>"GPA",
+			"purreplyinputs"=>"GPL","prdreplyinputs"=>"GML",
+			"prdschs"=>"GMS","prdords"=>"GME","prdinsts"=>"GMH","prdacts"=>"GMA","prdrets"=>"GMR",
+			"billschs"=>"GBS","billords"=>"GBE","billinsts"=>"GBH","billacts"=>"GBA","billrets"=>"GBR",
+			"payschs"=>"GYS","payords"=>"GYE","payinsts"=>"GYH","payacts"=>"GYA","payrets"=>"GYR",
+			"custschs"=>"GCS","custords"=>"GCQ","custinsts"=>"GCJ","custdlvs"=>"GCV","custacts"=>"GCA","custrets"=>"GCR",
+			"shpschs"=>"GSS","shpords"=>"GSE","shpinsts"=>"GSH","shpacts"=>"GSA","shprets"=>"GSR"}
+	end
+
 end   ##module

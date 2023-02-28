@@ -6,6 +6,8 @@ import { LOGINFORM_REQUEST,LOGINFORM_SUCCESS,
           LOGIN_REQUEST,LOGIN_SUCCESS,LOGIN_FAILURE,
           LOGOUT_REQUEST, LOGOUT_SUCCESS, } from '../../actions'
 
+          
+export let getAuthState = state => state.auth
 const initialValues = {
   isSubmitting:false,
   errors:[],
@@ -85,6 +87,7 @@ const authreducer =  (state= initialValues , actions) =>{
         isSubmitting:false,
       }
 
+ 
     // Append the error returned from our api
     // set the success and requesting flags to false
     case LOGIN_FAILURE:

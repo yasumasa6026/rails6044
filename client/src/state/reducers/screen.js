@@ -1,10 +1,10 @@
 import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
-  SCREEN_FAILURE,LOGOUT_REQUEST,SCREEN_CONFIRM7,
+  SCREEN_FAILURE,LOGOUT_REQUEST,SCREEN_CONFIRM7,SCREEN_CONFIRM7_SUCCESS,
   FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,YUP_RESULT,
   INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
   //SECOND_SUCCESS7,
   MKSHPORDS_SUCCESS,
-  YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_PARAMS_SET,} 
+  YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_SUBFORM,LOGIN_SUCCESS} 
   from '../../actions'
 
 export let getScreenState = state => state.screen
@@ -12,6 +12,8 @@ export let getScreenState = state => state.screen
 const initialValues = {second_columns_info:{columns_info:null,},}
 
 const screenreducer =  ( state = initialValues , actions) =>{
+let data
+let date = new Date()
 switch (actions.type) {
 // Set the requesting flag and append a message to be shown
 
@@ -23,9 +25,9 @@ case SCREENINIT_REQUEST:
 }
 
 
-case SCREEN_PARAMS_SET:
+case SCREEN_SUBFORM:
 return {...state,
-  params:actions.payload.params,
+  toggleSubForm:actions.payload.toggleSubForm,
 }
 
 case YUP_ERR_SET:
@@ -36,9 +38,10 @@ case YUP_ERR_SET:
 }
   
 case SCREEN_REQUEST:
+case SCREEN_CONFIRM7:
 return {...state,
-        params:actions.payload.params,
         loading:true,
+        screenFlg:"first",
         // editableflg:actions.payload.editableflg
 }
 
@@ -48,17 +51,25 @@ return {...state,
   hostError: null,
   disabled:false,
   data: actions.payload.data.data,
-  params: actions.payload.data.params,
+  params: actions.payload.params,
   status: actions.payload.data.status,
   grid_columns_info:actions.payload.data.grid_columns_info,
   second_columns_info:null,
+  screenFlg:"first",
+  message:"",
+  toggleSubForm:false,
 }
 
-case SCREEN_CONFIRM7:
+case SCREEN_CONFIRM7_SUCCESS:
+  data = state.data
+  data[actions.payload.params.index] = actions.payload.linedata
 return {...state,
   params:actions.payload.params,
+  data:data,
   loading:false,
-  hostError:actions.payload.data[actions.payload.params.index].confirm_message
+  screenFlg:"first",
+  hostError:actions.payload.params.err,
+  message:`${date.toJSON()} confirmed line ${actions.payload.params.index}`,
 }
 
 case CONFIRMALL_SUCCESS:
@@ -117,26 +128,28 @@ case YUP_RESULT:
     return {...state,
       message: actions.payload.message,
     }
-
-// case SECOND_SUCCESS7: // 第一画面から移るときの受け渡し
-// return {...state,
-//     loading:false,
-//     second_columns_info:actions.payload.data.grid_columns_info, //第一画面の内容
-// }
-
   
 case MKSHPORDS_SUCCESS:
   return {...state,
       loading:false,
   }    
 
-case  LOGOUT_REQUEST:
+case  LOGIN_SUCCESS:
   return {
-      loading:false,
+      toggleSubForm:true,
       hostError: null,
       disabled:false,
       message:null,
   }
+
+  case  LOGOUT_REQUEST:
+    return {
+        loading:false,
+        hostError: null,
+        disabled:false,
+        message:null,
+    }
+
 default:
 return state
 }

@@ -184,7 +184,6 @@ button {
   color: #fff;
   cursor: pointer;
   outline: none;
-  -webkit-appearance: none;
 }
 
 button:disabled {
@@ -223,6 +222,8 @@ ul.react-tabs_tab_list {
   background: #333;
   color: red;
 }
+
+
 
 
 /* 下記のwidth以外では prev nectボタンがコントロールできない。*/

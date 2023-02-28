@@ -21,8 +21,9 @@ export const MENU_FAILURE = 'MENU_FAILURE'
 export const SCREENINIT_REQUEST = 'SCREENINIT_REQUEST'
 export const SCREEN_REQUEST = 'SCREEN_REQUEST'
 export const SCREEN_SUCCESS7 = 'SCREEN_SUCCESS7'
-export const SCREEN_PARAMS_SET = 'SCREEN_PARAMS_SET'
+export const SCREEN_SUBFORM = 'SCREEN_SUBFORM'
 export const SCREEN_CONFIRM7 = 'SCREEN_CONFIRM7'
+export const SCREEN_CONFIRM7_SUCCESS = 'SCREEN_CONFIRM7_SUCCESS'
 export const CONFIRMALL_SUCCESS = 'CONFIRMALL_SUCCESS'
 
 export const SCREEN_FAILURE = 'SCREEN_FAILURE'
@@ -55,7 +56,8 @@ export const SECONDFETCH_REQUEST = 'SECONDFETCH_REQUEST'
 export const SECONDFETCH_RESULT = 'SECONDFETCH_RESULT'
 export const SECONDFETCH_FAILURE = 'SECONDFETCH_FAILURE'
 export const SECOND_CONFIRM7 = 'SECOND_CONFIRM7'
-export const SECOND_PARAMS_SET = 'SECOND_PARAMS_SET'
+export const SECOND_CONFIRM7_SUCCESS = 'SECOND_CONFIRM7_SUCCESS'
+export const SECOND_SUBFORM = 'SECOND_SUBFORM'
 
 
 export const IMPORTEXCEL_REQUEST = 'IMPORTEXCEL_REQUEST'
@@ -76,6 +78,7 @@ export const GANTTCHART_REQUEST = 'GANTTCHART_REQUEST'
 export const GANTTCHART_FAILURE = 'GANTTCHART_FAILURE'
 export const GANTTCHART_SUCCESS = 'GANTTCHART_SUCCESS'
 export const RESET_REQUEST = 'RESET_REQUEST'
+export const CHANGE_SHOW_SCREEN = 'CHANGE_SHOW_SCREEN'
 
 // LOGIN
 // Attach our Formik actions as meta-data to our action.
@@ -120,9 +123,9 @@ export const LogoutSuccess = () => ({
  // payload: {token,client,uid }
 })
 
-export const MenuRequest = (token,client,uid) => ({
+export const MenuRequest = (auth) => ({
   type:  MENU_REQUEST,
-  payload:{token,client,uid} 
+  payload: {auth}
 })
 
 export const MenuFailure = (errors) => ({
@@ -130,14 +133,20 @@ export const MenuFailure = (errors) => ({
   errors: { errors }  //
 })
 
-export const ScreenInitRequest = (params,data) => ({
+export const ScreenInitRequest = (params) => ({
   type:  SCREENINIT_REQUEST,
-  payload: { params,data}  //
+  payload: { params}  //AuthenticatorResponse
 })
 
-export const ScreenRequest = (params,data) => ({
+export const ScreenRequest = (params) => ({
   type:  SCREEN_REQUEST,
-  payload: { params,data}  //
+  payload: { params}  //
+})
+
+
+export const ScreenConfirm = (params) => ({
+  type:  SCREEN_CONFIRM7,
+  payload: { params}  //
 })
 
 export const ResetRequest = (params) => ({
@@ -145,21 +154,28 @@ export const ResetRequest = (params) => ({
   payload: { params}  //
 })
 
-export const ScreenParamsSet = (params) => ({
-  type:  SCREEN_PARAMS_SET,
-  payload: { params}  //
+export const ScreenSubForm = (toggleSubForm) => ({
+  type:  SCREEN_SUBFORM,
+  payload: { toggleSubForm}  //
 })
 
-export const SecondParamsSet = (params) => ({
-  type:  SECOND_PARAMS_SET,
-  payload: { params}  //
+export const SecondSubForm = (toggleSubForm) => ({
+  type:  SECOND_SUBFORM,
+  payload: { toggleSubForm}  //
 })
 
 
-export const SecondRequest = (params,data) => ({
+export const SecondRequest = (params) => ({
   type:  SECOND_REQUEST,
-  payload: { params,data}  //
+  payload: { params}  //
 })
+
+
+export const SecondConfirm = (params) => ({
+  type:  SECOND_CONFIRM7,
+  payload: { params}  //
+})
+
 
 export const YupErrSet = (data,error) => ({
   type:  YUP_ERR_SET,
@@ -181,9 +197,9 @@ export const DownloadRequest = (params) => ({
   payload: { params:params}
 })
 
-export const ButtonListRequest = (token,client,uid) => ({
+export const ButtonListRequest = (auth) => ({
   type:  BUTTONLIST_REQUEST,
-  payload:{token,client,uid} 
+  payload:{auth} 
 })
 export const ButtonListSuccess = (buttonListData) => ({
   type:  BUTTONLIST_SUCCESS,
@@ -200,9 +216,9 @@ export const ButtonFlgRequest = (buttonflg,params) => ({
 })
 
 
-export const FetchRequest = (params,data) => ({
+export const FetchRequest = (params) => ({
   type: FETCH_REQUEST,
-  payload: { params,data }
+  payload: { params}
 })
 
 export const FetchResult = (params) => ({
@@ -214,9 +230,9 @@ export const FetchFailure = (params) => ({
   type: FETCH_FAILURE,
   payload: { params}
 })
-export const SecondFetchRequest = (params,data) => ({
+export const SecondFetchRequest = (params) => ({
   type: SECONDFETCH_REQUEST,
-  payload: { params,data }
+  payload: { params }
 })
 
 export const SecondFetchResult = (params) => ({
@@ -246,14 +262,14 @@ export const InputProtectResult = () => ({
   type: INPUTPROTECT_RESULT,
 })
 
-export const YupRequest = (params) => ({
+export const YupRequest = (params,auth) => ({
   type:  YUP_REQUEST,
-  payload: { params}  //
+  payload: { params,auth}  //
 })
 
-export const TblfieldRequest = (params) => ({
+export const TblfieldRequest = (params,auth) => ({
   type:  TBLFIELD_REQUEST,
-  payload: { params}  //
+  payload: { params,auth}  //
 })
 
 export const TblfielSuccess = (messages) => ({
@@ -292,4 +308,10 @@ export const ImportExcelSuccess = (payload) => ({
 export const ImportExcelFailure = (payload) => ({
   type: IMPORTEXCEL_FAILURE,  // 
   payload: {importError:payload.importError}
+})
+
+
+export const changeShowScreen = (showScreen) => ({
+  type: CHANGE_SHOW_SCREEN,  // 
+  payload: {showScreen:showScreen}
 })

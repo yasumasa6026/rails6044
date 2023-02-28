@@ -1,59 +1,59 @@
 
-truncate table purschs;
-truncate table purords;
-truncate table purinsts;
-truncate table purdlvs;
-truncate table puracts;
-truncate table inamts;
-truncate table outamts;
+truncate table purschs cascade;
+truncate table purords cascade;
+truncate table purinsts cascade;
+truncate table purdlvs cascade;
+truncate table puracts cascade;
+truncate table inamts cascade;
+truncate table outamts cascade;
 
 truncate table alloctbls cascade;
 truncate table lotstkhists cascade;
 
-truncate table prdschs;
-truncate table prdords;
-truncate table prdinsts;
-truncate table prdacts;
+truncate table prdschs cascade;
+truncate table prdords cascade;
+truncate table prdinsts cascade;
+truncate table prdacts cascade;
 
 
-truncate table custschs;
+truncate table custschs cascade;
 truncate table custords cascade;
-truncate table custinsts;
-truncate table custacts;
-truncate table custdlvs;
-truncate table custwhs;
+truncate table custinsts cascade;
+truncate table custacts cascade;
+truncate table custdlvs cascade;
+truncate table custwhs cascade;
 
 truncate table trngantts cascade;
-truncate table inspschs;
-truncate table inspords;
-truncate table inspinsts;
-truncate table inspacts;
-truncate table payschs;
-truncate table payords;
-truncate table payinsts;
+truncate table inspschs cascade;
+truncate table inspords cascade;
+truncate table inspinsts cascade;
+truncate table inspacts cascade;
+truncate table payschs cascade;
+truncate table payords cascade;
+truncate table payinsts cascade;
 ----truncate table payacts;
 
-truncate table processreqs;
+truncate table processreqs cascade;
 
-truncate table shpschs;
-truncate table shpords;
-truncate table shpinsts;
-truncate table supplierwhs ;
-truncate table shpacts;
-truncate table custwhs ;
+truncate table shpschs cascade;
+truncate table shpords cascade;
+truncate table shpinsts cascade;
+truncate table supplierwhs  cascade;
+truncate table shpacts cascade;
+truncate table custwhs  cascade;
 
-truncate table conschs ;
-truncate table conords;
-truncate table conacts ;
-truncate table linkheads ;
-truncate table custactheads;
-truncate table linktbls;
-truncate table linkcusts;
+truncate table conschs  cascade;
+truncate table conords cascade;
+truncate table conacts  cascade;
+truncate table linkheads  cascade;
+truncate table custactheads cascade;
+truncate table linktbls cascade;
+truncate table linkcusts cascade;
 
 truncate table mkordopeitms cascade;
 
 truncate table mkprdpurords  cascade;
-truncate table srctbls;
+truncate table srctbls cascade;
 truncate table instks cascade;
 truncate table outstks cascade;
 truncate table mkordorgs cascade;
@@ -109,57 +109,57 @@ to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'));
 ;
 commit;
 
-truncate table sio.sio_custact_linkheads;
-truncate table sio.sio_r_purschs;
-truncate table sio.sio_r_purords;
-truncate table sio.sio_r_purinsts;
-truncate table sio.sio_r_purdlvs;
-truncate table sio.sio_r_puracts;
-truncate table sio.sio_r_instks;
-truncate table sio.sio_r_outstks;
-truncate table sio.sio_r_inamts;
-truncate table sio.sio_r_outamts;
-truncate table sio.sio_r_lotstkhists;
-truncate table sio.sio_r_custactheads;
+truncate table sio.sio_custact_linkheads cascade;
+truncate table sio.sio_r_purschs cascade;
+truncate table sio.sio_r_purords cascade;
+truncate table sio.sio_r_purinsts cascade;
+truncate table sio.sio_r_purdlvs cascade;
+truncate table sio.sio_r_puracts cascade;
+truncate table sio.sio_r_instks cascade;
+truncate table sio.sio_r_outstks cascade;
+truncate table sio.sio_r_inamts cascade;
+truncate table sio.sio_r_outamts cascade;
+truncate table sio.sio_r_lotstkhists cascade;
+truncate table sio.sio_r_custactheads cascade;
 
 truncate table sio.sio_r_alloctbls cascade;
 
-truncate table sio.sio_r_prdschs;
-truncate table sio.sio_r_prdords;
-truncate table sio.sio_r_prdinsts;
-truncate table sio.sio_r_prdacts;
+truncate table sio.sio_r_prdschs cascade;
+truncate table sio.sio_r_prdords cascade;
+truncate table sio.sio_r_prdinsts cascade;
+truncate table sio.sio_r_prdacts cascade;
 
 
-truncate table sio.sio_r_custschs;
-truncate table sio.sio_r_custords;
-truncate table sio.sio_r_custinsts;
-truncate table sio.sio_r_custdlvs;
+truncate table sio.sio_r_custschs cascade;
+truncate table sio.sio_r_custords cascade;
+truncate table sio.sio_r_custinsts cascade;
+truncate table sio.sio_r_custdlvs cascade;
 truncate table sio.sio_fmcustinst_custdlvs ;
 truncate table sio.sio_fmcustord_custinsts;
 truncate table sio.sio_r_custacts;
 
 truncate table sio.sio_r_trngantts cascade;
-truncate table sio.sio_r_inspschs;
-truncate table sio.sio_r_inspords;
-truncate table sio.sio_r_inspinsts;
-truncate table sio.sio_r_inspacts;
-truncate table sio.sio_r_payschs;
-truncate table sio.sio_r_payords;
-truncate table sio.sio_r_payinsts;
+truncate table sio.sio_r_inspschs cascade;
+truncate table sio.sio_r_inspords cascade;
+truncate table sio.sio_r_inspinsts cascade;
+truncate table sio.sio_r_inspacts cascade;
+truncate table sio.sio_r_payschs cascade;
+truncate table sio.sio_r_payords cascade;
+truncate table sio.sio_r_payinsts cascade;
 ----truncate table sio.sio_r_payacts;
 
-truncate table sio.sio_r_processreqs;
+truncate table sio.sio_r_processreqs cascade;
 
-truncate table sio.sio_r_shpschs;
-truncate table sio.sio_r_shpords;
+truncate table sio.sio_r_shpschs cascade;
+truncate table sio.sio_r_shpords cascade;
 
-truncate table sio.sio_r_mkords;
+truncate table sio.sio_r_mkords cascade;
 
-truncate table sio.sio_r_srctbls;
-truncate table sio.sio_r_shpacts;
+truncate table sio.sio_r_srctbls cascade;
+truncate table sio.sio_r_shpacts cascade;
 
-truncate table mkordterms ;
-truncate table sio.sio_r_mkordterms ;
+truncate table mkordterms  cascade;
+truncate table sio.sio_r_mkordterms  cascade;
 truncate table sio.sio_r_mkordorgs cascade;
 
 

@@ -370,7 +370,7 @@ module Api
                 reqparams[:buttonflg] = 'confirmSecond'
                 render json:{:outcnt => outcnt,:err => err,:params => reqparams}    
             else
-                Rails.logger.debug"#{Time.now} : buttonflg-->#{buttonflg} not support "    
+                Rails.logger.debug"#{Time.now} : buttonflg-->#{params.buttonflg} not support "    
             end
         end
         def show

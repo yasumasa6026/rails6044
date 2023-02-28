@@ -8,13 +8,7 @@ import {Button} from './styles/button'
 import { LogoutRequest, SignUpFormRequest,LoginFormRequest,} from './actions'
 
 class GlobalNav extends React.Component {
-  //signout(e) {
-  //  e.preventDefault()
-  //  const {email, password,token,client,uid} = this.props
-  //  this.props.dispatch(LogoutRequest(email, password,token,client,uid))    
-  //}
   render() {
-    //email, password,token,client,uid うまく渡らない
     const { isAuthenticated, isSubmitting,token,client,uid,
               isSignUp,LogoutClick,SignUpClick, LoginClick,} = this.props
     return (
@@ -46,9 +40,6 @@ class GlobalNav extends React.Component {
 
 //this.ownProps.history.replace(`/login`),
 const mapDispatchToProps = (dispatch,ownProps ) => {
-//  const { email, password,auth} = ownProps.login?ownProps.login:{ email:"", password:"",auth:[]}
-//  const {client,uid} = auth?auth:{client:"",uid:""}
-//  const token = auth?{token:auth["access-token"]}:{token:""}
   return{
         LogoutClick: (token,client,uid) => dispatch(LogoutRequest(token,client,uid),
                           ),

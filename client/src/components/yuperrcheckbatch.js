@@ -32,7 +32,7 @@ export  function yupErrCheckBatch(lines,screenCode)
                     row = dataCheck7(screenSchema,fd,row) //row:_gridmessageを含む
                     if(row[`${fd}_gridmessage`] !== "ok"){
                           line[`${fd}_gridmessage`] = row[`${fd}_gridmessage`]
-                          line[`${tblnamechop}_confirm_gridmessage`] = `x error ${fd} field:${fd} ` + row[`${fd}_gridmessage`]
+                          line[`${tblnamechop}_confirm_gridmessage`] = `error x ${fd} field:${fd} ` + row[`${fd}_gridmessage`]
                           importErrorCheckMaster = true
                           line[`confirm`] = false
                           line = {...line,[fd]:row[fd]}
@@ -44,14 +44,14 @@ export  function yupErrCheckBatch(lines,screenCode)
                 )
             }      
             catch(err){  //jsonにはxxxx_gridmessageはない。
-                line[`${tblnamechop}_confirm_gridmessage`] = `y error ${err} field:${batchField} ` + line[`${tblnamechop}_confirm_gridmessage`]
+                line[`${tblnamechop}_confirm_gridmessage`] = `error y ${err} field:${batchField} ` + line[`${tblnamechop}_confirm_gridmessage`]
                 line[`confirm`] = false
                 importErrorCheckMaster = true
             }
         }else{
             if(line["aud"]==="aud"){
                 }else{
-                    line[`${tblnamechop}_confirm_gridmessage`] = "missing aud--> add OR update OR delete "
+                    line[`${tblnamechop}_confirm_gridmessage`] = "error z missing aud--> add OR update OR delete "
                     line[`confirm`] = false
                     importErrorCheckMaster = true
             }   

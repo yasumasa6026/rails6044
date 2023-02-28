@@ -2,7 +2,8 @@ CREATE OR REPLACE FUNCTION public.func_get_screenfield_grpname(email text, scree
  RETURNS TABLE(screenfield_name text, screenfield_hideflg numeric, screenfield_editable numeric, screenfield_indisp numeric, pobject_code_scr text, 
  screenfield_width numeric, screen_strwhere text, screen_strorder text, screen_strgrouporder text, screen_rows_per_page numeric, screen_rowlist text, 
  screenfield_type text, screenfield_dataprecision numeric, screenfield_datascale numeric, pobject_objecttype_sfd text, contents text, pobject_code_sfd text,
- screenfield_edoptvalue text,screenfield_tblfield_id numeric,screenfield_pobject_id_sfd numeric,screenfield_screen_id numeric)
+ screenfield_edoptvalue text,screenfield_tblfield_id numeric,screenfield_pobject_id_sfd numeric,screenfield_screen_id numeric,
+ screenfield_rowpos numeric,screenfield_colpos numeric,screenfield_edoptrow numeric,screenfield_edoptcols numeric)
  LANGUAGE sql
 AS $function$
 select case when x.name is null then  pobject_code_sfd else x.name  end screenfield_name,
@@ -10,7 +11,8 @@ select case when x.name is null then  pobject_code_sfd else x.name  end screenfi
 	screen_strwhere,screen_strorder ,screen_strgrouporder ,
 	screen_rows_per_page,screen_rowlist,screenfield_type,screenfield_dataprecision,
 	screenfield_datascale,pobject_objecttype_sfd,x.contents,pobject_code_sfd,screenfield_edoptvalue,
-	screenfield_tblfield_id,screenfield_pobject_id_sfd ,screenfield_screen_id 
+	screenfield_tblfield_id,screenfield_pobject_id_sfd ,screenfield_screen_id ,
+	screenfield_rowpos ,screenfield_colpos ,screenfield_edoptrow ,screenfield_edoptcols
       from r_screenfields s
 	left join  ( select t.pobjects_id,t.name,t.contents from pobjgrps t 
 				inner join  persons  p on p.usrgrps_id = t.usrgrps_id and email= $1

@@ -1,6 +1,6 @@
 //https://github.com/reactjs/react-tabs
 //import axios from 'axios'
-import React from 'react'
+import React ,{useState,useEffect} from 'react'
 import { connect } from 'react-redux'
 import { Tab, Tabs, TabList, TabPanel, } from 'react-tabs'
 import "react-tabs/style/react-tabs.css"
@@ -9,51 +9,68 @@ import "../index.css"
 
 import  SignUp  from './signup'
 import  Login  from './login'
-import {ScreenInitRequest} from '../actions'
+import {ScreenInitRequest,changeShowScreen} from '../actions'
 import ScreenGrid7 from './screengrid7'
+import ButtonList from './buttonlist'
 
 const titleNameSet = (screenName) =>{ return (
   document.title = `${screenName}`
 )
 }
 
-const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,grid_columns_info,hostError,
-            isSignUp,uid,token,client,screenFlg}) =>{
+const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,loadingOrg,
+          toggleSubForm,toggleSubFormSecond,showScreen,changeShowScreen,
+            isSignUp,screenFlg,auth}) =>{
+    const [tabIndex, setTabIndex] = useState(0)
+    const [subTabIndex, setSubTabIndex] = useState(0)
+    //const [showScreen, setShowScreen] = useState(false)
+    const [loading, setLoading] = useState(true)
+    useEffect(()=>{   setLoading(loadingOrg)},[loadingOrg])
+    //useEffect(()=>{   setShowScreen(showScreenOrg)},[showScreenOrg])
     if(params){}else{params = {}}
-    params["token"] = token
-    params["client"] = client
-    params["uid"] = uid
     if (isAuthenticated) {
       if(menuListData)
       {
       let tmpgrpscr =[]   //グルーブ化されたメニュー
-      let ii = 0
-      menuListData.map((cate) => {
-            if(tmpgrpscr[ii-1]!==cate.grp_name){tmpgrpscr[ii]=cate.grp_name;ii=ii+1}    
-          return tmpgrpscr
-          })  
+      let ii = -1    
+      let lastGrp_name = ""
+      // menuListData.map((cate,ii) => {
+      //       //if(tmpgrpscr[ii-1]!==cate.grp_name){tmpgrpscr[ii]=cate.grp_name;ii=ii+1}    
+      //       tmpgrpscr[ii]=cate.grp_name    
+      //     return tmpgrpscr
+      //     })  
       return (
         <div>
-            <Tabs
-                  forceRenderTabPanel   selectedTabClassName="react-tabs--selected_custom_head">
+            <Tabs  selectedIndex={tabIndex}  onSelect={(changeTabIndex) => {setTabIndex(changeTabIndex)
+                                                                            changeShowScreen(false) 
+                                                                            setSubTabIndex(-1)
+                                                                            lastGrp_name =  menuListData[tabIndex].grp_name}}
+                    selectedTabClassName="react-tabs--selected_custom_head">
               <TabList>
-                { tmpgrpscr.map((grp_name,idx) => 
-                  <Tab key={idx} >
-                    {grp_name} 
-                  </Tab>
-                )
-                } 
+                { menuListData.map((val,idx) =>{ 
+                      if(lastGrp_name!==val.grp_name){ii += 1
+                                                            lastGrp_name=val.grp_name
+                                                            tmpgrpscr[ii] = val.grp_name
+                                                            return( <Tab key={ii} >
+                                                                      {val.grp_name}
+                                                                    </Tab>) }  
+                })}
               </TabList>
-              {tmpgrpscr.map((grp_name,idx) => 
-                <TabPanel key={idx}  >
-                <Tabs forceRenderTabPanel  selectedTabClassName="react-tabs--selected_custom_detail">
+                  {tmpgrpscr.map((val,idx) => 
+                    <TabPanel  key={idx}> 
+                    </TabPanel>)}
+              </Tabs>
+                <Tabs forceRenderTabPanel  selectedTabClassName="react-tabs--selected_custom_detail" 
+                      selectedIndex={subTabIndex}  onSelect={(changeTabIndex) => {setSubTabIndex(changeTabIndex)
+                                                                                   }}  >
                 <TabList>
                   {menuListData.map((val,idx) => 
-                    grp_name===val.grp_name&&
+                    tmpgrpscr[tabIndex]===val.grp_name&&
                     <Tab key={idx} >
                       <Button   type="submit"
                       onClick ={() => { 
-                                        getScreen(val.screen_code,val.scr_name,val.view_name,params)
+                                        getScreen(val.screen_code,val.scr_name,val.view_name,params,auth,tabIndex)
+                                        titleNameSet(val.scr_name)   // cromeのtab表示
                                       }
                       }>
                       {val.scr_name}       
@@ -61,17 +78,19 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,grid_columns_i
                     </Tab>)}
                 </TabList>
                   {menuListData.map((val,idx) => 
-                    grp_name===val.grp_name&&
+                    tmpgrpscr[tabIndex]===val.grp_name&&
                     <TabPanel  key={idx}> 
                       {val.contents?val.contents:" "}
                     </TabPanel>)}
                 </Tabs>
-                </TabPanel> 
-              )}
-            </Tabs>
-              {grid_columns_info&&<div> <ScreenGrid7 screenFlg = "first" /></div>}
+              {showScreen&&<div> <ScreenGrid7 screenFlg = "first" /></div>}
+              {showScreen&&!toggleSubForm&&<div> <ButtonList screenFlg = "first" /></div>}
               <p> {hostError?hostError:""} </p>
               <div> {screenFlg==="second"?<ScreenGrid7 screenFlg = "second" />:""}</div>
+              {screenFlg==="second"&&!toggleSubFormSecond&&<div> <ButtonList screenFlg = "second" /></div>}
+              {loading && ( <div colSpan="10000">
+            	              Loading...
+          	              </div>)}
         </div>
       )
     }else{
@@ -95,29 +114,31 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,grid_columns_i
 const  mapStateToProps = (state,ownProps) =>({
   isSignUp:state.auth.isSignUp ,
   isAuthenticated:state.auth.isAuthenticated ,
+  auth:state.auth ,
+  showScreen:state.menu.showScreen,
   menuListData:state.menu.menuListData ,
   params:state.screen.params,
   message:state.menu.message,
   grid_columns_info:state.screen.grid_columns_info,
   hostError: state.screen.hostError,
-  menuChanging:state.menu.menuChanging,
-  uid:state.auth.uid ,
-  token:state.auth.token ,
-  client:state.auth.client ,
   second_columns_info:state.screen.second_columns_info,
   screenFlg:state.menu.screenFlg,
+  loadingOrg:state.menu.loading,
+  secondloadingOrg:state.menu.secondloading,
+  toggleSubForm:state.screen.toggleSubForm,
+  toggleSubFormSecond:state.second.toggleSubForm,
 })
 
 const mapDispatchToProps = (dispatch,ownProps ) => ({
-      getScreen : (screenCode, screenName,view_name, params) =>{
-        titleNameSet(screenName)
+      getScreen : (screenCode, screenName,view_name, params,auth,tabIndex) =>{
         switch(screenCode){
           case "fmcustord_custinsts":
-            case "fmcustinst_custdlvs":
+          case "fmcustinst_custdlvs":
             params = { ...params,screenName:  (screenName||""),disableFilters:false,
                         parse_linedata:{},
                         filtered:[],where_str:"",sortBy:[],screenFlg:"first",
                         screenCode:screenCode,pageIndex:0,pageSize:20,
+                        index:null,err:null,
                         buttonflg:"inlineedit7",viewName:view_name} 
             break
           case "custact_linkheads":  //初期画面は追加画面
@@ -125,15 +146,19 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                           parse_linedata:{},
                           filtered:[],where_str:"",sortBy:[],screenFlg:"first",
                           screenCode:screenCode,pageIndex:0,pageSize:20,
+                          index:null,err:null,
                           buttonflg:"inlineadd7",viewName:view_name} 
               break
           default:
             params = { ...params,screenName:  (screenName||""),disableFilters:false,
-                        parse_linedata:{},
+                        parse_linedata:{},aud:"view",
                         filtered:[],where_str:"",sortBy:[],screenFlg:"first",
                         screenCode:screenCode,pageIndex:0,pageSize:20,
+                        index:null,err:null,
                         buttonflg:"viewtablereq7",viewName:view_name} 
         }
-        dispatch(ScreenInitRequest(params,null))}   //data:null
+        dispatch(ScreenInitRequest(params,auth))}   //data:null
+        ,
+      changeShowScreen:(showScreen)=>{dispatch(changeShowScreen(showScreen))}
           })    
 export default connect(mapStateToProps,mapDispatchToProps)(Menus7)

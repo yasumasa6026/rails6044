@@ -1,64 +1,69 @@
 //yupでできなかったこと
-export function  setProtectFunc(field,row){
-    let readOnly = {}
-    switch (row.values.fieldcode_ftype) 
-        // {
-        // case "fieldcode_dataprecision":
-        //     if(row.values.fieldcode_ftype==="numeric") {readOnly=false}
-        //     else{readOnly=true}     
-        //     break   
-        // case "screenfield_dataprecision":
-        //     if(row.values.screenfield_type==="numeric") {readOnly=false}
-        //     else{readOnly=true}      
-        //     break      
-        // case "fieldcode_datascale":
-        //     if(row.values.fieldcode_ftype==="numeric") {readOnly=false}
-        //     else{readOnly=true}        
-        //     break    
-        // case "screenfield_datascale":
-        //     if(row.values.screenfield_type==="numeric") {readOnly=false}
-        //     else{readOnly=true}         
-        //     break   
-        // case "fieldcode_fieldlength":
-        //     if(row.values.fieldcode_ftype==="char"||row.values.fieldcode_ftype==="varchar") {readOnly=false}
-        //     else{readOnly=true}         
-        //     break   
-        // case "screenfield_edoptmaxlength":
-        //     if(row.values.screenfield_type==="varchar"||row.values.screenfield_ftype==="char"){readOnly=false}
-        //     else{readOnly=true}      
-        //     break      
-        // default:  readOnly = false
-        // }
-        
-         {
-         case "numeric":
-             readOnly["fieldcode_fieldlength"] = true   
-             readOnly["screenfield_edoptmaxlength"] = true   
+export function  setProtectFunc(id,type){
+    let readOnly = false  //row.values.fieldcode_ftype 
+    switch (type){ 
+        case "numeric":
+            switch (id) {
+                case "fieldcode_fieldlength":
+                    readOnly = true
+                    break  
+                case "screenfield_edoptmaxlength": 
+                    readOnly = true
+                     break
+                }
              break   
-         case "char":
-            readOnly["fieldcode_dataprecision"] = true   
-            readOnly["screenfield_dataprecision"] = true   
-            readOnly["fieldcode_datascale"] = true     
-            readOnly["screenfield_datascale"] = true   
-             break      
-         case "varchar":
-            readOnly["fieldcode_dataprecision"] = true   
-            readOnly["screenfield_dataprecision"] = true   
-            readOnly["fieldcode_datascale"] = true     
-            readOnly["screenfield_datascale"] = true   
-             break    
+        case "char":   
+        case "varchar":
+            switch (id) {
+                case "fieldcode_dataprecision":
+                    readOnly = true
+                    break   
+                case "fieldcode_datascale":       
+                    readOnly = true
+                    break
+                case "screenfield_dataprecision":
+                         readOnly = true
+                         break
+                case "screenfield_datascale":
+                         readOnly = true
+                         break
+            } 
+            break
+        case "date":
+        case "timestamp(6)":
+               switch (id) {
+                    case "fieldcode_fieldlength":
+                        readOnly = true
+                        break
+                    case "fieldcode_dataprecision":
+                       readOnly = true
+                       break   
+                    case "fieldcode_datascale":       
+                       readOnly = true
+                       break
+                    case "screenfield_edoptmaxlength": 
+                           readOnly = true
+                           break
+                    case "screenfield_dataprecision":
+                            readOnly = true
+                            break
+                    case "screenfield_datascale":
+                            readOnly = true
+                            break
+               }
+             break  
          default:  
          }
     return readOnly    
 }
 
 
-export function  setClassFunc(field,row,className,buttonflg){  //error処理
+export function  setClassFunc(field,values,className,buttonflg){  //error処理
 
                 if(buttonflg==="viewtablereq7"){return(className)}
                 else{
                     let msgid = field + "_gridmessage"
-                    if(/error/.test(row.values[msgid])){  // "!"はjavascriptでは正規化の判定がわからない。
+                    if(/error/.test(values[msgid])){  // "!"はjavascriptでは正規化の判定がわからない。
                                                             return(className + " error" ) 
                                                         }
                     else{return(className)}
