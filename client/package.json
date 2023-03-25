@@ -14,6 +14,7 @@
     "@testing-library/react": "^12.0.0",
     "@testing-library/user-event": "^13.2.1",
     "@types/express": "^4.17.13",
+    "@types/react-redux": "^7.1.25",
     "autoprefixer": "^10.0.2",
     "axios": "0.25.0",
     "babel-eslint": "^10.1.0",
@@ -26,8 +27,8 @@
     "exceljs": "^4.3.0",
     "export-from-json": "^1.1.4",
     "file-saver": "^2.0.5",
-    "formik": "2.2.9",
     "fstream": "^1.0.12",
+    "gantt-task-react": "^0.3.9",
     "handlebars": "^4.1.2",
     "history": "^4.7.2",
     "level-filesystem": "^1.2.0",
@@ -68,7 +69,7 @@
     "style-loader": "^0.23.1",
     "styled-components": "^5.1.1",
     "tempa-xlsx": "^0.8.20",
-    "typescript": "^4.6.0-dev.20220129",
+    "typescript": "^4.9.5",
     "util": "^0.12.4",
     "web-vitals": "^2.1.0",
     "xlsx": "^0.18.0",
@@ -86,7 +87,7 @@
   "scripts": {
     "start": "NODE_PATH=src/ react-app-rewired start",
     "now-start": "serve -s ./build",
-    "build": "NODE_PATH=src/ react-scripts build",
+    "build": "NODE_PATH=src/ react-scripts build tsc",
     "test": "NODE_PATH=src/ react-scripts test --env=jsdom",
     "coverage": "yarn test -- --coverage",
     "lint": "standard --fix"
@@ -120,10 +121,7 @@
       "react/jsx-filename-extension": [
         1,
         {
-          "extensions": [
-            ".js",
-            ".jsx"
-          ]
+          "extensions": [".js", ".jsx", "ts", "tsx"]
         }
       ]
     }

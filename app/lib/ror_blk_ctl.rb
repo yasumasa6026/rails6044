@@ -69,28 +69,29 @@ module RorBlkCtl
 		def proc_add_update_table(params,command_c)  
 			begin
 				ActiveRecord::Base.connection.begin_db_transaction()
-				setParams = proc_private_aud_rec(params,command_c) 
+				params["status"] = 200
+				params = proc_private_aud_rec(params,command_c) 
 			rescue
         		ActiveRecord::Base.connection.rollback_db_transaction()
+				params["status"] = 500
             	command_c["sio_result_f"] = "9"  ##9:error
             	command_c["sio_message_contents"] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
             	command_c["sio_errline"] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
             	Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
           		Rails.logger.debug"error class #{self} : $!: #{$!} "
-          		Rails.logger.debug"  command_c: #{command_c} "
-				setParams = params.dup
+          		Rails.logger.debug"  command_c: #{command_c} " 
       		else
 				ActiveRecord::Base.connection.commit_db_transaction()
-				if setParams["seqno"].size > 0
+				if params["seqno"].size > 0
 					if command_c["mkord_runtime"] 
-						CreateOtherTableRecordJob.set(wait: command_c["mkord_runtime"].to_f.hours).perform_later(setParams["seqno"][0])
+						CreateOtherTableRecordJob.set(wait: command_c["mkord_runtime"].to_f.hours).perform_later(params["seqno"][0])
 					else	
-						CreateOtherTableRecordJob.perform_later(setParams["seqno"][0])
+						CreateOtherTableRecordJob.perform_later(params["seqno"][0])
 					end
 				end
       		ensure
 	  		end ##begin
-        	return setParams,command_c
+        	return params,command_c
 		end
 
 		def proc_private_aud_rec(params,command_c)   ###commitなし
@@ -122,7 +123,7 @@ module RorBlkCtl
 				raise
 			end	
         	###
-        	insert_sio_r(command_c)   ###sioxxxxの追加
+        	proc_insert_sio_r(command_c)   ###sioxxxxの追加
         	###
 			setParams["tbldata"] = @tbldata.dup
         	command_c.select do |key,val|
@@ -643,7 +644,7 @@ module RorBlkCtl
 			ActiveRecord::Base.connection.update(strsql)
 		end
 
-		def insert_sio_r(command_c)  ####レスポンス
+		def proc_insert_sio_r(command_c)  ####レスポンス
 			rec = {}
         	rec["sio_id"] =  ArelCtl.proc_get_nextval("sio.SIO_#{command_c["sio_viewname"]}_SEQ")
         	rec["sio_command_response"] = "R"

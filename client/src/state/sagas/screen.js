@@ -46,23 +46,23 @@ export function* ScreenSaga({ payload: {params}  }) {
         case 200: 
           switch(params.buttonflg) {
             case 'viewtablereq7':
-            case 'inlineedit7':   //第一画面又は第二画面のみ　両方修正は不可
-            case 'inlineadd7':
-              params = {...response.data.params,err:null,parse_linedata:{}}
+            case 'inlineedit7':   //第一画面又は第二画面のみ　両方修正は不可  更新画面要求
+            case 'inlineadd7':  //追加画面要求
+              params = {...response.data.params,err:null,parse_linedata:{},index:parseInt(params.index)}
               if(params.screenFlg==="second")
                   {return yield put({type:SECOND_SUCCESS7,payload:{data:response.data,params:params} })}
               else
                   {return yield put({ type:SCREEN_SUCCESS7, payload:{data:response.data,params:params}})}
-            case "confirm7":
+            case "confirm7":  //データ更新時のEnteのbuttonflgはinlineedit7やinlineadd7ではなくてconfirm7になる。更新実行
               let linedata  = response.data.linedata
               params = {...params,buttonflg:buttonState.buttonflg,screenFlg:response.data.params.screenFlg,
-                          screenCode:response.data.params.screenCode,err:response.data.params.err}
+                          screenCode:response.data.params.screenCode,err:response.data.params.err,index:parseInt(params.index)}
               if(params.screenFlg==="second")
                 {return yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{linedata:linedata,params:params} })}
               else
                 {return yield put({type:SCREEN_CONFIRM7_SUCCESS,payload:{linedata:linedata,params:params} })} 
             case "delete":
-                  data[params.index] = {...response.data.linedata}
+                  data[parseInt(params.index)] = {...response.data.linedata}
                   params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
                   params.buttonflg = buttonState.buttonflg
                   if(params.screenFlg==="second")

@@ -6,43 +6,30 @@ module Api
             def create
                 case params[:buttonflg] 
                 when 'ganttchart'
-                    if params[:linedata]
-                        command_r = JSON.parse params[:linedata]
-                        case params[:screenCode] 
-                            when /nditms/
-                                opeitms_id = command_r["nditm_opeitm_id"]
-                            when /opeitms/
-                                opeitms_id = command_r["opeitm_id"]
-                            when /itms/
-                            if command_r["itm_id"]
-                                opeitms_id =  GanttChart.get_opeitms_id_from_itm(command_r["itm_id"])
-                            else
-                                opeitms_id = nil
-                            end
-                    else
-                        gantt = []
-                        return
-                    end    
+                    case params[:screenCode]
+                    when /itms|opeitms|nditms/
+                        tasks = []
+                        tblcode = params[:screenCode].split("_")[1]
+                        gantt =  GanttChart::GanttClass.new()
+                        line = JSON.parse(params[:linedata])   ###最後にclickされた行のみ有効
+                        ### 第三パラメータ　gantt_xxx-->順方向　reverse-->逆方向
+                        ###　　　　　　　　　xxx_mst-->mater系  xxx-trn--->trn系
+                        ganttData =  gantt.proc_get_ganttchart_data(tblcode,line["id"],"gantt_mst")   
+                        ganttData.sort.each do |level,ganttdata|
+                            tasks << {"id"=>ganttdata[:id],
+                                 "name"=>ganttdata[:itm_code]+"(#{ganttdata[:itm_name]},#{ganttdata[:processseq]}):場所(#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]}),
+                                            QTY(#{ganttdata[:qty]}),NumberOfItems(#{ganttdata[:parenum]},#{ganttdata[:chilnum]})",
+                                 "type"=>ganttdata[:type],
+                                 "start"=>ganttdata[:start],"end"=>ganttdata[:duedate],
+                                  "progress"=>0,"dependencies"=>ganttdata[:depend]
+                                }
+                        end    
+                    end
                 end
-                if opeitms_id.nil?
-                    gantt = []
-                    return
-                else 
-                    gantt =[]
-                    ganttchartData =  GanttChart.proc_get_ganttchart_data(opeitms_id)   
-                    ganttchartData.each do |level,ganttdata|
-                      gantt << [level,ganttdata["itm_code"],
-                                "Date(#{ganttdata["start"].year},#{ganttdata["start"].month-1},#{ganttdata["start"].day})",
-                                "Date(#{ganttdata["end"].year},#{ganttdata["end"].month-1},#{ganttdata["end"].day})",
-                                  nil, "0",ganttdata["depend"]
-                                ]
-                    end    
-                end
+                render json: {:tasks=>tasks}   
             end
-            render json: {:ganttChartData=>gantt}   
-          end
-          def show
-          end  
+            def show
+            end  
     end
   end
     

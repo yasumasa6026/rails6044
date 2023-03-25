@@ -34,7 +34,6 @@ export const BUTTONLIST_FAILFURE = 'BUTTONLIST_FAILURE'
 
 export const BUTTONFLG_REQUEST = 'BUTTONFLG_REQUEST'
 export const BUTTON_RESET = 'BUTTON_RESET'
-export const GANTT_RESET = 'GANTT_RESET'
 
 export const DOWNLOAD_REQUEST = 'DOWNLOAD_REQUEST'
 export const DOWNLOAD_SUCCESS = 'DOWNLOAD_SUCCESS'
@@ -74,9 +73,11 @@ export const TBLFIELD_SUCCESS = 'TBLFIELD_SUCCESS'
 export const TBLFIELD_FAILURE = 'TBLFIELD_FAILFURE'
 export const DROPDOWNVALUE_SET = 'DROPDOWNVALUE_SET'
 
+export const GANTT_RESET = 'GANTT_RESET'
 export const GANTTCHART_REQUEST = 'GANTTCHART_REQUEST'
 export const GANTTCHART_FAILURE = 'GANTTCHART_FAILURE'
 export const GANTTCHART_SUCCESS = 'GANTTCHART_SUCCESS'
+
 export const RESET_REQUEST = 'RESET_REQUEST'
 export const CHANGE_SHOW_SCREEN = 'CHANGE_SHOW_SCREEN'
 
@@ -144,9 +145,9 @@ export const ScreenRequest = (params) => ({
 })
 
 
-export const ScreenConfirm = (params) => ({
+export const ScreenConfirm = (params,data) => ({
   type:  SCREEN_CONFIRM7,
-  payload: { params}  //
+  payload: { params,data}  //
 })
 
 export const ResetRequest = (params) => ({
@@ -154,14 +155,14 @@ export const ResetRequest = (params) => ({
   payload: { params}  //
 })
 
-export const ScreenSubForm = (toggleSubForm) => ({
+export const ScreenSubForm = (toggleSubForm,params) => ({
   type:  SCREEN_SUBFORM,
-  payload: { toggleSubForm}  //
+  payload: { toggleSubForm,params}  //
 })
 
-export const SecondSubForm = (toggleSubForm) => ({
+export const SecondSubForm = (toggleSubForm,params) => ({
   type:  SECOND_SUBFORM,
-  payload: { toggleSubForm}  //
+  payload: { toggleSubForm,params}  //
 })
 
 
@@ -171,9 +172,9 @@ export const SecondRequest = (params) => ({
 })
 
 
-export const SecondConfirm = (params) => ({
+export const SecondConfirm = (params,data) => ({
   type:  SECOND_CONFIRM7,
-  payload: { params}  //
+  payload: { params,data}  //
 })
 
 
@@ -277,9 +278,9 @@ export const TblfielSuccess = (messages) => ({
   payload: { messages}  //
 })
 
-export const GanttChartRequest = (params) => ({
+export const GanttChartRequest = (params,auth) => ({
   type:  GANTTCHART_REQUEST,
-  payload: { params}  //
+  payload: { params,auth}  //
 })
 
 

@@ -5,11 +5,13 @@ import { useForm } from 'react-hook-form'
 import  Menus7  from './menus7'
 import  SignUp  from './signup'
 import "../index.css"
+//import  MyGanttChart  from './MyGanttChart'
 
 const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
   const { register, handleSubmit, formState: { errors }, } = useForm()
   // useForm({resolver: yupResolver(schema),
   if(isAuthenticated){
+    document.title = "Menu"
     return(
        /*   <Menus/> */
           <Menus7/>
@@ -18,10 +20,12 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
     }
   else{
   if(isSignUp){
+    document.title ="SginUp"
     return (
         <SignUp/>
     )}
   else{
+    document.title = "LogIn"
     return(
     <div>
     <h1>Login</h1>
@@ -59,8 +63,13 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
             <p>－－－＞Enterで行ごとに追加・更新</p>
           <h3>・・grid内でのsort</h3>
             <p>－－－＞ヘッダーの項目をCtrl+クリック</p>
+          <h2>rails</h2>
+            <h3>activereord</h3>
+              <p>model機能、crud機能は使用してない。</p>
+              <p>postgresqlをActiveRecord::Base.connection.xxxxを利用してsqlをそのままコーディングしている。</p>
         
       <h1 className="error">注意事項　あくまでも案であって利用に関しては各自十分に検証し自己責任で利用すること</h1>
+    {/*}  <MyGanttChart/>*/}
     </form>
         <div style={{ color: 'red' }}>
           {Object.keys(errors).length > 0 &&

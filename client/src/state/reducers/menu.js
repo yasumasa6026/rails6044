@@ -39,7 +39,6 @@ const menureducer =  (state= initialValues , actions) =>{
     case SCREENINIT_REQUEST:
       return {...state,
         loading:true,
-        screenFlg:null,
       }
 
       

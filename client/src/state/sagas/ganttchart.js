@@ -1,7 +1,6 @@
 import { call, put, select } from 'redux-saga/effects'
 import axios         from 'axios'
 import { GANTTCHART_SUCCESS,GANTTCHART_FAILURE,}     from '../../actions'
-import {getScreenState} from '../reducers/screen'
 //import { ReactReduxContext } from 'react-redux';
 
 
@@ -25,21 +24,19 @@ return  {response}
 )))
 }
 
-export function* GanttChartSaga({ payload: {params}  }) {
-  let token = params.token       
-  let client = params.client         
-  let uid = params.uid    
-  const screenState = yield select(getScreenState) //
-  if(params.clickIndex.size>1){
-    yield put({ type:GANTTCHART_FAILURE, errors: "error multiple rows selected" })
-    return
-  }
-  params["linedata"] = screenState.data[params.clickIndex[0]["lineId"]]
+export function* GanttChartSaga({ payload: {params,auth}  }) {
+  let token = auth.token       
+  let client = auth.client         
+  let uid = auth.uid   
   let {response,error} = yield call(GanttApi,{params ,token,client,uid} )
   if(response || !error){
       switch(params.buttonflg) {
         case "ganttchart":  // create yup schema
-              return yield put({ type: GANTTCHART_SUCCESS, payload: response.data} )  
+              let tasks = []
+              tasks = response.data.tasks.map((task,idx)=>
+                         tasks[idx] = {...task,start:new Date(task.start),end:new Date(task.end),}
+                         )
+              return yield put({ type: GANTTCHART_SUCCESS, payload:{ tasks:tasks,viewMode:params.viewMode}} )  
         default:
           return {}
       }

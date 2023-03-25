@@ -19,8 +19,9 @@ switch (actions.type) {
 
 case SCREENINIT_REQUEST:
   return {...state,
-    //      params:actions.payload.params,
+          params:actions.payload.params,
           loading:true,
+          toggleSubForm:false,
           // editableflg:actions.payload.editableflg
 }
 
@@ -28,6 +29,7 @@ case SCREENINIT_REQUEST:
 case SCREEN_SUBFORM:
 return {...state,
   toggleSubForm:actions.payload.toggleSubForm,
+  params:actions.payload.params,
 }
 
 case YUP_ERR_SET:
@@ -38,9 +40,18 @@ case YUP_ERR_SET:
 }
   
 case SCREEN_REQUEST:
+return {...state,
+        loading:true,
+        screenFlg:"first",
+        // editableflg:actions.payload.editableflg
+}
+
+
 case SCREEN_CONFIRM7:
 return {...state,
         loading:true,
+        params:actions.payload.params,
+        data:actions.payload.data,
         screenFlg:"first",
         // editableflg:actions.payload.editableflg
 }
@@ -104,8 +115,11 @@ return {...state,
 }
 
 case FETCH_FAILURE:
+  data = state.data
+  data[actions.payload.params.index] = actions.payload.linedata
     return {...state, 
       params:actions.payload.params,  
+      data:data,
       loading:false,
       hostError: actions.payload.params.err,  
     }

@@ -2,7 +2,7 @@ import {LOGOUT_REQUEST,  //SECONDSCREEN_REQUEST,
         //MKSHPACTS_RESULT,
         SECOND_CONFIRMALL_SUCCESS,SECOND_SUCCESS7,SCREEN_SUCCESS7,
         SECOND_CONFIRM7,SECOND_CONFIRM7_SUCCESS,SECOND_FAILURE, SECONDFETCH_REQUEST,SECOND_SUBFORM,
-        SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT} from '../../actions'
+        SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT,SCREENINIT_REQUEST} from '../../actions'
 
         const initialValues = {data:[],
             params:{screenCode:""},
@@ -39,14 +39,21 @@ const secondreducer =  (state = initialValues , actions) =>{
       }
 
     case SECOND_REQUEST:
-    case SECOND_CONFIRM7:
         return {...state,
-        params:actions.payload.params,
-        auth:actions.payload.auth,
         screenFlg:"second",
         secondloading:true,
          // editableflg:actions.payload.editableflg
      }
+
+     
+
+     case SECOND_CONFIRM7:
+        return {...state,
+            data:actions.payload.data,
+            screenFlg:"second",
+            secondloading:true,
+             // editableflg:actions.payload.editableflg
+         }
    
     case SECOND_SUCCESS7: // payloadに統一
         return {...state,
@@ -106,6 +113,12 @@ const secondreducer =  (state = initialValues , actions) =>{
             toggleSubForm:actions.payload.toggleSubForm,
         }
 
+    case SCREENINIT_REQUEST:
+        return {
+            toggleSubForm:false,
+            // editableflg:actions.payload.editableflg
+  }
+  
     case SCREEN_SUCCESS7: // payloadに統一
         return {...state,
                 pareScreenCode: actions.payload.data.params.screenCode,

@@ -69,7 +69,7 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
                     <Tab key={idx} >
                       <Button   type="submit"
                       onClick ={() => { 
-                                        getScreen(val.screen_code,val.scr_name,val.view_name,params,auth,tabIndex)
+                                        getScreen(val.screen_code,val.scr_name,val.view_name,params,auth)
                                         titleNameSet(val.scr_name)   // cromeのtab表示
                                       }
                       }>
@@ -96,7 +96,7 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
     }else{
      return(
      <div>
-      <p> {hostError?hostError:""} </p>
+      <p> aa{hostError?hostError:""} </p>
     </div>)}
     }else{
       if(isSignUp){
@@ -130,7 +130,7 @@ const  mapStateToProps = (state,ownProps) =>({
 })
 
 const mapDispatchToProps = (dispatch,ownProps ) => ({
-      getScreen : (screenCode, screenName,view_name, params,auth,tabIndex) =>{
+      getScreen : (screenCode, screenName,view_name, params,auth) =>{
         switch(screenCode){
           case "fmcustord_custinsts":
           case "fmcustinst_custdlvs":
@@ -138,7 +138,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                         parse_linedata:{},
                         filtered:[],where_str:"",sortBy:[],screenFlg:"first",
                         screenCode:screenCode,pageIndex:0,pageSize:20,
-                        index:null,err:null,
+                        index:0,err:null,clickIndex:[],
                         buttonflg:"inlineedit7",viewName:view_name} 
             break
           case "custact_linkheads":  //初期画面は追加画面
@@ -146,7 +146,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                           parse_linedata:{},
                           filtered:[],where_str:"",sortBy:[],screenFlg:"first",
                           screenCode:screenCode,pageIndex:0,pageSize:20,
-                          index:null,err:null,
+                          index:0,err:null,clickIndex:[],
                           buttonflg:"inlineadd7",viewName:view_name} 
               break
           default:
@@ -154,7 +154,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                         parse_linedata:{},aud:"view",
                         filtered:[],where_str:"",sortBy:[],screenFlg:"first",
                         screenCode:screenCode,pageIndex:0,pageSize:20,
-                        index:null,err:null,
+                        index:0,clickIndex:[],err:null,
                         buttonflg:"viewtablereq7",viewName:view_name} 
         }
         dispatch(ScreenInitRequest(params,auth))}   //data:null

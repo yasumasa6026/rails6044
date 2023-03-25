@@ -7,7 +7,7 @@ module CtlFields
 		params[:parse_linedata] = line_data.dup
 	  	if findstatus
 			if mainviewflg   ##mainviewflg = true 自分自身の登録
-				if 	params[:parse_linedata]["aud"] == "add" or params["buttonflg"] =~ /add/
+				if 	params[:parse_linedata]["aud"] == "add" or params["aud"] =~ /add/
 					params[:err] = "error duplicate code:#{keys},line:#{params[:index]} "
 					params[:keys] = []
 					keys.split(",").each do |key| 
@@ -32,6 +32,14 @@ module CtlFields
 				###
 				### r_tblfieldsの登録でr_blktbsがdetectできなかった時エラーにならない。!!!!!!!!!
 				###
+				params[:keys] = []
+				keys.split(",").each do |key| 
+				 	params[:keys] =  [key.split(":")[0].gsub(" ","")] 
+				 	params[:parse_linedata][key+"_gridmessage"] = nil
+				 	if params[:parse_linedata][:errPath] 
+				 		params[:parse_linedata][:errPath] = nil
+				 	end
+				end  
 			else
 				if missing  ###検索に必要な項目まだ未入力
 				else
@@ -1030,7 +1038,8 @@ module CtlFields
 			when "shelfnos_id"  ###payments_idを含む
 				command_x = field_shelfnos_id(tblnamechop,command_x,nd,parent)
 			when "starttime"  ###稼働日計算
-				command_x = field_starttime(tblnamechop,command_x,nd,parent)
+				starttime = proc_field_starttime(command_x["#{tblnamechop}_duedate"],command_x["#{tblnamechop}_opeitm_id"],"gantt")
+				command_x["#{tblnamechop}_starttime"] = starttime
 			when "shelfnos_id_to"
 				command_x = field_shelfnos_id_to(tblnamechop,command_x,nd,parent)
 			when "chrgs_id"
@@ -1178,10 +1187,22 @@ module CtlFields
 	end
 
 
-	def field_starttime tblnamechop,command_x,nd,parent
-		starttime =  command_x["#{tblnamechop}_duedate"].to_time - nd["duration"].to_f*24*3600
-		command_x["#{tblnamechop}_starttime"] = starttime.strftime("%Y-%m-%d %H:%M:%S")
-		return command_x
+	def proc_field_starttime duedate,opeitms_id,reverse
+		opeitm = ActiveRecord::Base.connection.select_one("select * from opeitms where id = #{opeitms_id}")
+		if reverse == "reverse"
+			cal = -1
+		else
+			cal = 1
+		end
+		case opeitm["units_lttime"]  ###char(4)
+		when "Day "
+			starttime =  duedate.to_time - opeitm["duration"].to_f*24*3600 * cal
+		when "Hour"
+			starttime =  duedate.to_time - opeitm["duration"].to_f*3600 * cal
+		else
+			starttime = Time.now
+		end
+		return starttime.strftime("%Y-%m-%d %H:%M:%S")
 	end
 
 	def field_chrgs_id tblnamechop,command_x,nd,parent ### seq_noは　chrgs_id > custs_id,suppliers_id,workplaces_idであること

@@ -6,7 +6,7 @@ import  menureducer  from './menu'
 import  screenreducer  from './screen'
 import  uploadreducer  from './upload'
 import  buttonreducer  from './button'
-import  ganttchartreducer  from './ganttchart'
+import  ganttreducer  from './gantt'
 import  secondreducer  from './second'
 
 const reducer = combineReducers({
@@ -15,7 +15,7 @@ const reducer = combineReducers({
   screen:screenreducer,
   upload:uploadreducer,
   button:buttonreducer,
-  ganttchart:ganttchartreducer,
+  gantt:ganttreducer,
   second:secondreducer,
   routing: routerReducer,
 })

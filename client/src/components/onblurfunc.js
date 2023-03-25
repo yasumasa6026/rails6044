@@ -140,7 +140,7 @@ export function fetchCheck(linedata,id,fetch_check) {
      //handleFetchRequest(params)
      //break
      fetchCheckFlg = "check_request"
-     }
+     }else{fetchCheckFlg=""}
     }
     //if(fetchCheckFlg){handleFetchRequest(params,data)}
     return {fetchCheckFlg,idKeys,newRow}

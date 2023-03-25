@@ -67,6 +67,12 @@ module ScreenLib
 												%Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd hh24:mi') #{i["pobject_code_sfd"]}% + " ,"
 											when "date" 
 												%Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd ') #{i["pobject_code_sfd"]}% + " ,"
+											when "numeric"
+												if i["screenfield_datascale"].to_i > 0
+													%Q% to_char(#{i["pobject_code_sfd"]}, 'FM999999999999.#{i["screenfield_datascale"]}') #{i["pobject_code_sfd"]}% + ","
+												else 												
+													i["pobject_code_sfd"] + " ,"
+												end
 											else 												
 												i["pobject_code_sfd"] + " ,"
 											end		
@@ -135,27 +141,31 @@ module ScreenLib
 							raise
 						end
 					end	
+					tmp_sunform = {}
+					tmp_subform = {label:i["screenfield_name"]}
 					if   i["screenfield_hideflg"] == "0" 
 						screenwidth = screenwidth +  i["screenfield_width"].to_i
 						if 	i["screenfield_rowpos"] == "1" or (columncnt + i["screenfield_edoptcols"].to_i > 10)
 							if line_subform != []
-								subform_info << line_subform  
+								subform_info << line_subform  ### line_subform-->formの横１行分
 							end
 							line_subform = []
 							columncnt =  1 
 						else
 							columncnt +=  (1 + i["screenfield_edoptcols"].to_i)	
 						end
-						tmp_sunform = {}
-						tmp_subform = {label:i["screenfield_name"]}
-						tmp_subform[:id] = i["pobject_code_sfd"]
 						tmp_subform[:edoptcols]	= i["screenfield_edoptcols"]	
 						tmp_subform[:edoptrows]	= i["screenfield_edoptrow"]	
 						tmp_subform[:className] = classNameset(buttonflg,i)
-						line_subform << tmp_subform
+						tmp_subform[:edoptrows]	= i["screenfield_edoptrow"]	
+						tmp_subform[:hideflg]	= "visible"  ###subForm
 					else
-						hiddenColumns << i["pobject_code_sfd"]
+						hiddenColumns << i["pobject_code_sfd"]  ###react-table initialState.hiddenColumns
+						tmp_subform[:hideflg]	= "hidden"  ###subForm
+						columncnt =  1 
 					end
+					tmp_subform[:id] = i["pobject_code_sfd"]
+					line_subform << tmp_subform
 				end
 				subform_info << line_subform
 				@grid_columns_info[:columns_info] = columns_info
@@ -244,6 +254,7 @@ module ScreenLib
 					###ff = JSON.parse(strjson)
 					next if ff["value"].nil?
 					next if ff["value"] == ""
+					next if ff["value"] == " "
 					next if ff["value"] =~ /'/
 					next if ff["value"] == "null"
 					###init_where_info[i["pobject_code_sfd"].to_sym] 
@@ -739,7 +750,7 @@ module ScreenLib
 			  	err.each do |key,recs|
 					recs.each do |rec|
 						if command_c["id"] != rec["id"]
-							setParams[:err] = " error #{key} already exist line:#{setParams[:index]} "
+							setParams[:err] = " error  field:#{key} already exist line:#{setParams[:index]} "
 							setParams[:parse_linedata][:confirm_gridmessage] = setParams[:err] 
 							if setParams[:parse_linedata][:errPath].nil? 
 								setParams[:parse_linedata][:errPath] = [key+"_gridmessage"]

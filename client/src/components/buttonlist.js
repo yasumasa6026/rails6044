@@ -4,7 +4,7 @@ import { Tab, Tabs, TabList,TabPanel , } from 'react-tabs'
 //import ScreenGrid7 from './screengrid7.js'
 import ImportExcel from './importexcel.js'
 import Download from './download'
-import GanttChart from './ganttchart'
+import GanttTask from './gantttask'
 //import ToSubForm from './tosubform'
 import "react-tabs/style/react-tabs.css"
 import {Button} from '../styles/button'
@@ -51,7 +51,7 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,GanttReset,
             </Tabs>
         }
         
-        {buttonflg==="ganttchart"&&<GanttChart /> }
+        {buttonflg==="ganttchart"&&<GanttTask /> }
         {buttonflg==='import'&&<ImportExcel/>}
         {buttonflg==="export"&&downloadloading==="done"?<Download/>:downloadloading==="doing"?<p>please wait </p>:""}
         {buttonflg==="createTblViewScreen"&&params.messages.map((msg,index) =>{
@@ -62,7 +62,6 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,GanttReset,
         {messages&&messages.map((val,index) => 
                      <p key={index} > {val}</p>
       )}  
-        <React.Fragment> </React.Fragment>
         </div>    
       )
     }
@@ -70,13 +69,13 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,GanttReset,
 const  mapStateToProps = (state,ownProps) =>{
   if(ownProps.screenFlg==="second"){
     return{
+      auth:state.auth,
       buttonListData:state.button.buttonListData ,    //ボタンはemailで一旦全て収集
       buttonflg:state.second.buttonflg ,  
       params:state.second.params ,  
       data:state.second.data ,  
       screenCode:state.second.params.screenCode ,  
       screenName:state.second.params.screenName ,  
-      auth:state.auth,
       message:state.second.loading?" second_screen Loading ...":"",
       messages:state.button.messages,
       disabled:state.second.disabled?true:false,
@@ -85,13 +84,13 @@ const  mapStateToProps = (state,ownProps) =>{
       }
     }else{
       return{
+        auth:state.auth,
         buttonListData:state.button.buttonListData ,  
         buttonflg:state.button.buttonflg ,  
         params:state.screen.params ,  
         data:state.screen.data ,  
         screenCode:state.screen.params.screenCode ,  
         screenName:state.screen.params.screenName ,  
-        auth:state.auth,
         message:state.screen.loading?" screen Loading ...":"",
         messages:state.button.messages,
         downloadloading:state.button.downloadloading,
@@ -110,13 +109,36 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
         let screenData = []
         let newRow = {}
         switch (buttonflg) {  //buttonflg ==button_code
-          case "reset":
-            params= { ...params, buttonflg:"reset",disableFilters:false,screenFlg:ownProps.screenFlg,aud:"",}
-            return dispatch(ResetRequest(params)) //
 
-          case "search":
-              params= { ...params,buttonflg:"viewtablereq7",disableFilters:false,screenFlg:ownProps.screenFlg,aud:"view"}
-              return dispatch(ScreenRequest(params,null)) //
+          case "confirmAll"://
+              params= {...params,buttonflg:"confirmAll",disableFilters:true,screenFlg:ownProps.screenFlg}
+              return  dispatch(ScreenRequest(params,null)) //
+ 
+              case "confirmShpacts"://第二画面専用
+                    params= {...params,buttonflg:"confirmShpacts",disableFilters:true,screenFlg:ownProps.screenFlg}
+                    return  dispatch(ScreenRequest(params,null)) //
+    
+
+          case "confirmShpinsts":  //第二画面専用
+                  params= {...params,buttonflg:"confirmShpinsts",disableFilters:true,screenFlg:ownProps.screenFlg}
+                  return  dispatch(ScreenRequest(params,null)) //
+
+          case "crt_tbl_view_screen":
+                data.map((row,index)=>{Object.keys(row).map((field,idx)=>
+                        {
+                          if(/_code|_expiredate/.test(field)){newRow = {...newRow,[field]:row[field]}                                                            }
+                        })
+                        screenData[index] = newRow
+                        newRow = {}})
+                params= {...params,buttonflg:"createTblViewScreen",data:screenData,screenFlg:ownProps.screenFlg}
+                    return  dispatch(TblfieldRequest(params,auth)) //
+
+          case "ganttchart":
+                  if(typeof(params.index)==="number"){
+                      params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"ganttchart",}
+                      return  dispatch(GanttChartRequest(params,auth)) }//
+                  else{dispatch(GanttReset())}  
+                  break
         
           case "inlineedit7":
               params= { ...params,buttonflg:"inlineedit7",disableFilters:false,screenFlg:ownProps.screenFlg,aud:"edit",}
@@ -124,10 +146,6 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           
           case "inlineadd7":
               params= {...params, pages:1,buttonflg:"inlineadd7",disableFilters:true,screenFlg:ownProps.screenFlg,aud:"add"}
-              return  dispatch(ScreenRequest(params,null)) //
-
-          case "confirmAll"://
-              params= {...params,buttonflg:"confirmAll",disableFilters:true,screenFlg:ownProps.screenFlg}
               return  dispatch(ScreenRequest(params,null)) //
 
           case "MkPackingListNo"://
@@ -149,53 +167,25 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
               params= {...params,linedata:{},buttonflg:"mkShpords",disableFilters:false,screenFlg:ownProps.screenFlg}
               return  dispatch(ScreenRequest(params,null)) //
 
+          case "reset":
+                params= { ...params, buttonflg:"reset",disableFilters:false,screenFlg:ownProps.screenFlg,aud:"",}
+                return dispatch(ResetRequest(params)) //
+
           case "refShpords": //第一画面で選択された親より第二画面表示
               params= {...params,buttonflg:"refShpords",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
               return  dispatch(ScreenRequest(params,null)) //   
 
-          case "confirmShpinsts":  //第二画面専用
-              params= {...params,buttonflg:"confirmShpinsts",disableFilters:true,screenFlg:ownProps.screenFlg}
-              return  dispatch(ScreenRequest(params,null)) //
-
           case "refShpinsts": //第一画面で選択された親より第二画面表示
                 params= {...params,buttonflg:"refShpinsts",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
-                return  dispatch(ScreenRequest(params,null)) //
- 
-          case "confirmShpacts"://第二画面専用
-                params= {...params,buttonflg:"confirmShpacts",disableFilters:true,screenFlg:ownProps.screenFlg}
                 return  dispatch(ScreenRequest(params,null)) //
 
           case "refShpacts":  //第一画面で選択された親より第二画面表示
                 params= {...params,buttonflg:"refShpacts",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
-                return  dispatch(ScreenRequest(params,null)) //
-               
-          case "yup":
-                params= { ...params,buttonflg:"yup",disableFilters:true,screenFlg:ownProps.screenFlg}
-                return  dispatch(YupRequest(params,auth)) //
+                return  dispatch(ScreenRequest(params,null)) //          
 
-          case "ganttchart":
-              if(params["clickIndex"]){
-                  params= { ...params,buttonflg:"ganttchart",}
-                  return  dispatch(GanttChartRequest(params)) }//
-              else{dispatch(GanttReset())}  
-              break
-
-          case "toSubForm":
-              if(params["clickIndex"]){
-                      params= { ...params}
-                      return    }  //
-              else{}  
-              break
-
-          case "crt_tbl_view_screen":
-                data.map((row,index)=>{Object.keys(row).map((field,idx)=>
-                        {
-                          if(/_code|_expiredate/.test(field)){newRow = {...newRow,[field]:row[field]}                                                            }
-                        })
-                        screenData[index] = newRow
-                        newRow = {}})
-            params= {...params,buttonflg:"createTblViewScreen",data:screenData,screenFlg:ownProps.screenFlg}
-              return  dispatch(TblfieldRequest(params,auth)) //
+          case "search":
+                params= { ...params,buttonflg:"viewtablereq7",disableFilters:false,screenFlg:ownProps.screenFlg,aud:"view"}
+                return dispatch(ScreenRequest(params,null)) //
 
           case "unique_index":
               data.map((row,index)=>{Object.keys(row).map((field,idx)=>
@@ -206,6 +196,11 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                         })
               params= {...params,buttonflg:"createUniqueIndex",data:screenData,screenFlg:ownProps.screenFlg}
               return  dispatch(TblfieldRequest(params,auth)) 
+
+          case "yup":
+                params= { ...params,buttonflg:"yup",disableFilters:true,screenFlg:ownProps.screenFlg}
+                return  dispatch(YupRequest(params,auth)) //
+              
           default:
             console.log(`not Supported ${buttonflg}`)
             return 
