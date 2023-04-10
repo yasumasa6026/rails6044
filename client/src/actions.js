@@ -78,6 +78,9 @@ export const GANTTCHART_REQUEST = 'GANTTCHART_REQUEST'
 export const GANTTCHART_FAILURE = 'GANTTCHART_FAILURE'
 export const GANTTCHART_SUCCESS = 'GANTTCHART_SUCCESS'
 
+export const SCREEN_DATASET = 'SCREEN_DATASET'
+export const SECOND_DATASET = 'SECOND_DATASET'
+
 export const RESET_REQUEST = 'RESET_REQUEST'
 export const CHANGE_SHOW_SCREEN = 'CHANGE_SHOW_SCREEN'
 
@@ -193,9 +196,9 @@ export const ScreenFailure = (errors) => ({
   errors: { errors }  //
 })
 
-export const DownloadRequest = (params) => ({
+export const DownloadRequest = (params,auth) => ({
   type: DOWNLOAD_REQUEST,
-  payload: { params:params}
+  payload: { params:params,auth:auth}
 })
 
 export const ButtonListRequest = (auth) => ({
@@ -294,9 +297,9 @@ export const GanttReset = () => ({
 })
 
 
-export const ImportExcelRequest = ({excelfile,nameToCode,params}) => ({
+export const ImportExcelRequest = ({excelfile,nameToCode,params,auth}) => ({
   type: IMPORTEXCEL_REQUEST,  // 
-  payload: {excelfile,nameToCode,params,}
+  payload: {excelfile,nameToCode,params,auth}
 })
 
 
@@ -315,4 +318,14 @@ export const ImportExcelFailure = (payload) => ({
 export const changeShowScreen = (showScreen) => ({
   type: CHANGE_SHOW_SCREEN,  // 
   payload: {showScreen:showScreen}
+})
+
+export const ScreenDataSet = (data) => ({
+  type: SCREEN_DATASET,  // 
+  payload: {data:data}
+})
+
+export const SecondDataSet = (data) => ({
+  type: SECOND_DATASET,  // 
+  payload: {data:data}
 })

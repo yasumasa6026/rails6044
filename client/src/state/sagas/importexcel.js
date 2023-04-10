@@ -58,17 +58,17 @@ function batchcheck(sheet,nameToCode,screenCode) {
     return {importdata:lines,formatError:formatError,errHeader:errHeader}
   }
 
-function sendExcelData({params,importexcel}){      // ポイント2！
+function sendExcelData({params,importexcel,auth}){      // ポイント2！
     const url = 'http://localhost:3001/api/importexcel'
-    const token = params.token       
-    const client = params.client         
-    const uid = params.uid 
+    const token = auth.token       
+    const client = auth.client         
+    const uid = auth.uid 
     let importData = {}
     importData["importexcel"] = importexcel
     let dayoptions = { year: 'numeric', month: 'long', day: 'numeric' ,hour:'numeric',minute:'numeric',second:'numeric'}
     importData["title"] = (new Date()).toLocaleDateString('ja-JA', dayoptions).replace(/:/g,"-") + " imported"
     importData["filename"] = importexcel.name
-    let xparams = {importData,email:params.uid,screenCode:params.screenCode}
+    let xparams = {importData,email:auth.uid,screenCode:params.screenCode}
     const config = {
         headers: {
           'content-type': 'application/json',
@@ -84,7 +84,7 @@ function writeBuffer(workbook){
     return buffer
   }
 
-export function* ImportExcelSaga({ payload: {excelfile,nameToCode,params} }) {
+export function* ImportExcelSaga({ payload: {excelfile,nameToCode,params,auth} }) {
     let errMessage = "" 
     let screenCode = params.screenCode
         try{
@@ -101,7 +101,7 @@ export function* ImportExcelSaga({ payload: {excelfile,nameToCode,params} }) {
                            yield put({ type: IMPORTEXCEL_FAILURE, errHeader: errHeader ,importErrorCheckMaster:true,errMessage:errMessage })
                     }//else{
                             try{
-                                let res = yield call(sendExcelData,{params,importexcel})
+                                let res = yield call(sendExcelData,{params,importexcel,auth})
                                 let importError = res.data.importError
                                 let results = res.data.results
                                 let sheetName

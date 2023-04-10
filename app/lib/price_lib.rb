@@ -13,14 +13,15 @@ module PriceLib
 			command_c["#{tblnamechop}_amt"] = 0
 		end 
 		command_c["#{tblnamechop}_tax"] = 0 
+		command_c["#{tblnamechop}_taxrate"] = 0 
 		###command_c["#{tblnamechop}_contract_price"] = "" 
 		###command_c["#{tblnamechop}_itm_code_client"] = "" ###pricemst["itm_code_client"] 
 		command_c["#{tblnamechop}_crr_id"] = 0  ###pricemst["crrs_id"] 
 
-		return command_c  ### 完了後はcut
 
 		###
 		### 作成中
+		return command_c  ### 完了後はcut
 		###
 
 		case tblnamechop
@@ -33,18 +34,18 @@ module PriceLib
 		end
 		case tblnamechop
 			when /^cust/
-				pricetbl = "custs"
+				pricetbl = "custprices"
 				loca_code = command_c["loca_code_cust"]
 			when /^pur/
-				pricetbl = "suppliers"
-				loca_code = command_c["loca_code"]   ###入力でdealerを保証する。
+				pricetbl = "supplierprices"
+				loca_code = command_c["loca_code_shelfno"]   ###入力でdealerを保証する。
 			when /^shp/
 				loca_code = command_c["loca_code_shelfno_to"]
 				###有償支給
 			when /mkact/
 				case command_c["mkact_prdpur"]
 					when "pur"
-						pricetbl = "dealers"
+						pricetbl = "supplierprices"
 						if command_c["mkact_sno_inst"]
 							strsql = "select * from r_purinsts where purinst_sno = '#{command_c["mkact_sno_inst"]}'"
 							loca_code = ActiveRecord::Base.connection.select_one(strsql)["loca_code"]
@@ -63,7 +64,7 @@ module PriceLib
 				return command_c
 		end
 		strsql = "select *
-				from r_pricemsts 	/*同一品目内ではcontract_price<pricemst_amtroundは有効日内で同一であること*/
+				from r_#{pricetbl} 	/*同一品目内ではcontract_price<pricemst_amtroundは有効日内で同一であること*/
 				where pricemst_tblname =  '#{pricetbl}' and pricemst_expiredate >= current_date and
 				itm_code = '#{command_c["itm_code"]}' AND loca_code = '#{loca_code}' 
 				processseq = '#{command_c["opeitm_opeprocessseq"]}' AND loca_code = '#{loca_code}' "

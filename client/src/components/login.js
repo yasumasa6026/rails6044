@@ -53,7 +53,7 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
       </button>
       <h1>概要</h1>
           <p>独学でruby,rails,react,postgresqlを学習し社内物流システムを作成してみた。</p>
-          <p>ruby,rails,react,postgresqlについては素人なのでソースを参照するときは原本のマニュアルで確認すること</p>
+          <p>ruby,rails,react,postgresqlについては素人なのでソースを参照するときは原本のマニュアルで妥当性、最適化を確認すること</p>
         <h2>・画面の説明（利用したreactの説明）</h2>
         <h2>・利用したrailsの説明</h2>
         <h2>・社内物流の概要</h2>
@@ -67,6 +67,7 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
             <h3>activereord</h3>
               <p>model機能、crud機能は使用してない。</p>
               <p>postgresqlをActiveRecord::Base.connection.xxxxを利用してsqlをそのままコーディングしている。</p>
+            <h3>activejob</h3>
         
       <h1 className="error">注意事項　あくまでも案であって利用に関しては各自十分に検証し自己責任で利用すること</h1>
     {/*}  <MyGanttChart/>*/}

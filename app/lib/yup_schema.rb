@@ -6,14 +6,14 @@ extend self
     def proc_create_schema   ### 全画面対象
         yupschema = "let Yup = require('yup')\n"
         yupschema << "export const yupschema = {\n"
-        screencode = ""
+        screenCode = ""
         ActiveRecord::Base.connection.select_all(strsql(nil)).each do |rec|   
-            if screencode != rec["pobject_code_scr"]
-                if screencode != ""
+            if screenCode != rec["pobject_code_scr"]
+                if screenCode != ""
                     yupschema <<"           },\n"
                 end 
                 yupschema << "          #{rec["pobject_code_scr"]}:{\n"
-                screencode = rec["pobject_code_scr"]
+                screenCode = rec["pobject_code_scr"]
             end         
             str = "Yup."
             case rec["screenfield_type"] 
@@ -68,9 +68,9 @@ extend self
             yupschema <<  "     }"
         return {:yupschema=>yupschema}           
     end 
-    def proc_create_fetchCode screencode       
+    def proc_create_fetchCode screenCode       
         fetchCode ={}
-        ActiveRecord::Base.connection.select_all(fetchCodesql(screencode)).each do |rec|   
+        ActiveRecord::Base.connection.select_all(fetchCodesql(screenCode)).each do |rec|   
             if rec["screenfield_paragraph"]  
                 fetchCode[rec["pobject_code_sfd"]] = rec["screenfield_paragraph"]
             end    
@@ -78,9 +78,9 @@ extend self
 
         return fetchCode           
     end  
-    def proc_create_checkCode screencode       
+    def proc_create_checkCode screenCode       
         checkCode ={}
-        ActiveRecord::Base.connection.select_all(checkCodesql(screencode)).each do |rec|   
+        ActiveRecord::Base.connection.select_all(checkCodesql(screenCode)).each do |rec|   
             if rec["screenfield_subindisp"]  
                 rec["screenfield_subindisp"].split(",").each do |checkproc|
                     checkCode[rec["pobject_code_sfd"]] = checkproc
@@ -90,7 +90,7 @@ extend self
         return checkCode           
     end 
     private
-    def strsql screencode
+    def strsql screenCode
          %Q%select pobject_code_sfd,screenfield_type,screenfield_indisp,screenfield_maxvalue,
                     screenfield_minvalue,screenfield_formatter,	pobject_code_scr ,screenfield_edoptmaxlength,
                     max(screenfield_updated_at) screenfield_updated_at,screenfield_paragraph,
@@ -98,24 +98,24 @@ extend self
                     from r_screenfields
                     where screenfield_editable !=0 and screenfield_selection != '0' and screenfield_hideflg != '1' and  
                     screenfield_expiredate > current_date
-                    #{if screencode then " and pobject_code_scr = '#{screencode}' " else "" end }
+                    #{if screenCode then " and pobject_code_scr = '#{screenCode}' " else "" end }
                     group by pobject_code_sfd,screenfield_type,screenfield_indisp,screenfield_maxvalue,screenfield_edoptmaxlength,
                     screenfield_minvalue,screenfield_formatter,screenfield_paragraph,pobject_code_scr,
                     screenfield_dataprecision,screenfield_datascale
                     order by 	pobject_code_scr,pobject_code_sfd%
     end    
-    def fetchCodesql screencode
+    def fetchCodesql screenCode
          %Q%select pobject_code_sfd,screenfield_paragraph
                     from r_screenfields
                     where trim(screenfield_paragraph) != '' and screenfield_paragraph is not null and
                     screenfield_expiredate > current_date
-                    #{if screencode then " and pobject_code_scr = '#{screencode}' " else "" end }%
+                    #{if screenCode then " and pobject_code_scr = '#{screenCode}' " else "" end }%
     end     
-    def checkCodesql screencode
+    def checkCodesql screenCode
          %Q%select pobject_code_sfd,screenfield_subindisp
                     from r_screenfields
                     where trim(screenfield_subindisp) != '' and screenfield_subindisp is not null and
                     screenfield_expiredate > current_date
-                    #{if screencode then " and pobject_code_scr = '#{screencode}' " else "" end }%
+                    #{if screenCode then " and pobject_code_scr = '#{screenCode}' " else "" end }%
     end  
 end

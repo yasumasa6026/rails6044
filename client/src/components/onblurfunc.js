@@ -1,4 +1,4 @@
-import moment from 'moment'
+//import moment from 'moment'
 import { yupErrCheck } from './yuperrcheck'
 import { yupschema } from '../yupschema'
 //yupでできなかったこと
@@ -8,6 +8,7 @@ import { yupschema } from '../yupschema'
 export function  onBlurFunc7(screenCode,lineData,id){  //id:field
     let starttime
     let toduedate
+    let yymmdd
     let qty_case
     let gno
     let autoAddFields = {}
@@ -22,18 +23,26 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
                     autoAddFields[itm_code_client] = lineData[itm_code_client]}
                 }
             break
+        //starttime 将来部署別のカレンダーでrailsで求める。 prdord_commencementdate
         case /_duedate/.test(id):
-                moment.defaultFormat = "YYYY-MM-DD HH:mm"
+                //moment.defaultFormat = "YYYY-MM-DD HH:mm"
                 starttime = id.split("_")[0] + "_starttime" 
                 //if(lineData[starttime]===""||lineData[starttime]===undefined||lineData[starttime]===null){
                 if(lineData[starttime]===""){
+                        yymmdd = new Date(lineData[id]) 
                     if(/cust/.test(screenCode)){ //受注の時はopeitmのLT(duration)は使用できない。
-                        lineData[starttime] = moment(lineData[id]).add(- "1",'d').format() 
+                        yymmdd = new Date(yymmdd.setDate(yymmdd.getDate() - 1))
+                        lineData[starttime] = yymmdd.getFullYear()+"-"+(yymmdd.getMonth()+1)+"-"+yymmdd.getDate()+" "+yymmdd.getHours()+":"+yymmdd.getMinutes()
                         autoAddFields[starttime] = lineData[starttime]
                     }
                     else{
-                        lineData[starttime] = moment((lineData[id]).add(- lineData["opeitm_duration"],'d'),moment.defaultFormat)
+                        yymmdd = new Date(yymmdd.setDate(yymmdd.getDate() - parseFloat(lineData["opeitm_duration"])))
+                        lineData[starttime] = yymmdd.getFullYear()+"-"+(yymmdd.getMonth()+1)+"-"+yymmdd.getDate()+" "+yymmdd.getHours()+":"+yymmdd.getMinutes()
                         autoAddFields[starttime] = lineData[starttime]
+                        if(lineData["prdord_commencementdate"]===""){
+                            lineData["prdord_commencementdate"] = lineData[starttime] 
+                            autoAddFields["prdord_commencementdate"] = lineData[starttime]                            
+                        }
                     }       
                 }
                 toduedate = id.split("_")[0] + "_toduedate" 
@@ -81,7 +90,7 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
 }
 
 
-export function   onFieldValite (linedata, field, screenCode) {  // yupでは　2019/12/32等がエラーにならない
+export function   onFieldValite (lineData, field, screenCode) {  // yupでは　2019/12/32等がエラーにならない
     let Yup = require('yup')    
     let fieldSchema = (field, screenCode) => {
       let tmp = {}
@@ -93,37 +102,28 @@ export function   onFieldValite (linedata, field, screenCode) {  // yupでは　
     }
     
     let schema = fieldSchema(field, screenCode)
-    linedata = yupErrCheck(schema,field,linedata)
-    return linedata
+    lineData = yupErrCheck(schema,field,lineData)
+    return lineData
 }
 
 
-export function fetchCheck(linedata,id,fetch_check) {
+export function fetchCheck(lineData,id,fetch_check) {
     let fetchCheckFlg 
     let idKeys=[]
-    let newRow = {}
     //
     if(fetch_check.fetchCode[id]){
         let flg = true
         Object.keys(fetch_check.fetchCode).map((key,idx)=>{  //複数key対応
             if(fetch_check.fetchCode[id]===fetch_check.fetchCode[key]){
-                if(linedata[key]===""||linedata[key]===undefined){
+                if(lineData[key]===""||lineData[key]===undefined){
                     flg = false
                 return  idKeys
                 }
-                else(idKeys.push({[key]:linedata[key]}))
+                else(idKeys.push({[key]:lineData[key]}))
             }
             return idKeys
         })
         if(flg){
-            Object.keys(linedata).map((key,idx)=>{  //複数key対応
-                if(/_gridmessage/.test(key)){}
-                else{newRow[key]=linedata[key]}
-                return ""
-            })
-            // params = {...params,fetchCode: JSON.stringify(idKeys),linedata: JSON.stringify(row),
-            //                                      index: index,fetchview: fetch_check.fetchCode[id],buttonflg: "fetch_request"}
-        //handleFetchRequest(params,data) //onBlurFunc7でセットされた項目はfetchでまとめて更新
         fetchCheckFlg = "fetch_request"
         }else{}//未入力keyがある。  
     }
@@ -131,18 +131,11 @@ export function fetchCheck(linedata,id,fetch_check) {
     
     if(fetch_check.checkCode[id]){
      let chkcondtion = fetch_check.checkCode[id].split(",")[1]
-     if (chkcondtion === undefined || (chkcondtion === "add" & linedata[id] === "") ||
-         (chkcondtion === "update" & linedata[id] !== "")) {
-        //  params = {...params,
-        //                        checkCode: JSON.stringify({ [id]: fetch_check.checkCode[id] }),
-        //                        linedata: JSON.stringify(linedata),
-        //                        index: index,buttonflg: "check_request"}
-     //handleFetchRequest(params)
-     //break
+     if (chkcondtion === undefined || (chkcondtion === "add" & lineData[id] === "") ||
+         (chkcondtion === "update" & lineData[id] !== "")) {
      fetchCheckFlg = "check_request"
      }else{fetchCheckFlg=""}
     }
-    //if(fetchCheckFlg){handleFetchRequest(params,data)}
-    return {fetchCheckFlg,idKeys,newRow}
+    return {fetchCheckFlg,idKeys}
 }
 

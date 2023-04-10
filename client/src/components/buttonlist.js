@@ -9,8 +9,7 @@ import GanttTask from './gantttask'
 import "react-tabs/style/react-tabs.css"
 import {Button} from '../styles/button'
 import "../index.css"
-import {ScreenRequest,DownloadRequest,GanttChartRequest,GanttReset,
-        ButtonFlgRequest,ScreenSubForm,auth,
+import {ScreenRequest,DownloadRequest,GanttChartRequest,ButtonFlgRequest,ScreenSubForm,
         YupRequest,TblfieldRequest,ResetRequest, } from '../actions'
 
  const  ButtonList = ({auth,buttonListData,setButtonFlg,buttonflg,
@@ -51,7 +50,7 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,GanttReset,
             </Tabs>
         }
         
-        {buttonflg==="ganttchart"&&<GanttTask /> }
+        {(buttonflg==="ganttchart"||buttonflg==="reversechart")&&<GanttTask /> }
         {buttonflg==='import'&&<ImportExcel/>}
         {buttonflg==="export"&&downloadloading==="done"?<Download/>:downloadloading==="doing"?<p>please wait </p>:""}
         {buttonflg==="createTblViewScreen"&&params.messages.map((msg,index) =>{
@@ -137,8 +136,15 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                   if(typeof(params.index)==="number"){
                       params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"ganttchart",}
                       return  dispatch(GanttChartRequest(params,auth)) }//
-                  else{dispatch(GanttReset())}  
+                  else{alert("please select")}  
                   break
+
+            case "reversechart":
+                    if(typeof(params.index)==="number"){
+                              params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"reversechart",}
+                              return  dispatch(GanttChartRequest(params,auth)) }//
+                    else{alert("please select")}  
+                    break
         
           case "inlineedit7":
               params= { ...params,buttonflg:"inlineedit7",disableFilters:false,screenFlg:ownProps.screenFlg,aud:"edit",}
@@ -158,7 +164,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           
           case "export":
               params= {...params,buttonflg:"download7",disableFilters:false,screenFlg:ownProps.screenFlg}
-              return  dispatch(DownloadRequest(params)) //
+              return  dispatch(DownloadRequest(params,auth)) //
          
           case "import":
               return  //画面表示のみ

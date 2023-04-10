@@ -3,7 +3,7 @@ import { connect } from 'react-redux'
 import {ImportExcelRequest, LOGIN_REQUEST} from '../actions'
 
 const ImportExcel = ({exceltojson,excelfile,importError,formatError,errHeader,importErrorCheckMaster,errMessage,normalEnd,
-                      nameToCode,params,idx}) =>{
+                      nameToCode,params,idx,auth}) =>{
   return (   
     <React.Fragment>
           <div className="has-text-right buttons-padding">
@@ -17,7 +17,7 @@ const ImportExcel = ({exceltojson,excelfile,importError,formatError,errHeader,im
                                           {excelfile =  ev.currentTarget.files[0]
                                             let excelfilename =  excelfile.name
                                             if(excelfilename.search(/\.xlsx$|\.csv$/))
-                                              {exceltojson(excelfile,nameToCode,params)}  //.xlsx  は　controllers/api/uploadでも使用
+                                              {exceltojson(excelfile,nameToCode,params,auth)}  //.xlsx  は　controllers/api/uploadでも使用
                                             else{alert("please input Excel File or Csv File")
                                             }
                                           }
@@ -39,8 +39,8 @@ const ImportExcel = ({exceltojson,excelfile,importError,formatError,errHeader,im
   }
 
 const mapDispatchToProps = dispatch => ({
-  exceltojson :(excelfile,nameToCode,params)=>{
-    dispatch(ImportExcelRequest({excelfile,nameToCode,params}))
+  exceltojson :(excelfile,nameToCode,params,auth)=>{
+    dispatch(ImportExcelRequest({excelfile,nameToCode,params,auth}))
     },  
   })
   
@@ -57,6 +57,7 @@ const mapStateToProps = state =>({
     importErrorCheckMaster:state.upload.importErrorCheckMaster,
     errMessage:state.upload.errMessage,
     normalEnd:state.upload.normalEnd,
+    auth:state.auth,
   })
 
 export default  connect(mapStateToProps,mapDispatchToProps)(ImportExcel)

@@ -1,6 +1,6 @@
 import {LOGOUT_REQUEST,  //SECONDSCREEN_REQUEST,
         //MKSHPACTS_RESULT,
-        SECOND_CONFIRMALL_SUCCESS,SECOND_SUCCESS7,SCREEN_SUCCESS7,
+        SECOND_CONFIRMALL_SUCCESS,SECOND_SUCCESS7,SCREEN_SUCCESS7,SECOND_DATASET,
         SECOND_CONFIRM7,SECOND_CONFIRM7_SUCCESS,SECOND_FAILURE, SECONDFETCH_REQUEST,SECOND_SUBFORM,
         SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT,SCREENINIT_REQUEST} from '../../actions'
 
@@ -69,8 +69,8 @@ const secondreducer =  (state = initialValues , actions) =>{
         }
 
     case SECOND_CONFIRM7_SUCCESS:
-        data = state.data
-        data[actions.payload.params.index] = actions.payload.linedata
+        data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
+                                              return row }) 
         return {...state,
             data:actions.payload.data,
             params:actions.payload.params,
@@ -80,6 +80,8 @@ const secondreducer =  (state = initialValues , actions) =>{
         } 
 
     case SECOND_FAILURE:
+        data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
+                                              return row }) 
         return {...state,
             hostError: actions.payload.message,
             data: actions.payload.data,
@@ -102,8 +104,11 @@ const secondreducer =  (state = initialValues , actions) =>{
         }
         
     case SECONDFETCH_RESULT:
+        data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
+                                              return row }) 
         return {...state,
             params:actions.payload.params,  
+            data:data,
             secondloading:false,
             hostError: null,
         }
@@ -123,6 +128,12 @@ const secondreducer =  (state = initialValues , actions) =>{
         return {...state,
                 pareScreenCode: actions.payload.data.params.screenCode,
         }
+
+
+    case SECOND_DATASET:
+        return {...state,
+                    data: actions.payload.data,
+            }
        
     case  LOGOUT_REQUEST:
         return {}  

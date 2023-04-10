@@ -1102,6 +1102,7 @@ module Shipment
 						&
 			ActiveRecord::Base.connection.update(strsql)
 		end
+		###先の推定在庫を変更する。
 		strsql = %Q& select *
 								from lotstkhists
 								where   itms_id = #{stkinout["itms_id"]} and  

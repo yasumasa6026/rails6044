@@ -30,16 +30,11 @@ export function* GanttChartSaga({ payload: {params,auth}  }) {
   let uid = auth.uid   
   let {response,error} = yield call(GanttApi,{params ,token,client,uid} )
   if(response || !error){
-      switch(params.buttonflg) {
-        case "ganttchart":  // create yup schema
               let tasks = []
               tasks = response.data.tasks.map((task,idx)=>
                          tasks[idx] = {...task,start:new Date(task.start),end:new Date(task.end),}
                          )
               return yield put({ type: GANTTCHART_SUCCESS, payload:{ tasks:tasks,viewMode:params.viewMode}} )  
-        default:
-          return {}
-      }
   }else
      {  
       let message

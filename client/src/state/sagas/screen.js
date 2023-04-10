@@ -34,6 +34,7 @@ export function* ScreenSaga({ payload: {params}  }) {
   const headers = {'access-token':auth.token,'client':auth.client,'uid':auth.uid }
     let message
     let messages = []
+    let lineData
     // while (loading===true) {
     //   console.log("delay")
     //   yield delay(100)
@@ -48,21 +49,40 @@ export function* ScreenSaga({ payload: {params}  }) {
             case 'viewtablereq7':
             case 'inlineedit7':   //第一画面又は第二画面のみ　両方修正は不可  更新画面要求
             case 'inlineadd7':  //追加画面要求
-              params = {...response.data.params,err:null,parse_linedata:{},index:parseInt(params.index)}
+              params = {...response.data.params,err:null,parse_linedata:{},index:0,clickIndex:[]}
               if(params.screenFlg==="second")
                   {return yield put({type:SECOND_SUCCESS7,payload:{data:response.data,params:params} })}
               else
                   {return yield put({ type:SCREEN_SUCCESS7, payload:{data:response.data,params:params}})}
             case "confirm7":  //データ更新時のEnteのbuttonflgはinlineedit7やinlineadd7ではなくてconfirm7になる。更新実行
-              let linedata  = response.data.linedata
+              lineData  = response.data.params.parse_linedata
               params = {...params,buttonflg:buttonState.buttonflg,screenFlg:response.data.params.screenFlg,
                           screenCode:response.data.params.screenCode,err:response.data.params.err,index:parseInt(params.index)}
               if(params.screenFlg==="second")
-                {return yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{linedata:linedata,params:params} })}
+                {return yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{lineData:lineData,index:parseInt(params.index),params:params} })}
               else
-                {return yield put({type:SCREEN_CONFIRM7_SUCCESS,payload:{linedata:linedata,params:params} })} 
+                {return yield put({type:SCREEN_CONFIRM7_SUCCESS,payload:{lineData:lineData,index:parseInt(params.index),params:params} })} 
+            case "fetch_request":  //viewによる存在チェック内容表示
+            case "check_request":   //項目毎のチェック帰りはfetchと同じ
+                    lineData = response.data.params.parse_linedata
+                     params = {...params,...response.data.params,buttonflg:buttonState.buttonflg,screenFlg:response.data.params.screenFlg,
+                                 screenCode:response.data.params.screenCode,err:response.data.params.err} 
+                     if(response.data.params.err){
+                                 if(params.screenFlg==="second"){
+                                    yield put({ type: SECONDFETCH_FAILURE,payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
+                                 }else{
+                                    yield put({ type: FETCH_FAILURE, payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
+                                 }
+                     }else{
+                                 if(params.screenFlg==="second"){
+                                     yield put({type: SECONDFETCH_RESULT, payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
+                                 }else{  
+                                     yield put({type: FETCH_RESULT, payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
+                                 }  
+                               }
+                     break 
             case "delete":
-                  data[parseInt(params.index)] = {...response.data.linedata}
+                  data[parseInt(params.index)] = {...response.data.params.parse_linedata}
                   params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
                   params.buttonflg = buttonState.buttonflg
                   if(params.screenFlg==="second")
@@ -90,28 +110,10 @@ export function* ScreenSaga({ payload: {params}  }) {
             case "confirmSecond":  //second画面専用
               messages[0] = "out count : " + response.data.outcnt
               return yield put({ type: SECOND_CONFIRMALL_SUCCESS, payload:{messages:messages}})     
-       
-           case "fetch_request":  //viewによる存在チェック内容表示
-           case "check_request":   //項目毎のチェック帰りはfetchと同じ
-                params = {...params,...response.data.params,buttonflg:buttonState.buttonflg,screenFlg:response.data.params.screenFlg,
-                            screenCode:response.data.params.screenCode,err:response.data.params.err} 
-                if(response.data.params.err){
-                            if(params.screenFlg==="second"){
-                                    yield put({ type: SECONDFETCH_FAILURE,payload:{params:params}}) 
-                            }else{
-                                    yield put({ type: FETCH_FAILURE, payload:{params:params}}) 
-                            }
-                }else{
-                            if(params.screenFlg==="second"){
-                                yield put({type: SECONDFETCH_RESULT, payload:{params:params}}) 
-                            }else{  
-                                yield put({type: FETCH_RESULT, payload:{params:params}}) 
-                            }  
-                          }
-                break      
             default:
-                          }
-          break  
+                            }
+            break       
+       
         case 500: message = `error ${response.status}: Internal Server Error ${response.statusText}`
                     break
         case 401: message = `error ${response.status}: Invalid credentials or Login TimeOut ${response.statusText}`

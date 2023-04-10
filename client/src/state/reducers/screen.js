@@ -3,7 +3,7 @@ import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
   FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,YUP_RESULT,
   INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
   //SECOND_SUCCESS7,
-  MKSHPORDS_SUCCESS,
+  MKSHPORDS_SUCCESS,SCREEN_DATASET,
   YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_SUBFORM,LOGIN_SUCCESS} 
   from '../../actions'
 
@@ -47,7 +47,7 @@ return {...state,
 }
 
 
-case SCREEN_CONFIRM7:
+case SCREEN_CONFIRM7:  //confirm request
 return {...state,
         loading:true,
         params:actions.payload.params,
@@ -72,8 +72,8 @@ return {...state,
 }
 
 case SCREEN_CONFIRM7_SUCCESS:
-  data = state.data
-  data[actions.payload.params.index] = actions.payload.linedata
+  data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
+                                        return row }) 
 return {...state,
   params:actions.payload.params,
   data:data,
@@ -115,8 +115,8 @@ return {...state,
 }
 
 case FETCH_FAILURE:
-  data = state.data
-  data[actions.payload.params.index] = actions.payload.linedata
+  data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
+                                        return row }) 
     return {...state, 
       params:actions.payload.params,  
       data:data,
@@ -125,8 +125,11 @@ case FETCH_FAILURE:
     }
 
 case FETCH_RESULT:
+  data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
+                                        return row }) 
           return {...state,
             params:actions.payload.params,  
+            data:data,
             loading:false,
             hostError: null,
     }
@@ -143,6 +146,12 @@ case YUP_RESULT:
       message: actions.payload.message,
     }
   
+
+case SCREEN_DATASET:
+      return {...state,
+        data: actions.payload.data,
+      }
+
 case MKSHPORDS_SUCCESS:
   return {...state,
       loading:false,

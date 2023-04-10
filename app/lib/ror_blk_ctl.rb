@@ -49,7 +49,7 @@ module RorBlkCtl
 						if k == ""  or k.nil?
 							case 	  j_to_sfld
 							when 'sno'
-								command_c[@tblname.chop+"_sno"] = @tbldata["sno"] = CtlFields.proc_field_sno(@tblname.chop,command_c["id"])
+								command_c[@tblname.chop+"_sno"] = @tbldata["sno"] = CtlFields.proc_field_sno(@tblname.chop,@tbldata["isudate"],command_c["id"])
 							when 'cno'
 								command_c[@tblname.chop+"_cno"] = @tbldata["cno"] = CtlFields.proc_field_cno(command_c["id"])
 							when 'gno'
@@ -193,18 +193,7 @@ module RorBlkCtl
 				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
 				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^prdinsts/  ###insts,actsでは trnganttsは作成しない。
-				# gantt = setGantt(setParams)
-				# gantt["qty"] =  @tbldata["qty"]
-				# gantt["starttime_trn"] = @tbldata["commencementdate"]  
-				# gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
-				# gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
-				# gantt["duedate_trn"] =  gantt["toduedate_trn"] =  @tbldata["replydate"]
 			when /^prdacts/
-				# gantt = setGantt(setParams)
-				# gantt["qty_stk"] = @tbldata["qty_stk"]
-				# gantt["duedate_trn"] = gantt["toduedate_trn"] =  @tbldata["cmpldate"]
-				# gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
-				# gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^purords/
 				gantt["qty"] =  @tbldata["qty"]   ###free
 				gantt["qty_require"] = 0
@@ -214,10 +203,6 @@ module RorBlkCtl
 				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
 				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^replyinputs/
-				# gantt = setGantt(setParams)
-				# gantt["qty"] =  @tbldata["qty"]
-				# gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
-				# gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^purinsts/
 				# gantt = setGantt(setParams)
 				# gantt["qty"] =  @tbldata["qty"]
@@ -225,11 +210,6 @@ module RorBlkCtl
 				# gantt = setGantt(setParams)
 				# gantt["qty_stk"] = @tbldata["qty_stk"]
 			when /^puracts/
-				# gantt = setGantt(setParams)
-				#  gantt["qty_stk"] = @tbldata["qty_stk"]
-				#  gantt["duedate_trn"] = gantt["toduedate_trn"] =  @tbldata["rcptdate"]
-				#  gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
-				#  gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^custschs/  ### setParams["gantt"].nil?==trueのはず
 				gantt["qty_sch"] = @tbldata["qty_sch"]
 				gantt["qty_handover"] = @tbldata["qty_sch"] ###下位部品所要量計算用

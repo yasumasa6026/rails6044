@@ -54,29 +54,29 @@ module Api
                 
             when "fetch_request"
                 reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
-                reqparams[:parse_linedata] = JSON.parse(params[:linedata])
+                reqparams[:parse_linedata] = JSON.parse(params[:lineData])
                 reqparams = CtlFields.proc_chk_fetch_rec reqparams
                 render json: {:params=>reqparams}   
 
             when "check_request"  
                 reqparams = params.dup
-                reqparams[:parse_linedata] = JSON.parse(params[:linedata])
-                if params[:fetchview] and params[:fetchview] != ""
-                    reqparams = CtlFields.proc_chk_fetch_rec reqparams
-                end
+                reqparams[:parse_linedata] = JSON.parse(params[:lineData])
+                # if params[:fetchview] and params[:fetchview] != ""
+                #     reqparams = CtlFields.proc_chk_fetch_rec reqparams
+                # end
                 JSON.parse(params[:checkCode]).each do |sfd,checkcode|
                   reqparams = CtlFields.proc_judge_check_code reqparams,sfd,checkcode
                 end
-                if params[:fetchview] and params[:fetchview] != ""
-                    reqparams = CtlFields.proc_chk_fetch_rec reqparams
-                end
+                # if params[:fetchview] and params[:fetchview] != ""
+                #     reqparams = CtlFields.proc_chk_fetch_rec reqparams
+                # end
                 render json: {:params=>reqparams}   
 
             when "confirm7"
                 reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
-                reqparams[:parse_linedata] = JSON.parse(params[:linedata])
+                reqparams[:parse_linedata] = JSON.parse(params[:lineData])
                 reqparams = screen.proc_confirm_screen(reqparams)
-                render json: {:linedata=> reqparams[:parse_linedata],:params=>reqparams}
+                render json: {:params=>reqparams}
 
             when 'download7'
                 download_columns_info,totalCount,pagedata = screen.proc_download_data_blk(params)   ### nil filtered sorting

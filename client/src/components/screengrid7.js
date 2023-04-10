@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect, } from 'react'
 import { connect } from 'react-redux'
 import { ScreenConfirm, FetchRequest,ScreenSubForm,SecondSubForm,
-            SecondConfirm, SecondFetchRequest,  } from '../actions'
+            SecondConfirm, SecondFetchRequest,ScreenDataSet,SecondDataSet  } from '../actions'
 //import DropDown from './dropdown'
 import { yupschema } from '../yupschema'
 import { yupErrCheck } from './yuperrcheck'
@@ -54,11 +54,12 @@ const AutoCell = ({
     value: initialValue,
     row: { index,values },
     column: { id, className },  //id field_code
-    setData, data, // This is a custom function that we supplied to our table instance
+    //setData,
+     data, // This is a custom function that we supplied to our table instance
     setChangeData,
     row,params,dropDownList,fetch_check,fetchCheck,
     buttonflg,  //useTableへの登録が必要
-    handleScreenRequest,handleFetchRequest,toggleSubForm,
+    handleScreenRequest,handleFetchRequest,toggleSubForm,handleDataSetRequest,
     }) => {
         const setFieldsByonChange = (e) => {
             if(e.target){
@@ -69,77 +70,71 @@ const AutoCell = ({
         } 
   
         const setFieldsByonBlur = (e) => {
-            let linedata = {...data[index],[id]: e.target.value}  //[id] idの内容
+            let lineData = {...values,[id]: e.target.value}  //[id] idの内容
             let msg_id = `${id}_gridmessage`
-            linedata[`${id}_gridmessage`] = "ok"
+            lineData[msg_id] = "ok"
             let autoAddFields = {}
-            linedata = onFieldValite(linedata, id, params.screenCode)  //clientでのチェック
-            if(linedata[msg_id]==="ok"){
-                //updateMyData(index, id,linedata[id])
-                //updateMyData(index, msg_id,linedata[msg_id])
-                updateMyData(index, {[id]:linedata[id],[msg_id]:linedata[msg_id]})
-                linedata,autoAddFields = onBlurFunc7(params.screenCode, linedata, id)
+            lineData = onFieldValite(lineData, id, params.screenCode)  //clientでのチェック
+            if(lineData[msg_id]==="ok"){
+                updateMyData(index, {[id]:lineData[id],[msg_id]:lineData[msg_id]})
+                lineData,autoAddFields = onBlurFunc7(params.screenCode, lineData, id)
+                updateData(index, lineData) 
             }
-            //updateLineData(index,linedata)  //dataの更新
-            if ( linedata[msg_id] === "ok") {
-              const {fetchCheckFlg,idKeys,newRow} = fetchCheck( linedata,id,fetch_check)
+            if ( lineData[msg_id] === "ok") {
+              const {fetchCheckFlg,idKeys} = fetchCheck( lineData,id,fetch_check)
               params = {...params,fetchCode: JSON.stringify(idKeys),
                                       checkCode: JSON.stringify({ [id]: fetch_check.checkCode[id] }),
-                                      linedata: JSON.stringify(newRow),
+                                      lineData: JSON.stringify(lineData),
                                       fetchview: fetchCheckFlg==="fetch_request"?fetch_check.fetchCode[id]:"",
                                       index: index,buttonflg: fetchCheckFlg}
               if(fetchCheckFlg){handleFetchRequest(params,buttonflg)}
-                  else{updateLineData(index,data,autoAddFields) } //onBlurFunc7でセットされた項目を画面に反映
+                  else{if(Object.keys(autoAddFields).length)
+                        {handleDataSetRequest(data,params)}} //onBlurFunc7でセットされた項目を画面に反映
             }else{
-              updateMyData(index, msg_id, " error " + linedata[msg_id])
+              updateMyData(index, msg_id, " error " + lineData[msg_id])
             }
         }    
   
 
-        const onLineValite = (linedata,index,params) => {
+        const onLineValite = (lineData,index,params) => {
             let Yup = require('yup')
             let screenSchema = Yup.object().shape(yupschema[params.screenCode])
             let checkFields = {}
             Object.keys(screenSchema.fields).map((field) => {
-                checkFields[field] = linedata[field] 
+                checkFields[field] = lineData[field] 
                 return checkFields  //更新可能項目のみをセレクト
             })  
             checkFields = yupErrCheck(screenSchema,"confirm",checkFields)
-            Object.keys(checkFields).map((field)=>linedata[field] = checkFields[field])
-            if (linedata["confirm_gridmessage"] === "doing") {
-                params = {...params, line:linedata,linedata: JSON.stringify(linedata),  index: index , buttonflg: "confirm7" }
+            Object.keys(checkFields).map((field)=>lineData[field] = checkFields[field])
+            if (lineData["confirm_gridmessage"] === "doing") {
+                params = {...params, lineData:lineData,lineData: JSON.stringify(lineData),  index: index , buttonflg: "confirm7" }
                 handleScreenRequest(params,data)
             }else{
                 let msg_id = "confirm_gridmessage"
-                let gridmsg_id = `${linedata["errPath"]}_gridmessage`
-                updateData(index, {[msg_id]:" error " + linedata[msg_id],[gridmsg_id]: " error " + linedata[msg_id],confirm: false})
+                let gridmsg_id = `${lineData["errPath"]}_gridmessage`
+                updateData(index, {[msg_id]:" error " + lineData[msg_id],[gridmsg_id]: " error " + lineData[msg_id],confirm: false})
+                handleDataSetRequest(data,params)
             }
         }   
 
         const updateMyData = (rowIndex, columnId, value) => {
-            setData(prev=>
-              prev.map((row, index) => {
+            data =   data.map((row, index) => {
                 if (index === rowIndex) {
                     row =  {
-                      ...prev[rowIndex],
-                    [columnId]: value,
+                      ...row,[columnId]: value,
                     }
                 }
               return row
               })
-            )
         }
         const updateData = (rowIndex, line) => {
-            setData(prev=>
-              prev.map((row, index) => {
+            data =   data.map((row, index) => {
                 if (index === rowIndex) {
-                    row =  {
-                      ...prev[rowIndex],...line,
+                    row =  {...row,...line,
                     }
                 }
               return row
               })
-            )
         }
 
         
@@ -156,14 +151,7 @@ const AutoCell = ({
             })
           )
         }
-
-        const updateLineData = (index, data,autoAddFields) => {
-          Object.keys(autoAddFields).map((field)=>{if(data[index][field]===""||data[index][field]===undefined)
-                                                { updateMyData(index, field, autoAddFields[field])}
-                                              }
-                                    )
-        }
-        
+       
 
         switch (true){   
         case /^Editable/.test(className):
@@ -181,11 +169,11 @@ const AutoCell = ({
                       onBlur={(e) => setFieldsByonBlur(e)}
                       className={setClassFunc(id,row.values,className,buttonflg)}
                       onKeyUp={(e) => {  
-                          if (e.key === "Enter"&&!toggleSubForm ) 
-                                {
-                                  onLineValite(data[index],index,params)
-                                }else{e.key === "Enter"&&toggleSubForm&&alert("can not use filer and sord when subForm using")}
-                        }}        
+                           if (e.key === "Enter"&&!toggleSubForm ) 
+                                 {
+                                   onLineValite(row.values,index,params)
+                                 }else{e.key === "Enter"&&toggleSubForm&&alert("can not use filer and sord when subForm using")}
+                         }}        
                     />)}
                 </Tooltip>)
         case /SelectEditable/.test(className):
@@ -294,18 +282,18 @@ const ScreenGrid7 = ({
     dropDownListOrg, buttonflg, params,columnsOrg, dataOrg,screenCodeOrg,
     //buttonflg 下段のボタン：request params[:buttonflg] MenusControllerでの実行ケース
     loadingOrg, hostError, pageSizeList, 
-    handleScreenRequest, handleFetchRequest,handleSubForm,toggleSubForm,message,
+    handleScreenRequest, handleFetchRequest,handleSubForm,toggleSubForm,message,handleDataSetRequest,
     }) => {
         const columns = useMemo(
             () => (columnsOrg),[columnsOrg])
+        const data = useMemo(
+                () => (dataOrg),[dataOrg])
         const sortBy = useMemo(
                 () => ([]),[screenCodeOrg])
         const filters = useMemo(
                 () => ([]),[screenCodeOrg])
-        const [data, setData] = useState(dataOrg)
         const [changeData, setChangeData] = useState([]) 
         const [loading, setLoading] = useState(false)
-        useEffect(()=>{!loadingOrg&&setData(dataOrg)},[loadingOrg,message])
         useEffect(()=>{!loadingOrg&setInitChangeData(data)},[loadingOrg])
         useEffect(()=>{setLoading(loadingOrg)},[loadingOrg])
         const [screenCode,setScreenCode] = useState(screenCodeOrg)
@@ -322,19 +310,19 @@ const ScreenGrid7 = ({
           })
         }
         
-        const setFetchData = (index, fetch_data) => {
-          setData(prevState=>
-            {let newData = prevState.map((row, idx) => {
-              if (index === idx) {
-                      Object.keys(fetch_data).map((field)=>row = {...row,[field]:fetch_data[field]})
-                  }
-              return row
-            })
-            return newData
-          })
-        }
+        // const setFetchData = (index, fetch_data) => {
+        //   setData(prevState=>
+        //     {let newData = prevState.map((row, idx) => {
+        //       if (index === idx) {
+        //               Object.keys(fetch_data).map((field)=>row = {...row,[field]:fetch_data[field]})
+        //           }
+        //       return row
+        //     })
+        //     return newData
+        //   })
+        // }
             
-        useEffect(()=>{setFetchData(Number(params.index),params.parse_linedata)},[params.parse_linedata])
+        // useEffect(()=>{setFetchData(Number(params.index),params.parse_linedata)},[params.parse_linedata])
       
 
       //  const [controlledPageIndex, setControlledPageIndex] = useState(params["pageIndex"])  //独自のものを用意  
@@ -379,7 +367,7 @@ const ScreenGrid7 = ({
         <TableGridStyles height={buttonflg ? "840px" : buttonflg === "export" ? "500px" : buttonflg === "import" ? "300px" : "840px"}
           screenwidth={screenwidth} >
           <GridTable  columns={columns}  screenCode={screenCode}
-            data={data} setData={setData} dropDownListOrg={dropDownListOrg}
+            data={data} dropDownListOrg={dropDownListOrg}
             setChangeData={setChangeData} changeData={changeData}
             //controlledPageIndex={controlledPageIndex} 
             //controlledPageSize={controlledPageSize}
@@ -388,7 +376,7 @@ const ScreenGrid7 = ({
             params={params}   sortBy={sortBy}     filters={filters}  //skipReset={skipResetRef.current}
             disableFilters={params.disableFilters} toggleSubForm={toggleSubForm}
             hiddenColumns={hiddenColumns} handleScreenRequest={handleScreenRequest} 
-            handleFetchRequest={handleFetchRequest} handleSubForm={handleSubForm}
+            handleFetchRequest={handleFetchRequest} handleSubForm={handleSubForm} handleDataSetRequest={handleDataSetRequest}
             getHeaderProps={column => ({  //セルのサイズ合わせとclick　keyが重複するのを避けるため
               onClick: (e) =>{if(e.ctrlKey){  //sort時はctrlKey　keyが必須
                                 switch(column.isSorted){
@@ -510,13 +498,13 @@ const defaultPropGetter = () => ({})
 ///
 const GridTable = ({
     columns,
-    data,setData,
+    data,
     dropDownListOrg,setChangeData,changeData,
     fetch_check,
     params,
     buttonflg,loading,disableFilters,
     hiddenColumns,handleScreenRequest,
-    handleFetchRequest,fetchCheck,toggleSubForm,handleSubForm,
+    handleFetchRequest,fetchCheck,toggleSubForm,handleSubForm,handleDataSetRequest,
     getHeaderProps = defaultPropGetter,
     //getColumnProps = defaultPropGetter,
     getCellProps = defaultPropGetter,
@@ -547,36 +535,36 @@ const GridTable = ({
         []
     )
 
-    const setFetchCheckErr = (index, fetch_data) => {
-      setData(old=>
-        {let newData = old.map((row, idx) => {
-          if (index === idx) {
-                  row = {...row,[params.parse_linedata.errPath]:fetch_data[params.parse_linedata.errPath],
-                                confirm_gridmessage:fetch_data[params.parse_linedata.errPath]}
-              }
-          return row
-        })
-        return newData
-      })
-    }
+    // const setFetchCheckErr = (index, fetch_data) => {
+    //   setData(old=>
+    //     {let newData = old.map((row, idx) => {
+    //       if (index === idx) {
+    //               row = {...row,[params.parse_linedata.errPath]:fetch_data[params.parse_linedata.errPath],
+    //                             confirm_gridmessage:fetch_data[params.parse_linedata.errPath]}
+    //           }
+    //       return row
+    //     })
+    //     return newData
+    //   })
+    // }
 
       
-    useEffect(()=>{setFetchCheckErr(Number(params.index),params.parse_linedata)},[params.err])
+    // useEffect(()=>{setFetchCheckErr(Number(params.index),params.parse_linedata)},[params.err])
     
     
-    const setFetchData = (index, fetch_data) => {
-      setData(prevState=>
-        {let newData = prevState.map((row, idx) => {
-          if (index === idx) {
-                  Object.keys(fetch_data).map((field)=>row = {...row,[field]:fetch_data[field]})
-              }
-          return row
-        })
-        return newData
-      })
-    }
+    // const setFetchData = (index, fetch_data) => {
+    //   setData(prevState=>
+    //     {let newData = prevState.map((row, idx) => {
+    //       if (index === idx) {
+    //               Object.keys(fetch_data).map((field)=>row = {...row,[field]:fetch_data[field]})
+    //           }
+    //       return row
+    //     })
+    //     return newData
+    //   })
+    // }
         
-    useEffect(()=>{setFetchData(Number(params.index),params.parse_linedata)},[params.parse_linedata])
+    // useEffect(()=>{setFetchData(Number(params.index),params.parse_linedata)},[params.parse_linedata])
 
     
 
@@ -609,7 +597,7 @@ const GridTable = ({
             columns,data,
             changeData, params, dropDownList,
             fetch_check,fetchCheck,
-            buttonflg,setData,setChangeData,
+            buttonflg,setChangeData,
             defaultColumn,
             manualPagination: false,
             manualFilters: true,
@@ -623,7 +611,7 @@ const GridTable = ({
                       //filters:setAllFilters(filters),
                       //sortBy:setSortBy(params.sortBy===[]?[]:params.sortBy.map((sort)=>{return sort}))
                     },
-            handleFetchRequest,handleScreenRequest,toggleSubForm
+            handleFetchRequest,handleScreenRequest,toggleSubForm,handleDataSetRequest
     },
     useFilters, //
     useSortBy,  //The useSortBy plugin hook must be placed after the useFilters plugin hook!
@@ -647,15 +635,15 @@ const GridTable = ({
               style: {
                       backgroundColor: 'gray'
                      },
-              onKeyUp: (e) =>  //
-                     {  // filter sortでの検索しなおし
-                      if (e.key === "Enter" &&!params.disableFilters&&!toggleSubForm)
-                          { 
-                            params = {...params,filtered:filters,sortBy:sortBy}
-                            // Apply the header cell props
-                            handleScreenRequest(params,data)
-                          }else{e.key==="Enter"&&toggleSubForm&&alert("can not use filer and sord when subForm using")}
-                      },
+               onKeyUp: (e) =>  //
+                      {  // filter sortでの検索しなおし
+                       if (e.key === "Enter" &&!params.disableFilters&&!toggleSubForm)
+                           { 
+                             params = {...params,filtered:filters,sortBy:sortBy}
+                             // Apply the header cell props
+                             handleScreenRequest(params,data)
+                           }else{e.key==="Enter"&&toggleSubForm&&alert("can not use filer and sord when subForm using")}
+                       },
               onClick: (e) =>{
                               }
             })
@@ -811,7 +799,13 @@ const mapDispatchToProps = (dispatch, ownProps) => ({
          dispatch(SecondSubForm(toggleSubForm,params))
        }else{
          dispatch(ScreenSubForm(toggleSubForm,params))}      
-      }
+      },
+    handleDataSetRequest: (data,params) => {
+        if(params.screenFlg === "second"){
+           dispatch(SecondDataSet(data))
+         }else{
+           dispatch(ScreenDataSet(data))}      
+        },
   
 })
 export default connect(mapStateToProps, mapDispatchToProps)(ScreenGrid7)

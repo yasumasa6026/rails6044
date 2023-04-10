@@ -6,10 +6,10 @@ import ExcelJS from 'exceljs'
 import {saveAs} from "file-saver"
 
 
-function screenApi({params}) {
-  let token = params.token       
-  let client = params.client         
-  let uid = params.uid 
+function screenApi({params,auth}) {
+  let token = auth.token       
+  let client = auth.client         
+  let uid = auth.uid 
   let url = 'http://localhost:3001/api/menus7'
   const headers = {'access-token':token,'client':client,'uid':uid }
 
@@ -26,9 +26,9 @@ function writeBuffer(workbook) {
   return buffer
 }
 
-export function* DownloadSaga({ payload: {params}}) {
+export function* DownloadSaga({ payload: {params,auth}}) {
 
-  let response  = yield call(screenApi,{params } )
+  let response  = yield call(screenApi,{params ,auth} )
   let message
   switch (response.status) {
     case 200:  

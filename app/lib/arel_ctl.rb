@@ -83,7 +83,7 @@ module ArelCtl
 		reqparams["seqno"] << processreqs_id  ###
 		setParams = reqparams.dup
 		setParams.delete(:parse_linedata)  ###size 8192対策
-		setParams.delete(:linedata)
+		setParams.delete(:lineData)
 		strsql = %Q&
 			insert into processreqs(
 						contents,remark,
@@ -502,21 +502,7 @@ module ArelCtl
 				"qty_src" => 0,"amt_src" => 0,"qty_linkto_alloctbl" => 0,
 				"qty_sch" => tmptbldata["qty_sch"].to_f,"qty" =>tmptbldata["qty"].to_f,"qty_stk" => tmptbldata["qty_stk"].to_f,
 				"qty_real" => tmptbldata["qty_stk"].to_f}	
-		stkinout["duedate"] = stkinout["starttime"] =  
-							case stkinout["tblname"]		
-							when /dlvs/
-								tmptbldata["depdate"]
-							when /^puracts/
-								tmptbldata["rcptdate"]
-							when /^prdacts/
-								tmptbldata["cmpldate"]
-							when /rets/
-								tmptbldata["retdate"]
-							when /reply/
-								tmptbldata["replydate"]
-							else
-								tmptbldata["duedate"]
-							end	
+		stkinout["duedate"] = stkinout["starttime"] =  CtlFields.proc_get_endtime stkinout["tblname"],tmptbldata
 		return stkinout		
 	end
 	
@@ -558,8 +544,8 @@ module ArelCtl
 		###src 引当もと旧のリンク数,###数量変更はsrcの相手側
 		###src["trngantts_id"] の数量
 		src_lot = src.dup   ##lotstkhists修正用
-		 case base["tblname"]  
-		 when	/ords|insts|dlvs|reply/
+		case base["tblname"]  
+		when	/ords|insts|dlvs|reply/
 		# 	 ###在庫修正　在庫マイナス
 		 	if src["tblname"] =~ /schs/
 		 		src_lot["qty_sch"] = alloc_qty
@@ -569,7 +555,7 @@ module ArelCtl
 		 		src_lot["qty_sch"] = 0
 		 	end 
 		 	src_lot["qty_stk"] =  0
-		 when /acts/
+		when /acts/
 		# 	###在庫修正　在庫マイナス
 		 	if  src["tblname"] =~ /ords|insts|dlvs|reply/  
 		 		   	src_lot["qty"] = alloc_qty
@@ -579,10 +565,10 @@ module ArelCtl
 		 			src_lot["qty_sch"] = 0
 		 	end
 		    src_lot["qty_stk"] =  0
-		 end
+		end
 
-		 case src["tblname"]  
-		 when	/^prd|^pur/
+		case src["tblname"]  
+		when	/^prd|^pur/
 			strsql = %Q&
 					select  sum(qty_sch) qty_sch,sum(qty) qty,sum(qty_stk) qty_stk,trngantts_id from 
 						(select (qty_linkto_alloctbl) as qty_sch,0 as qty,0 as qty_stk,trngantts_id 
@@ -598,7 +584,7 @@ module ArelCtl
 									and (srctblname like '%acts' or srctblname like '%dlvs')) alloc
 									group by trngantts_id
 				&
-		 when /^cust/  ###custxxxsにはalloctblsは使用しない。数量減しても回復しない。
+		when /^cust/  ###custxxxsにはalloctblsは使用しない。数量減しても回復しない。
 			strsql = %Q&
 					select  sum(qty_sch) qty_sch,sum(qty) qty,sum(qty_stk) qty_stk,trngantts_id from 
 						(select (qty_src) as qty_sch,0 as qty,0 as qty_stk,trngantts_id 
@@ -614,7 +600,7 @@ module ArelCtl
 									and (tblname like '%acts' or tblname like '%dlvs')) alloc
 									group by trngantts_id
 				&
-		 end
+		end
 		alloc = ActiveRecord::Base.connection.select_one(strsql)
 		update_schsql = %Q&
 			update trngantts set qty_sch =  #{alloc["qty_sch"].to_f},qty = #{alloc["qty"].to_f},qty_stk = #{alloc["qty_stk"].to_f},
@@ -701,6 +687,7 @@ module ArelCtl
 			stkinout["qty_sch"] = src_lot["qty_sch"]
 			stkinout["qty"] = src_lot["qty"]
 			stkinout["qty_stk"] = src_lot["qty_stk"]
+			base["srctblid"] = stkinout["id"]
 			Shipment.proc_lotstkhists_in_out("out",stkinout)
 		when "custwhs" 
 			update_sql = %Q&

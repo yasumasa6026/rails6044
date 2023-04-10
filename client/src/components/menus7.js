@@ -23,38 +23,34 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
             isSignUp,screenFlg,auth}) =>{
     const [tabIndex, setTabIndex] = useState(0)
     const [subTabIndex, setSubTabIndex] = useState(0)
-    //const [showScreen, setShowScreen] = useState(false)
     const [loading, setLoading] = useState(true)
     useEffect(()=>{   setLoading(loadingOrg)},[loadingOrg])
-    //useEffect(()=>{   setShowScreen(showScreenOrg)},[showScreenOrg])
     if(params){}else{params = {}}
     if (isAuthenticated) {
       if(menuListData)
       {
       let tmpgrpscr =[]   //グルーブ化されたメニュー
-      let ii = -1    
+      let ii = 0    
       let lastGrp_name = ""
-      // menuListData.map((cate,ii) => {
-      //       //if(tmpgrpscr[ii-1]!==cate.grp_name){tmpgrpscr[ii]=cate.grp_name;ii=ii+1}    
-      //       tmpgrpscr[ii]=cate.grp_name    
-      //     return tmpgrpscr
-      //     })  
+       menuListData.map((cate,idx) => {
+             if(lastGrp_name!==cate.grp_name){tmpgrpscr[ii]=cate.grp_name
+                                                  lastGrp_name = cate.grp_name
+                                                  ii += 1
+           }})  
+      
+      //titleNameSet(tmpgrpscr[tabIndex])
       return (
         <div>
             <Tabs  selectedIndex={tabIndex}  onSelect={(changeTabIndex) => {setTabIndex(changeTabIndex)
-                                                                            changeShowScreen(false) 
-                                                                            setSubTabIndex(-1)
-                                                                            lastGrp_name =  menuListData[tabIndex].grp_name}}
+                                                                            changeShowScreen(false) //別のメニューの残存を消去する。
+                                                                            setSubTabIndex(-1)}}
                     selectedTabClassName="react-tabs--selected_custom_head">
               <TabList>
-                { menuListData.map((val,idx) =>{ 
-                      if(lastGrp_name!==val.grp_name){ii += 1
-                                                            lastGrp_name=val.grp_name
-                                                            tmpgrpscr[ii] = val.grp_name
-                                                            return( <Tab key={ii} >
-                                                                      {val.grp_name}
+                { tmpgrpscr.map((val,idx) =>{ 
+                                                            return( <Tab key={idx} >
+                                                                      {val}
                                                                     </Tab>) }  
-                })}
+               )}
               </TabList>
                   {tmpgrpscr.map((val,idx) => 
                     <TabPanel  key={idx}> 
@@ -62,6 +58,7 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
               </Tabs>
                 <Tabs forceRenderTabPanel  selectedTabClassName="react-tabs--selected_custom_detail" 
                       selectedIndex={subTabIndex}  onSelect={(changeTabIndex) => {setSubTabIndex(changeTabIndex)
+                                                                                
                                                                                    }}  >
                 <TabList>
                   {menuListData.map((val,idx) => 
@@ -69,8 +66,8 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
                     <Tab key={idx} >
                       <Button   type="submit"
                       onClick ={() => { 
-                                        getScreen(val.screen_code,val.scr_name,val.view_name,params,auth)
                                         titleNameSet(val.scr_name)   // cromeのtab表示
+                                        getScreen(val.screen_code,val.scr_name,val.view_name,params,auth)
                                       }
                       }>
                       {val.scr_name}       
