@@ -100,8 +100,8 @@ class OpeClass
 			strsql = %Q&update trngantts set   --- xxschs,xxxordsが変更された時のみ
 							updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 							#{@str_qty.to_s} = #{@tbldata[@str_qty]},remark = 'Operation.proc_trangantts line:#{__LINE__}',
-							prjnos_id = #{@tbldata["prjnos_id"]},duedate_trn = '#{@tbldata[@str_duedate]}',
-							shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}
+							prjnos_id = #{@tbldata["prjnos_id"]},duedate_trn = '#{@tbldata[@str_duedate]}'
+							#{if @tblname =~ /^cust/ then "" else ",shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}" end}
 							where  id = #{@trngantts_id} &
 			ActiveRecord::Base.connection.update(strsql) 
 			####

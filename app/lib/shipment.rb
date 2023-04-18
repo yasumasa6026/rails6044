@@ -818,29 +818,38 @@ module Shipment
 		when /schs$/
 			prev_contblname = "conschs"
 			prev_str_con_qty = "qty_sch"
-			str_con_qty = "qty_sch"
 			str_pare_qty = "qty_sch"
 		when /ords$/
 			prev_contblname = "conschs"
 			prev_str_con_qty = "qty_sch"
-			str_con_qty = "qty"
 			str_pare_qty = "qty"
 		when /acts/
 			prev_contblname = "conords"
 			prev_str_con_qty = "qty"
-			str_con_qty = "qty_stk"
 			str_pare_qty = "qty_stk"
 		when /purdlvs/
 			prev_contblname = "conords"
 			prev_str_con_qty = "qty"
-			str_con_qty = "qty_stk"
 			str_pare_qty = "qtystk"
 		else
 			prev_contblname = "conords"
 			prev_str_con_qty = "qty"
-			str_con_qty = "qty"
 			str_pare_qty = "qty"
 		end
+
+		case tblnamechop
+		when /sch$/
+			str_con_qty = "qty_sch"
+		when /ord$/
+			str_con_qty = "qty"
+		when /act$/
+			str_con_qty = "qty_stk"
+		when /purdlv$/
+			str_con_qty = "qty_stk"
+		else
+			str_con_qty = "qty"
+		end
+		
 		stkinout["qty_sch"] = stkinout["qty"] = stkinout["qty_stk"] =  stkinout["qty_real"] = 0
 		con_qty = CtlFields.proc_cal_qty_sch(parent[str_pare_qty],
 										child["chilnum"],child["parenum"],child["consumunitqty"],

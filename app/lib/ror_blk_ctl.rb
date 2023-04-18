@@ -49,7 +49,8 @@ module RorBlkCtl
 						if k == ""  or k.nil?
 							case 	  j_to_sfld
 							when 'sno'
-								command_c[@tblname.chop+"_sno"] = @tbldata["sno"] = CtlFields.proc_field_sno(@tblname.chop,@tbldata["isudate"],command_c["id"])
+								isudate = command_c["#{@tblname.chop}_isudate"]
+								command_c[@tblname.chop+"_sno"] = @tbldata["sno"] = CtlFields.proc_field_sno(@tblname.chop,isudate,command_c["id"])
 							when 'cno'
 								command_c[@tblname.chop+"_cno"] = @tbldata["cno"] = CtlFields.proc_field_cno(command_c["id"])
 							when 'gno'

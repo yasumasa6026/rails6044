@@ -146,7 +146,7 @@ module CtlFields
 					rec = nil
 					findstatus = false
 				end
-				if rec  ###viewレコードあり
+				if !rec.nil?  ###viewレコードあり
 					### line_data = params[:parse_linedata].dup loop 中に内容の変更はできない。 
 					params[:parse_linedata].each do |key,val|  ###結果をセット
 						if key.to_s == "id"
@@ -306,8 +306,8 @@ module CtlFields
 							### sno,cnoの時は例えば r_puractsにpurord_idを含んでない。(sno_purord,sno_ourdlv等どちらを使用するか不明。)
 							field = (screentblnamechop+"_"+viewtblnamechop+"_id"+delm).to_sym
 							line_data[field] =  ""
-							findstatus = false
 						end
+						findstatus = false
 					else
 					end
 				end
@@ -459,13 +459,30 @@ module CtlFields
 		return params
 	end	
 
-	def judge_check_strorder params,item
+	def judge_check_strorder params,item   ###　r_screens(screens)のみで有効
 		line_data = params[:parse_linedata]
 		if line_data[:screen_strorder] and line_data[:screen_strorder] != ""
 			ary_select_fields = line_data.keys
 			sort_info = {}
 			sort_info[:default] = line_data[:screen_strorder]
-			sort_info = proc_detail_check_strorder sort_info,ary_select_fields
+			sort_info[:default].split(/\s*,\s*/).each do |sort_field|
+				ok = false
+				sort_field.split(" ").each do |chk|
+					strsql = "select 1 from r_screenfields where pobject_code_scr =  '#{line_data[:pobject_code_scr]}'
+															and screenfield_selection  = '1' and pobject_code_sfd = '#{chk}' "
+					rec = ActiveRecord::Base.connection.select_one(strsql)
+					if !rec.nil?
+						ok = true
+					else
+						if ok==true and (chk.gsub(" ","").downcase=="asc" or chk.gsub(" ","").downcase=="desc")
+						else
+							sort_info[:default] = nil
+							sort_info[:err] = "sort fields  error S "
+							break
+						end		
+					end		
+				end	
+			end	
 			if sort_info[:err] 
 				params[:err] =  sort_info[:err] + "line:#{params[:index]}" 
 			else
@@ -563,25 +580,25 @@ module CtlFields
 		return params
 	end
 
-	def  proc_detail_check_strorder sort_info,ary_select_fields
-		##fields = sort_info[:default].split(/\s*,\s*/)
-		sort_info[:default].split(/\s*,\s*/).each do |sort_field|
-			ok = false
-			sort_field.split(" ").each do |chk|
-				if(ary_select_fields.include?(chk.gsub(" ","").downcase))
-					ok = true
-				else
-					if ok==true and (chk.gsub(" ","").downcase=="asc" or chk.gsub(" ","").downcase=="desc")
-					else
-						sort_info[:default] = nil
-						sort_info[:err] = "sort option error7"
-						break
-					end		
-				end		
-			end	
-		end	
-		return sort_info
-	end	
+	# def  proc_detail_check_strorder sort_info,ary_select_fields
+	# 	##fields = sort_info[:default].split(/\s*,\s*/)
+	# 	sort_info[:default].split(/\s*,\s*/).each do |sort_field|
+	# 		ok = false
+	# 		sort_field.split(" ").each do |chk|
+	# 			if(ary_select_fields.include?(chk.gsub(" ","").downcase))
+	# 				ok = true
+	# 			else
+	# 				if ok==true and (chk.gsub(" ","").downcase=="asc" or chk.gsub(" ","").downcase=="desc")
+	# 				else
+	# 					sort_info[:default] = nil
+	# 					sort_info[:err] = "dropDownList,fetch,check  error 7"
+	# 					break
+	# 				end		
+	# 			end		
+	# 		end	
+	# 	end	
+	# 	return sort_info
+	# end	
 
 	def judge_check_qty params,item
 		###　get_fetch_recで実施済
@@ -1169,7 +1186,7 @@ module CtlFields
 			when "gno" ###画面の時用にror_blkctl.create_src_tblでもsetしてる
 				command_x["#{tblnamechop}_gno"]  = proc_field_gno(tblnamechop,command_x["id"])
 			when "sno"  ###tblfield_seqnoはidの後であること。###画面の時用にror_blkctl.create_src_tblでもsetしてる
-				command_x["#{tblnamechop}_sno"]  = proc_field_sno(tblnamechop,command_x["#{tblnamechop}_isudate"].to_date ,command_x["id"])
+				command_x["#{tblnamechop}_sno"]  = proc_field_sno(tblnamechop,command_x["#{tblnamechop}_isudate"] ,command_x["id"])
 			when "cno"  ###画面の時用にror_blkctl.crete_src_tblでもsetしてる
 			when "prjnos_id"
 				command_x = field_prjnos_id(tblnamechop,command_x,nd,parent)
@@ -1377,7 +1394,7 @@ module CtlFields
 		return command_x
 	end
 
-	def proc_field_sno(tblnamechop,isudate,id)
+	def proc_field_sno(tblnamechop,isudate,id)  ###id=tbl.id
 		proc_snolist["#{tblnamechop}s"] + isudate.to_time.strftime("%y")[1] + 
 					["0","1","2","3","4","5","6","7","8","9","A","B","C"][isudate.to_time.strftime("%m").to_i]  + format('%04d', id) 
 	end

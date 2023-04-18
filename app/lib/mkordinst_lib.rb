@@ -225,11 +225,11 @@ module MkordinstLib
                                 	command_c["opeitm_#{opekey.sub("s_id","_id")}"] = value
 								end
 							end
-							if opeitm["packqty"].to_f != 0
-								command_c["#{tblord}_qty_case"] = command_c[symqty]  / opeitm["packqty"].to_f
-							else
-								command_c["#{tblord}_qty_case"] = 0
-							end
+							# if opeitm["packqty"].to_f != 0
+							# 	command_c["#{tblord}_qty_case"] = command_c[symqty]  / opeitm["packqty"].to_f
+							# else
+							# 	command_c["#{tblord}_qty_case"] = 0
+							# end
 						when /duedate|starttime/
 							command_c["#{tblord}_#{key}"] = sumSchs[key].strftime("%Y-%m-%d %H:%M:%S")
 						when /isudate/
@@ -708,7 +708,7 @@ module MkordinstLib
 					free_qty -= sch_trn["qty_sch"].to_f
 					sch_trn["qty_sch"]  = 0
 				else
-					sch_trn["qty_sch"] = sch_trn["qty_sch"].to_f - base["qty_src"]  
+					sch_trn["qty_sch"] = sch_trn["qty_sch"].to_f - free_qty 
 					free_qty = 0
 				end
 

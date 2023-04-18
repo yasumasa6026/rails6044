@@ -66,6 +66,7 @@ const AutoCell = ({
                  values[id] =  e.target.value
                  updateMyData(index, id, values[id] ) //dataの内容が更新されない。但しとると、画面に入力内容が表示されない。
                  updateChangeData(index,id,values[id])
+                 handleDataSetRequest(data,params)
                }   
         } 
   
@@ -92,6 +93,7 @@ const AutoCell = ({
                         {handleDataSetRequest(data,params)}} //onBlurFunc7でセットされた項目を画面に反映
             }else{
               updateMyData(index, msg_id, " error " + lineData[msg_id])
+              handleDataSetRequest(data,params)
             }
         }    
   

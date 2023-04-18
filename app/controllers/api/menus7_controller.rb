@@ -135,8 +135,6 @@ module Api
                             raise
                         end
                     end
-                    ##  pagedata,reqparams = screen.proc_search_blk(reqparams)   ###:pageInfo  -->menu7から未使用
-                    ##  render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams,:outcnt => outcnt,:err => ""}
                     ActiveRecord::Base.connection.commit_db_transaction()
                     render json:{:outcnt => outcnt,:err => ""}
                 else
@@ -198,8 +196,6 @@ module Api
                             raise
                         end
                     end
-                    ##  pagedata,reqparams = screen.proc_search_blk(reqparams)   ###:pageInfo  -->menu7から未使用
-                    ##  render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams,:outcnt => outcnt,:err => ""}
                     ActiveRecord::Base.connection.commit_db_transaction()
                     render json:{:outcnt => outcnt,:err => ""}
                 else

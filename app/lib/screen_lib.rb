@@ -184,10 +184,10 @@ module ScreenLib
 					dropdownlist[key] = tmpval.chop + "]"
 				end	
 				@grid_columns_info[:dropdownlist] = dropdownlist
-				if sort_info[:default]
-					ary_select_fields = select_fields.split(',')
-					sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
-				end	
+				# if sort_info[:default]
+				# 	ary_select_fields = select_fields.split(',')
+				# 	sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
+				# end	
 				@grid_columns_info[:init_where_info] = init_where_info
 				@grid_columns_info[:sort_info] = sort_info	
 				@grid_columns_info[:screenwidth] = screenwidth	
@@ -379,7 +379,12 @@ module ScreenLib
 					strsorting << " id desc "
 				end
 			else
-				strsorting = "  order by id desc "
+				strSort = grid_columns_info[:sort_info][:default]
+				if strSort.nil? or strSort == ""
+					strsorting = "  order by id desc "
+				else
+					strsorting = "  order by #{strSort} ,id desc "
+				end
 				setParams[:sortBy] = []
 			end
 			setParams[:clickIndex] = []
@@ -671,10 +676,10 @@ module ScreenLib
 				fetch_check = {}
 				fetch_check[:fetchCode] = YupSchema.proc_create_fetchCode screenCode   
 				fetch_check[:checkCode]  = YupSchema.proc_create_checkCode screenCode   
-				if sort_info[:default]
-					ary_select_fields = select_fields.split(',')
-					sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
-				end	 
+				# if sort_info[:default]
+				# 	ary_select_fields = select_fields.split(',')
+				# 	sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
+				# end	 
 				page_info[:screenwidth] = screenwidth	
 				if gridmessages_fields.size > 1
 					select_fields << gridmessages_fields

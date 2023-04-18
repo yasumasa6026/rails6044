@@ -513,16 +513,18 @@ module ArelCtl
 		linktbl_ids << proc_insert_linktbls(src,base)
 		###
 		strsql = %Q&
-			 update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
-							 remark = '#{self}.add_update_alloc_add_link line:(#{__LINE__})'
-							 where id = #{src["alloc_id"]} 
+			update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
+						updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+						remark = '#{self}.add_update_alloc_add_link line:(#{__LINE__})'
+					where id = #{src["alloc_id"]} 
 			 &
 		 ActiveRecord::Base.connection.update(strsql)
 
 		strsql = %Q&
 		 	  update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
-		 					  remark = '#{self}.add_update_alloc_add_link line:(#{__LINE__})'
-		 					  where id = #{base["alloc_id"]} 
+			   				updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+		 					remark = '#{self}.add_update_alloc_add_link line:(#{__LINE__})'
+		 			where id = #{base["alloc_id"]} 
 		 	  &
 		ActiveRecord::Base.connection.update(strsql)
 
@@ -781,7 +783,7 @@ module ArelCtl
                            inner join shelfnos s on o.shelfnos_id_opeitm = s.id
                            inner join shelfnos xto on o.shelfnos_id_to_opeitm = xto.id) ope ---完成後の移動場所から親の場所に
                    on  ope.itms_id = nditm.itms_id_nditm  and ope.processseq = nditm.processseq_nditm
-                   where nditm.expiredate > current_date and nditm.opeitms_id = #{opeitms_id}
+                   where nditm.expiredate > current_date and nditm.opeitms_id = #{opeitms_id} and ope.priority = 999
         %  
     end
 	
