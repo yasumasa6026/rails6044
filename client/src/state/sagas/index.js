@@ -6,7 +6,7 @@ import {LOGIN_REQUEST,SIGNUP_REQUEST,MENU_REQUEST,FETCH_REQUEST,
         SCREEN_CONFIRM7,SECOND_CONFIRM7,SECOND_REQUEST,
         GANTTCHART_REQUEST,BUTTONLIST_REQUEST,
         DOWNLOAD_REQUEST, YUP_REQUEST,TBLFIELD_REQUEST,
-        INPUTFIELDPROTECT_REQUEST, LOGOUT_REQUEST,
+        INPUTFIELDPROTECT_REQUEST, LOGOUT_REQUEST,UPDATEGANTT_REQUEST,
       } from  '../../actions'
 
 // Route Sagas
@@ -38,6 +38,7 @@ export function * sagas () {
   yield takeEvery(YUP_REQUEST,TblfieldSaga)  //yupの作成　Tblfieldと同じdef
   yield takeEvery(TBLFIELD_REQUEST,TblfieldSaga)
   yield takeEvery(GANTTCHART_REQUEST,GanttChartSaga)
+  yield takeEvery(UPDATEGANTT_REQUEST,GanttChartSaga)
   yield takeEvery(IMPORTEXCEL_REQUEST,ImportExcelSaga)
   yield takeEvery(INPUTFIELDPROTECT_REQUEST,ProtectSaga)
 }

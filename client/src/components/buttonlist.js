@@ -135,7 +135,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           case "ganttchart":
                   if(typeof(params.index)==="number"){
                       params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"ganttchart",}
-                      return  dispatch(GanttChartRequest(params,auth)) }//
+                      return  dispatch(GanttChartRequest(params)) }//
                   else{alert("please select")}  
                   break
 

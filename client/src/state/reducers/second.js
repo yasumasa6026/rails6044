@@ -1,13 +1,14 @@
 import {LOGOUT_REQUEST,  //SECONDSCREEN_REQUEST,
         //MKSHPACTS_RESULT,
-        SECOND_CONFIRMALL_SUCCESS,SECOND_SUCCESS7,SCREEN_SUCCESS7,SECOND_DATASET,
+        SECOND_CONFIRMALL_SUCCESS,SECOND_SUCCESS7,SECOND_DATASET,
         SECOND_CONFIRM7,SECOND_CONFIRM7_SUCCESS,SECOND_FAILURE, SECONDFETCH_REQUEST,SECOND_SUBFORM,
-        SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT,SCREENINIT_REQUEST} from '../../actions'
+        SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT, CHANGE_SHOW_SCREEN,
+        SCREENINIT_REQUEST, SCREEN_SUCCESS7,SCREEN_REQUEST} from '../../actions'
 
         const initialValues = {data:[],
             params:{screenCode:""},
             grid_columns_info:{pageSizeList:[],
-                               columns_info:null,
+                               columns_info:[],
                                creenwidth:0,
                                dropDownList:[],
                                hiddenColumns:[]},
@@ -44,8 +45,6 @@ const secondreducer =  (state = initialValues , actions) =>{
         secondloading:true,
          // editableflg:actions.payload.editableflg
      }
-
-     
 
      case SECOND_CONFIRM7:
         return {...state,
@@ -112,6 +111,13 @@ const secondreducer =  (state = initialValues , actions) =>{
             secondloading:false,
             hostError: null,
         }
+
+
+    case SECOND_DATASET:
+            return {...state,
+                        data: actions.payload.data,
+                }
+           
    
     case SECOND_SUBFORM:
         return {...state,
@@ -119,26 +125,26 @@ const secondreducer =  (state = initialValues , actions) =>{
         }
 
     case SCREENINIT_REQUEST:
-        return {
-            toggleSubForm:false,
-            // editableflg:actions.payload.editableflg
-  }
+    case SCREEN_SUCCESS7:
+    case SCREEN_REQUEST:
+    case CHANGE_SHOW_SCREEN:
+        return {data:[],
+            params:{screenCode:"",
+                    parse_linedata:{},
+                    filtered:[],where_str:"",sortBy:[],screenFlg:"second",
+                    screenCode:"",pageIndex:0,pageSize:20,totalCount:0,
+                    index:0,clickIndex:[],err:null,},
+            grid_columns_info:{pageSizeList:[],
+                    columns_info:[],
+                    creenwidth:0,
+                    dropDownList:[],
+                    hiddenColumns:[]},}
   
-    case SCREEN_SUCCESS7: // payloadに統一
-        return {...state,
-                pareScreenCode: actions.payload.data.params.screenCode,
-        }
-
-
-    case SECOND_DATASET:
-        return {...state,
-                    data: actions.payload.data,
-            }
-       
     case  LOGOUT_REQUEST:
         return {}  
 
-    default:
+    
+     default:
         return {...state}
   }
 }

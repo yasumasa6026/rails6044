@@ -3,30 +3,21 @@
 module GanttChart
     extend self
 	class GanttClass
-		def initialize(gantt_reverse)
+		def initialize(gantt_reverse,tbl)
 			@bgantts = {}  ###全体のtree構造　keyは階層レベル
         	@ngantts = []  ###親直下の子ども処理用
-			@level = "000"
+			@level = tbl
 			@err = false
-			if gantt_reverse =~ /gantt|mst/
-				@base = "000"
-			else
-				@base = "999"
-			end
+			@base = @level
 		end
 
     	def  proc_get_ganttchart_data(mst_code,id,gantt_reverse)   ###opeims_idはある。
         	time_now =  Time.now
-			case gantt_reverse
-			when /mst/
-				if gantt_reverse =~ /gantt/
-					@min_time = "2099-12-31"
-					@max_time = Time.now.strftime("%Y-%m-%d")
-				else
-					@max_time =  Time.now.strftime("%Y-%m-%d")
-					@min_time = Time.now.strftime("%Y-%m-%d")
-				end
-				@bgantts[@base] = {:itm_code=>"",:itm_name=>"全行程",:loca_code=>"",:loca_name=>"",:opeitms_id=>"0",
+			case mst_code
+			when /itms/
+				@max_time = Time.now.strftime("%Y-%m-%d")
+				@min_time = Time.now.strftime("%Y-%m-%d")
+				@bgantts[@base] = {:itm_code=>"",:itm_name=>"全行程",:processseq=>"",:loca_code=>"",:loca_name=>"",:opeitms_id=>"0",
 												:parenum=>"親員数",:chilnum=>"子員数",:type=>"project",
 												:depend => [""],:id=>"000"}
 				case mst_code
@@ -43,10 +34,11 @@ module GanttChart
 				if rec then
 					case mst_code
 					when /^opeitms|^itms/
-						@ngantts << {	:itms_id=>rec["opeitm_itm_id"],:locas_id=>rec["shelfno_loca_id_shelfno_opeitm"],:opeitms_id=>rec["id"],
+						@ngantts << {	:itms_id=>rec["opeitm_itm_id"],:locas_id=>rec["shelfno_loca_id_shelfno_opeitm"],:opeitms_id=>rec["opeitm_id"],
 										:itm_code=>rec["itm_code"],:itm_name=>rec["itm_name"],:qty=>1,:depend => [],:type=>"task",
-										:loca_code=>rec["loca_code_shelfno_opeitm"],:loca_name=>rec["loca_name"],
-										:parenum=>1,:chilnum=>1,:duration=>rec["opeitm_duration"],:prdpur=>rec["opeitm_prdpur"],
+										:loca_code=>rec["loca_code_shelfno_opeitm"],:loca_name=>rec["loca_name"],:parenum=>1,:chilnum=>1,
+										:duration=>rec["opeitm_duration"],:units_lttime=>rec["opeitm_units_lttime"],
+										:prdpur=>rec["opeitm_prdpur"],
 										:processseq=>"#{if mst_code =~ /^itms/ then '999' else  rec["opeitm_processseq"] end}",
 										:priority=>"#{if mst_code =~ /^itms/ then '999' else rec["opeitm_priority"] end}",
 										:start=>@min_time,:duedate=>@max_time,:id=>@level+ format('%07d',id.to_i)}  ###:id=>ganttのkey
@@ -56,20 +48,32 @@ module GanttChart
 								@ngantts << {	:itms_id=>rec["opeitm_itm_id"],:locas_id=>rec["shelfno_loca_id_shelfno_opeitm"],:type=>"task",
 										:opeitms_id=>rec["nditm_opeitm_id"],:itm_code=>rec["itm_code"],:itm_name=>rec["itm_name"],:qty=>1,
 										:loca_code=>rec["loca_code_shelfno_opeitm"],:loca_name=>rec["loca_name_shelfno_opeitm"],:depend => [],
-										:parenum=>1,:chilnum=>1,:duration=>rec["opeitm_duration"],:prdpur=>rec["opeitm_prdpur"],
-										:processseq=>rec["nditm_processseq"],
+										:parenum=>1,:chilnum=>1,:prdpur=>rec["opeitm_prdpur"],
+										:duration=>rec["opeitm_duration"],:units_lttime=>rec["opeitm_units_lttime"],
+										:processseq=>rec["opeitm_processseq"],:priority=>rec["opeitm_priority"],
 										:start=>@min_time,:duedate=>@max_time,:id=>@level+format('%07d',id.to_i)}  ###:id=>
-						when "reverse"
+						when /reverse/
 								ope = ActiveRecord::Base.connection.select_one("select ope.*,shelf.locas_id_shelfno locas_id from opeitms ope
 																	inner join shelfnos shelf on shelf.id = ope.shelfnos_id_opeitm 
-																	where ope.itms_id = #{rec["itm_id_nditm"]} 
-																	and ope.processseq = #{rec["nditm_processseq"]}
+																	where ope.itms_id = #{rec["nditm_itm_id_nditm"]} 
+																	and ope.processseq = #{rec["nditm_processseq_nditm"]}
+																	and ope.priority = 999
 																	and ope.Expiredate > current_date")
-								@ngantts << {	:itms_id=>rec["itm_id_nditm"],:locas_id=>ope["locas_id_shelfno"],:type=>"task",
-										:opeitms_id=>ope["id"],:qty=>1,:depend => [],
-										:parenum=>1,:chilnum=>1,:duration=>ope["duration"],:prdpur=>ope["prdpur"],
+								if ope
+									@ngantts << {	:itms_id=>ope["itms_id"],:locas_id=>ope["locas_id"],:type=>"task",
+										:opeitms_id=>ope["id"],:qty=>1,:depend => [],:parenum=>1,:chilnum=>1,
+										:duration=>ope["duration"],:units_lttime=>ope["units_lttime"],
+										:prdpur=>ope["prdpur"],
 										:processseq=>ope["processseq"],:priority=>ope["priority"],
-										:start=>@max_time,:duedate=>@min_time,:id=>@level+format('%07d',id.to_i)}  ###:
+										:start=>@max_time,:duedate=>@min_time,:id=>@level+format('%07d',ope["id"].to_i)}  ###:
+								else
+									@ngantts << {:itms_id=>rec["nditm_itm_id_nditm"],:locas_id=>"0",:type=>"task",
+										:opeitms_id=>"0",:qty=>1,:depend => [],:parenum=>1,:chilnum=>1,
+										:duration=>1,:units_lttime=>"DAY ",
+										:prdpur=>"dummy",
+										:processseq=>999,:priority=>999,
+										:start=>@max_time,:duedate=>@min_time,:id=>@level+format('%07d',0)}  ###:
+								end
 						end
 					end
 					cnt = 0
@@ -79,128 +83,318 @@ module GanttChart
 						break if cnt >= 1000
 					end
 				else
+					logger.debug "#{Time.now} #{__LINE__} logic err #{mst_code},#{id},#{gantt_reverse}"
+					raise
 				end
-			when /trn/
+			when /prd|pur|cust/
 				@bgantts[@base] = {:itm_code=>"",:itm_name=>"全行程",:loca_code=>"",:loca_name=>"",:opeitms_id=>"0",
+												:start => "2099-12-31",:duedate => "2000-01-01",
 												:type=>"project",:depend => [""],:id=>@level}
 				trget = ActiveRecord::Base.connection.select_one(%Q&select * from #{mst_code} where id = #{id}&)
 				@bgantts[@base] [:tblname] = mst_code
 				@bgantts[@base] [:sno] = trget["sno"]
 					###一度登録した trnganttsのtblname,tblidに変更はない。
-				strsql = %Q&
-								select trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
-										trn.tblname,trn.tblid,
-										trn.parenum,trn.chilnum,trn.processseq_trn,trn.starttime_trn,trn.duedate_trn,
-										trn.id trngantts_id ,trn.qty_sch,trn.qty,trn.qty_stk
-										from trngantts trn 
-										where  trn.tblid = #{id} and trn.tblname = '#{mst_code}' --- -->画面でclickされたtableのid
-						&
-				trn = ActiveRecord::Base.connection.select_one(strsql)
-				@max_time = trget[:duedate_trn]
-				@min_time = trget[:starttime_trn]
+				@max_time = trget["duedate"]
+				@min_time = trget["starttime"]
 				case mst_code
 				when /purords|prdords|purschs|prdschs/
-					strsql = %Q&
-							select sum(qty_linkto_alloctbl) qty from alloctbls 
-								where srctblname = '#{mst_code}' and srctblid = #{id}
-								group by srctblname,srctblid
-					&
-					qty = ActiveRecord::Base.connection.select_value(strsql)
-					strsql = %Q&
-							select l.srctblname,l.srctblid from linktbls l
-								inner join alloctbls a on a.trngantts_id = l.trngantts_id 
-								where l.tblname = '#{mst_code}' and l.tblid = #{id}
-								and a.qty_linkto_alloctbl > 0
-					&
-					link = ActiveRecord::Base.connection.select_one(strsql)
-					n0 = 	{:itms_id=>trn["itms_id_trn"],:locas_id=>trn["locas_id_trn"],:type=>"task",
-								:depend => [],
-								:linktblname=>link["srctblname"],:linktblid=>link["srctblid"],
-								:tblname=>trn["tblname"],:tblid=>trn["tblid"],:trngantts_id=>trn["id"],
-								:orgtblname=>trn["orgtblname"],:orgtblid=>trn["orgtblid"],
-								:paretblname=>trn["paretblname"],:paretblid=>trn["paretblid"],
-								:parenum=>1,:chilnum=>1,:processseq=>trn["processseq_trn"],
-								:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],
-								:qty=>qty.to_f,:qty_stk=>0,
-								:id=>@level + "000" } 
-					@ngantts << n0
-				when /custschs|custords/  ###custords,custschs単独の時　custordsがcustschsを引き当てた時
-					n0 = 	{:itms_id=>trn["itms_id_trn"],:locas_id=>trn["locas_id_trn"],:type=>"task",
-								:depend => [],
-								:linktblname=>trn["tblname"],:linktblid=>trn["tblid"],
-								:tblname=>trn["tblname"],:tblid=>trn["tblid"],:trngantts_id=>trn["id"],
-								:linktblname=>trn["tblname"],:linktblid=>trn["tblid"],
-								:orgtblname=>trn["orgtblname"],:orgtblid=>trn["orgtblid"],
-								:paretblname=>trn["paretblname"],:paretblid=>trn["paretblid"],
-								:parenum=>1,:chilnum=>1,:processseq=>trn["processseq_trn"],
-								:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],
-								:qty=>trn["qty_sch"].to_f + trn["qty"].to_f,:qty_stk=>trn["qty_stk"].to_f,
-								:id=>@level + "000" } 
-					@ngantts << n0
-				end
-				until @ngantts.size == 0
-					ngantt = @ngantts.shift
-					ngantt = get_item_loca_contents(ngantt,gantt_reverse) 
-					@bgantts[ngantt[:id]] = ngantt
-					case gantt_reverse
-					when /gantt/  ###custschs,custordsはganttのみ
-						strsql =	%Q&
-								select trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
-											trn.parenum,trn.chilnum,trn.processseq_trn,trn.starttime_trn,trn.duedate_trn,
-											trn.tblname linktblname,trn.tblid linktblid,
+					strsql =	%Q&
+									select  max(trn.itms_id_trn) itms_id_trn,max(trn.locas_id_trn) locas_id_trn,max(trn.orgtblname) orgtblname,
+											max(trn.orgtblid) orgtblid,max(trn.paretblname) paretblname,max(trn.paretblid) paretblid,
+											a.srctblname linktblname,a.srctblid linktblid,
 											a.srctblname tblname,a.srctblid tblid,
-											a.qty_linkto_alloctbl qty_src,trn.id trngantts_id 
-											from trngantts trn
-											inner join alloctbls a  on a.trngantts_id = trn.id  and a.qty_linkto_alloctbl > 0 
-										where trn.paretblname = '#{ngantt[:linktblname]}' and trn.paretblid = #{ngantt[:linktblid]}
-										and  (trn.paretblname != trn.tblname or trn.paretblid != trn.tblid)
-							union  	---  custordsがcustschsを引き当てた時
-									--- org=pare=tblの子供org=pareの時　pare:tblは1:1
-								select trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
+											max(trn.parenum) parenum,max(trn.chilnum) chilnum,max(trn.processseq_trn) processseq_trn,
+											min(trn.starttime_trn) starttime_trn,max(trn.duedate_trn) duedate_trn,
+											sum(a.qty_linkto_alloctbl) qty_src,max(trn.id) trngantts_id 
+										from trngantts trn
+										inner join alloctbls a  on a.trngantts_id = trn.id  and a.qty_linkto_alloctbl > 0 
+										inner join opeitms ope  on trn.itms_id_trn = ope.itms_id and trn.processseq_trn = ope.processseq
+																	and ope.priority = 999
+									where a.srctblname = '#{mst_code}' and a.srctblid = #{id}
+									group by a.srctblname ,a.srctblid 
+								& 
+					if trget["remark"] =~ /create by mkord/  and  gantt_reverse =~ /ganttxxxx/ ###mkprdpurordsで作成
+						# ### gantxxxx
+						# ### @ngantts はからのまま
+						# @bgantts[@base][:itm_name] = " 下記のtop item の子部品として引き当っています。"
+						# @bgantts[@base][:qty] = trget["qty"]
+						# @bgantts[@base][:type] = "task"
+						# ActiveRecord::Base.connection.select_all(strsql).each_with_index do |trn,idx|
+						# 	n0 = 	{:itms_id=>trn["itms_id_org"],:locas_id=>trn["locas_id_org"],:type=>"task",
+						# 					:linktblname=>trn["linktblname"],:linktblid=>trn["linktblid"],
+						# 					:tblname=>trn["orgtblname"],:tblid=>trn["orgtblid"],:trngantts_id=>trn["id"],
+						# 					:orgtblname=>trn["orgtblname"],:orgtblid=>trn["orgtblid"],
+						# 					:paretblname=>trn["paretblname"],:paretblid=>trn["paretblid"],
+						# 					:parenum=>1,:chilnum=>1,:processseq=>trn["processseq_org"],
+						# 					:start=>trn["starttime_org"],:duedate=>trn["duedate_org"],
+						# 					:depend => [@level],				
+						# 					:qty =>case  trn["srctblname"]
+						# 						when  /acts|dlvs|schs/
+						# 							0
+						# 						else	 
+						# 							 trn["qty_src"].to_f
+						# 						end,
+						# 					:qty_sch =>case  trn["srctblname"]
+						# 						when  /schs/
+						# 							trn["qty_src"].to_f
+						# 						else	 
+						# 							0
+						# 						end,
+						# 					:qty_stk =>case  trn["srctblname"]
+						# 						when  /acts/
+						# 							trn["qty_src"].to_f
+						# 						else	 
+						# 							0
+						# 						end,
+						# 					:id=>@level +  format('%03d',idx) } 
+						# 	n0 = get_item_loca_contents(n0,gantt_reverse) 
+						# 	n0[:itm_code] = "top item " + n0[:itm_code] 
+						# 	@bgantts[n0[:id]] = n0
+						# 	if @max_time < n0[:duedate]
+						# 		@max_time = n0[:duedate]
+						# 	end
+						# 	if @min_time > n0[:start]
+						# 		@min_time = n0[:start]
+						# 	end
+						# end
+					else
+						ActiveRecord::Base.connection.select_all(strsql).each_with_index do |trn,idx|
+							n0 = {:itms_id=>trn["itms_id_trn"],:locas_id=>trn["locas_id_trn"],:type=>"task",
+									:depend => [],
+									:linktblname=>trn["linktblname"],:linktblid=>trn["linktblid"],
+									:tblname=>trn["tblname"],:tblid=>trn["tblid"],:trngantts_id=>trn["trngantts_id"],
+									:orgtblname=>trn["orgtblname"],:orgtblid=>trn["orgtblid"],
+									:paretblname=>trn["paretblname"],:paretblid=>trn["paretblid"],
+									:parenum=>1,:chilnum=>1,:processseq=>trn["processseq_trn"],
+									:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],									
+									:qty =>case  trn["srctblname"]
+										when  /acts|dlvs|schs/
+											0
+										else	 
+								 			trn["qty_src"].to_f
+										end,
+									:qty_sch =>case  trn["srctblname"]
+										when  /schs/
+											trn["qty_src"].to_f
+										else	 
+											0
+										end,
+									:qty_stk =>case  trn["srctblname"]
+										when  /acts/
+											trn["qty_src"].to_f
+										else	 
+											0
+										end,
+									:id=>@level  +  format('%03d',idx)  }
+							n0 = get_item_loca_contents(n0,gantt_reverse) 
+							@level = @level  +  format('%03d',idx)
+							@ngantts << n0
+							if @max_time < n0[:duedate]
+								@max_time = n0[:duedate]
+							end
+							if @min_time > n0[:start]
+								@min_time = n0[:start]
+							end
+						end
+					end
+				when /custschs|custords/  ###custords,custschs単独の時　custordsがcustschsを引き当てた時
+					strsql = %Q&
+									select trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
+											trn.tblname,trn.tblid,
+											trn.parenum,trn.chilnum,trn.processseq_trn,trn.starttime_trn,trn.duedate_trn,
+											trn.id trngantts_id ,trn.qty_sch,trn.qty,trn.qty_stk
+										from trngantts trn 
+										where  trn.tblid = #{id} and trn.tblname = '#{mst_code}' --- -->画面でclickされたtableのid
+							&
+					trn = ActiveRecord::Base.connection.select_one(strsql)
+					n0 = 	{:itms_id=>trn["itms_id_trn"],:locas_id=>trn["locas_id_trn"],:type=>"task",
+								:depend => [],
+								:tblname=>trn["tblname"],:tblid=>trn["tblid"],:trngantts_id=>trn["id"],
+								:linktblname=>trn["tblname"],:linktblid=>trn["tblid"],
+								:orgtblname=>trn["orgtblname"],:orgtblid=>trn["orgtblid"],
+								:paretblname=>trn["paretblname"],:paretblid=>trn["paretblid"],
+								:parenum=>1,:chilnum=>1,:processseq=>trn["processseq_trn"],
+								:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],
+								:qty_sch =>trn["qty_sch"].to_f ,:qty =>trn["qty"].to_f ,:qty_stk=>trn["qty_stk"].to_f,
+								:id=>@level + "000" } 
+					
+					strsql =	%Q&
+							  	---  custordsがcustschsを引き当てた時
+								--- org=pare=tblの子供org=pareの時　pare:tblは1:1
+								select trn.mlevel ,trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
 										trn.parenum,trn.chilnum,trn.processseq_trn,trn.starttime_trn,trn.duedate_trn,
 										l.tblname tblname,l.tblid tblid,  
-										trn.tblname linktblname,trn.tblid linktblid,---次への引継ぎ
+										custsch.srctblname linktblname,custsch.srctblid linktblid,---次への引継ぎ
 										l.qty_src,trn.id trngantts_id
 									from trngantts trn
-									inner join linkcusts l on l.trngantts_id = trn.id 
-										where l.tblname = '#{ngantt[:linktblname]}' and l.tblid = #{ngantt[:linktblid]} 
+										inner join linkcusts l on l.srctblid = trn.paretblid 
+										inner join (select a.srctblname,srctblid  from trngantts t 
+													inner join alloctbls a on t.id = a.trngantts_id
+														and a.qty_linkto_alloctbl > 0 
+														and t.mlevel = '1' and paretblname = 'custschs') custsch
+										on trn.tblname = custsch.srctblname and  trn.tblid = custsch.srctblid  
+									where l.tblname = 'custords' and l.tblid =  #{n0[:linktblid]} 
 										and l.qty_src > 0 and ( l.tblname != l.srctblname or l.tblid !=  l.srctblid)
-										and (l.tblname !=  l.srctblname or l.tblid !=  l.srctblid)
+										and trn.paretblname = 'custschs' and l.tblname = 'custords'
+										and trn.mlevel = 1
+									& 	
+					custschs = ActiveRecord::Base.connection.select_all(strsql)
+					n1 =[]
+					custschs.each_with_index do |custsch,idx|
+						gantt_id = n0[:id] + "1" + format('%02d',idx)
+						n1[idx] =   {:itms_id=>custsch["itms_id_trn"],:locas_id=>custsch["locas_id_trn"],:type=>"task",
+									:depend => [],
+									:qty_sch =>0 ,:qty =>custsch["qty_src"].to_f ,:qty_stk =>0 ,
+									:orgtblname=>custsch["orgtblname"],:orgtblid=>custsch["orgtblid"],
+									:paretblname => custsch["paretblname"],:paretblid => custsch["paretblid"],
+									:tblname=>custsch["linktblname"],:tblid=>custsch["linktblid"],
+									:linktblname=>custsch["linktblname"],:linktblid=>custsch["linktblid"],
+									:trngantts_id=>custsch["trngantts_id"],  ###trngantts.tblnameは変化している。
+									:parenum=>custsch["parenum"],:chilnum=>custsch["chilnum"],:processseq=>custsch["processseq_trn"],
+									:start=>custsch["starttime_trn"],:duedate=>custsch["duedate_trn"],:id=>gantt_id}  
+						n0[:depend] << gantt_id
+						if @max_time < n1[idx][:duedate]
+								@max_time = n1[idx][:duedate]
+						end
+						if @min_time > n1[idx][:start]
+								@min_time = n1[idx][:start]
+						end
+					end
+					@level = n0[:id]
+					n0 = get_item_loca_contents(n0,gantt_reverse) 
+					if n1.size > 0 
+						@bgantts[n0[:id]] = n0
+						n1.each do |nx|
+							@ngantts << nx
+						end
+					else 
+						n0[:depend]  << (n0[:id] + "001")
+						@bgantts[n0[:id]] = n0
+						@level = n0[:id]
+						strsql = %Q&
+										select trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
+												trn.tblname,trn.tblid,
+												trn.parenum,trn.chilnum,trn.processseq_trn,trn.starttime_trn,trn.duedate_trn,
+												trn.id trngantts_id ,trn.qty_sch,trn.qty,trn.qty_stk,(a.qty_linkto_alloctbl) qty_src
+												from trngantts trn 
+											inner join alloctbls a on a.trngantts_id = trn.id 
+											where  trn.paretblid = #{id} and trn.paretblname = '#{mst_code}' --- -->画面でclickされたtableのid
+											and a.qty_linkto_alloctbl > 0
+								&
+						trn = ActiveRecord::Base.connection.select_one(strsql)
+						n0 = 	{:itms_id=>trn["itms_id_trn"],:locas_id=>trn["locas_id_trn"],:type=>"task",
+									:depend => [],
+									:linktblname=>trn["tblname"],:linktblid=>trn["tblid"],
+									:tblname=>trn["tblname"],:tblid=>trn["tblid"],:trngantts_id=>trn["id"],
+									:orgtblname=>trn["orgtblname"],:orgtblid=>trn["orgtblid"],
+									:paretblname=>trn["paretblname"],:paretblid=>trn["paretblid"],
+									:parenum=>1,:chilnum=>1,:processseq=>trn["processseq_trn"],
+									:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],									
+									:qty =>case  trn["srctblname"]
+										when  /acts|dlvs|schs/
+											0
+										else	 
+								 			trn["qty_src"].to_f
+										end,
+									:qty_sch =>case  trn["srctblname"]
+										when  /schs/
+											trn["qty_src"].to_f
+										else	 
+											0
+										end,
+									:qty_stk =>case  trn["srctblname"]
+										when  /acts/
+											trn["qty_src"].to_f
+										else	 
+											0
+										end,
+									:id=>@level + "001" } 
+									
+						n0 = get_item_loca_contents(n0,gantt_reverse) 
+						@ngantts << n0
+					end
+				end
+				reverse_linkid = {}
+				until @ngantts.size == 0   ###子部品の展開
+					ngantt = @ngantts.shift
+					@level = ngantt[:id]
+					@bgantts[@level] = ngantt
+					case gantt_reverse
+					when /gantt/  ###custschs,custordsは対象済
+						strsql =	%Q&
+								select  max(trn.itms_id_trn) itms_id_trn,max(trn.locas_id_trn) locas_id_trn,max(trn.orgtblname) orgtblname,
+										max(trn.orgtblid) orgtblid,max(trn.paretblname) paretblname,max(trn.paretblid) paretblid,
+										alloc.srctblname linktblname,alloc.srctblid linktblid,
+										alloc.srctblname tblname,alloc.srctblid tblid,
+										max(trn.parenum) parenum,max(trn.chilnum) chilnum,max(trn.processseq_trn) processseq_trn,
+										min(trn.starttime_trn) starttime_trn,max(trn.duedate_trn) duedate_trn,
+										sum(alloc.qty_linkto_alloctbl) qty_src,max(trn.id) trngantts_id 
+									from trngantts trn
+									inner join (select orgtblname ,tblname,orgtblid,tblid,t.id,
+														a.srctblname ,a.srctblid ,a.qty_linkto_alloctbl 
+														from trngantts t 
+													inner join alloctbls a on a.trngantts_id  = t.id  
+													where  a.srctblname = '#{ngantt[:linktblname]}' and a.srctblid = #{ngantt[:linktblid]}
+															and a.qty_linkto_alloctbl > 0 ) pare 
+										on trn.orgtblname = pare.orgtblname and trn.paretblname = pare.tblname
+																and trn.orgtblid = pare.orgtblid and trn.paretblid = pare.tblid
+									inner join alloctbls alloc on alloc.trngantts_id = trn.id
+																and alloc.qty_linkto_alloctbl > 0
+								where (trn.tblname != trn.paretblname or trn.tblid != trn.paretblid) 
+								group by alloc.srctblname ,alloc.srctblid 
 									& 
 					else  ###custschs,custordsはganttのみ
 						strsql = %Q&
+								select  max(trn.itms_id_pare) itms_id_trn,max(trn.locas_id_pare) locas_id_trn,max(trn.orgtblname) orgtblname,
+										max(trn.orgtblid) orgtblid,max(trn.paretblname) paretblname,max(trn.paretblid) paretblid,
+										pare.srctblname tblname,pare.srctblid tblid,
+										pare.srctblname linktblname,pare.srctblid linktblid,
+										max(trn.parenum) parenum,max(trn.chilnum) chilnum,max(trn.processseq_pare) processseq_trn,
+										min(trn.starttime_pare) starttime_trn,max(trn.duedate_pare) duedate_trn,
+										sum(pare.qty_linkto_alloctbl) qty_src,max(pare.id) trngantts_id 
+											from trngantts trn
+											inner join (select orgtblname ,tblname,orgtblid,tblid,t.id,
+																a.srctblname ,a.srctblid ,a.qty_linkto_alloctbl 
+																from trngantts t 
+															inner join alloctbls a on a.trngantts_id  = t.id  and a.qty_linkto_alloctbl > 0 ) pare 
+												on trn.orgtblname = pare.orgtblname and trn.paretblname = pare.tblname
+																		and trn.orgtblid = pare.orgtblid and trn.paretblid = pare.tblid
+											inner join alloctbls alloc on alloc.trngantts_id = trn.id
+										where alloc.srctblname = '#{ngantt[:linktblname]}' and alloc.srctblid = #{ngantt[:linktblid]}
+											and (trn.tblname != trn.paretblname or trn.tblid != trn.paretblid)
+											and alloc.qty_linkto_alloctbl > 0 
+										group by pare.srctblname ,pare.srctblid 
+							union	---  custords										
 								select  (trn.itms_id_pare) itms_id_trn,(trn.locas_id_pare) locas_id_trn,(trn.orgtblname) orgtblname,
 										(trn.orgtblid) orgtblid,(trn.paretblname) paretblname,(trn.paretblid) paretblid,
-										link.tblname,link.tblid,
+										trn.paretblname tblname,trn.paretblid tblid,
+										pare.srctblname linktblname,pare.srctblid linktblid,
 										(trn.parenum) parenum,(trn.chilnum) chilnum,(trn.processseq_pare) processseq_trn,
-										(trn.starttime_pare) starttime_trn,(trn.duedate_pare) duedate_trn,
-										trn.paretblname linktblname,trn.paretblid linktblid,
-										(link.qty_linkto_alloctbl) qty_src,(trn.id) trngantts_id 
+										min(trn.starttime_pare) starttime_trn,max(trn.duedate_pare) duedate_trn,
+										sum(pare.qty_src) qty_src,(pare.id) trngantts_id 
 											from trngantts trn
-											inner join (select a.qty_linkto_alloctbl,l.* from linktbls l 
-															inner join alloctbls a on a.trngantts_id = l.trngantts_id 
-																and l.tblname = a.srctblname and l.tblid = a.srctblid 
-																and a.qty_linkto_alloctbl > 0) link 
-												on link.srctblname = trn.paretblname and  link.srctblid = trn.paretblid	
+											inner join (select t.orgtblname ,t.tblname,orgtblid,t.tblid,t.id,
+																l.srctblname ,l.srctblid ,l.qty_src 
+																from trngantts t 
+															inner join linkcusts l  on l.trngantts_id  = t.id  and l.srctblid = t.tblid  
+															and l.qty_src > 0) pare 
+												on trn.orgtblname = pare.orgtblname and trn.paretblname = pare.tblname
+																		and trn.orgtblid = pare.orgtblid and trn.paretblid = pare.tblid										
 										where trn.tblname = '#{ngantt[:linktblname]}' and trn.tblid = #{ngantt[:linktblid]}
-										and (trn.tblname != trn.paretblname or trn.tblid != trn.paretblid)
-							union  ---  custords(top)のみの時
-								select  (trn.itms_id_pare) itms_id_trn,(trn.locas_id_pare) locas_id_trn,(trn.orgtblname) orgtblname,
-										(trn.orgtblid) orgtblid,(trn.paretblname) paretblname,(trn.paretblid) paretblid,
-										l.tblname,l.tblid,
-										(trn.parenum) parenum,(trn.chilnum) chilnum,(trn.processseq_trn) processseq_trn,
-										(trn.starttime_pare) starttime_trn,(trn.duedate_pare) duedate_trn,
-										'' linktblname,0 linktblid,
-										l.qty_src,(trn.id) trngantts_id 
-											from trngantts trn
-											inner join linkcusts l  on l.srctblname = trn.paretblname and l.srctblid = trn.paretblid 
-									and trn.tblname = '#{ngantt[:linktblname]}' and trn.tblid = #{ngantt[:linktblid]}
+											and (trn.tblname != trn.paretblname or trn.tblid != trn.paretblid) 
+										group by  (trn.itms_id_pare) ,(trn.locas_id_pare) ,(trn.orgtblname) ,
+										(trn.orgtblid) ,(trn.paretblname) ,(trn.paretblid) ,
+										trn.paretblname ,trn.paretblid ,
+										pare.srctblname ,pare.srctblid ,
+										(trn.parenum) ,(trn.chilnum) ,(trn.processseq_pare) ,(pare.id)  
 							union  ---  custordsがcustschsを引き当てた時
 									--- org=pare=tblの子供org=pareの時　pare:tblは1:1
-								select trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
-										l.tblname tblname,l.tblid tblid,
-										trn.parenum,trn.chilnum,trn.processseq_trn,trn.starttime_trn,trn.duedate_trn,
+								select trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,
+										trn.orgtblid,trn.paretblname,trn.paretblid,
+										trn.tblname ,trn.tblid,
 										'' linktblname ,0 linktblid,
+										trn.parenum,trn.chilnum,trn.processseq_trn,
+										trn.starttime_trn,trn.duedate_trn,
 										l.qty_src,trn.id trngantts_id
 									from trngantts trn
 									inner join linkcusts l on l.tblname = trn.tblname and  l.tblid = trn.tblid
@@ -210,12 +404,27 @@ module GanttChart
 					end
 					n0 = {}
 					ActiveRecord::Base.connection.select_all(strsql).each_with_index do |trn,idx|
-						gantt_id = ngantt[:id] + format('%03d',idx)
-						child_gantt_id = ngantt[:id]
+						gantt_id = @level + format('%03d',idx)
 						n0 =   {:itms_id=>trn["itms_id_trn"],:locas_id=>trn["locas_id_trn"],:type=>"task",
 								:depend => [],
-								:qty =>if trn["srctblname"] =~ /acts/ then  0 else trn["qty_src"].to_f end,
-								:qty_stk =>if trn["srctblname"] =~ /acts/ then  trn["qty_src"].to_f else 0 end,
+								:qty =>case  trn["srctblname"]
+										when  /acts|dlvs|schs/
+											0
+										else	 
+											 trn["qty_src"].to_f
+										end,
+								:qty_sch =>case  trn["srctblname"]
+											when  /schs/
+												trn["qty_src"].to_f
+											else	 
+												0
+											end,
+								:qty_stk =>case  trn["srctblname"]
+											when  /acts/
+												trn["qty_src"].to_f
+											else	 
+												0
+											end,
 								:orgtblname=>trn["orgtblname"],:orgtblid=>trn["orgtblid"],
 								:paretblname => trn["paretblname"],:paretblid => trn["paretblid"],
 								:tblname=>trn["tblname"],:tblid=>trn["tblid"],
@@ -224,10 +433,11 @@ module GanttChart
 								:parenum=>trn["parenum"],:chilnum=>trn["chilnum"],:processseq=>trn["processseq_trn"],
 								:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],:id=>gantt_id}  
 						if gantt_reverse =~ /gantt/
-							@bgantts[ngantt[:id]][:depend] << gantt_id
+							@bgantts[@level][:depend] << gantt_id
 						else
-							n0[:depend] << child_gantt_id
+							n0[:depend] << @level
 						end
+						n0 = get_item_loca_contents(n0,gantt_reverse) 
 						@ngantts << n0
 						if @max_time < n0[:duedate]
 							@max_time = n0[:duedate]
@@ -239,13 +449,13 @@ module GanttChart
 				end
 			end
         	##prv_resch  	if gantt_reverse =~ /^gantt/  ####再計算
-        		@bgantts[@base][:duedate] = @max_time
-        		@bgantts[@base][:start] = @min_time
+        	@bgantts[@base][:duedate] = @max_time
+        	@bgantts[@base][:start] = @min_time
         	## opeitmのsubtblidのopeitmは子のinsert用
 			return @bgantts
     	end
 
-		
+		### nditms,opeitms,itms対応
     	def get_tree_itms_locas(gantt_reverse) ### bgantts 表示内容　ngantt treeスタック  itms_idは必須
 			n0 = @ngantts.shift
 			@level = n0[:id]
@@ -255,9 +465,9 @@ module GanttChart
 				if n0[:opeitms_id]
 			  		case gantt_reverse
 			  		when /gantt/
-						get_ganttchart_data(n0)
+						get_ganttchart_rec(n0)
 			  		when /reverse/
-						vproc_get_pare_itms(n0,n0[:duedate])
+						get_pare_itms(n0)
 				  		#@ngantts.concat(tmp) if tmp[0].size > 0
 				  		# tmp = vproc_get_after_process(n0,duedate)
 				  		# @ngantts.concat(tmp) if tmp[0].size > 0
@@ -300,67 +510,94 @@ module GanttChart
 						n0[:loca_name] = loca["name"]
 					end
 				end
-				if n0[:opeitms_id]
-			  		case gantt_reverse
-			  		when /gantt/
-						n0[:start] = (CtlFields.proc_field_starttime(n0[:duedate],n0[:opeitms_id],"gantt"))
-			  		when /reverse/
-				  		n0[:duedate] = (CtlFields.proc_field_starttime(n0[:start],n0[:opeitms_id],"reverse"))
-			  		end
-				else
-						case gantt_reverse
-						when /gantt/
-					  		n0[:start] = n0[:duedate]
-						when /reverse/
-							n0[:duedate] = n0[:start]
+				if @level =~ /trn/
+						if n0[:tblname] =~ /^cust|^dym/ 
+							rec = ActiveRecord::Base.connection.select_one("select * from #{n0[:tblname]} where id = #{n0[:tblid]}")
+						else
+							rec = tbl.dup  ###prd/purの時
 						end
-				end
-				if gantt_reverse =~ /trn/
-						rec = ActiveRecord::Base.connection.select_one("select * from #{n0[:tblname]} where id = #{n0[:tblid]}")
 						n0[:sno] = rec["sno"]
-						n0[:duedate] = (CtlFields.proc_get_endtime(n0[:tblname],rec))
+						n0[:duedate] = (CtlFields.proc_get_endtime(n0[:tblname],rec))  ###duedate? rcptdate? cmpldate?
 						n0[:start] = rec["starttime"]
+						if gantt_reverse =~ /gantt/
+							if @bgantts[@level][:start] < n0[:duedate]
+								n0[:delay] = true
+							else
+								n0[:delay] = false
+							end
+						else
+							if @bgantts[@level][:duedate] > n0[:start]
+								n0[:delay] = true
+							else
+								n0[:delay] = false
+							end
+						end
+				else
+					### :duration => trn["duration"],:units_lttime => trn["units_lttime"]
+					if n0[:duration]
+						nd = {"duration" => n0[:duration],"units_lttime" => n0[:units_lttime]}
+						  case gantt_reverse
+						  when /gantt/
+							n0[:start] = (CtlFields.proc_field_starttime(n0[:duedate],nd,"gantt"))
+						  when /reverse/
+							  n0[:duedate] = (CtlFields.proc_field_starttime(n0[:start],nd,"reverse"))
+						  end
+					else
+							case gantt_reverse
+							when /gantt/
+								  n0[:start] = n0[:duedate]
+							when /reverse/
+								n0[:duedate] = n0[:start]
+							end
+					end
 				end
 			  	@min_time = n0[:start] if (@min_time||=n0[:start]) > n0[:start]
 			  	@max_time = n0[:duedate] if (@max_time||= n0[:duedate])  < n0[:duedate]
 			return n0
 		end
 		
-		def get_ganttchart_data(n0)  ###工程の始まり=前工程の終わり
-				strsql = "select * from r_nditms where nditm_opeitm_id = #{n0[:opeitms_id]} 
+		def get_ganttchart_rec(n0)  ###工程の始まり=前工程の終わり nditms,opeitms,itms用
+			strsql = "select * from r_nditms where nditm_opeitm_id = #{n0[:opeitms_id]} 
 						and nditm_Expiredate > current_date order by itm_code_nditm  "
-				rnditms = ActiveRecord::Base.connection.select_all(strsql)
-				depend = []
-				duedate = @bgantts[@level][:start]
-				rnditms.each_with_index  do |rec,idx|  ###子部品
-					nopeitms_id = get_opeitms_id_from_itm_by_processseq(rec["nditm_itm_id_nditm"],
-																rec["nditm_processseq_nditm"])
-					duration = rec["nditm_duration"].to_i
+			rnditms = ActiveRecord::Base.connection.select_all(strsql)
+			depend = []
+			duedate = @bgantts[@level][:start]
+			rnditms.each_with_index  do |rec,idx|  ###子部品
+				ope = get_opeitms_id_from_itm_by_processseq(rec["nditm_itm_id_nditm"],
+					 											rec["nditm_processseq_nditm"])
 					###new_start = (duedate.to_time - (rec["opeitm_duration"].to_i) * 24 * 60 * 60).strftime("%Y-%m-%d %H:%M:%S") 
-					new_qty = n0[:qty].to_f * rec["nditm_chilnum"].to_f / rec["nditm_parenum"].to_f  
-					nlevel = @level +  format('%07d',nopeitms_id.to_i)
-					contents = {:opeitms_id=>nopeitms_id,:processseq=>rec["nditm_processseq_nditm"],
-						:start=>duedate,:duedate=>duedate,:id=>nlevel,:type=>"task",
+				new_qty = n0[:qty].to_f * rec["nditm_chilnum"].to_f / rec["nditm_parenum"].to_f  
+				if ope
+						nlevel = @level +  format('%07d',ope["id"].to_i)
+				else
+					ope = {}
+					ope["id"] = "9999999"
+					nlevel = @level +  format('%07d',ope["id"].to_i)
+				end
+				##starttime = CtlFields.proc_field_starttime(duedate,ope,"gantt")
+				contents = {:opeitms_id=>ope["id"],:processseq=>rec["nditm_processseq_nditm"],
+						:start=>duedate,:duedate=>duedate,  ###startはget_item_loca_contentsでset
+						:duration=>ope["duration"],:units_lttime=>ope["units_lttime"],:id=>nlevel,:type=>"task",
 						:parenum=>rec["nditm_parenum"],:chilnum=>rec["nditm_chilnum"],:qty=>new_qty,
 						:itms_id=>rec["nditm_itm_id_nditm"],:itm_code=>rec["itm_code_nditm"],:itm_name=>rec["itm_name_nditm"],
 						:locas_id=>rec["shelfno_loca_id_shelfno_opeitm"],:loca_code=>rec["loca_code_shelfno_opeitm"],
 						:loca_name=>rec["loca_name_shelfno_opeitm"]}
-					depend << nlevel
-					@ngantts << contents
-				end
+				depend << nlevel
+				@ngantts << contents
+			end
 				###depend = get_prev_process(n0,duedate,depend)  ###前工程 nditmsに含まれる。
-				@bgantts[@level][:depend] = depend.dup   ###親の依存を調べる。
+			@bgantts[@level][:depend] = depend.dup   ###親の依存を調べる。
 		end
 	
 		def get_opeitms_id_from_itm_by_processseq itms_id,processseq  ###
-				strsql = %Q& select id from opeitms where itms_id = #{itms_id} 
+				strsql = %Q& select * from opeitms where itms_id = #{itms_id} 
 						 	and processseq =#{processseq} and priority = 999 and expiredate > current_date &
-				opeitms_id = ActiveRecord::Base.connection.select_value(strsql)
-			return opeitms_id
+				ope = ActiveRecord::Base.connection.select_one(strsql)
+			return ope
 		end
 	
 		def get_ordtbl_ordid tblname,tblid
-			until tblname =~ /ords$/
+			if tblname =~ /ords$/
 				strsql %Q&select srctblname,srctblid from linktbls 
 										where tblname = '#{tblname} and tblid = #{tblid}		
 				&
@@ -719,34 +956,34 @@ module GanttChart
     	end   
 
 
-    def prv_resch_trn   ##本日を起点に再計算
-        today = Time.now
-        @bgantts.sort.reverse.each  do|key,value|  ###計算
-		    if key.size > 3
-                if  value[:depend] == ""
-		    	    if @bgantts[key][:start]  <  today
-                       @bgantts[key][:start]  =  today
-                       @bgantts[key][:duedate]  =   CtlFields.proc_field_starttime(@bgantts[key[0..-4]][:start],@bgantts[key[0..-4]][:id],"reverse")    ###稼働日考慮今なし
-                    end
-			    end
-                if  (@bgantts[key[0..-4]][:start] ) < @bgantts[key][:duedate]
-                    @bgantts[key[0..-4]][:start]  =   @bgantts[key][:duedate]   ###稼働日考慮今なし
-                    @bgantts[key[0..-4]][:duedate] =  CtlFields.proc_field_starttime(@bgantts[key[0..-4]][:start],@bgantts[key[0..-4]][:id],"reverse")
-				    ##p key
-				    ##p @bgantts[key]
-			    end
-            end
-        end
-        @bgantts.sort.each  do|key,value|  ###topから再計算
-		    if key.size > 3
-                if  (@bgantts[key[0..-4]][:start]  ) > @bgantts[key][:duedate]
-                      @bgantts[key][:duedate]  =   @bgantts[key[0..-4]][:start]    ###稼働日考慮今なし
-                      @bgantts[key][:start] = CtlFields.proc_field_starttime(@bgantts[key][:duedate],@bgantts[key][:id],nil)
-                end
-            end
-        end
-        return
-    end
+    # def prv_resch_trn   ##本日を起点に再計算
+    #     today = Time.now
+    #     @bgantts.sort.reverse.each  do|key,value|  ###計算
+	# 	    if key.size > 3
+    #             if  value[:depend] == ""
+	# 	    	    if @bgantts[key][:start]  <  today
+    #                    @bgantts[key][:start]  =  today
+    #                    @bgantts[key][:duedate]  =   CtlFields.proc_field_starttime(@bgantts[key[0..-4]][:start],@bgantts[key[0..-4]][:id],"reverse")    ###稼働日考慮今なし
+    #                 end
+	# 		    end
+    #             if  (@bgantts[key[0..-4]][:start] ) < @bgantts[key][:duedate]
+    #                 @bgantts[key[0..-4]][:start]  =   @bgantts[key][:duedate]   ###稼働日考慮今なし
+    #                 @bgantts[key[0..-4]][:duedate] =  CtlFields.proc_field_starttime(@bgantts[key[0..-4]][:start],@bgantts[key[0..-4]][:id],"reverse")
+	# 			    ##p key
+	# 			    ##p @bgantts[key]
+	# 		    end
+    #         end
+    #     end
+    #     @bgantts.sort.each  do|key,value|  ###topから再計算
+	# 	    if key.size > 3
+    #             if  (@bgantts[key[0..-4]][:start]  ) > @bgantts[key][:duedate]
+    #                   @bgantts[key][:duedate]  =   @bgantts[key[0..-4]][:start]    ###稼働日考慮今なし
+    #                   @bgantts[key][:start] = CtlFields.proc_field_starttime(@bgantts[key][:duedate],@bgantts[key][:id],nil)
+    #             end
+    #         end
+    #     end
+    #     return
+    # end
 
 
     def get_duration_by_loca(loca_id_fm,loca_id_to,priority)
@@ -772,23 +1009,9 @@ module GanttChart
 		end		
 		return opeitms_id
 	end
-
-		def vproc_set_dummy_process(n0,starttime)
-			@ngantts = []
-			@ngantts << {:itms_id=>0,
-					   :locas_id=>0,:opeitms_id=>0,
-					   :locas_id_to=>0,:shelfnos_id=>0,:shuffleflg=>0,
-					   :duedate=>Time.now,:prdpur=>"",:duration=>1,
-					   :parenum=>0,:chilnum=>0,
-					   :autocreate_inst=>"",
-					   :consumtype=>"",
-					   :safestkqty=>0,:id=>0,
-					   :priority=>0,:processseq=>0,
-					   :start => Time.now}  ###基準日　期間　タイプ　休日考慮
-		end
 	
-    	def vproc_get_pare_itms(n0,duedate)  ###
-          	strsql = "select nditm.* from nditms nditm 
+    def get_pare_itms(n0)  ###
+          	strsql = "select distinct opeitms_id,chilnum,parenum from nditms nditm 
 							where itms_id_nditm = #{n0[:itms_id]} 
 							and processseq_nditm = #{n0[:processseq]} and Expiredate > current_date  "
           	nditms = ActiveRecord::Base.connection.select_all(strsql)
@@ -800,10 +1023,11 @@ module GanttChart
                 ope = ActiveRecord::Base.connection.select_one(strsql)
 				nlevel = (@level +  "_" + format('%07d',i["opeitms_id"].to_i))
                 if ope
-                      @ngantts << {:parenum => i["chilnum"],:chilnum => i["parenum"],:prdpur => ope["prdpur"],:consumtype => i["consumtype"],
-                              :opeitms_id => i["opeitms_id"],:depend=>[@level],
+					##nd = {"duration" => ope["duration"],"units_lttime" => ope["units_lttime"]}
+                    @ngantts << {:parenum => i["parenum"],:chilnum => i["chilnum"],:prdpur => "",:consumtype => "",
+                              :opeitms_id => i["opeitms_id"],:depend=>[@level],:duration => ope["duration"],:units_lttime => ope["units_lttime"],
                               :itms_id => ope["itms_id"],:locas_id => ope["locas_id"],:processseq=>ope["processseq"],:priority=>ope["priority"],
-                              :start=>duedate,:duration=>(i["duration"]||=1),:duedate=>CtlFields.proc_field_starttime(n0[:start],ope["id"],"reverse"),
+                              :start=>n0[:duedate],:duration=>ope["duration"],:duedate=>n0[:duedate],
                               :id=>nlevel }  ###
                 else
                     	3.times{Rails.logger.debug "logic error opeitms missing  line :#{__LINE_} select * from opeitms where id = #{i["opeitms_id"]} "}

@@ -8,7 +8,7 @@ module CtlFields
 	  	if findstatus
 			if mainviewflg   ##mainviewflg = true 自分自身の登録
 				if 	params[:parse_linedata]["aud"] == "add" or params["aud"] =~ /add/
-					params[:err] = "error E duplicate code:#{keys},line:#{params[:index]} "
+					params[:err] = "error 1 duplicate code:#{keys},line:#{params[:index]} "
 					params[:keys] = []
 					keys.split(",").each do |key| 
 				  		params[:keys] =  [key.split(":")[0].gsub(" ","")] 
@@ -43,10 +43,10 @@ module CtlFields
 			else
 				if missing  ###検索に必要な項目まだ未入力
 				else
-					params[:err] =  "error 3  --->not find code:#{keys},line:#{params[:index]}  "
+					params[:err] =  "error 2  --->not find code:#{keys},line:#{params[:index]}  "
 					params[:parse_linedata]["confirm"] = false
 					keys.split(",").each do |key| ###コードが変更されたとき既に使用されている？
-						params[:parse_linedata][key.split(":")[0]+"_gridmessage"] = "error 3 not find code #{key} "
+						params[:parse_linedata][key.split(":")[0]+"_gridmessage"] = "error 2 not find code #{key} "
 						if params[:parse_linedata][:errPath].nil? 
 							params[:parse_linedata][:errPath] = [key.split(":")[0]+"_gridmessage"]
 						end
@@ -87,8 +87,8 @@ module CtlFields
 				valOfField = params[:parse_linedata][fetch["pobject_code_sfd"].to_sym]
 				fetchtblnamechop,xno,srctblnamechop = fetch["pobject_code_sfd"].split("_") 
 				if valOfField =~ /,/				 ###入力項目に「,」が入っていた時
-					params[:err] =  "error G  --->not input comma:#{params[:index]} "
-					line_data[(fetch["pobject_code_sfd"]+"_gridmessage").to_sym] =  "error  4 --->not input comma"  ###!!!
+					params[:err] =  "error 3  --->not input comma:#{params[:index]} "
+					line_data[(fetch["pobject_code_sfd"]+"_gridmessage").to_sym] =  "error 3 --->not input comma"  ###!!!
 					missing = true
 					findstatus = false
 					break
@@ -267,12 +267,12 @@ module CtlFields
 					if org
 						###既に状態が変化しているかチェック
 						if org["qty_src"].to_f >= org["srctbl_qty"].to_f 
-							params[:err] =  "error 5 --->over qty  line:#{params[:index]} "
+							params[:err] =  "error 4 1--->over qty  line:#{params[:index]} "
 							case screentblnamechop
 							when /ord$|inst$|replyinput/
-										line_data[(screentblnamechop+"_qty_gridmessage").to_sym] =  "error 5  --->over qty"
+										line_data[(screentblnamechop+"_qty_gridmessage").to_sym] =  "error 4 2--->over qty"
 							when /dlv$|act$/
-										line_data[(screentblnamechop+"_qty_stk_gridmessage").to_sym] =  "error 5  --->over qty"
+										line_data[(screentblnamechop+"_qty_stk_gridmessage").to_sym] =  "error 4 3 --->over qty"
 							end
 						else
 							params[:err] =  nil
@@ -389,7 +389,7 @@ module CtlFields
 		if rec
 			params[:err] = nil
 		else
-			params[:err] =  "error5   --->view or field  #{line_data[:loca_code_shelfno_opeitm]}　not find line:#{params[:index]} "
+			params[:err] =  "error5 1   --->view or field  #{line_data[:loca_code_shelfno_opeitm]}　not find line:#{params[:index]} "
 		end
 		return params
 	end
@@ -398,7 +398,7 @@ module CtlFields
 		line_data = params[:parse_linedata]
 		if line_data[:screenfield_paragraph] == ""
 			if line_data[:pobject_code_sfd] =~ /_code/ and params[:screenCode].split("_")[1].chop == line_data["pobject_code_sfd"].split("_"[0])
-				params[:err] =  "error1   --->view or field  #{line_data["screenfield_paragraph"]}　not find line:#{params[:index]} "
+				params[:err] =  "error 5 2   --->view or field  #{line_data["screenfield_paragraph"]}　not find line:#{params[:index]} "
 			else	
 				params[:err] =  nil
 			end
@@ -451,7 +451,7 @@ module CtlFields
 				if rec
 					params[:err] = nil
 				else
-					params[:err] =  "error2   --->view or field  #{line_data[:screenfield_paragraph]}　not find line:#{params[:index]} "
+					params[:err] =  "error 5 3   --->view or field  #{line_data[:screenfield_paragraph]}　not find line:#{params[:index]} "
 				end
 			else
 			end
@@ -477,7 +477,7 @@ module CtlFields
 						if ok==true and (chk.gsub(" ","").downcase=="asc" or chk.gsub(" ","").downcase=="desc")
 						else
 							sort_info[:default] = nil
-							sort_info[:err] = "sort fields  error S "
+							sort_info[:err] = "sort fields  error 6 "
 							break
 						end		
 					end		
@@ -612,7 +612,7 @@ module CtlFields
 	 	if id != ""  ###更新の時のみ　ords-->insts  insts -->actsに既にどれだけ変化しているか？
 	 		sym = "loca_code_to"
 	 		if line_data[sym] == ""
-	 			params[:err] =  "error8   --->#{sym} missing line:#{params[:index]} "
+	 			params[:err] =  "error 7   --->#{sym} missing line:#{params[:index]} "
 	 		else
 	 			strsql = %Q%select sum(qty) from trngantts where orgtblname ='#{tblname}' and orgtblid = #{id} 
 	 					 and  tblid = #{id} and tblname = '#{tblname}' group by orgtblname,orgtblid,tblname,tblid %
@@ -623,7 +623,7 @@ module CtlFields
 	 			if (chng_qty != rec["#{tblname.chop}_qty"] or rec["#{tblname.chop}_qty"]  != trn_qty) and 
 	 					line_data[sym] != rec["loca_code_to"]
 	 				checkstatus = false
-	 				params[:err] =  "error9   ---> loca_code_to must be >= #{rec["loca_code_to"]} line:#{params[:index]} "
+	 				params[:err] =  "error 8   ---> loca_code_to must be >= #{rec["loca_code_to"]} line:#{params[:index]} "
 				 else
 					params[:err] =  nil
 	 			end 
@@ -668,7 +668,7 @@ module CtlFields
 								%
 						value = ActiveRecord::Base.connection.select_value(strsql)
 						if value
-							params[:err] =  "error A   ---> #{pobject_code} can not change because table:tblfields already used line:#{params[:index]} "
+							params[:err] =  "error 9   ---> #{pobject_code} can not change because table:tblfields already used line:#{params[:index]} "
 						else
 							params[:err] = nil
 						end
@@ -681,7 +681,7 @@ module CtlFields
 				if line_data[:code] =~ /cust|prd|pur|shp/ and line_data[:code] =~ /schs$|ords$|oinsts$|replyinputs$|dlvs$|acts$|rets$/
 					if line_data[:code].split("_")[0]  == "r"
 					else
-						params[:err] =  "error B  ---> view:#{code}   must be r_xxxxxxx 参照 Operation.get_last_rec  "
+						params[:err] =  "error A  ---> view:#{code}   must be r_xxxxxxx 参照 Operation.get_last_rec  "
 					end
 				end
 			end
@@ -694,10 +694,25 @@ module CtlFields
 		return params
 	end
 
+	def judge_check_duedate params,item  ###
+		line_data = params[:parse_linedata].dup
+		tblnamechop = params[:screenCode].split("_")[1].chop
+		duedate = line_data[(tblnamechop+"_duedate").to_sym]
+		nd = {"duration" => line_data["opeitm_duration".to_sym],"units_lttime" => line_data["opeitm_units_lttime"] }
+		case tblnamechop
+		when /prdord/
+			line_data[(tblnamechop+"_starttime").to_sym] = line_data[(tblnamechop+"_commencementdate").to_sym] = proc_field_starttime duedate,nd,"gantt"
+		when /pursch|purord|prdsch/
+			line_data[(tblnamechop+"_starttime").to_sym] = proc_field_starttime duedate,nd,"gantt"
+		end
+		params[:parse_linedata] = line_data.dup
+		return params
+	end
+
 	def judge_check_supplierprice params,item  ###M
 		line_data = params[:parse_linedata].dup
 		case params[:screenCode]
-		when "purords"
+		when /purords/
 			strsql = %Q&
 						select * from suppliers where locas_id_supplier = #{line_data[:shelfno_loca_id_shelfno]}
 									and expiredate > current_date
@@ -976,7 +991,7 @@ module CtlFields
 			when "0","1","9"
 				base_date =  line_data[:puract_rcptdate]
 			else
-				Rails.logger.debug"taxflg error C paymants_id : #{line_data[:paymets_id]} LINE:#{__LINE__} "
+				Rails.logger.debug"taxflg error B paymants_id : #{line_data[:paymets_id]} LINE:#{__LINE__} "
 				raise
 			end
 			strsql = %Q&
@@ -1087,7 +1102,7 @@ module CtlFields
 				&
 				base_date =  ActiveRecord::Base.connection.select_value(strsql)
 			else
-				Rails.logger.debug"taxflg error C1 paymants_id : #{line_data[:paymets_id]} LINE:#{__LINE__} "
+				Rails.logger.debug"taxflg error C 1 paymants_id : #{line_data[:paymets_id]} LINE:#{__LINE__} "
 				raise
 			end
 			strsql = %Q&
@@ -1167,7 +1182,7 @@ module CtlFields
 			when "shelfnos_id"  ###payments_idを含む
 				command_x = field_shelfnos_id(tblnamechop,command_x,nd)
 			when "starttime"  ###稼働日計算
-				starttime = proc_field_starttime(command_x["#{tblnamechop}_duedate"],nd["opeitms_id"],"gantt")
+				starttime = proc_field_starttime(command_x["#{tblnamechop}_duedate"],nd,"gantt")
 				command_x["#{tblnamechop}_starttime"] = starttime
 			when "shelfnos_id_to"
 				command_x = field_shelfnos_id_to(tblnamechop,command_x,nd)
@@ -1295,7 +1310,9 @@ module CtlFields
 	end	
 
 	def field_isudate tblnamechop,command_x,nd
-		command_x["#{tblnamechop}_isudate"] = Time.now.to_s if command_x["#{tblnamechop}_isudate"].nil? or command_x["#{tblnamechop}_isudate"] == ""
+		if command_x["#{tblnamechop}_isudate"].nil? or command_x["#{tblnamechop}_isudate"] == ""
+			command_x["#{tblnamechop}_isudate"] = Time.now.to_s 
+		end
 		return command_x
 	end	 
 
@@ -1305,7 +1322,7 @@ module CtlFields
 		else
 			duedate = parent["starttime"].to_time - 2*24*3600  ###稼働日 出庫作業考慮
 		end
-		command_x["#{tblnamechop}_duedate"] = command_x["#{tblnamechop}_duedate"] = duedate.strftime("%Y-%m-%d %H:%M:%S")
+		command_x["#{tblnamechop}_duedate"] = duedate.strftime("%Y-%m-%d %H:%M:%S")
 		return command_x
 	end
 
@@ -1316,18 +1333,17 @@ module CtlFields
 	end
 
 
-	def proc_field_starttime duedate,opeitms_id,reverse
-		opeitm = ActiveRecord::Base.connection.select_one("select * from opeitms where id = #{opeitms_id}")
+	def proc_field_starttime duedate,nd,reverse
 		if reverse == "reverse"
 			cal = -1
 		else
 			cal = 1
 		end
-		case opeitm["units_lttime"]  ###char(4)
+		case nd["units_lttime"]  ###char(4)
 		when "Day "
-			starttime =  duedate.to_time - opeitm["duration"].to_f*24*3600 * cal
+			starttime =  duedate.to_time - nd["duration"].to_f*24*3600 * cal
 		when "Hour"
-			starttime =  duedate.to_time - opeitm["duration"].to_f*3600 * cal
+			starttime =  duedate.to_time - nd["duration"].to_f*3600 * cal
 		else
 			starttime = Time.now
 		end
@@ -1368,7 +1384,7 @@ module CtlFields
 		qty_require = proc_cal_qty_sch(parent["qty_handover"],
 										nd["chilnum"],nd["parenum"],
 										nd["consumunitqty"],nd["consumminqty"],nd["consumchgoverqty"])
-		command_x["#{tblnamechop}_qty_sch"]  = parent["qty_sch"].to_f * nd["chilnum"].to_f / nd["parenum"].to_f
+		command_x["#{tblnamechop}_qty_sch"]  = qty_require
 		# if nd["packqty"] > 0   ### qty_case xxxschsから削除
 		# 	command_x["#{tblnamechop}_qty_case"] = (qty_require /  nd["packqty"]).ceil 
 		# else
@@ -1434,7 +1450,7 @@ module CtlFields
 	end
 
 	def proc_snolist   ###reqparams["segment"] = ["trn_org"]の対象でもある。
-		{"purschs"=>"PS","purords"=>"PE","purinsts"=>"PH","purdlvs"=>"PV","puracts"=>"PA",
+		{"purschs"=>"PS","purords"=>"PE","purinsts"=>"PH","purdlvs"=>"PV","puracts"=>"PA","dymschs"=>"DY",
 			"purreplyinputs"=>"PL","prdreplyinputs"=>"ML",
 			"prdschs"=>"MS","prdords"=>"ME","prdinsts"=>"MH","prdacts"=>"MA","prdrets"=>"MR",
 			"billschs"=>"BS","billords"=>"BE","billinsts"=>"BH","billacts"=>"BA","billrets"=>"BR",

@@ -77,6 +77,9 @@ export const GANTT_RESET = 'GANTT_RESET'
 export const GANTTCHART_REQUEST = 'GANTTCHART_REQUEST'
 export const GANTTCHART_FAILURE = 'GANTTCHART_FAILURE'
 export const GANTTCHART_SUCCESS = 'GANTTCHART_SUCCESS'
+export const UPDATEGANTT_REQUEST = 'UPDATEGANTT_REQUEST'
+export const UPDATEGANTT_SUCCESS = 'UPDATEGANTT_SUCCESS'
+export const UPDATEGANTT_FAILURE = 'UPDATEGANTT_FAILURE'
 
 export const SCREEN_DATASET = 'SCREEN_DATASET'
 export const SECOND_DATASET = 'SECOND_DATASET'
@@ -220,6 +223,12 @@ export const ButtonFlgRequest = (buttonflg,params) => ({
 })
 
 
+
+export const ButtonReset = () => ({
+  type:  BUTTON_RESET,
+   //
+})
+
 export const FetchRequest = (params) => ({
   type: FETCH_REQUEST,
   payload: { params}
@@ -281,22 +290,6 @@ export const TblfielSuccess = (messages) => ({
   payload: { messages}  //
 })
 
-export const GanttChartRequest = (params,auth) => ({
-  type:  GANTTCHART_REQUEST,
-  payload: { params,auth}  //
-})
-
-
-export const ButtonReset = () => ({
-  type:  BUTTON_RESET,
-   //
-})
-
-export const GanttReset = () => ({
-  type:  GANTT_RESET,
-})
-
-
 export const ImportExcelRequest = ({excelfile,nameToCode,params,auth}) => ({
   type: IMPORTEXCEL_REQUEST,  // 
   payload: {excelfile,nameToCode,params,auth}
@@ -329,3 +322,39 @@ export const SecondDataSet = (data) => ({
   type: SECOND_DATASET,  // 
   payload: {data:data}
 })
+
+
+export const GanttReset = () => ({
+  type:  GANTT_RESET,
+})
+
+export const GanttChartRequest = (params,auth) => ({
+  type:  GANTTCHART_REQUEST,
+  payload: { params,auth}  //
+})
+
+export const GanttChartSuccess = (params,auth) => ({
+  type:  GANTTCHART_SUCCESS,
+  payload: { params,auth}  //
+})
+
+export const GanttChartFailure = (params,auth) => ({
+  type:  GANTTCHART_FAILURE,
+  payload: { params,auth}  //
+})
+
+export const UpdateGantttSuccess = (params,auth) => ({
+  type:  UPDATEGANTT_SUCCESS,
+  payload: { params,auth}  //
+})
+
+// export const UpdateGantttREquest = (params,auth) => ({
+//   type:  UPDATEGANTT_REQUEST,
+//   payload: { params}  //
+// })
+
+export const UpdateGanttFailure = (params,auth) => ({
+  type:  UPDATEGANTT_FAILURE,
+  payload: { params,auth}  //
+})
+

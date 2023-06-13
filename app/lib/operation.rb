@@ -73,33 +73,38 @@ class OpeClass
 			end	
 		else ###変更　(削除 qty_sch=qty=qty_stk=0 　を含む) purschs,purords,prdschs,prdords
 			###return if @last_rec.empty?   ###@last_rec initでset
+			return if @gantt.nil?
 			chng_flg = check_shelfnos_duedate_qty()  ###
 			return if chng_flg == ""
 			###数量・納期・場所の変更があった時
-			strsql = %Q% select * from trngantts where tblname = '#{@tblname}' and tblid = #{@tblid}
+			case @tblname
+			when /schs$|ords$/  ###topのみ
+				strsql = %Q% 
+						select * from trngantts where tblname = '#{@tblname}' and tblid = #{@tblid}
 						  and orgtblname = paretblname and paretblname = tblname
 						  and orgtblid = paretblid and paretblid = tblid
 						%
-			@gantt = ActiveRecord::Base.connection.select_one(strsql)
-			return if @gantt.nil?
-			@trngantts_id =  @gantt["trngantts_id"]  = @last_rec["trngantts_id"] = @gantt["id"]
+			else
+				return @reqparams
+			end
+			top_trngantt = ActiveRecord::Base.connection.select_one(strsql)
+			if top_trngantt.nil?
+				return @reqparams
+			end
+			@trngantts_id =  @gantt["trngantts_id"]  = @last_rec["trngantts_id"] = top_trngantt["id"]
 			### qty,qty_stkはqty_linkto_alloctbl以下にはできない。
 			###出庫指示数以下にはできない。
 			###locas_idの変更は不可(オンライン、入り口でチェック) 
 			###前の在庫　をzeroに
 			###  xxxschsはtop以外修正できない trnganttsの値を修正
 
-			strsql = %Q&  ---alloctblsはrorblkvtlで更新済
-						select alloc.* from alloctbls alloc
-								where alloc.srctblname = '#{@tblname}' and alloc.srctblid = #{@tblid}
-								and trngantts_id = #{@trngantts_id}
-					&
-			base_alloc = ActiveRecord::Base.connection.select_one(strsql)
 			###新shelfnos_id_fmで出庫・消費を作成(数量増の変更で対応)
 			###数量又は納期の変更があった時   xxxsxhs,xxxordsの時のみ
-			strsql = %Q&update trngantts set   --- xxschs,xxxordsが変更された時のみ
+			strsql = %Q&
+						update trngantts set   --- xxschs,xxxordsが変更された時のみ
 							updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-							#{@str_qty.to_s} = #{@tbldata[@str_qty]},remark = 'Operation.proc_trangantts line:#{__LINE__}',
+							#{@str_qty.to_s} = #{@tbldata[@str_qty]},
+							remark = 'Operation.proc_trangantts line:#{__LINE__}'||remark,
 							prjnos_id = #{@tbldata["prjnos_id"]},duedate_trn = '#{@tbldata[@str_duedate]}'
 							#{if @tblname =~ /^cust/ then "" else ",shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}" end}
 							where  id = #{@trngantts_id} &
@@ -109,6 +114,12 @@ class OpeClass
 				###数量の変更があるときはalloctblsも修正する。
 				case @tblname
 				when /^prdschs|^purschs/   ###schsが減されfreeのordsが発生。xxxschsがtopの時のみ変更可能
+					strsql = %Q&  ---alloctblsはrorblkvtlで更新済
+								select alloc.* from alloctbls alloc
+										where alloc.srctblname = '#{@tblname}' and alloc.srctblid = #{@tblid}
+										and trngantts_id = #{@trngantts_id}
+							&
+					base_alloc = ActiveRecord::Base.connection.select_one(strsql)
 					base_sch_alloc_update(base_alloc)  
 					###schsが減された時:ords,insts,actsをfreeに　qty_schが増、減されたときshp,conの変更、###在庫の処理を含む
 					###trnganttsは修正済  alloctblsは一件のみ
@@ -149,25 +160,12 @@ class OpeClass
 				###shp,conの変更 callされるのはschs,ordsの時のみ
 			end
 			###下位の構成変更
-			if @gantt["mlevel"]  == 0
+			if top_trngantt["mlevel"].to_i  == 0
 				lowlevel_gantts = []
-				lowlevel_gantts[0] = [@gantt]
+				lowlevel_gantts[0] = top_trngantt
 				until lowlevel_gantts.empty?
 					lgantt = lowlevel_gantts.shift
-					strsql = %Q&
-							select 	child.orgtblname,child.orgtblid,child.tblname,child.tblid,
-									pare.qty_sch,child.mlevel,
-									child.parenum,child.chilnum,
-									child.consumunitqty,child.consumminqty,child.consumchgoverqty 
-								from trngantts pare
-								inner join trngantts child
-									on pare.orgtblname = child.orgtblname and pare.orgtblid = child.orgtblid
-									and pare.tblname = child.paretblname and pare.tblid = child.paretblid
-									and pare.mlevel < child.mlevel
-								where pare.orgtblname = '#{lgantt["orgtblname"]}' and pare.orgtblid = '#{lgantt["orgtblid"]}'
-								and pare.tblname = '#{lgantt["tblname"]}' and pare.tblid = '#{lgantt["tblid"]}'
-						&
-					trns = ActiveRecord::Base.connection.select_all(strsql)
+					trns = ActiveRecord::Base.connection.select_all(ArelCtl.proc_pareChildTrnsSql(lgantt))
 					trns.each do |trn|
 						update_prdpur_child(trn) 
 						lowlevel_gantts << trn
@@ -560,30 +558,38 @@ class OpeClass
 	def update_prdpur_child(trn)
 		screenCode = "r_" + trn["tblname"]
 		strsql = %Q&
-				select * from #{trn["tblname"]} where id = #{trn["id"]}
+				select * from #{trn["tblname"]} where id = #{trn["tblid"]}
 		&
 		rec = ActiveRecord::Base.connection.select_one(strsql)
 		blk = RorBlkCtl::BlkClass.new(screenCode)
 		command_c = blk.command_init
 		rec.each do |key,val|
-			command_c[%Q&#{tblname.chop}"_"#{key.sub("s_id","_id")}&] = val
+			command_c[%Q&#{trn["tblname"].chop}_#{key.sub("s_id","_id")}&] = val
 		end
-		command_c["sio_classname"] = "_update_#{tblname}_update_prdpur_child"
+		command_c["sio_classname"] = "_update_#{trn["tblname"]}_update_prdpur_child"
 		command_c["id"] = rec["id"]
-		command_c["#{tblname.chop}_remark"] = " Operation.update_prdpur_child line:#{__LINE__} "
-		if trn["pare_qty_sch"].to_f == 0
-			commnd_c["#{tblname.chop}_qty_sch"] = 0
+		command_c["#{trn["tblname"].chop}_remark"] = " Operation.update_prdpur_child line:#{__LINE__} "
+		if trn["pare_qty"].to_f == 0
+			command_c["#{trn["tblname"].chop}_qty_sch"] = 0
 		else
-			commnd_c["#{tblname.chop}_qty_sch"] = rec["pare_qty_sch"].to_f * rec["chilnum"].to_f / rec["parenum"].to_f
+			qty_require = CtlFields.proc_cal_qty_sch(trn["pare_qty"],trn["chilnum"],trn["parenum"],trn["consumunitqty"],
+												trn["consumminqty"],trn["consumchgoverqty"])
+			if qty_require > (trn["qty"].to_f + trn["qty_stk"].to_f)
+				command_c["#{trn["tblname"].chop}_qty_sch"]  = qty_require - (trn["qty"].to_f + trn["qty_stk"].to_f)
+			else
+				command_c["#{trn["tblname"].chop}_qty_sch"]  =0
+			end
 		end
-		reqparams = @reqparams.dup
-		gantt = reqparams["gantt"]
-		gantt["tblname"] = trn["tblname"]
-		gantt["tblid"] = trn["tblid"]
-		gantt["mlevel"] = trn["mlevel"]
-		reqparams["tbldata"] = rec
+		starttime = CtlFields.proc_field_starttime(command_c["#{trn["tblname"].chop}_duedate"],trn,"gantt")
+		command_c["#{trn["tblname"].chop}_starttime"] = starttime
+		@gantt["tblname"] = trn["tblname"]
+		@gantt["tblid"] = trn["tblid"]
+		@gantt["mlevel"] = trn["mlevel"]
+		@reqparams["tbldata"] = rec
 		blk.proc_create_tbldata(command_c)
-		blk.proc_add_update_table(params,command_c)
+		blk.proc_add_update_table(@reqparams,command_c)
+		@gantt["paretblname"] = trn["tblname"]
+		@gantt["paretblid"] = trn["tblid"]
 	end
 
 	def get_last_rec
@@ -689,18 +695,19 @@ class OpeClass
 		###@src_no = ""
 		###トップ登録時org=pare=tbl
 
-		@reqparams["trngantts_id"]  = @trngantts_id = @gantt["id"] = @gantt["trngantts_id"] 
+		@trngantts_id = @gantt["id"] = @gantt["trngantts_id"] = ArelCtl.proc_get_nextval("trngantts_seq")
 		
 		###insts,replyinputs,dlvs,replyinputs,acts,retsはtrnganttsは作成しない。
 		linktbl_id,alloc_id = ArelCtl.proc_insert_trngantts(@gantt)  ###@ganttの内容をセット
 		@reqparams["linktbl_ids"] = [linktbl_id]
 		@reqparams["alloctbl_ids"] = [alloc_id]
+		@reqparams["gantt"] = @gantt.dup
 		case @tblname	
 		when /^purords|^prdords/  ### 単独でxxxordsを画面又はexcelで登録-->mkordinstsを利用してないとき
 			###free_ordtbl_alloc_to_sch(stkinout)
 			if @mkprdpurords_id == 0 ###mkordinstsの時は子部品展開は対象外
 					@reqparams["segment"]  = "mkschs"   ###構成展開
-					@reqparams["remark"]  = "Operation.proc_trngantts.init_trngantts_add_detail  構成展開"   ###構成展開
+					@reqparams["remark"]  = "Operation.proc_trngantts.init_trngantts_add_detail  構成展開"  ###構成展開
 					processreqs_id ,@reqparams = ArelCtl.proc_processreqs_add @reqparams
 			end
 		when /^custschs|^custords/
@@ -727,7 +734,7 @@ class OpeClass
 		###@gantt["qty_require"] create_other_table_record_job.mkschで対応済
 		### parenum chilnum
 		@gantt["id"] = @gantt["trngantts_id"]  = @trngantts_id = ArelCtl.proc_get_nextval("trngantts_seq")
-		@gantt["remark"] =  " Operation.child_trngantts  "
+		@gantt["remark"] =  " Operation.child_trngantts line:#{__LINE__} "
 		@reqparams["gantt"] = @gantt
 		linktbl_id,alloctbl_id = ArelCtl.proc_insert_trngantts(@gantt)  ###@ganttの内容をセット
 		@reqparams["linktbl_ids"] = [linktbl_id]
@@ -738,7 +745,7 @@ class OpeClass
 		# 	###新規登録なのでqty_linkto_alloctbl=0
 		# 	schstbl_alloc_to_freetbl(stkinout) ###trn==sch
 		# end
-		if @gantt["qty_handover"].to_f  > 0  
+		if @gantt["qty_handover"].to_f  > 0  and  @gantt["tblname"] != "dymschs"
 			@reqparams["segment"]  = "mkschs"   ###構成展開
 			@reqparams["remark"]  = "Operation line:#{__LINE__}  構成展開 level > 1"  
 			processreqs_id ,@reqparams = ArelCtl.proc_processreqs_add @reqparams
@@ -802,32 +809,18 @@ class OpeClass
 			end
 
 			if link["tblid"] == link["srctblid"]  ###lotstkhists はlink["tblid"] == link["srctblid"]の時変更済
-				strsql = %Q&
-							select * from inoutlotstks where trngantts_id = #{link["trngantts_id"]}
-										and tblid = #{link["tblid"]} and tblname = '#{link["tblname"]}'
-										and srctblid = #{lotstk["#{wh}_id"]} and srctblname = '#{wh}'
-										for update
-						&   ###trngantts_id,tblidでinoutlotstksはユニーク
-				inoutlotstk = ActiveRecord::Base.connection.select_one(strsql)
-				if inoutlotstk
-					new_src_qty = new_src_qty - inoutlotstk[@str_qty].to_f 
-					updatesql = %Q&
-							update inoutlotstks set #{@str_qty} = #{@str_qty} + #{new_src_qty * plusminus},
-										updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-										remark = 'Operation.update_inoutlot_and_src_stk line #{__LINE__}'
-							where id = #{inoutlotstk["id"]}
-						&
-					ActiveRecord::Base.connection.update(updatesql)
-				else
-					stkinout[@str_qty] = new_src_qty * plusminus
-					Shipment.proc_insert_inoutlotstk_sql(plusminus,stkinout)
-				end
+				tmp = link.dup
+				tmp["srctblid"] = lotstk["#{wh}_id"]
+				tmp["srctblname"] = wh
+				tmp[@str_qty] = new_src_qty
+				tmp["remark"] = "Operation line #{__LINE__}"
+				Shipment.proc_check_inoutlotstk(inout,tmp)
 			else
 				src_strsql = %Q&
 						select * from inoutlotstks where trngantts_id = #{link["trngantts_id"]}
 									and tblid = #{link["srctblid"]} and tblname = '#{link["srctblname"]}'
 									for update
-					&   ###trngantts_id,tblidでinoutlotstksはユニーク
+					&   ###tblidでinoutlotstksはユニーク
 				src_inout = ActiveRecord::Base.connection.select_one(src_strsql)
 				if src_inout
 					new_src_qty = new_src_qty - src_inout[@str_qty].to_f 

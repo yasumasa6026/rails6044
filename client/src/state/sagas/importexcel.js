@@ -96,7 +96,7 @@ export function* ImportExcelSaga({ payload: {excelfile,nameToCode,params,auth} }
                 }else{
                     let {importexcel,importErrorCheckMaster} = yupErrCheckBatch(importdata,screenCode)
                     if(importErrorCheckMaster){
-                            errHeader.push(`check_master write error ${excelfile.name} Screen Code :${screenCode}`)
+                            errHeader.push(`check_master write error ${excelfile.name} Screen Code :${screenCode} `)
                             errMessage = "error => " +  JSON.stringify(importexcel[0])
                            yield put({ type: IMPORTEXCEL_FAILURE, errHeader: errHeader ,importErrorCheckMaster:true,errMessage:errMessage })
                     }//else{

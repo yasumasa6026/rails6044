@@ -83,8 +83,8 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
               {showScreen&&<div> <ScreenGrid7 screenFlg = "first" /></div>}
               {showScreen&&!toggleSubForm&&<div> <ButtonList screenFlg = "first" /></div>}
               <p> {hostError?hostError:""} </p>
-              <div> {screenFlg==="second"?<ScreenGrid7 screenFlg = "second" />:""}</div>
-              {screenFlg==="second"&&!toggleSubFormSecond&&<div> <ButtonList screenFlg = "second" /></div>}
+              <div> {showScreen&&screenFlg==="second"?<ScreenGrid7 screenFlg = "second" />:""}</div>
+              {showScreen&&screenFlg==="second"&&!toggleSubFormSecond&&<div> <ButtonList screenFlg = "second" /></div>}
               {loading && ( <div colSpan="10000">
             	              Loading...
           	              </div>)}
@@ -112,7 +112,7 @@ const  mapStateToProps = (state,ownProps) =>({
   isSignUp:state.auth.isSignUp ,
   isAuthenticated:state.auth.isAuthenticated ,
   auth:state.auth ,
-  showScreen:state.menu.showScreen,
+  showScreen:state.menu.showScreen,//screen bottunが押された時
   menuListData:state.menu.menuListData ,
   params:state.screen.params,
   message:state.menu.message,
@@ -121,7 +121,6 @@ const  mapStateToProps = (state,ownProps) =>({
   second_columns_info:state.screen.second_columns_info,
   screenFlg:state.menu.screenFlg,
   loadingOrg:state.menu.loading,
-  secondloadingOrg:state.menu.secondloading,
   toggleSubForm:state.screen.toggleSubForm,
   toggleSubFormSecond:state.second.toggleSubForm,
 })

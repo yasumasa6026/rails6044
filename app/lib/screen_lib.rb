@@ -27,6 +27,7 @@ module ScreenLib
 		
 		def proc_create_grid_editable_columns_info(params) 
 			buttonflg = params[:buttonflg]
+			aud = params[:aud] ### buttonflg = inlineedit7,aud = add --> 明細追加　
 			@grid_columns_info = Rails.cache.fetch('screenfield'+$proc_grp_code+screenCode+buttonflg) do
 				@grid_columns_info = {}
 				###  ダブルコーティション　「"」は使用できない。 
@@ -36,7 +37,7 @@ module ScreenLib
 				select_row_fields = ""
 				gridmessages_fields = ""  ### error messages
 				init_where_info = {:filtered => ""}
-				dropdownlist = {}
+				dropDownList = {}
 				sort_info = {}
 				nameToCode = {}
 				columns_info = []
@@ -98,11 +99,12 @@ module ScreenLib
 												end	,
 									###widthが120以下だと右の境界線が消える。	
 									:width => if i["screenfield_width"].to_i < 80 then 80 else  i["screenfield_width"].to_i end,
-									:className=>classNameset(buttonflg,i)
+									:className=>classNameset(buttonflg,i,aud)
 									}
 					if ((buttonflg =="inlineedit7" or buttonflg =="inlineadd7") and i["screenfield_editable"] == "1") or
 						(buttonflg =="inlineedit7"  and i["screenfield_editable"] == "2") or
-						( buttonflg =="inlineadd7" and i["screenfield_editable"] == "3") 
+						( buttonflg =="inlineadd7" and i["screenfield_editable"] == "3") or
+						(buttonflg =="inlineedit7"  and i["screenfield_editable"] == "3" and aud == "add") 
 						columns_info << {:Header=>"#{i["screenfield_name"]}_gridmessage",
 										:accessor=>"#{i["pobject_code_sfd"]}_gridmessage",
 										:id=>"#{i["pobject_code_sfd"]}_gridmessage",
@@ -127,7 +129,7 @@ module ScreenLib
 					if  i["screenfield_type"] == "select" and i["screenfield_hideflg"] == "0"
 						if i["screenfield_edoptvalue"] 
 							if i["screenfield_edoptvalue"] =~ /\:/
-								dropdownlist[i["pobject_code_sfd"].to_sym] = i["screenfield_edoptvalue"]
+								dropDownList[i["pobject_code_sfd"].to_sym] = i["screenfield_edoptvalue"]
 							else
 								Rails.logger.debug " screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
 								Rails.logger.debug " screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
@@ -156,7 +158,7 @@ module ScreenLib
 						end
 						tmp_subform[:edoptcols]	= i["screenfield_edoptcols"]	
 						tmp_subform[:edoptrows]	= i["screenfield_edoptrow"]	
-						tmp_subform[:className] = classNameset(buttonflg,i)
+						tmp_subform[:className] = classNameset(buttonflg,i,aud)
 						tmp_subform[:edoptrows]	= i["screenfield_edoptrow"]	
 						tmp_subform[:hideflg]	= "visible"  ###subForm
 					else
@@ -176,14 +178,14 @@ module ScreenLib
 				@grid_columns_info[:fetch_data] = {}
 				@grid_columns_info[:subform_info] = subform_info
 
-				dropdownlist.each do |key,val|
+				dropDownList.each do |key,val|
 					tmpval="["
 					val.split(",").each do  |drop|
 						tmpval << %Q%{"value":"#{drop.split(":")[0]}","label":"#{drop.split(":")[1]}"},%
 					end
-					dropdownlist[key] = tmpval.chop + "]"
+					dropDownList[key] = tmpval.chop + "]"
 				end	
-				@grid_columns_info[:dropdownlist] = dropdownlist
+				@grid_columns_info[:dropDownList] = dropDownList
 				# if sort_info[:default]
 				# 	ary_select_fields = select_fields.split(',')
 				# 	sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
@@ -200,10 +202,12 @@ module ScreenLib
 			end
 		end
 
-		def classNameset buttonflg,i ###i : screenfields
-			if  (buttonflg==="inlineedit7" or buttonflg==="inlineadd7") and 
-				(i["screenfield_editable"] === "1" or i["screenfield_editable"] === "2" or i["screenfield_editable"] === "3") 
-					if  i["screenfield_indisp"] === "1" or i["screenfield_indisp"] === "2" ###必須はyupでも
+		def classNameset buttonflg,i,aud ###i : screenfields
+			if  ((buttonflg=="inlineedit7" or buttonflg==="inlineadd7") and i["screenfield_editable"] ==  "1") or
+				(buttonflg=="inlineedit7"  and i["screenfield_editable"] ==  "2") or
+				(buttonflg=="inlineadd7"  and i["screenfield_editable"] ==  "3")  or
+				(aud=="add"   and i["screenfield_editable"] ==  "3")  ###子テーブル・レコード追加
+					if  i["screenfield_indisp"] =~ /1|2/ ###必須はyupでも
 						case i["screenfield_type"] 
 						when "select"
 							"SelectEditableRequire"
@@ -470,6 +474,17 @@ module ScreenLib
 						when /opeitm_stktaking_proc_/	
 							temp[cell[:accessor]] = "1"  ###棚卸有
 						end
+					when /gantt_nditms/
+						case cell[:accessor]
+						when /itm_code$/	
+                            temp[cell[:accessor]] = params[:parse_linedata][:itm_code]
+						when /itm_name$/	
+							temp[cell[:accessor]] = params[:parse_linedata][:itm_name]
+						when /processseq$/	
+                            temp[cell[:accessor]] = params[:parse_linedata][:processseq] 
+						when /priority$/	
+                            temp[cell[:accessor]] = params[:parse_linedata][:priority] 
+						end
 					end
 				end	
 				pagedata << temp
@@ -526,7 +541,7 @@ module ScreenLib
 						contents <<  if i["screenfield_indisp"] === "1" or i["screenfield_indisp"] === "2"
 							 			"00bfff"  ##rgb(125, 177, 245)
 									else
-										if i["screenfield_editable"] == "1"	
+										if i["screenfield_editable"] =~ /1|2|3/	
 											"87ceeb"  ## rgb(200, 220, 245);
 										else
 											"ffffff"
@@ -593,7 +608,7 @@ module ScreenLib
 				init_where_info = {}
 				select_fields = ""
 				gridmessages_fields = ""  ### error messages
-				dropdownlist = {}   ###uploadでは未使用
+				dropDownList = {}   ###uploadでは未使用
 				sort_info = {}
 				screenwidth = 0
 				nameToCode = {}
@@ -684,7 +699,7 @@ module ScreenLib
 				if gridmessages_fields.size > 1
 					select_fields << gridmessages_fields
 				end
-				upload_columns_info = [columns_info,page_info,init_where_info,select_fields.chop,fetch_check,dropdownlist,sort_info,nameToCode]
+				upload_columns_info = [columns_info,page_info,init_where_info,select_fields.chop,fetch_check,dropDownList,sort_info,nameToCode]
 			end
 			return upload_columns_info
 		end
@@ -724,7 +739,7 @@ module ScreenLib
 							setParams[:parse_linedata][:confirm] = false 
 							setParams[:parse_linedata][(field+"_gridmessage").to_sym] = setParams[:err] 
 							if setParams[:parse_linedata][:errPath].nil? 
-								setParams[:parse_linedata][:errPath] = [field+"_gridmessage"]
+								setParams[:parse_linedata][:errPath] = setParams[:parse_linedata][(field+"_gridmessage").to_sym]
 							end
 							break
 				  		end

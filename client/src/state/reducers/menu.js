@@ -1,6 +1,6 @@
 import {MENU_REQUEST,MENU_SUCCESS,LOGOUT_REQUEST,MENU_FAILURE,
-          SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7, 
-           SCREEN_CONFIRM7,LOGIN_SUCCESS,CHANGE_SHOW_SCREEN,
+          SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,SCREEN_FAILURE,
+                    SCREEN_CONFIRM7,LOGIN_SUCCESS,CHANGE_SHOW_SCREEN,
            SECOND_CONFIRMALL_SUCCESS,SECOND_REQUEST,SECOND_SUCCESS7,SECOND_CONFIRM7,
           SECOND_FAILURE,SECONDFETCH_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT,
               } from '../../actions'
@@ -38,6 +38,7 @@ const menureducer =  (state= initialValues , actions) =>{
     
     case SCREENINIT_REQUEST:
       return {...state,
+        params:actions.payload.params,
         loading:true,
       }
 
@@ -61,6 +62,7 @@ const menureducer =  (state= initialValues , actions) =>{
     
     case SCREEN_CONFIRM7:
     case SECOND_CONFIRM7:
+    case SCREEN_FAILURE:
           return {...state,
                     loading:false,
       }

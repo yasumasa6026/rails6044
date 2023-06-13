@@ -111,6 +111,14 @@ case IMPORTEXCEL_REQUEST:
           // editableflg:action.payload.editableflg
 }
 
+case SECOND_SUCCESS7: // payloadに統一
+return {...state,
+  loading:false,
+  disabled:false,
+  message:"",
+  toggleSubForm:false,
+}
+
 case SECOND_CONFIRMALL_SUCCESS:
   return {...state,
    disabled:false,

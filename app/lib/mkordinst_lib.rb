@@ -118,53 +118,31 @@ module MkordinstLib
 		ActiveRecord::Base.connection.insert(init_ordorg_strsql(mkprdpurords_id))       ### mkordorgs 親のみ
 		###員数に従って必要数を計算
 		strsql = %Q&
-				select max(pare.mlevel) mlevel,pare.itms_id_pare ,pare.processseq_pare ,
-					pare.shelfnos_id_pare ,pare.prjnos_id,
-					pare.shelfnos_id_to_pare ,pare.mkprdpurords_id_trngantt mkprdpurords_id
+				select max(pare.mlevel) mlevel,pare.itms_id_pare ,pare.processseq_pare ,pare.prjnos_id,
+					max(pare.shelfnos_id_pare) shelfnos_id_pare,max(pare.shelfnos_id_to_pare) shelfnos_id_to_pare,
+					pare.mkprdpurords_id_trngantt mkprdpurords_id
 				 	from trngantts	pare
 					where pare.mkprdpurords_id_trngantt = #{mkprdpurords_id}
 					and (pare.qty_sch > 0 or pare.qty > 0)
-					group by pare.itms_id_pare,pare.processseq_pare,pare.shelfnos_id_pare,pare.prjnos_id,
-							pare.shelfnos_id_pare,pare.shelfnos_id_to_pare,pare.mkprdpurords_id_trngantt
+					group by pare.itms_id_pare,pare.processseq_pare,pare.prjnos_id,
+							---pare.shelfnos_id_pare,pare.shelfnos_id_to_pare,
+							pare.mkprdpurords_id_trngantt
 					having max(pare.mlevel) > 0
-					order by max(pare.mlevel),pare.itms_id_pare,pare.processseq_pare,pare.shelfnos_id_pare,pare.prjnos_id,
-							pare.shelfnos_id_pare,pare.shelfnos_id_to_pare
+					order by max(pare.mlevel),pare.itms_id_pare,pare.processseq_pare,pare.prjnos_id,
+							---pare.shelfnos_id_pare,pare.shelfnos_id_to_pare,
+							pare.mkprdpurords_id_trngantt
 				&
 			###opeitm.packqtyに対応
-		ActiveRecord::Base.connection.select_all(strsql).each do |handover|
-			ActiveRecord::Base.connection.insert(sum_ord_qty_strsql(handover)) 
-			ActiveRecord::Base.connection.insert(get_ordqty(handover)) 
-			ord_sql = %Q&
-						select  tmp.itms_id_trn itms_id,tmp.locas_id_trn locas_id,tmp.processseq_trn processseq,tmp.prjnos_id,
-								tmp.shelfnos_id_to_trn shelfnos_id_to,
-								tmp.duedate,max(tmp.packqty) packqty,
-								max(tmp.tblname) tblname,max(tmp.tblid) tblid,tmp.mkprdpurords_id ,min(tmp.starttime) starttime,
-								max(tmp.qty_require) qty_require,max(tmp.qty_handover) qty_handover,
-								max(ordorg.id) mkordorgs_id,min(tmp.toduedate) toduedate,
-								sum(tmp.incnt) incnt
-			   			from mkordtmpfs tmp
-						inner join  mkordorgs ordorg on tmp.itms_id_trn = ordorg.itms_id and tmp.shelfnos_id_trn = ordorg.shelfnos_id and 
-									tmp.processseq_trn = ordorg.processseq and tmp.prjnos_id = ordorg.prjnos_id and
-									tmp.shelfnos_id_to_trn = ordorg.shelfnos_id_to and tmp.mkprdpurords_id = ordorg.mkprdpurords_id 
-			   			where tmp.mkprdpurords_id = #{handover["mkprdpurords_id"]}
-			   				and tmp.itms_id_pare = #{handover["itms_id_pare"]} and tmp.processseq_pare = #{handover["processseq_pare"]}  
-			   				and tmp.shelfnos_id_pare = #{handover["shelfnos_id_pare"]} and tmp.shelfnos_id_to_pare = #{handover["shelfnos_id_to_pare"]} 
-							and tmp.prjnos_id = #{handover["prjnos_id"]}
-							and tmp.qty_sch > 0  --- ord手配済は対象外
-							group by  tmp.itms_id_trn,tmp.locas_id_trn,tmp.shelfnos_id_trn,tmp.processseq_trn,tmp.prjnos_id,
-										tmp.shelfnos_id_to_trn,tmp.duedate,tmp.mkprdpurords_id 
-						&
-			ActiveRecord::Base.connection.select_all(ord_sql).each do |sumSchs|  ### xxxords作成
+		ActiveRecord::Base.connection.select_all(strsql).each do |handover| ###top以外の全て抽出する。
+			ActiveRecord::Base.connection.insert(sum_ord_qty_strsql(handover)) ###schs.qtyから親毎の部品必要数を計算する。
+			ActiveRecord::Base.connection.insert(get_ordqty(handover)) ###発注・作業単位にまとめる。
+			ActiveRecord::Base.connection.select_all(ord_sql(handover)).each do |sumSchs|  ### xxxords抽出
 					incnt += sumSchs["incnt"].to_f
 					inqty += sumSchs["qty_require"].to_f
 					### freeの確認
-					sumSchs = sch_trn_alloc_to_freetrn(sumSchs)
+					sumSchs = sch_trn_alloc_to_freetrn(sumSchs)  ###schsをfreeのordsに引き当てる。shselfnosごとに引き当てている。
 					# ###
 					qty_handover = (sumSchs["qty_require"].to_f / sumSchs["packqty"].to_f).ceil  * sumSchs["packqty"].to_f
-					update_sql = %Q&
-					 				update mkordorgs set qty_handover = #{qty_handover} where id = #{sumSchs["mkordorgs_id"]}
-					 	&
-					ActiveRecord::Base.connection.update(update_sql)
 					next if sumSchs["qty_require"].to_f <= 0   ###sumSchs["qty_require"].to_f free　qty引当済
 					tblord = sumSchs["tblname"].sub("schs","ord")
 					case tbldata["tblname"] ###抽出対象は発注or作業指示？
@@ -241,6 +219,7 @@ module MkordinstLib
 						end
 					end
 					command_c["#{tblord}_gno"] = "" ### 
+					command_c["#{tblord}_remark"] = "create by mkord" ### 
 					command_c["#{tblord}_id"] = command_c["id"] = ArelCtl.proc_get_nextval("#{tblord}s_seq")
 					command_c["sio_classname"] = "_add_proc_mkprdpurord_"
 					setParams = {}  ###mkprdpurordsをリセット
@@ -259,7 +238,7 @@ module MkordinstLib
 							"qty_sch" => 0,"qty" => command_c["#{tblord}_qty"] ,"qty_stk" => 0,
 							"lotno" => "","packno" => "","qty_src" => command_c["#{tblord}_qty"] , "amt_src"=> 0}
 					stkinout = Shipment.proc_lotstkhists_in_out("in",base)  ###在庫の更新
-					stkinout["trngantts_id"] = setParams["trngantts_id"]
+					stkinout["trngantts_id"] = setParams["gantt"]["trngantts_id"]
                     ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
 					ope.proc_update_inoutlot_and_src_stk("in","lotstkhists",stkinout)
 					outcnt += 1
@@ -292,6 +271,51 @@ module MkordinstLib
 							break
 						end
 					end
+					ord = ActiveRecord::Base.connection.select_one("select * from #{sumSchs["tblname"]} where id = #{sumSchs["tblid"]}")
+					###
+					###
+					###
+					if ord["remark"] =~ /create by mkord/ or sumSchs["qty_stk"].to_f <= 0
+						###子部品を持たないfree ordsに引きあった時 
+					else
+						###子部品を手配済の時
+						update_sql = %Q&
+										 update mkordorgs set qty_handover = #{qty_handover} where id = #{sumSchs["mkordorgs_id"]}
+							 &
+						ActiveRecord::Base.connection.update(update_sql)
+						pare_trns = []
+						pare = {}
+						pare["qty_sch"] = qty_handover
+						pare["itms_id_trn"] = sumSchs["itms_id"]
+						pare["locas_id_trn"] = sumSchs["locas_id"]
+						pare["processseq_trn"] = sumSchs["processseq"]
+						pare["shelfnos_id_to_trn"] = sumSchs["shelfnos_id_to"]
+						pare_trns << pare
+						until pare_trns.size == 0
+							pare = pare_trns.shift
+							strsql = %Q&
+								select gantt.id trngantts_id,gantt.*,alloc.id alloc_id							
+									from trngantts gantt
+										inner join alloctbls alloc on gantt.id = alloc.trngantts_id
+										where gantt.mkprdpurords_id_trngantt = #{mkprdpurords_id}
+											and gantt.itms_id_pare = #{pare["itms_id_trn"]} and gantt.locas_id_pare = #{pare["locas_id_trn"]}
+											and gantt.processseq_pare = #{pare["processseq_trn"]} and gantt.shelfnos_id_to_pare = #{pare["shelfnos_id_to_trn"]}
+											and alloc.qty_linkto_alloctbl > 0 and alloc.srctblname like '%schs'
+								&
+							ActiveRecord::Base.connection.select_all(strsql).each do |sch|   ###trngantts.qty_schの変更
+								sch["new_qty_sch"] = CtlFields.proc_cal_qty_sch(pare["new_qty_sch"],pare["chilnum"],pare["parenum"],pare["consumunitqty"],pare["consumminqty"],pare["consumchgoverqty"])
+								ArelCtl.proc_update_linktbls_alloctbls_inoutlotstks(sch)
+								strsql = %Q&
+									update trngantts set qty_sch = #{sch["new_qty_sch"]} ,qty_require = #{sch["new_qty_sch"]} ,
+									remark = 'set_mkprdpurords_id_in_trngantts_strsql #{self} line:#{__LINE__}'|| remark,
+									updated_at = current_timestamp  
+											where id = #{sch[["trngantts_id"]]}
+									& 
+								ActiveRecord::Base.connection.update(strsql)
+								pare_trns << sch
+							end
+						end
+					end 
 			end
 		end
 		mkordparams[:incnt] = incnt
@@ -301,261 +325,6 @@ module MkordinstLib
 		# ###未処理－－＞最大発注量の分割
 		return mkordparams
 	end	
-	
-	def set_mkprdpurords_id_in_trngantts_strsql(add_tbl,strwhere,mkprdpurords_id)   ##alocctblのxxxschsは一件のみ
-		%Q&
-		update trngantts bgantt set mkprdpurords_id_trngantt = #{mkprdpurords_id},remark = 'set_mkprdpurords_id_in_trngantts_strsql',
-				updated_at = current_timestamp  
-				from (select gantt.orgtblid 
-										from trngantts gantt #{add_tbl}
-										where	gantt.qty_sch > 0 
-											 #{strwhere["org"]} #{strwhere["pare"]} #{strwhere["trn"]}
-										group by gantt.orgtblid
-					) target
-				where 	bgantt.orgtblid = target.orgtblid     
-			&
-	end
-
-	
-	def select_schs_from_mkprdpurords_by_pare(add_tbl_pare,strwhere,handover)   ##alocctblのxxxschsは一件のみ
-		%Q&
-			select  1	from trngantts gantt #{add_tbl_pare} --- 親の属性による選択
-										where mkprdpurords_id_trngantt = #{handover["mkprdpurords_id"]}
-											and gantt.itms_id_pare = #{handover["itms_id_pare"]} 
-											and gantt.processseq_pare = #{handover["processseq_pare"]} 
-											and gantt.shelfnos_id_pare = #{handover["shelfnos_id_pare"]} 
-											and gantt.shelfnos_id_to_pare = #{handover["shelfnos_id_to_pare"]} 
-											#{strwhere["pare"]} 
-											
-			&
-	end
-
-	def select_schs_from_mkprdpurords_by_trn(add_tbl_trn,strwhere,sumSchs)   ##alocctblのxxxschsは一件のみ
-		%Q&
-			select  1 from trngantts gantt #{add_tbl_trn} --- 子の属性による選択
-										where mkprdpurords_id_trngantt = #{sumSchs["mkprdpurords_id"]} and
-											gantt.itms_id_trn = #{sumSchs["itms_id"]} and
-											gantt.processseq_trn = #{sumSchs["processseq"]} and
-											gantt.locas_id_trn = #{sumSchs["locas_id"]} and
-											gantt.shelfnos_id_to_trn = #{sumSchs["shelfnos_id_to"]}
-											#{strwhere["trn"]} 
-											
-			&
-	end
-
-
-	def mkord_term mkprdpurords_id
-		%Q&	
-			insert into mkordterms(id,prjnos_id,
-				mlevel, itms_id,processseq,locas_id,
-							shelfnos_id,shelfnos_id_to,
-							duedate,optfixodate,persons_id_upd,created_at,updated_at,
-							mkprdpurords_id)	
-			select nextval('mkordterms_seq'),prjnos_id ,
-				max(gantt.mlevel), gantt.itms_id_trn,gantt.processseq_trn,gantt.locas_id_trn,
-				gantt.shelfnos_id_trn,gantt.shelfnos_id_to_trn,
-				min(gantt.duedate_trn) duedate,
-				case max(opeitm.optfixoterm)
-				when 0 then
-					cast('2099/12/31 23:59:59' as timestamp)
-				else
-					(cast(min(gantt.duedate_trn) as date) + cast(max(opeitm.optfixoterm) as integer)) 
-				end optfixodate,0,current_date,current_date,
-				#{mkprdpurords_id}  ---xxx
-			from trngantts gantt
-			inner join opeitms opeitm on gantt.itms_id_trn = opeitm.itms_id
-				and gantt.processseq_trn = opeitm.processseq
-				and gantt.shelfnos_id_trn = opeitm.shelfnos_id_opeitm 
-			where mkprdpurords_id_trngantt = #{mkprdpurords_id}  ---xxx
-			group by gantt.prjnos_id,gantt.itms_id_trn,gantt.processseq_trn,gantt.locas_id_trn,
-						gantt.shelfnos_id_trn,gantt.shelfnos_id_to_trn
-		&
-	end	
-
-	
-	def init_sum_ord_qty_strsql mkprdpurords_id
-		%Q&
-		 insert into mkordtmpfs(id,persons_id_upd,
-								 mkprdpurords_id,mlevel,itms_id_trn,itms_id_pare,
-								processseq_trn,processseq_pare,locas_id_trn,locas_id_pare,
-								prjnos_id,
-								shelfnos_id_to_trn,shelfnos_id_trn,shelfnos_id_pare,shelfnos_id_to_pare,
-								qty_sch,qty,qty_stk,
-								duedate,toduedate,starttime,
-								packqty,
-								consumchgoverqty,consumminqty,
-								consumunitqty,
-								parenum,chilnum,
-								qty_handover,qty_require,   --- qty_handover key='00001'の時のみ有効
-								tblname,tblid,incnt,
-								expiredate,created_at,updated_at)
-				select nextval('mkordtmpfs_seq'),0 persons_id_upd, 
-						gantt.mkprdpurords_id_trngantt ,'1' mlevel,gantt.itms_id_trn itms_id_trn, gantt.itms_id_pare itms_id_pare,
-						gantt.processseq_trn,gantt.processseq_pare ,gantt.locas_id_trn locas_id_trn,gantt.locas_id_pare locas_id_pare,
-						gantt.prjnos_id ,
-						gantt.shelfnos_id_to_trn ,gantt.shelfnos_id_trn,gantt.shelfnos_id_pare,gantt.shelfnos_id_to_pare,
-						sum(gantt.qty_sch) qty_sch,sum(gantt.qty) qty,sum(gantt.qty_stk) qty_stk,
-						min(gantt.duedate_trn),	max(gantt.toduedate_trn),	min(gantt.starttime_trn),
-						1 packqty,
-						max(gantt.consumchgoverqty),max(gantt.consumminqty),
-						max(gantt.consumunitqty) consumunitqty,
-						1 parenum,1 chilnum,
-						sum(gantt.qty_handover) qty_handover,sum(gantt.qty_require) qty_require,
-						max(gantt.tblname) tblname,min(gantt.tblid) tblid,count(tblid),
-						'2099/12/31',current_date,current_date 
-						from trngantts gantt 
-						inner join mkordterms term on gantt.itms_id_trn = term.itms_id  and gantt.processseq_trn = term.processseq 
-													and gantt.locas_id_trn = term.locas_id and gantt.prjnos_id = term.prjnos_id  
-													and gantt.mkprdpurords_id_trngantt = term.mkprdpurords_id and gantt.shelfnos_id_to_trn = term.shelfnos_id_to 
-						where  gantt.mkprdpurords_id_trngantt = #{mkprdpurords_id} ---xxx
-							and gantt.duedate_trn >= term.duedate and gantt.duedate_trn < term.optfixodate
-						group by gantt.mkprdpurords_id_trngantt ,
-							gantt.itms_id_trn,gantt.processseq_trn ,gantt.itms_id_pare,gantt.processseq_pare ,
-							gantt.prjnos_id,gantt.locas_id_trn ,gantt.locas_id_pare ,
-							gantt.shelfnos_id_to_trn,gantt.shelfnos_id_trn,gantt.shelfnos_id_pare,gantt.shelfnos_id_to_pare
-							having max(gantt.mlevel) = '1'
-				&
-	end	
-	
-	def init_ordorg_strsql mkprdpurords_id
-		%Q&
-		insert into mkordorgs(id,persons_id_upd,
-			mkprdpurords_id,mlevel,itms_id,
-	   		processseq,locas_id,shelfnos_id,
-	   		prjnos_id,
-	   		shelfnos_id_to,
-	   		qty_sch,qty,qty_stk,
-	   		duedate,toduedate,starttime,
-	   		packqty,
-	   		consumchgoverqty,consumminqty,
-	   		consumunitqty,
-	   		qty_handover,qty_require,   --- 
-	   		tblname,tblid,incnt,
-	   		expiredate,created_at,updated_at)
-		select nextval('mkordorgs_seq'),0 persons_id_upd, 
-			gantt.mkprdpurords_id ,max(gantt.mlevel) mlevel,gantt.itms_id_trn itms_id, 
-			gantt.processseq_trn processseq,gantt.locas_id_trn locas_id,gantt.shelfnos_id_trn,
-			gantt.prjnos_id ,
-			gantt.shelfnos_id_to_trn ,
-			sum(gantt.qty_sch) qty_sch,sum(gantt.qty) qty,sum(gantt.qty_stk) qty_stk,
-			min(gantt.duedate),	max(gantt.toduedate),	min(gantt.starttime),
-			1 packqty,
-			0 consumchgoverqty,0 consumminqty,
-			1 consumunitqty,
-			trunc(sum(gantt.qty_handover) / max(gantt.packqty) + 0.99999) * max(gantt.packqty)  qty_handover,
-			sum(gantt.qty_require) qty_require,
-			max(gantt.tblname) tblname,min(gantt.tblid) tblid,count(tblid),
-			'2099/12/31',current_date,current_date 
-			from mkordtmpfs gantt 
-			inner join mkordterms term on gantt.itms_id_trn = term.itms_id  and gantt.processseq_trn = term.processseq 
-						   and gantt.locas_id_trn = term.locas_id and gantt.prjnos_id = term.prjnos_id  
-						   and gantt.mkprdpurords_id = term.mkprdpurords_id 
-						   and gantt.shelfnos_id_trn = term.shelfnos_id and gantt.shelfnos_id_to_trn = term.shelfnos_id_to 
-			where   gantt.mkprdpurords_id = #{mkprdpurords_id} ---xxx
-   				and gantt.duedate >= term.duedate and gantt.duedate < term.optfixodate  --- gantt.duedate:ok
-			group by gantt.mkprdpurords_id,
-				gantt.itms_id_trn,gantt.processseq_trn ,
-				gantt.prjnos_id,gantt.shelfnos_id_to_trn,gantt.shelfnos_id_trn,gantt.locas_id_trn 
-   				having max(gantt.mlevel) = 1
-				&
-	end	
-	
-
-	def sum_ord_qty_strsql(handover)
-		%Q&
-	 	insert into mkordtmpfs(id,persons_id_upd,
-			 					mkprdpurords_id,mlevel,itms_id_trn,itms_id_pare,
-								processseq_trn,processseq_pare,locas_id_trn,locas_id_pare,
-								prjnos_id,
-								shelfnos_id_to_trn,shelfnos_id_trn,shelfnos_id_pare,shelfnos_id_to_pare,
-								qty_sch,qty,qty_stk,
-								duedate,toduedate,starttime,
-								packqty,
-								consumchgoverqty,consumminqty,
-								consumunitqty,
-								parenum,chilnum,
-								qty_handover,qty_require,   --- 
-								tblname,tblid,incnt,
-								expiredate,created_at,updated_at)
-				select nextval('mkordtmpfs_seq'),0 persons_id_upd, 
-						gantt.mkprdpurords_id_trngantt ,max(gantt.mlevel) mlevel,gantt.itms_id_trn itms_id, gantt.itms_id_pare,
-						gantt.processseq_trn,gantt.processseq_pare ,gantt.locas_id_trn ,gantt.locas_id_pare,
-						gantt.prjnos_id ,
-						gantt.shelfnos_id_to_trn ,gantt.shelfnos_id_trn,gantt.shelfnos_id_pare,gantt.shelfnos_id_to_pare,
-						sum(gantt.qty_sch) qty_sch,sum(gantt.qty) qty,sum(gantt.qty_stk) qty_stk,
-						min(gantt.duedate_trn) duedate,	min(gantt.toduedate_trn) toduedate,	min(gantt.starttime_trn) starttime,
-						max(opeitm.packqty)  packqty,
-						max(gantt.consumchgoverqty) consumchgoverqty,max(gantt.consumminqty) consumminqty,
-						max(gantt.consumunitqty)  consumunitqty,
-						gantt.parenum,gantt.chilnum,
-						trunc((max(tmp.qty_handover) * gantt.chilnum / gantt.parenum) / max(gantt.consumunitqty) + 0.99999) * max(gantt.consumunitqty) + max(gantt.consumchgoverqty),
-						trunc((max(tmp.qty_handover) * gantt.chilnum / gantt.parenum) / max(gantt.consumunitqty) + 0.99999) * max(gantt.consumunitqty) + max(gantt.consumchgoverqty),
-						max(gantt.tblname) tblname,min(gantt.tblid) tblid,count(gantt.tblid),
-						'2099/12/31',current_date,current_date 
-						from trngantts gantt 
-						inner join opeitms opeitm on gantt.itms_id_trn = opeitm.itms_id  and gantt.processseq_trn = opeitm.processseq 
-													and gantt.shelfnos_id_trn = opeitm.shelfnos_id_opeitm  
-						inner join mkordterms term on gantt.itms_id_pare = term.itms_id  and gantt.processseq_pare = term.processseq 
-													and gantt.locas_id_pare = term.locas_id 
-													and gantt.shelfnos_id_pare = term.shelfnos_id and gantt.shelfnos_id_to_pare = term.shelfnos_id_to 
-													and gantt.prjnos_id = term.prjnos_id  
-													and gantt.mkprdpurords_id_trngantt = term.mkprdpurords_id  
-						inner join mkordorgs tmp on   gantt.prjnos_id = tmp.prjnos_id 	and gantt.mkprdpurords_id_trngantt = tmp.mkprdpurords_id 
-														and gantt.itms_id_pare = tmp.itms_id and gantt.processseq_pare = tmp.processseq
-														and gantt.shelfnos_id_pare = tmp.shelfnos_id and gantt.shelfnos_id_to_pare = tmp.shelfnos_id_to
-						where  gantt.mlevel > '1' and gantt.mkprdpurords_id_trngantt = #{handover["mkprdpurords_id"]} ---xxx
-							and gantt.duedate_pare >= term.duedate and gantt.duedate_pare < term.optfixodate
-							and tmp.itms_id = #{handover["itms_id_pare"]} and tmp.processseq = #{handover["processseq_pare"]}  
-							and tmp.shelfnos_id = #{handover["shelfnos_id_pare"]} 
-							and tmp.shelfnos_id_to	= #{handover["shelfnos_id_to_pare"]}	
-							and (opeitm.prdpurordauto != 'M' or opeitm.prdpurordauto is null)	---prdords,purordsの自動作成はしない。
-						group by gantt.mkprdpurords_id_trngantt ,gantt.itms_id_pare,gantt.processseq_pare ,gantt.locas_id_pare,
-							gantt.shelfnos_id_pare,gantt.shelfnos_id_to_pare,
-		 					gantt.itms_id_trn,gantt.processseq_trn ,gantt.locas_id_trn ,gantt.parenum,gantt.chilnum,
-		 					gantt.prjnos_id,gantt.shelfnos_id_to_trn   ,gantt.shelfnos_id_to_pare ,gantt.shelfnos_id_trn
-				&
-	end			
-	
-	def get_ordqty(handover)
-		%Q&
-			insert into mkordorgs (
-					id,mlevel    , 
-					itms_id  ,locas_id,processseq,prjnos_id,shelfnos_id,shelfnos_id_to,
-					consumminqty , consumchgoverqty ,consumunitqty,
-					packqty ,
-					starttime ,duedate , toduedate ,
-					qty_sch , qty ,qty_stk,
-					qty_require ,
-					qty_handover ,
-		 			tblname , tblid ,
-					remark  ,contents ,
-					expiredate  , update_ip ,
-					created_at   , updated_at   ,
-					persons_id_upd ,
-					incnt,mkprdpurords_id )
-			select  nextval('mkordorgs_seq') id,max(tmp.mlevel) mlevel,
-					tmp.itms_id_trn,tmp.locas_id_trn,tmp.processseq_trn,tmp.prjnos_id,tmp.shelfnos_id_trn,tmp.shelfnos_id_to_trn,
-					max(tmp.consumminqty) consumminqty, max(tmp.consumchgoverqty) consumchgoverqty,max(tmp.consumunitqty) consumunitqty,
-					max(tmp.packqty) packqty,
-			   		min(tmp.starttime) starttime,tmp.duedate,min(tmp.toduedate) toduedate,
-			   		sum(tmp.qty_sch) qty_sch, sum(tmp.qty) qty,sum(tmp.qty_stk) qty_stk,
-			   		(sum(tmp.qty_require) - sum(tmp.qty) - sum(tmp.qty_stk)) qty_require,   ---既に発注済or完成済
-			   		trunc((sum(tmp.qty_require)  - sum(tmp.qty_stk))/max(tmp.packqty) + 0.99999) * max(tmp.packqty)  qty_handover,  ---既に完成済
-			   		max(tmp.tblname),min(tmp.tblid),
-			   		'' remark,'' contents,
-			   		'2099/12/31' expiredate,'' updated_ip,
-			   		current_date created_at,current_date updated_at,
-			   		0 persons_id_upd,
-			   		sum(incnt) incnt,	#{handover["mkprdpurords_id"]} mkprdpurords_id
-			   	from mkordtmpfs tmp
-			   		where tmp.mkprdpurords_id = #{handover["mkprdpurords_id"]} and tmp.mlevel > '1'
-			   			and tmp.itms_id_pare = #{handover["itms_id_pare"]} and tmp.processseq_pare = #{handover["processseq_pare"]}  
-			   			and tmp.shelfnos_id_pare = #{handover["shelfnos_id_pare"]}  and  tmp.shelfnos_id_to_pare = #{handover["shelfnos_id_to_pare"]} 
-			   			and tmp.prjnos_id = #{handover["prjnos_id"]}
-					group by  tmp.itms_id_trn,tmp.locas_id_trn,tmp.processseq_trn,tmp.prjnos_id,tmp.shelfnos_id_trn,tmp.shelfnos_id_to_trn,tmp.duedate
-		&
-	end
-
 	def proc_mkbillinsts reqparams,mkinstparams  ###xxxschsからxxxordsを作成する。 trngantts:xxxschs= 1:1
 		### mkprdpurordsではxno_xxxschはセットしない。schsをまとめたり分割したりする機能のため
 		setParams = reqparams.dup
@@ -685,30 +454,14 @@ module MkordinstLib
 						where tblname = '#{free["tblname"]}' and tblid = #{free["tblid"]}
 						and trngantts_id = #{free["trngantts_id"]} and srctblname = 'lotstkhists'  &
 			base["srctblid"] = ActiveRecord::Base.connection.select_value(strsql)
-	 		sch_trn_strsql = %Q&   ---sumSchsから個別のqty_schをもとめる。
-				select gantt.id trngantts_id, 
-						gantt.tblname,gantt.tblid,gantt.mkprdpurords_id_trngantt,gantt.qty_sch,gantt.qty,gantt.qty_stk,
-			 			gantt.qty_require,gantt.qty_handover, 
-				 		gantt.duedate_trn duedate,gantt.toduedate_trn,gantt.starttime_trn starttime,
-				 		gantt.locas_id_trn locas_id,gantt.itms_id_trn itms_id,gantt.processseq_trn processseq,
-						gantt.shelfnos_id_to_trn shelfnos_id,gantt.prjnos_id,'' lotno,''packno,
-						alloc.id alloc_id   ---alloctbls.qty_linkto_alloctbl == gantt.qty_sch when tblname == pur,prdschs
-				 	from trngantts gantt
-					inner join alloctbls alloc on alloc.trngantts_id = gantt.id
-				 		where gantt.mkprdpurords_id_trngantt = #{sumSchs["mkprdpurords_id"]} 
-						and gantt.itms_id_trn = #{sumSchs["itms_id"]} and gantt.processseq_trn = #{sumSchs["processseq"]}  
-					 	and gantt.locas_id_trn = #{sumSchs["locas_id"]} and gantt.prjnos_id = #{sumSchs["prjnos_id"]}
-					 	and gantt.shelfnos_id_to_trn = #{sumSchs["shelfnos_id_to"]} 
-					 	and gantt.qty_sch > 0
-					 	order by  (gantt.duedate_trn)
- 				&
-			ActiveRecord::Base.connection.select_all(sch_trn_strsql).each do |sch_trn|
+			ActiveRecord::Base.connection.select_all(sch_trn_strsql(sumSchs)).each do |sch_trn|
 				if free_qty >  sch_trn["qty_sch"].to_f
 					base["qty_src"] =  sch_trn["qty_sch"].to_f
 					free_qty -= sch_trn["qty_sch"].to_f
 					sch_trn["qty_sch"]  = 0
 				else
 					sch_trn["qty_sch"] = sch_trn["qty_sch"].to_f - free_qty 
+					base["qty_src"] =  free_qty
 					free_qty = 0
 				end
 
@@ -726,15 +479,15 @@ module MkordinstLib
 			end
 			case base["tblname"]
 			when /ords$|insts$|replyinputs$|dlvs$/
-				cng_free_qty = free["qty_linkto_alloctbl"].to_f - free_qty
+				cng_free_qty = free["qty_linkto_alloctbl"].to_f - base["qty_src"] 
 				cng_free_qty_stk = 0
 			when /acts$|inoutlotstks/
-				cng_free_qty_stk = free["qty_linkto_alloctbl"].to_f - free_qty
+				cng_free_qty_stk = free["qty_linkto_alloctbl"].to_f - base["qty_src"] 
 				cng_free_qty = 0 
 			end
 			free_update_sql = %Q&
 					update trngantts set qty = qty - #{cng_free_qty},qty_stk = qty_stk - #{cng_free_qty_stk},
-											remark = '#{self} line:#{__LINE__}',updated_at = current_timestamp
+											remark = '#{self} line:#{__LINE__}'|| remark,updated_at = current_timestamp
 											where id = #{free["trngantts_id"]}
 			&
 			ActiveRecord::Base.connection.update(free_update_sql)
@@ -744,9 +497,298 @@ module MkordinstLib
 		sumSchs["qty_require"] = required_sch_qty
 	 	return sumSchs
 	end	
+	
+	
+	def set_mkprdpurords_id_in_trngantts_strsql(add_tbl,strwhere,mkprdpurords_id)   ##alocctblのxxxschsは一件のみ
+		%Q&
+		update trngantts bgantt set mkprdpurords_id_trngantt = #{mkprdpurords_id},
+				remark = 'set_mkprdpurords_id_in_trngantts_strsql #{self} line:#{__LINE__}'|| remark,
+				updated_at = current_timestamp  
+				from (select gantt.orgtblid 
+										from trngantts gantt #{add_tbl}
+										where	gantt.qty_sch > 0 
+											 #{strwhere["org"]} #{strwhere["pare"]} #{strwhere["trn"]}
+										group by gantt.orgtblid
+					) target
+				where 	bgantt.orgtblid = target.orgtblid     
+			&
+	end
+
+	
+	def select_schs_from_mkprdpurords_by_pare(add_tbl_pare,strwhere,handover)   ##alocctblのxxxschsは一件のみ
+		%Q&
+			select  1	from trngantts gantt #{add_tbl_pare} --- 親の属性による選択
+										where mkprdpurords_id_trngantt = #{handover["mkprdpurords_id"]}
+											and gantt.itms_id_pare = #{handover["itms_id_pare"]} 
+											and gantt.processseq_pare = #{handover["processseq_pare"]} 
+											and gantt.shelfnos_id_pare = #{handover["shelfnos_id_pare"]} 
+											and gantt.shelfnos_id_to_pare = #{handover["shelfnos_id_to_pare"]} 
+											#{strwhere["pare"]} 
+											
+			&
+	end
+
+	def select_schs_from_mkprdpurords_by_trn(add_tbl_trn,strwhere,sumSchs)   ##alocctblのxxxschsは一件のみ
+		%Q&
+			select  1 from trngantts gantt #{add_tbl_trn} --- 子の属性による選択
+										where mkprdpurords_id_trngantt = #{sumSchs["mkprdpurords_id"]} and
+											gantt.itms_id_trn = #{sumSchs["itms_id"]} and
+											gantt.processseq_trn = #{sumSchs["processseq"]} and
+											gantt.locas_id_trn = #{sumSchs["locas_id"]} and
+											gantt.shelfnos_id_to_trn = #{sumSchs["shelfnos_id_to"]}
+											#{strwhere["trn"]} 
+											
+			&
+	end
+
+
+	def mkord_term mkprdpurords_id
+		%Q&	
+			insert into mkordterms(id,prjnos_id,
+				mlevel, itms_id,processseq,locas_id,
+							shelfnos_id,shelfnos_id_to,
+							duedate,optfixodate,persons_id_upd,created_at,updated_at,
+							mkprdpurords_id)	
+			select nextval('mkordterms_seq'),prjnos_id ,
+				max(gantt.mlevel), gantt.itms_id_trn,gantt.processseq_trn,gantt.locas_id_trn,
+				gantt.shelfnos_id_trn,gantt.shelfnos_id_to_trn,
+				min(gantt.duedate_trn) duedate,
+				case max(opeitm.optfixoterm)
+				when 0 then
+					cast('2099/12/31 23:59:59' as timestamp)
+				else
+					(cast(min(gantt.duedate_trn) as date) + cast(max(opeitm.optfixoterm) as integer)) 
+				end optfixodate,0,current_date,current_date,
+				#{mkprdpurords_id}  ---xxx
+			from trngantts gantt
+			inner join opeitms opeitm on gantt.itms_id_trn = opeitm.itms_id
+				and gantt.processseq_trn = opeitm.processseq
+				and gantt.shelfnos_id_trn = opeitm.shelfnos_id_opeitm 
+			where mkprdpurords_id_trngantt = #{mkprdpurords_id}  ---xxx
+			group by gantt.prjnos_id,gantt.itms_id_trn,gantt.processseq_trn,gantt.locas_id_trn,
+						gantt.shelfnos_id_trn,gantt.shelfnos_id_to_trn
+		&
+	end	
+
+	
+	def init_sum_ord_qty_strsql mkprdpurords_id
+		%Q&
+		 insert into mkordtmpfs(id,persons_id_upd,
+								 mkprdpurords_id,mlevel,itms_id_trn,itms_id_pare,
+								processseq_trn,processseq_pare,locas_id_trn,
+								prjnos_id,
+								shelfnos_id_to_trn,shelfnos_id_trn,
+								locas_id_pare,shelfnos_id_pare,shelfnos_id_to_pare,
+								qty_sch,qty,qty_stk,
+								duedate,toduedate,starttime,
+								packqty,
+								consumchgoverqty,consumminqty,
+								consumunitqty,
+								parenum,chilnum,
+								qty_handover,qty_require,   --- qty_handover key='00001'の時のみ有効
+								tblname,tblid,incnt,
+								expiredate,created_at,updated_at)
+				select nextval('mkordtmpfs_seq'),0 persons_id_upd, 
+						gantt.mkprdpurords_id_trngantt ,'1' mlevel,gantt.itms_id_trn itms_id_trn, gantt.itms_id_pare itms_id_pare,
+						gantt.processseq_trn,gantt.processseq_pare ,gantt.locas_id_trn locas_id_trn,
+						gantt.prjnos_id ,
+						gantt.shelfnos_id_to_trn ,gantt.shelfnos_id_trn,
+						max(gantt.locas_id_pare) locas_id_pare,
+						max(gantt.shelfnos_id_pare) shelfnos_id_pare,
+						max(gantt.shelfnos_id_to_pare) shelfnos_id_to_pare,
+						sum(gantt.qty_sch) qty_sch,sum(gantt.qty) qty,sum(gantt.qty_stk) qty_stk,
+						min(gantt.duedate_trn),	max(gantt.toduedate_trn),	min(gantt.starttime_trn),
+						1 packqty,
+						max(gantt.consumchgoverqty),max(gantt.consumminqty),
+						max(gantt.consumunitqty) consumunitqty,
+						1 parenum,1 chilnum,
+						sum(gantt.qty_handover) qty_handover,sum(gantt.qty_require) qty_require,
+						max(gantt.tblname) tblname,min(gantt.tblid) tblid,count(tblid),
+						'2099/12/31',current_date,current_date 
+						from trngantts gantt 
+						inner join mkordterms term on gantt.itms_id_trn = term.itms_id  and gantt.processseq_trn = term.processseq 
+													and gantt.locas_id_trn = term.locas_id and gantt.prjnos_id = term.prjnos_id  
+													and gantt.mkprdpurords_id_trngantt = term.mkprdpurords_id and gantt.shelfnos_id_to_trn = term.shelfnos_id_to 
+						where  gantt.mkprdpurords_id_trngantt = #{mkprdpurords_id} ---xxx
+							and gantt.duedate_trn >= term.duedate and gantt.duedate_trn < term.optfixodate
+						group by gantt.mkprdpurords_id_trngantt ,
+							gantt.itms_id_trn,gantt.processseq_trn ,gantt.itms_id_pare,gantt.processseq_pare ,gantt.prjnos_id,
+							---gantt.locas_id_pare ,gantt.shelfnos_id_pare,gantt.shelfnos_id_to_pare,
+							gantt.locas_id_trn ,gantt.shelfnos_id_to_trn,gantt.shelfnos_id_trn
+							having max(gantt.mlevel) = '1'
+				&
+	end	
+	
+	def init_ordorg_strsql mkprdpurords_id
+		%Q&
+		insert into mkordorgs(id,persons_id_upd,
+			mkprdpurords_id,mlevel,itms_id,
+	   		processseq,locas_id,shelfnos_id,
+	   		prjnos_id,
+	   		shelfnos_id_to,
+	   		qty_sch,qty,qty_stk,
+	   		duedate,toduedate,starttime,
+	   		packqty,
+	   		consumchgoverqty,consumminqty,
+	   		consumunitqty,
+	   		qty_handover,qty_require,   --- 
+	   		tblname,tblid,incnt,
+	   		expiredate,created_at,updated_at)
+		select nextval('mkordorgs_seq'),0 persons_id_upd, 
+			gantt.mkprdpurords_id ,max(gantt.mlevel) mlevel,gantt.itms_id_trn itms_id, 
+			gantt.processseq_trn processseq,gantt.locas_id_trn locas_id,gantt.shelfnos_id_trn,
+			gantt.prjnos_id ,
+			gantt.shelfnos_id_to_trn ,
+			sum(gantt.qty_sch) qty_sch,sum(gantt.qty) qty,sum(gantt.qty_stk) qty_stk,
+			min(gantt.duedate),	max(gantt.toduedate),	min(gantt.starttime),
+			1 packqty,
+			0 consumchgoverqty,0 consumminqty,
+			1 consumunitqty,
+			trunc(sum(gantt.qty_handover) / max(gantt.packqty) + 0.99999) * max(gantt.packqty)  qty_handover,
+			sum(gantt.qty_require) qty_require,
+			max(gantt.tblname) tblname,min(gantt.tblid) tblid,count(tblid),
+			'2099/12/31',current_date,current_date 
+			from mkordtmpfs gantt 
+			inner join mkordterms term on gantt.itms_id_trn = term.itms_id  and gantt.processseq_trn = term.processseq 
+						   and gantt.locas_id_trn = term.locas_id and gantt.prjnos_id = term.prjnos_id  
+						   and gantt.mkprdpurords_id = term.mkprdpurords_id 
+						   and gantt.shelfnos_id_trn = term.shelfnos_id and gantt.shelfnos_id_to_trn = term.shelfnos_id_to 
+			where   gantt.mkprdpurords_id = #{mkprdpurords_id} ---xxx
+   				and gantt.duedate >= term.duedate and gantt.duedate < term.optfixodate  --- gantt.duedate:ok
+			group by gantt.mkprdpurords_id,
+				gantt.itms_id_trn,gantt.processseq_trn ,
+				gantt.prjnos_id,gantt.shelfnos_id_to_trn,gantt.shelfnos_id_trn,gantt.locas_id_trn 
+   				having max(gantt.mlevel) = 1
+				&
+	end	
+	
+
+	def sum_ord_qty_strsql(handover)
+		%Q&
+	 	insert into mkordtmpfs(id,persons_id_upd,
+			 					mkprdpurords_id,mlevel,itms_id_trn,itms_id_pare,
+								processseq_trn,processseq_pare,locas_id_trn,
+								prjnos_id,
+								shelfnos_id_to_trn,shelfnos_id_trn,
+								locas_id_pare,
+								shelfnos_id_pare,shelfnos_id_to_pare,
+								qty_sch,qty,qty_stk,
+								duedate,toduedate,starttime,
+								packqty,
+								consumchgoverqty,consumminqty,
+								consumunitqty,
+								parenum,chilnum,
+								qty_handover,qty_require,   --- 
+								tblname,tblid,incnt,
+								expiredate,created_at,updated_at)
+				select nextval('mkordtmpfs_seq'),0 persons_id_upd, 
+						gantt.mkprdpurords_id_trngantt ,max(gantt.mlevel) mlevel,gantt.itms_id_trn itms_id, gantt.itms_id_pare,
+						gantt.processseq_trn,gantt.processseq_pare ,gantt.locas_id_trn ,
+						gantt.prjnos_id ,
+						gantt.shelfnos_id_to_trn ,gantt.shelfnos_id_trn,
+						max(gantt.locas_id_pare) locas_id_pare,
+						(gantt.shelfnos_id_pare) shelfnos_id_pare,max(gantt.shelfnos_id_to_pare) shelfnos_id_to_pare,
+						sum(gantt.qty_sch) qty_sch,sum(gantt.qty) qty,sum(gantt.qty_stk) qty_stk,
+						min(gantt.duedate_trn) duedate,	min(gantt.toduedate_trn) toduedate,	min(gantt.starttime_trn) starttime,
+						max(opeitm.packqty)  packqty,
+						max(gantt.consumchgoverqty) consumchgoverqty,max(gantt.consumminqty) consumminqty,
+						max(gantt.consumunitqty)  consumunitqty,
+						gantt.parenum,gantt.chilnum,
+						trunc((max(tmp.qty_handover) * gantt.chilnum / gantt.parenum) / max(gantt.consumunitqty) + 0.99999) * max(gantt.consumunitqty) + max(gantt.consumchgoverqty),
+						trunc((max(tmp.qty_handover) * gantt.chilnum / gantt.parenum) / max(gantt.consumunitqty) + 0.99999) * max(gantt.consumunitqty) + max(gantt.consumchgoverqty),
+						max(gantt.tblname) tblname,min(gantt.tblid) tblid,count(gantt.tblid),
+						'2099/12/31',current_date,current_date 
+						from trngantts gantt 
+						inner join opeitms opeitm on gantt.itms_id_trn = opeitm.itms_id  and gantt.processseq_trn = opeitm.processseq 
+													and gantt.shelfnos_id_trn = opeitm.shelfnos_id_opeitm  
+						inner join mkordterms term on gantt.itms_id_pare = term.itms_id  and gantt.processseq_pare = term.processseq 
+													and gantt.locas_id_pare = term.locas_id 
+													and gantt.shelfnos_id_pare = term.shelfnos_id and gantt.shelfnos_id_to_pare = term.shelfnos_id_to 
+													and gantt.prjnos_id = term.prjnos_id  
+													and gantt.mkprdpurords_id_trngantt = term.mkprdpurords_id  
+						inner join mkordorgs tmp on   gantt.prjnos_id = tmp.prjnos_id 	and gantt.mkprdpurords_id_trngantt = tmp.mkprdpurords_id 
+														and gantt.itms_id_pare = tmp.itms_id and gantt.processseq_pare = tmp.processseq
+														and gantt.shelfnos_id_pare = tmp.shelfnos_id and gantt.shelfnos_id_to_pare = tmp.shelfnos_id_to
+						where  gantt.mlevel > '1' and gantt.mkprdpurords_id_trngantt = #{handover["mkprdpurords_id"]} ---xxx
+							and gantt.duedate_pare >= term.duedate and gantt.duedate_pare < term.optfixodate
+							and tmp.itms_id = #{handover["itms_id_pare"]} and tmp.processseq = #{handover["processseq_pare"]}  
+							---and tmp.shelfnos_id = #{handover["shelfnos_id_pare"]} 
+							---and tmp.shelfnos_id_to	= #{handover["shelfnos_id_to_pare"]}	
+							and (opeitm.prdpurordauto != 'M' or opeitm.prdpurordauto is null)	---prdords,purordsの自動作成はしない。
+						group by gantt.mkprdpurords_id_trngantt ,gantt.itms_id_pare,gantt.processseq_pare ,
+							gantt.shelfnos_id_pare,  --- gantt.shelfnos_id_to_pare,gantt.locas_id_pare,
+		 					gantt.itms_id_trn,gantt.processseq_trn ,gantt.locas_id_trn ,gantt.parenum,gantt.chilnum,
+		 					gantt.prjnos_id,gantt.shelfnos_id_to_trn   ,gantt.shelfnos_id_trn
+				&
+	end			
+	
+	def get_ordqty(handover)
+		%Q&
+			insert into mkordorgs (
+					id,mlevel    , 
+					itms_id  ,locas_id,processseq,prjnos_id,shelfnos_id,shelfnos_id_to,
+					consumminqty , consumchgoverqty ,consumunitqty,
+					packqty ,
+					starttime ,duedate , toduedate ,
+					qty_sch , qty ,qty_stk,
+					qty_require ,
+					qty_handover ,
+		 			tblname , tblid ,
+					remark  ,contents ,
+					expiredate  , update_ip ,
+					created_at   , updated_at   ,
+					persons_id_upd ,
+					incnt,mkprdpurords_id )
+			select  nextval('mkordorgs_seq') id,max(tmp.mlevel) mlevel,
+					tmp.itms_id_trn,tmp.locas_id_trn,tmp.processseq_trn,tmp.prjnos_id,tmp.shelfnos_id_trn,tmp.shelfnos_id_to_trn,
+					max(tmp.consumminqty) consumminqty, max(tmp.consumchgoverqty) consumchgoverqty,max(tmp.consumunitqty) consumunitqty,
+					max(tmp.packqty) packqty,
+			   		min(tmp.starttime) starttime,tmp.duedate,min(tmp.toduedate) toduedate,
+			   		sum(tmp.qty_sch) qty_sch, sum(tmp.qty) qty,sum(tmp.qty_stk) qty_stk,
+			   		(sum(tmp.qty_require) - sum(tmp.qty) - sum(tmp.qty_stk)) qty_require,   ---既に発注済or完成済
+			   		trunc((sum(tmp.qty_require)  - sum(tmp.qty_stk))/max(tmp.packqty) + 0.99999) * max(tmp.packqty)  qty_handover,  ---既に完成済
+			   		max(tmp.tblname),min(tmp.tblid),
+			   		'' remark,'' contents,
+			   		'2099/12/31' expiredate,'' updated_ip,
+			   		current_date created_at,current_date updated_at,
+			   		0 persons_id_upd,
+			   		sum(incnt) incnt,	#{handover["mkprdpurords_id"]} mkprdpurords_id
+			   	from mkordtmpfs tmp
+			   		where tmp.mkprdpurords_id = #{handover["mkprdpurords_id"]} and tmp.mlevel > '1'
+			   			and tmp.itms_id_pare = #{handover["itms_id_pare"]} and tmp.processseq_pare = #{handover["processseq_pare"]}  
+			   			---and tmp.shelfnos_id_pare = #{handover["shelfnos_id_pare"]}   --- and  tmp.shelfnos_id_to_pare = #{handover["shelfnos_id_to_pare"]} 
+			   			and tmp.prjnos_id = #{handover["prjnos_id"]}
+					group by  tmp.itms_id_trn,tmp.locas_id_trn,tmp.processseq_trn,tmp.prjnos_id,tmp.shelfnos_id_trn,tmp.shelfnos_id_to_trn,tmp.duedate
+		&
+	end
+
 	 
+	def ord_sql(handover) 
+			%Q&
+					select  tmp.itms_id_trn itms_id,tmp.locas_id_trn locas_id,tmp.processseq_trn processseq,tmp.prjnos_id,
+							tmp.shelfnos_id_to_trn shelfnos_id_to,
+							tmp.duedate,max(tmp.packqty) packqty,
+							max(tmp.tblname) tblname,max(tmp.tblid) tblid,tmp.mkprdpurords_id ,min(tmp.starttime) starttime,
+							max(tmp.qty_require) qty_require,max(tmp.qty_handover) qty_handover,
+							max(ordorg.id) mkordorgs_id,min(tmp.toduedate) toduedate,
+							sum(tmp.incnt) incnt
+					   from mkordtmpfs tmp
+					inner join  mkordorgs ordorg on tmp.itms_id_trn = ordorg.itms_id and tmp.shelfnos_id_trn = ordorg.shelfnos_id and 
+								tmp.processseq_trn = ordorg.processseq and tmp.prjnos_id = ordorg.prjnos_id and
+								tmp.shelfnos_id_to_trn = ordorg.shelfnos_id_to and tmp.mkprdpurords_id = ordorg.mkprdpurords_id 
+					   where tmp.mkprdpurords_id = #{handover["mkprdpurords_id"]}
+						   and tmp.itms_id_pare = #{handover["itms_id_pare"]} and tmp.processseq_pare = #{handover["processseq_pare"]}  
+						   ---and tmp.shelfnos_id_pare = #{handover["shelfnos_id_pare"]} and tmp.shelfnos_id_to_pare = #{handover["shelfnos_id_to_pare"]} 
+						and tmp.prjnos_id = #{handover["prjnos_id"]}
+						and tmp.qty_sch > 0  --- ord手配済は対象外
+						group by  tmp.itms_id_trn,tmp.locas_id_trn,tmp.shelfnos_id_trn,tmp.processseq_trn,tmp.prjnos_id,
+									tmp.shelfnos_id_to_trn,tmp.duedate,tmp.mkprdpurords_id 
+					&
+	end
+
 	def getFreeOrdStk(sumSchs)	
 	 	%Q&select   ---  free　を求めるsql
+						gantt.tblname,gantt.tblid,
 	 	 				case
 	 	 				when gantt.qty_stk > 0
 	 	 					then '02' 
@@ -775,5 +817,25 @@ module MkordinstLib
 	 	 					order by priority,due
 	 	 					---for update
 	 	 				& ### xxxacts等を登録するときは必ずxxxordsを前に登録すること。
+	end
+
+	def	sch_trn_strsql(sumSchs) 
+		 %Q&   ---sumSchsから個別のqty_schをもとめる。
+		   select gantt.id trngantts_id, 
+				   gantt.tblname,gantt.tblid,gantt.mkprdpurords_id_trngantt,gantt.qty_sch,gantt.qty,gantt.qty_stk,
+					gantt.qty_require,gantt.qty_handover, 
+					gantt.duedate_trn duedate,gantt.toduedate_trn,gantt.starttime_trn starttime,
+					gantt.locas_id_trn locas_id,gantt.itms_id_trn itms_id,gantt.processseq_trn processseq,
+				   gantt.shelfnos_id_to_trn shelfnos_id,gantt.prjnos_id,'' lotno,''packno,
+				   alloc.id alloc_id   ---alloctbls.qty_linkto_alloctbl == gantt.qty_sch when tblname == pur,prdschs
+				from trngantts gantt
+			   inner join alloctbls alloc on alloc.trngantts_id = gantt.id
+					where gantt.mkprdpurords_id_trngantt = #{sumSchs["mkprdpurords_id"]} 
+				   and gantt.itms_id_trn = #{sumSchs["itms_id"]} and gantt.processseq_trn = #{sumSchs["processseq"]}  
+					and gantt.locas_id_trn = #{sumSchs["locas_id"]} and gantt.prjnos_id = #{sumSchs["prjnos_id"]}
+					and gantt.shelfnos_id_to_trn = #{sumSchs["shelfnos_id_to"]} 
+					and gantt.qty_sch > 0
+					order by  (gantt.duedate_trn)
+			&
 	end
 end

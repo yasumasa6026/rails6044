@@ -306,7 +306,7 @@ module Shipment
 					&
 					ActiveRecord::Base.connection.select_all(shp_sql).each do |nd|
 						setParams["child"] = nd.dup 
-						proc_create_shpschs_delete_shpords(setParams)  do  ###prd,purordsによる自動作成 も含まれる。
+						proc_create_shpxxxs(setParams)  do  ###prd,purordsによる自動作成 も含まれる。
 							"shpord"
 						end
 					end
@@ -362,7 +362,8 @@ module Shipment
 									inst.lotno = shp.lotno and inst.packno = shp.packno
 									)
 				&
-				ActiveRecord::Base.connection.select_all(strsql).each do |shpord|
+				shpords = ActiveRecord::Base.connection.select_all(strsql)
+				shpords.each do |shpord|
 					shpord = ActiveRecord::Base.connection.select_one("select * from r_shpords where id = #{shpord["id"]}")
 					blk = RorBlkCtl::BlkClass.new("r_shpords")
 					command_c = blk.command_init
@@ -375,7 +376,15 @@ module Shipment
 					blk.proc_create_tbldata(command_c) ##
 					blk.proc_private_aud_rec({},command_c)
 				end
-				proc_mkShpords("r_#{pareTblName}",params["clickIndex"])
+				if shpords.to_ary.size > 0
+					proc_mkShpords("r_#{pareTblName}",params["clickIndex"])
+				else
+					pagedata = []
+					params[:pageCount] = 0
+					params[:totalCount] = 0
+					params[:parse_linedata] = {}
+					return pagedata,params 
+				end
 			when "foract_shpinsts"
 				strsorting = "  order by shpinst_paretblid,id desc "
 			when "r_shpacts"
@@ -441,7 +450,8 @@ module Shipment
 	end	
 	
 	###shp用
-	def proc_create_shpschs_delete_shpords(reqparams)  ### shpordsは対象外
+	def proc_create_shpxxxs(params)  ### shpordsは対象外
+		reqparams = params.dup
 			###自分自身のshpschs を作成   
 		###
 		#  yield=shpsch --> create
@@ -527,7 +537,7 @@ module Shipment
 				
 				stkinout["wh"] = "lotstkhists"
 				stkinout["tblid"] = command_c["id"]
-				stkinout["trngantts_id"] = reqparams["gantt"]["trngantts_id"]  ###親 purords,prdordsのtrngantts_id
+				stkinout["trngantts_id"] = params["gantt"]["trngantts_id"]  ###親 purords,prdordsのtrngantts_id
 				stkinout["expiredate"] = command_c[tblnamechop+"_expiredate"]
 				stkinout["lotno"] = command_c["#{tblnamechop}_lotno"] 
 				stkinout["packno"] =  command_c["#{tblnamechop}_packno"] 
@@ -739,7 +749,7 @@ module Shipment
 			proc_insert_inoutlotstk_sql(-1,stkinout)
 			gantt = {"trngantts_id" => stkinout["trngantts_id"]}
 			setParams = {"mkprdpurords_id" => 0,"gantt" => gantt,"child" => shpord,"parent" => {"shelfnos_id" => "-1"}}
-			proc_create_shpschs_delete_shpords(setParams)  do  ###prd,purordsによる自動作成 も含まれる。
+			proc_create_shpxxxs(setParams)  do  ###prd,purordsによる自動作成 も含まれる。
 				"shpinst"
 			end
 		else  ###shpacts
@@ -770,15 +780,16 @@ module Shipment
 			shpord["qty"] = shpord["qty_stk"]
 			shpord["qty_stk"] = 0
 			setParams = {"mkprdpurords_id" => 0,"gantt" => gantt,"child" => shpord,"parent" => {"shelfnos_id" => "-1"}}
-			proc_create_shpschs_delete_shpords(setParams)  do  ###prd,purordsによる自動作成 も含まれる。
+			proc_create_shpxxxs(setParams)  do  ###prd,purordsによる自動作成 も含まれる。
 				"shpact"
 			end
 		end
 	end
 
-	def proc_create_consume(reqparams) ##
+	def proc_create_consume(params) ##
 		###prdschs,purschsの時は自分自身のconschs を作成   
 		command_c = {}
+		reqparams = params.dup
 		parent = reqparams["parent"] ###親
 		child = reqparams["child"]  ###対象
 		tblnamechop = yield.chop  
@@ -857,7 +868,7 @@ module Shipment
 		stkinout[str_con_qty] = command_c["#{tblnamechop}_#{str_con_qty}"] =  con_qty
 		stkinout["qty_real"] = stkinout["qty_stk"]
 		blk.proc_create_tbldata(command_c) ##
-		setParams = blk.proc_private_aud_rec(reqparams,command_c)
+		blk.proc_private_aud_rec(reqparams,command_c)
 			
 		stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_fm"]  
 		stkinout["tblname"] = yield
@@ -895,9 +906,9 @@ module Shipment
 			stkinout = proc_lotstkhists_in_out("out",stkinout)
 		end
 		if  tblnamechop == "consch"
-			stkinout["trngantts_id"] = reqparams["gantt"]["trngantts_id"] 
+			stkinout["trngantts_id"] = params["gantt"]["trngantts_id"] 
 			if  parent["tblname"] =~ /^pur/
-				supplierwh_stkinout["trngantts_id"] = reqparams["gantt"]["trngantts_id"] 
+				supplierwh_stkinout["trngantts_id"] = params["gantt"]["trngantts_id"] 
 				proc_insert_inoutlotstk_sql(-1,supplierwh_stkinout)
 			else
 				proc_insert_inoutlotstk_sql(-1,stkinout)
@@ -938,15 +949,16 @@ module Shipment
 				&
 				prev_stkinout["tblid"] = ActiveRecord::Base.connection.select_value(strsql)
 				prev_stkinout["tblname"] = prev_contblname
-				check_inoutlotstk("in",prev_stkinout)  ###以前の状態の時の消費
+				proc_check_inoutlotstk("in",prev_stkinout)  ###以前の状態の時の消費
 			end
 		end
 	end	
 	
 	###shpschs用
-	def update_shpschs_ords_by_parent reqparams,last_pare_qty  
+	def update_shpschs_ords_by_parent params,last_pare_qty  
 		###自分自身のshpschs を作成   
 		command_c = {}
+		reqparams = params.dup
 		parent = reqparams["tbldata"]
 		shp = reqparams["shp"]  ###出庫対象
 
@@ -996,22 +1008,22 @@ module Shipment
 			case tblnamechop
 			when "shpsch"
 				stkinout["qty_sch"] = qty_sch - shp["qty_sch"].to_f
-				stkinout["trngantts_id"] = reqparams["trngantts_id"]
+				stkinout["trngantts_id"] = params["gantt"]["trngantts_id"]
 				stkinout = proc_lotstkhists_in_out("out",stkinout)
-				check_inoutlotstk("out",stkinout)
+				proc_check_inoutlotstk("out",stkinout)
 				stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
 				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]   ###入り
 				stkinout = proc_lotstkhists_in_out("in",stkinout)
-				check_inoutlotstk("in",stkinout)
+				proc_check_inoutlotstk("in",stkinout)
 			when "shpord"
 				stkinout["qty"] = qty - shp["qty"].to_f
-				stkinout["trngantts_id"] = reqparams["trngantts_id"]
+				stkinout["trngantts_id"] = params["gantt"]["trngantts_id"]
 				stkinout = proc_lotstkhists_in_out("out",stkinout)
-				check_inoutlotstk("out",stkinout)
+				proc_check_inoutlotstk("out",stkinout)
 				stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
 				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]
 				stkinout = proc_lotstkhists_in_out("in",stkinout)
-				check_inoutlotstk("in",stkinout)
+				proc_check_inoutlotstk("in",stkinout)
 			end
 
 			###
@@ -1111,7 +1123,9 @@ module Shipment
 						&
 			ActiveRecord::Base.connection.update(strsql)
 		end
-		###先の推定在庫を変更する。
+		###
+		###未来の推定在庫を変更する。
+		###
 		strsql = %Q& select *
 								from lotstkhists
 								where   itms_id = #{stkinout["itms_id"]} and  
@@ -1136,7 +1150,7 @@ module Shipment
 		return stkinout
 	end
 
-	def check_inoutlotstk(inout,stkinout)
+	def proc_check_inoutlotstk(inout,stkinout)
 		if inout == "out"
 			plusminus = -1
 		else
@@ -1155,7 +1169,7 @@ module Shipment
 										qty = qty + #{stkinout["qty"].to_f * plusminus},
 										qty_stk = qty_stk + #{stkinout["qty_stk"].to_f * plusminus},
 										updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-										remark = '#{stkinout["remark"]}'
+										remark = '#{stkinout["remark"]}'||remark
 						where id = #{inoutlotstk["id"]}				 
 			& 
 			ActiveRecord::Base.connection.update(update_sql)

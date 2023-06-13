@@ -313,9 +313,15 @@ module Api
                     secondScreen = ScreenLib::ScreenClass.new(reqparams)
                     grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
                     pagedata,reqparams = Shipment.proc_second_shp reqparams,grid_columns_info
-                    render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
+                    if pagedata == []
+                        params[:screenFlg] = "first"
+                        render json:{:err=>"no shpords",:params=>params}  
+                    else
+                        render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
+                    end
                 else
-                    render json:{:err=>"please  select Order"}    
+                    params[:screenFlg] = "first"
+                    render json:{:err=>"please  select ",:params=>params},:status=>202    
                 end
             
             when 'refShpinsts'  ###purords,prdordsからshpinstsを表示
@@ -332,8 +338,13 @@ module Api
                     grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
                     pagedata,reqparams = Shipment.proc_second_shp reqparams,grid_columns_info   ###shp専用
                     render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
+                    if pagedata == []
+                        render json:{:err=>"no shpinsts",:params=>reqparams}  
+                    else
+                        render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
+                    end
                 else
-                    render json:{:err=>"please  select Order"}    
+                    render json:{:err=>"please  select Order",:params=>params}    
                 end
             
             when 'refShpacts'   ###purords,prdordsからshpactsを表示
@@ -351,7 +362,7 @@ module Api
                     pagedata,reqparams = secondScreen.proc_second_view reqparams,grid_columns_info  ###共通lib
                     render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
                 else
-                    render json:{:err=>"please  select Order"}    
+                    render json:{:err=>"please  select Order",:params=>params}    
                 end
 
             when 'confirmShpinsts'

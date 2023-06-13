@@ -2,8 +2,8 @@ import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
   SCREEN_FAILURE,LOGOUT_REQUEST,SCREEN_CONFIRM7,SCREEN_CONFIRM7_SUCCESS,
   FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,YUP_RESULT,
   INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
-  //SECOND_SUCCESS7,
-  MKSHPORDS_SUCCESS,SCREEN_DATASET,
+  SECOND_SUCCESS7,
+  MKSHPORDS_SUCCESS,SCREEN_DATASET,CHANGE_SHOW_SCREEN,
   YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_SUBFORM,LOGIN_SUCCESS} 
   from '../../actions'
 
@@ -22,6 +22,9 @@ case SCREENINIT_REQUEST:
           params:actions.payload.params,
           loading:true,
           toggleSubForm:false,
+          data: [],
+          status: {},
+          grid_columns_info:{columns_info:[],pageSizeList:[],dropDownList:[]},
           // editableflg:actions.payload.editableflg
 }
 
@@ -65,7 +68,6 @@ return {...state,
   params: actions.payload.params,
   status: actions.payload.data.status,
   grid_columns_info:actions.payload.data.grid_columns_info,
-  second_columns_info:null,
   screenFlg:"first",
   message:"",
   toggleSubForm:false,
@@ -74,14 +76,14 @@ return {...state,
 case SCREEN_CONFIRM7_SUCCESS:
   data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
                                         return row }) 
-return {...state,
-  params:actions.payload.params,
-  data:data,
-  loading:false,
-  screenFlg:"first",
-  hostError:actions.payload.params.err,
-  message:`${date.toJSON()} confirmed line ${actions.payload.params.index}`,
-}
+  return {...state,
+    params:actions.payload.params,
+    data:data,
+    loading:false,
+    screenFlg:"first",
+    hostError:actions.payload.params.err,
+    message:`${date.toJSON()} confirmed line ${actions.payload.params.index}`,
+  }
 
 case CONFIRMALL_SUCCESS:
   return {...state,
@@ -157,7 +159,15 @@ case MKSHPORDS_SUCCESS:
       loading:false,
   }    
 
-case  LOGIN_SUCCESS:
+  case SECOND_SUCCESS7: // payloadに統一
+  return {...state,
+    loading:false,
+    disabled:false,
+    message:"",
+    toggleSubForm:false,
+  }
+
+  case  LOGIN_SUCCESS:
   return {
       toggleSubForm:true,
       hostError: null,
@@ -173,9 +183,17 @@ case  LOGIN_SUCCESS:
         message:null,
     }
 
-default:
-return state
-}
+  case CHANGE_SHOW_SCREEN:
+      return {}
+
+    //  ※Uncaught Error: Reducer "screen" returned undefined during initialization. 
+    //  If the state passed to the reducer is undefined, you must explicitly return the initial state. 
+    //  The initial state may not be undefined.
+    //   If you don't want to set a value for this reducer, you can use null instead of undefined.
+    //     at combineReducers.js:43:1※
+  default:  //カットすると※のerrが発生
+    return state
+  }
 }
 
 export default screenreducer

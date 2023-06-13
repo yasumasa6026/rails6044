@@ -624,10 +624,10 @@ extend self
 												else
 													if owner == true
 														if field["screenfield_created_at"] == field["screenfield_updated_at"] 
-															if field["pobject_code_sfd"] =~ /_id/ or field["pobject_code_sfd"] == "id"
-																field["screenfield_editable"] = "0"
+															if field["pobject_code_sfd"] =~ /_id|^id$|remark$/
+																"0"
 															else
-																field["screenfield_editable"] = "1"
+																"1"
 															end
 														else
 															field["screenfield_editable"]

@@ -14,7 +14,7 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
     document.title = "Menu"
     return(
        /*   <Menus/> */
-          <Menus7/>
+          <Menus7 screenFlg = "first"/>
 
     )    
     }
@@ -57,6 +57,14 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
         <h2>・画面の説明（利用したreactの説明）</h2>
         <h2>・利用したrailsの説明</h2>
         <h2>・社内物流の概要</h2>
+          <h3>・・子部品への展開と引当ルール</h3>
+            <p>－－－＞画面とバッチで一括でで登録されたcustords,custschs,prdords,purordsは最下位の部品まで登録する。</p>
+            <p>－－－＞prdords,purords作成プログラムmkprdpurordsで作成されたpprdords,purordsはでは子部品への展開はしない。
+                      ここで作成されたprdords,purordsのremarkには"create by mkord"がsetされている。
+              </p>
+            <p>－－－＞mkprdordsは上位の部品からordsを作成する。この時購入単位・作業単位で数量を決定する。</p>
+            <p>－－－＞子部品は上位の作業単位・購入単位に従ってその必要を決定する。ord作成時には作業単位・購入単位を考慮する。</p>
+            <p>－－－＞mkprdpurordsでords作成時にfreeのordsを見つけた時はfreeに引当所要数を減する。</p>
         <h2>・導入方法</h2>
         <h2>・基本操作</h2>
           <h3>・・gridでのデータ追加・更新</h3>

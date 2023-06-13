@@ -76,6 +76,11 @@ module RorBlkCtl
         		ActiveRecord::Base.connection.rollback_db_transaction()
 				params["status"] = 500
             	command_c["sio_result_f"] = "9"  ##9:error
+				params[:err] = "state 500"
+				params[:parse_linedata][:confirm] = false  
+				err_message = command_c["sio_message_contents"].split(":")[1][0..100] + 
+											command_c["sio_errline"].split(":")[1][0..100]  
+				params[:parse_linedata][:confirm_gridmessage] = err_message
             	command_c["sio_message_contents"] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
             	command_c["sio_errline"] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
             	Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
@@ -185,7 +190,15 @@ module RorBlkCtl
 					gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
 					gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 				end
-			when /^prdords/
+			when /^prdords/	
+				if command_c["sio_classname"] =~ /_add_|_insert_/
+				 	gantt["trngantts_id"] = ArelCtl.proc_get_nextval("trngantts_seq")
+				else
+					strsql = %Q&
+						select id from trngantts where tblname = 'prdords' and tblid = #{@tbldata["id"]}
+					&
+				 	gantt["trngantts_id"] = ActiveRecord::Base.connection.select_value(strsql)
+				end
 				gantt["qty"] =  @tbldata["qty"]  ###free
 				gantt["qty_require"] = 0
 				gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
@@ -196,6 +209,14 @@ module RorBlkCtl
 			when /^prdinsts/  ###insts,actsでは trnganttsは作成しない。
 			when /^prdacts/
 			when /^purords/
+				if command_c["sio_classname"] =~ /_add_|_insert_/
+				 	gantt["trngantts_id"] = ArelCtl.proc_get_nextval("trngantts_seq")
+				else
+					strsql = %Q&
+						select id from trngantts where tblname = 'purords' and tblid = #{@tbldata["id"]}
+					&
+				 	gantt["trngantts_id"] = ActiveRecord::Base.connection.select_value(strsql)
+				end
 				gantt["qty"] =  @tbldata["qty"]   ###free
 				gantt["qty_require"] = 0
 				gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
@@ -203,14 +224,10 @@ module RorBlkCtl
 				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] =  command_c["shelfno_loca_id_shelfno"]
 				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
 				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
-			when /^replyinputs/
-			when /^purinsts/
-				# gantt = setGantt(setParams)
-				# gantt["qty"] =  @tbldata["qty"]
-			when /^purdlvs/
-				# gantt = setGantt(setParams)
-				# gantt["qty_stk"] = @tbldata["qty_stk"]
-			when /^puracts/
+			when /^replyinputs/ ###trnganttsは作成しない。
+			when /^purinsts/  ###trnganttsは作成しない。
+			when /^purdlvs/###trnganttsは作成しない。
+			when /^puracts/ ###trnganttsは作成しない。
 			when /^custschs/  ### setParams["gantt"].nil?==trueのはず
 				gantt["qty_sch"] = @tbldata["qty_sch"]
 				gantt["qty_handover"] = @tbldata["qty_sch"] ###下位部品所要量計算用
@@ -228,11 +245,9 @@ module RorBlkCtl
 				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] =  command_c["cust_loca_id_cust"] ###
 				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = 0 ###custschs,custords用dummy id
 				gantt["shelfnos_id_to_trn"] =  gantt["shelfnos_id_to_pare"] = 0 
-			when /acts$/
-				# gantt = setGantt(setParams)
-				# gantt["qty_stk"] = @tbldata["qty_stk"]
+			when /acts$/ ###trnganttsは作成しない。
 			when /^cust/ ###custschs,custords以外
-				# gantt = setGantt(setParams)
+				 ###trnganttsは作成しない。
 			end
 		
 			setParams["gantt"] = gantt.dup
@@ -394,15 +409,16 @@ module RorBlkCtl
 				end
 			end
 
-			if @tblname =~ /^prd|^pur|^cust/ 
+			if @tblname =~ /^prd|^pur|^cust|dymschs/ 
 				setParams["tbldata"] = @tbldata.dup	###変更されているため再セット
 				case  @tblname
-				when /schs$|^custords/
+				when /prdschs$|purschs$|^custords/
 					# processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
                     ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
 					setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
 					setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
 					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+					###schsの時はshpschs,conschsは作成しない
 				when /^prdords|^purords/
                     ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
 					setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
@@ -415,6 +431,10 @@ module RorBlkCtl
 					end
 					setParams["segment"]  = "mkShpschConord"  ### XXXXschs,ordsの時XXXschsを作成
 					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+				when /dymschs$/
+					# processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+                    ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
+					setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
 				end
 			end
 			return setParams
@@ -554,11 +574,6 @@ module RorBlkCtl
 				gantt = {}
 				gantt["orgtblname"] = gantt["paretblname"] = @tblname
 				gantt["orgtblid"] = gantt["paretblid"] =  @tbldata["id"]	
-				if @tblname =~ /schs$|ords$|lotstkhists/
-					gantt["trngantts_id"] = ArelCtl.proc_get_nextval("trngantts_seq")
-				else
-					gantt["trngantts_id"] = 0
-				end
 				gantt["key"] = "00000"
 				gantt["mlevel"] = 0
 				gantt["parenum"] = gantt["chilnum"] = 1
@@ -583,17 +598,32 @@ module RorBlkCtl
 				gantt["qty_require"] = 0
 		 	else
 				gantt = setParams["gantt"].dup
-			 	gantt["shuffle_flg"] = (opeitm["shuffle_flg"]||="0")
-				####
-			 	gantt["shelfnos_id_to_trn"] =  @tbldata["shelfnos_id_to"]
-			 	gantt["shelfnos_id_trn"] =  @tbldata["shelfnos_id"]
-			 	gantt["prjnos_id"] = @tbldata["prjnos_id"]
-			 	gantt["chrgs_id_trn"] =  @tbldata["chrgs_id"]
-			 	gantt["itms_id_trn"] = opeitm["itms_id"]
-			 	gantt["processseq_trn"] = opeitm["processseq"]
-			 	gantt["duedate_trn"] = @tbldata["duedate"]
-			 	gantt["toduedate_trn"] = @tbldata["toduedate"]
-			 	gantt["starttime_trn"] = @tbldata["starttime"]
+				if  @tblname == "dymschs"
+					gantt["shuffle_flg"] = "0"
+				   ####
+					gantt["shelfnos_id_to_trn"] =  "0"
+					gantt["shelfnos_id_trn"] =  "0"
+					gantt["locas_id_trn"] =  "0"
+					gantt["prjnos_id"] = @tbldata["prjnos_id"]
+					gantt["chrgs_id_trn"] =  0
+					gantt["itms_id_trn"] = @tbldata["itms_id"]
+					gantt["processseq_trn"] = "999"
+					gantt["duedate_trn"] = @tbldata["duedate"]
+					gantt["toduedate_trn"] = @tbldata["duedate"]
+					gantt["starttime_trn"] = @tbldata["duedate"]
+				else
+			 		gantt["shuffle_flg"] = (opeitm["shuffle_flg"]||="0")
+					####
+			 		gantt["shelfnos_id_to_trn"] =  @tbldata["shelfnos_id_to"]
+			 		gantt["shelfnos_id_trn"] =  @tbldata["shelfnos_id"]
+			 		gantt["prjnos_id"] = @tbldata["prjnos_id"]
+			 		gantt["chrgs_id_trn"] =  @tbldata["chrgs_id"]
+			 		gantt["itms_id_trn"] = opeitm["itms_id"]
+			 		gantt["processseq_trn"] = opeitm["processseq"]
+			 		gantt["duedate_trn"] = @tbldata["duedate"]
+			 		gantt["toduedate_trn"] = @tbldata["toduedate"]
+			 		gantt["starttime_trn"] = @tbldata["starttime"]
+				end
 			 	gantt["remark"] = " RorBlkCtl.setGantt line:#{__LINE__} "
 			end
 			gantt["tblname"] = @tblname

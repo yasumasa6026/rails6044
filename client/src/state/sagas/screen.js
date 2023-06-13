@@ -23,7 +23,7 @@ function screenApi({params ,url,headers} ) {
  // const delay = (ms) => new Promise(res => setTimeout(res, ms)) 
 export function* ScreenSaga({ payload: {params}  }) {
   const buttonState = yield select(getButtonState) //buttonStateの変更は不可　思わぬことが発生。
-  const auth = yield select(getAuthState) //buttonStateの変更は不可　思わぬことが発生。
+  const auth = yield select(getAuthState) //
   let url = ""
   let tmp 
   // let sagaCallTime = new Date()
@@ -45,7 +45,7 @@ export function* ScreenSaga({ payload: {params}  }) {
       // params.sortBy === [] だとrailsに取り込められない　paramsからsortByが
       switch (response.status) {
         case 200: 
-          switch(params.buttonflg) {
+          switch(response.data.params.buttonflg) {
             case 'viewtablereq7':
             case 'inlineedit7':   //第一画面又は第二画面のみ　両方修正は不可  更新画面要求
             case 'inlineadd7':  //追加画面要求
@@ -118,8 +118,16 @@ export function* ScreenSaga({ payload: {params}  }) {
                     break
         case 401: message = `error ${response.status}: Invalid credentials or Login TimeOut ${response.statusText}`
                     break
+        case 202:
+              params = response.data.params
+              if(params.screenFlg==="second"){
+                  return  yield put({type:SECOND_FAILURE,payload:{message: response.data.err,}})   
+              }else{  
+                  return  yield put({type:SCREEN_FAILURE,payload:{message:response.data.err,}})   
+              }
         default:
-                    message = `error ${response.status}: Screen Something went wrong ${response.statusText} `
+                  message = `error ${response.status}: Screen Something went wrong ${response.statusText} `
+                    break      
       }
       if(params.screenFlg==="second"){
             return  yield put({type:SECOND_FAILURE,payload:{message:message,}})   
@@ -134,7 +142,7 @@ export function* ScreenSaga({ payload: {params}  }) {
             case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
                     return  yield put({type:SCREEN_FAILURE, payload:{message:message,params}})   
             default:
-                message = ` Screen Something went wrong ${e} `
+                message = `catch  Screen Something went wrong ${e} `
                       return  yield put({type:SCREEN_FAILURE, payload:{message:message,params}})   
       }
     }

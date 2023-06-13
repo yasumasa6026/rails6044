@@ -473,7 +473,7 @@ module ArelCtl
 		qty_src = gantt["qty_sch"].to_f + gantt["qty"].to_f + gantt["qty_stk"].to_f  ###qty_sch,qty,qty_stkの一つのみ有効
 		base = {"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"qty_src" => qty_src,"amt_src" => 0}
 		case gantt["tblname"] 
-		when /^prd|^pur/
+		when /^prd|^pur|dymschs/
 			linktbl_id = proc_insert_linktbls(src,base)
 			alloc = {"srctblname" => gantt["tblname"],"srctblid" => gantt["tblid"],"trngantts_id" => gantt["trngantts_id"],
 						"qty_linkto_alloctbl" => gantt["qty_sch"].to_f + gantt["qty"].to_f + gantt["qty_stk"].to_f,
@@ -515,7 +515,7 @@ module ArelCtl
 		strsql = %Q&
 			update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
 						updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-						remark = '#{self}.add_update_alloc_add_link line:(#{__LINE__})'
+						remark = '#{self}.add_update_alloc_add_link line:(#{__LINE__})'|| remark
 					where id = #{src["alloc_id"]} 
 			 &
 		 ActiveRecord::Base.connection.update(strsql)
@@ -537,6 +537,40 @@ module ArelCtl
 		# ###在庫の修正はproc_src_base_trn_stk_update
 		return linktbl_ids ,alloctbl_ids
 	end
+	
+	
+	def proc_update_linktbls_alloctbls_inoutlotstks(src)  ###schs 数量変更
+		###
+		strsql = %Q&
+			update linktbls set qty_src = #{src["qty_sch"]},
+						updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+						remark = '#{self}.proc_update_linktbls_alloctbls_inoutlotstk line:(#{__LINE__})'|| remark
+					where trngantts_id = #{scr["trngantts_id"]} and srctblid = #{src["tblid"]} and tblid = #{src["tblid"]}
+					and srctblname = #{src["tblname"]} and tblname = #{src["tblname"]}   
+			 &
+		 ActiveRecord::Base.connection.update(strsql)
+		 ###
+		strsql = %Q&
+			update alloctbls set qty_linkto_alloctbl = #{src["qty_sch"]},
+					 updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+						 remark = '#{self}.proc_update_linktbls_alloctbls_inoutlotstk line:(#{__LINE__})'|| remark
+					 where trngantts_id = #{scr["trngantts_id"]} and srctblid = #{src["tblid"]} and srctblname = #{src["tblname"]}   
+			  &
+		ActiveRecord::Base.connection.update(strsql)
+
+		src["itms_id"] = src["itms_id_trn"]
+		src["shlfnos_id"] = src["shlfnos_id_trn"]
+		src["processseq"] = src["processseq_trn"]
+		src["qty_sch"] = src["new_qty_sch"] - src["qty_sch"]
+		src = Shipment.proc_lotstkhists_in_out("in",src)
+
+		src["wh"] = "lotstkhists"
+		src["srctblid"] = src["lotstkhists_id"]
+		Shipment.proc_check_inoutlotstk("in",src)
+		return 
+	end
+
+
 
 	### freeがschsを引き当てた時,schsがfreeに引きあったとき!trngantts_id==nil ordsがinsts,actsになった時 trngantts_id==nil
 	###xxschsとxxordsの関係やxxxordsとxxxxacts等の関係のリンク作成
@@ -607,7 +641,7 @@ module ArelCtl
 		update_schsql = %Q&
 			update trngantts set qty_sch =  #{alloc["qty_sch"].to_f},qty = #{alloc["qty"].to_f},qty_stk = #{alloc["qty_stk"].to_f},
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-									remark = '#{self}.proc_src_base_trn_stk_update line:#{__LINE__}' 
+									remark = '#{self}.proc_src_base_trn_stk_update line:#{__LINE__}' || remark
 					where id = #{src["trngantts_id"]}
 					&
 		ActiveRecord::Base.connection.update(update_schsql)
@@ -651,7 +685,7 @@ module ArelCtl
 			update_schsql = %Q&
 				update trngantts set qty_sch = #{alloc["qty_sch"].to_f},qty = #{alloc["qty"].to_f},qty_stk = #{alloc["qty_stk"].to_f},
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-									remark = '#{self}.proc_src_base_trn_stk_update  line:#{__LINE__}' 
+									remark = '#{self}.proc_src_base_trn_stk_update  line:#{__LINE__}' || remark
 					where id = #{base["trngantts_id"]}
 					&
 			ActiveRecord::Base.connection.update(update_schsql)
@@ -664,7 +698,7 @@ module ArelCtl
 					update inoutlotstks set qty_sch = qty_sch - #{src_lot["qty_sch"].to_f },
 									qty = qty - #{src_lot["qty"].to_f },
 									qty_stk = qty_stk - #{src_lot["qty_stk"].to_f },
-									remark = 'ArelCtl.proc_src_base_link_alloc_update  LINE:#{__LINE__} '
+									remark = 'ArelCtl.proc_src_base_link_alloc_update  LINE:#{__LINE__} '|| remark
 						where   trngantts_id = #{src["trngantts_id"]}		
 								and srctblname = '#{base["wh"]}'	and tblname = '#{src["tblname"]}'	
 								and tblid = #{src["tblid"]}	 
@@ -696,7 +730,7 @@ module ArelCtl
 						update custwhs set qty_sch = qty_sch - #{src_lot["qty_sch"].to_f },
 										qty = qty - #{src_lot["qty"].to_f },
 										qty_stk = qty_stk - #{src_lot["qty_stk"].to_f },
-										remark = 'ArelCtl.proc_src_base_link_alloc_update  LINE:#{__LINE__} '
+										remark = 'ArelCtl.proc_src_base_link_alloc_update  LINE:#{__LINE__} '|| remark
 							where   id = #{inout["srctblid"]}
 									& 
 			ActiveRecord::Base.connection.update(update_sql)
@@ -705,7 +739,7 @@ module ArelCtl
 						update supplierwhs set qty_sch = qty_sch - #{src_lot["qty_sch"].to_f },
 										qty = qty - #{src_lot["qty"].to_f },
 										qty_stk = qty_stk - #{src_lot["qty_stk"].to_f },
-										remark = 'ArelCtl.proc_src_base_link_alloc_update  LINE:#{__LINE__} '
+										remark = 'ArelCtl.proc_src_base_link_alloc_update  LINE:#{__LINE__} '|| remark
 							where   id = #{inout["srctblid"]}
 									& 
 			ActiveRecord::Base.connection.update(update_sql)
@@ -750,7 +784,7 @@ module ArelCtl
 					update inoutlotstks set qty_sch = qty_sch + #{src_lot["qty_sch"].to_f },
 										qty = qty + #{src_lot["qty"].to_f },
 										qty_stk = qty_stk + #{src_lot["qty_stk"].to_f },
-										remark = 'ArelCtl.proc_src_base_link_alloc_update  LINE:#{__LINE__} '
+										remark = 'ArelCtl.proc_src_base_link_alloc_update  LINE:#{__LINE__} '|| remark
 							where id = #{inout["id"]}
 						& 
 			ActiveRecord::Base.connection.update(update_sql)
@@ -771,25 +805,26 @@ module ArelCtl
                ope.processseq,nditm.processseq_nditm,
                nditm.consumtype,nditm.parenum,nditm.chilnum,
                nditm.consumunitqty,nditm.consumminqty,nditm.consumchgoverqty,
-               ope.id opeitms_id,ope.prdpur,ope.packno_proc,ope.duration,
+               ope.id opeitms_id,ope.prdpur,ope.packno_proc,
                ope.packqty,ope.prdpur,ope.units_id_case_shp,itm.units_id,
                ope.locas_id_opeitm,ope.shelfnos_id_opeitm,  ---子部品作業場所
                ope.locas_id_to_opeitm,ope.shelfnos_id_to_opeitm,   ---子部品保管場所
-			   ope.consumauto
+			   ope.consumauto,ope.duration,ope.units_lttime
            from nditms nditm 
                inner join itms itm on itm.id = nditm.itms_id_nditm 
-               inner join (select o.*,s.locas_id_shelfno locas_id_opeitm,xto.locas_id_shelfno locas_id_to_opeitm
+               left join (select o.*,s.locas_id_shelfno locas_id_opeitm,xto.locas_id_shelfno locas_id_to_opeitm
                            from opeitms o 
                            inner join shelfnos s on o.shelfnos_id_opeitm = s.id
-                           inner join shelfnos xto on o.shelfnos_id_to_opeitm = xto.id) ope ---完成後の移動場所から親の場所に
+                           inner join shelfnos xto on o.shelfnos_id_to_opeitm = xto.id
+						   where  o.priority = 999) ope ---完成後の移動場所から親の場所に
                    on  ope.itms_id = nditm.itms_id_nditm  and ope.processseq = nditm.processseq_nditm
-                   where nditm.expiredate > current_date and nditm.opeitms_id = #{opeitms_id} and ope.priority = 999
+                   where nditm.expiredate > current_date and nditm.opeitms_id = #{opeitms_id} 
         %  
     end
 	
-    def proc_trnganttSql(parent)
+    def proc_pareChildTrnsSqlGroupByChildItem(parent)
          %Q%
-             select trn.itms_id_trn itms_id, trn.processseq_trn processseq,
+             select pare.id pare_trngantts_id,trn.itms_id_trn itms_id, trn.processseq_trn processseq,
                 max(trn.consumtype) consumtype,max(trn.parenum) parenum,max(trn.chilnum) chilnum,
                 max(trn.consumunitqty) consumunitqty,max(trn.consumminqty) consumminqty,max(trn.consumchgoverqty) consumchgoverqty,
                 pare.shelfnos_id_trn,   ---親作業場所
@@ -806,8 +841,29 @@ module ArelCtl
                     and trn.paretblname = pare.tblname and   trn.paretblid = pare.tblid 
 	 			inner join opeitms ope on trn.itms_id_trn = ope.itms_id and trn.processseq_trn = ope.processseq
 	 							and trn.shelfnos_id_trn = ope.shelfnos_id_opeitm
-	 		where (trn.paretblname != trn.tblname or trn.paretblid != trn.tblid)
-	 		group by trn.itms_id_trn ,trn.processseq_trn ,pare.shelfnos_id_trn,trn.shelfnos_id_to_trn
+	 		where (trn.paretblname != trn.tblname or trn.paretblid != trn.tblid) and pare.mlevel < trn.mlevel
+	 		group by trn.itms_id_trn ,trn.processseq_trn ,pare.shelfnos_id_trn,trn.shelfnos_id_to_trn,pare.id
+         %  
+    end
+	
+    def proc_pareChildTrnsSql(parent)
+         %Q%
+             select trn.orgtblname,trn.orgtblid,trn.tblname,trn.tblid,
+			 		trn.qty_sch,trn.qty,trn.qty_stk,
+					trn.mlevel,trn.parenum,trn.chilnum,trn.consumunitqty,trn.consumminqty,
+					trn.consumchgoverqty,pare.qty_linkto_alloctbl pare_qty,
+					ope.duration ,ope.units_lttime
+             	from trngantts trn
+                inner join (select p.*, alloc.qty_linkto_alloctbl 
+                            from trngantts p 
+                            inner join alloctbls alloc on alloc.trngantts_id = p.id
+	 					   			where alloc.srctblname = '#{parent["tblname"]}' and alloc.srctblid = #{parent["tblid"]} 
+	 								and alloc.qty_linkto_alloctbl > 0) pare 
+                    on  trn.orgtblname = pare.orgtblname and   trn.orgtblid = pare.orgtblid  
+                    and trn.paretblname = pare.tblname and   trn.paretblid = pare.tblid 
+	 			inner join opeitms ope on trn.itms_id_trn = ope.itms_id and trn.processseq_trn = ope.processseq
+	 							and trn.shelfnos_id_trn = ope.shelfnos_id_opeitm
+	 		where (trn.paretblname != trn.tblname or trn.paretblid != trn.tblid) and pare.mlevel < trn.mlevel
          %  
     end
 	

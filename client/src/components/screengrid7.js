@@ -281,58 +281,37 @@ const DefaultColumnFilter = ({
 
 const ScreenGrid7 = ({ 
     screenwidth, hiddenColumns,fetch_check,
-    dropDownListOrg, buttonflg, params,columnsOrg, dataOrg,screenCodeOrg,
+    dropDownList, buttonflg, params,columnsOrg, dataOrg,screenCodeOrg,
     //buttonflg 下段のボタン：request params[:buttonflg] MenusControllerでの実行ケース
     loadingOrg, hostError, pageSizeList, 
     handleScreenRequest, handleFetchRequest,handleSubForm,toggleSubForm,message,handleDataSetRequest,
     }) => {
-        const columns = useMemo(
-            () => (columnsOrg),[columnsOrg])
         const data = useMemo(
                 () => (dataOrg),[dataOrg])
+        const columns = useMemo(
+                        () => (columnsOrg),[columnsOrg])
         const sortBy = useMemo(
                 () => ([]),[screenCodeOrg])
         const filters = useMemo(
                 () => ([]),[screenCodeOrg])
         const [changeData, setChangeData] = useState([]) 
         const [loading, setLoading] = useState(false)
-        useEffect(()=>{!loadingOrg&setInitChangeData(data)},[loadingOrg])
-        useEffect(()=>{setLoading(loadingOrg)},[loadingOrg])
         const [screenCode,setScreenCode] = useState(screenCodeOrg)
-        
+       // const [columns,setColumns] = useState([])
+        useEffect(()=>{setLoading(loadingOrg)},[loadingOrg])
+        //useEffect(()=>{setColumns(columnsOrg)},[])
         useEffect(()=>{setScreenCode(screenCodeOrg),
                         params = {...params,clickIndex:[]}},[screenCodeOrg])          
         
-        const setInitChangeData = (data) => {
-          setChangeData(old=>
-            {let newChangeData = data.map((row, idx) => {
-              return {}
-            })
-            return newChangeData
-          })
-        }
-        
-        // const setFetchData = (index, fetch_data) => {
-        //   setData(prevState=>
-        //     {let newData = prevState.map((row, idx) => {
-        //       if (index === idx) {
-        //               Object.keys(fetch_data).map((field)=>row = {...row,[field]:fetch_data[field]})
-        //           }
-        //       return row
+        // const setInitChangeData = (data) => {
+        //   setChangeData(old=>
+        //     {let newChangeData = data.map((row, idx) => {
+        //       return {}
         //     })
-        //     return newData
+        //     return newChangeData
         //   })
         // }
-            
-        // useEffect(()=>{setFetchData(Number(params.index),params.parse_linedata)},[params.parse_linedata])
-      
-
-      //  const [controlledPageIndex, setControlledPageIndex] = useState(params["pageIndex"])  //独自のものを用意  
-      //  useEffect(()=>{setControlledPageIndex(params["pageIndex"])},[params["pageIndex"]])
-
-        // const [controlledPageSize, setControlledPageSize] = useState(params["pageSize"])  //独自のものを用意
-        // useEffect(()=>{setControlledPageSize(params["pageSize"])},[params["pageSize"]])  
-
+    
         const nextPage = () => {
             params["pageIndex"] = params.pageIndex + 1
             handleScreenRequest(params,data) 
@@ -369,7 +348,7 @@ const ScreenGrid7 = ({
         <TableGridStyles height={buttonflg ? "840px" : buttonflg === "export" ? "500px" : buttonflg === "import" ? "300px" : "840px"}
           screenwidth={screenwidth} >
           <GridTable  columns={columns}  screenCode={screenCode}
-            data={data} dropDownListOrg={dropDownListOrg}
+            data={data} dropDownList={dropDownList}
             setChangeData={setChangeData} changeData={changeData}
             //controlledPageIndex={controlledPageIndex} 
             //controlledPageSize={controlledPageSize}
@@ -405,7 +384,7 @@ const ScreenGrid7 = ({
         </TableGridStyles>
            {/*params["buttonflg"]!=="viewtablereq7"||params["buttonflg"]==="cinlineedit7")?<div colSpan="10000" className="td" ></div>:*/}
           <div colSpan="10000" className="td" >
-               {Number(params["totalCount"])===0?"No Record":
+               {screenCode===""?"":Number(params["totalCount"])===0?"No Record":
                 `Showing ${params.pageIndex * params["pageSize"] + 1} of ~
                  ${Number(params["totalCount"]) < ((params.pageIndex + 1) * params["pageSize"])? 
                   Number(params["totalCount"]) : ((params.pageIndex + 1) * params["pageSize"])} 
@@ -462,8 +441,8 @@ const ScreenGrid7 = ({
             value={Number(params["pageSize"]||0)}
             onChange={e => {
               //params["pageIndex"]= 1
-              params = {...params,pageSize:(Number(e.target.value))}
-              params = {...params,pageIndex:(Math.floor(Number(params["totalCount"])/params["pageSize"]*params.pageIndex))}
+              params = {...params,pageSize:(Number(e.target.value)),
+                          pageIndex:(Math.floor(Number(params["totalCount"])/params["pageSize"]*params.pageIndex))}
               handleScreenRequest(params,data) 
             }}
           >
@@ -501,7 +480,7 @@ const defaultPropGetter = () => ({})
 const GridTable = ({
     columns,
     data,
-    dropDownListOrg,setChangeData,changeData,
+    dropDownList,setChangeData,changeData,
     fetch_check,
     params,
     buttonflg,loading,disableFilters,
@@ -513,11 +492,11 @@ const GridTable = ({
     //skipReset,       
     }) => { 
   
-    const [dropDownList, setDropDownList] = useState(dropDownListOrg)
+    // const [dropDownList, setDropDownList] = useState(dropDownListOrg)
   
        
-    useEffect(()=>{   setDropDownList(dropDownListOrg)},
-                          [dropDownListOrg])
+    // useEffect(()=>{   setDropDownList(dropDownListOrg)},
+    //                       [dropDownListOrg])
 
                
     const ColumnHeader = ({
@@ -753,7 +732,7 @@ const mapStateToProps = (state,ownProps) => {
           columnsOrg: state.second.grid_columns_info.columns_info,
           screenwidth: state.second.grid_columns_info.screenwidth,
           fetch_check: state.second.grid_columns_info.fetch_check,
-          dropDownListOrg: state.second.grid_columns_info.dropdownlist,
+          dropDownList: state.second.grid_columns_info.dropDownList,
           hiddenColumns: state.second.grid_columns_info.hiddenColumns,
           toggleSubForm:state.second.toggleSubForm,
           hostError: state.second.hostError,
@@ -771,7 +750,7 @@ const mapStateToProps = (state,ownProps) => {
           columnsOrg: state.screen.grid_columns_info.columns_info,
           screenwidth: state.screen.grid_columns_info.screenwidth,
           fetch_check: state.screen.grid_columns_info.fetch_check,
-          dropDownListOrg: state.screen.grid_columns_info.dropdownlist,
+          dropDownList: state.screen.grid_columns_info.dropDownList,
           hiddenColumns: state.screen.grid_columns_info.hiddenColumns,
           toggleSubForm:state.screen.toggleSubForm,
           hostError: state.screen.hostError,
@@ -788,14 +767,14 @@ const mapDispatchToProps = (dispatch, ownProps) => ({
           dispatch(SecondConfirm(params,data))
         }else{
           dispatch(ScreenConfirm(params,data))}
-  },
+      },
     handleFetchRequest: (params) => {
       params = {...params,screenFlg:ownProps.screenFlg}
         if(params.screenFlg === "second"){
           dispatch(SecondFetchRequest(params))
         }else{
           dispatch(FetchRequest(params))}
-  },
+      },
     handleSubForm: (params,toggleSubForm) => {
       if(params.screenFlg === "second"){
          dispatch(SecondSubForm(toggleSubForm,params))
