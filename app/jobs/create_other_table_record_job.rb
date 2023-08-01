@@ -120,11 +120,9 @@ class CreateOtherTableRecordJob < ApplicationJob
                             gantt["toduedate_pare"] = gantt["toduedate_trn"]
                             gantt["starttime_pare"] = gantt["starttime_trn"]
                             gantt["processseq_pare"] = gantt["processseq_trn"]
-                            gantt["qty_stk_pare"] = gantt["qty_stk"] 
-                            gantt["locas_id_pare"] = gantt["locas_id_trn"]
+                            gantt["qty_sch_pare"] = parent["qty_sch"] 
                             gantt["shelfnos_id_pare"] = gantt["shelfnos_id_trn"]
                             gantt["shelfnos_id_to_pare"] = gantt["shelfnos_id_to_trn"]
-                            gantt["qty_stk_pare"] = gantt["qty_stk"] 
                             gantt["qty_pare"] = gantt["qty"].to_f + gantt["qty_sch"].to_f 
                             parent["qty_handover"] =  gantt["qty_handover"]
                             parent["shelfnos_id_trn"] = gantt["shelfnos_id_trn"]
@@ -260,7 +258,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             gantt = params["gantt"].dup
                             gantt["mlevel"] = 1
                             gantt["key"] = "00000000"
-                            gantt["qty_stk_pare"] = 0 
+                            gantt["qty_sch_pare"] = 0 
                             case gantt["orgtblname"] ###parent = orgtbl
                             when "custords"
                                 qty =  gantt["qty"].to_f
@@ -272,7 +270,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                                                                     and link.srctblname = 'custschs' and link.qty_src > 0 
                                                             where t.orgtblname = 'custschs' and t.paretblname = 'custschs' and t.tblname = 'custschs'
                                                                     and t.orgtblid = t.paretblid and t.tblid = t.paretblid
-                                                                    and t.locas_id_pare = #{gantt["locas_id_pare"]} and t.prjnos_id = #{gantt["prjnos_id"]} 
+                                                                    and t.prjnos_id = #{gantt["prjnos_id"]} 
                                                                     and itms_id_pare = #{gantt["itms_id_pare"]} and processseq_pare = #{gantt["processseq_pare"]}
                                                                     and link.srctblname = t.orgtblname 
                                                             order by t.duedate_org

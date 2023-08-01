@@ -78,7 +78,7 @@ class OpeClass
 			return if chng_flg == ""
 			###数量・納期・場所の変更があった時
 			case @tblname
-			when /schs$|ords$/  ###topのみ
+			when /schs$|ords$/  ###topのみ schsの修正はganttchartから
 				strsql = %Q% 
 						select * from trngantts where tblname = '#{@tblname}' and tblid = #{@tblid}
 						  and orgtblname = paretblname and paretblname = tblname
@@ -104,7 +104,7 @@ class OpeClass
 						update trngantts set   --- xxschs,xxxordsが変更された時のみ
 							updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 							#{@str_qty.to_s} = #{@tbldata[@str_qty]},
-							remark = 'Operation.proc_trangantts line:#{__LINE__}'||remark,
+							remark = '#{self}  line:#{__LINE__}'||remark,
 							prjnos_id = #{@tbldata["prjnos_id"]},duedate_trn = '#{@tbldata[@str_duedate]}'
 							#{if @tblname =~ /^cust/ then "" else ",shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}" end}
 							where  id = #{@trngantts_id} &
@@ -133,13 +133,13 @@ class OpeClass
 						if qty < link["qty_src"].to_f
 							update_sql = %Q&
 								update linkcusts 
-									set qty_src = #{qty},remark = ' #{self} line:#{__LINE__}' 
+									set qty_src = #{qty},remark = ' #{self} line:#{__LINE__}'||remark
 									where id = #{link["id"]}
 							&
 							ActiveRecord::Base.connection.update(update_sql)
 							update_sql = %Q&
 								update linkcusts 
-									set qty_src = qty_src + #{link["qty_src"]} - #{qty},remark = ' #{self} line:#{__LINE__}' 
+									set qty_src = qty_src + #{link["qty_src"]} - #{qty},remark = ' #{self} line:#{__LINE__}' ||remark
 									where tblname = '#{link["srctblname"]}}' and tblid = #{link["srctblid"]}
 									and srctblname = '#{link["srctblname"]}}' and srctblid = #{link["srctblid"]}
 							&
@@ -243,20 +243,20 @@ class OpeClass
 					cust_base["remark"] = "Operation line #{__LINE__}"
 				else
 					cust_base["starttime"] = (@tbldata["duedate"].to_time).strftime("%Y-%m-%d %H:%M:%S")  
-					cust_base["remark"] = "Operation line #{__LINE__}"
+					cust_base["remark"] = "#{self}  line #{__LINE__}"
 				end
 			when /^purdlvs/  ###packnoはない
 				base["shelfnos_id"] =  @tbldata["shelfnos_id_to"]
 				base["starttime"] = (@tbldata["depdate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
 				base["qty"] = @tbldata["qty_stk"]
-				base["remark"] = "Operation line #{__LINE__}"
+				base["remark"] = "#{self}  line #{__LINE__}"
 				supp_inout = "out"
 			when /^prdords|^purords/
 				if @mkprdpurords_id == 0   ###mkordinst以外。if @mkprdpurords_id != 0 then  mkordinstで在庫更新
 					base["shelfnos_id"] =  @tbldata["shelfnos_id_to"]
 					base["starttime"] = @tbldata["duedate"]
 					base["qty"]  = @tbldata["qty"]
-					base["remark"] = "Operation line #{__LINE__}"
+					base["remark"] = "#{self}  line #{__LINE__}"
 				else
 					base = {}
 				end
@@ -267,12 +267,12 @@ class OpeClass
 				base["shelfnos_id"] =  @tbldata["shelfnos_id_to"]
 				base["starttime"] = @tbldata["cmpldate"]
 				base["qty_stk"]  = base["qty_real"]  = @tbldata["qty_stk"]
-				base["remark"] = "Operation line #{__LINE__}"
+				base["remark"] = "#{self}  line #{__LINE__}"
 			when /^puracts/
 				base["shelfnos_id"] =  @tbldata["shelfnos_id_to"]
 				base["starttime"] = @tbldata["rcptdate"]
 				base["qty_stk"]  = base["qty_real"]  = @tbldata["qty_stk"]
-				base["remark"] = "Operation line #{__LINE__}"
+				base["remark"] = "#{self}  line #{__LINE__}"
 			when /insts|replyinputs/
 				base["shelfnos_id"] =  @tbldata["shelfnos_id_to"]
 				base["starttime"] = @tbldata["duedate"]
@@ -282,7 +282,7 @@ class OpeClass
 				base["shelfnos_id"] =  @tbldata["shelfnos_id_to"]
 				base["starttime"] = @tbldata["duedate"]
 				base["qty_sch"]  = @tbldata["qty_sch"]
-				base["remark"] = "Operation line #{__LINE__}"
+				base["remark"] = "#{self}  line #{__LINE__}"
 			end	
 			if !base.empty?		
 				base = Shipment.proc_lotstkhists_in_out(inout,base)  ###在庫の更新
@@ -395,20 +395,23 @@ class OpeClass
 			end	
 		else ###変更　(削除 qty_sch=qty=qty_stk=0 　を含む) 
 			lastStkinout = ArelCtl.proc_set_stkinout(@last_rec) 
+			stkinout = @tbldata.dup
 			case @tblname
 			when /^cust/
 				###社内倉庫の更新
-				lastStkinout["shelfnos_id"] =  @last_rec["shelfnos_id_fm"]
+				lastStkinout["shelfnos_id"] =  @last_rec["#{@tblname.chop}_shelfno_id_fm"]
+				lastStkinout["prjnos_id"] =  @last_rec["#{@tblname.chop}_prjno_id"]
+
 				stkinout["wh"] = lastStkinout["wh"] = "lotstkhists"
 				case @tblname 
 				when  "custacts" 
-					lastStkinout["starttime"] = (@last_rec["saledate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
+					lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_saledate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
 					lastStkinout = Shipment.proc_lotstkhists_in_out("in",lastStkinout)  ###前の在庫の更新　一旦全数削除
 					proc_update_inoutlot_and_src_stk("in","lotstkhists",lastStkinout)
 					stkinout["shelfnos_id"] = @tbldata["shelfnos_id_fm"]
 					stkinout["starttime"] = (@tbldata["saledate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
 				when "custrets"
-					lastStkinout["starttime"] = (@last_rec["retdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  
+					lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_retdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  
 					lastStkinout[@str_qty] = lastStkinout[@str_qty] * -1   ###retのみ例外
 					lastStkinout = Shipment.proc_lotstkhists_in_out("in",lastStkinout)  ###前の在庫の更新　
 					proc_update_inoutlot_and_src_stk("out","lotstkhists",lastStkinout)
@@ -416,57 +419,59 @@ class OpeClass
 					### 例外
 					inout = "in"
 				when "custdlvs"  
-					lastStkinout["starttime"] = (@last_rec["depdate"].to_time ).strftime("%Y-%m-%d %H:%M:%S")  
+					lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_depdate"].to_time ).strftime("%Y-%m-%d %H:%M:%S")  
 					lastStkinout = Shipment.proc_lotstkhists_in_out("in",lastStkinout)  ###前の在庫の更新　
 					proc_update_inoutlot_and_src_stk("in","lotstkhists",lastStkinout)
 					stkinout["starttime"] = (@tbldata["depdate"].to_time ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
 				else  
-					lastStkinout["starttime"] = (@last_rec["duedate"].to_time - 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  
+					lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_duedate"].to_time - 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  
 					lastStkinout = Shipment.proc_lotstkhists_in_out("in",lastStkinout)  ###前の在庫の更新　
 					proc_update_inoutlot_and_src_stk("in","lotstkhists",lastStkinout)
 					stkinout["starttime"] = (@tbldata["duedate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
 				end
 				if stkinout[@str_qty].to_f > 0
+					stkinout["shelfnos_id"] =  @tbldata["shelfnos_id_fm"]
 					stkinout = Shipment.proc_lotstkhists_in_out("out",stkinout)  ###在庫の更新
 					proc_update_inoutlot_and_src_stk("out","lotstkhists",stkinout)
 				end
 				###客先倉庫の更新
 				stkinout["custrcvplcs_id"] = @tbldata["custrcvplcs_id"]
-				lastStkinout["custrcvplcs_id"] = @last_rec["custrcvplcs_id"]  
-				stkinout["remark"] = "Operation line #{__LINE__}"
+				lastStkinout["custrcvplcs_id"] = @last_rec["#{@tblname.chop}_custrcvplc_id"]  
+				stkinout["remark"] = " #{self}  line #{__LINE__}"
 				stkinout["wh"] = "custwhs"
 				inout = "in" 
 				case @tblname 
 				when  "custacts"
-					lastStkinout["starttime"] = (@last_rec["saledate"].to_time ).strftime("%Y-%m-%d %H:%M:%S")  #
-					latStkinout = Shipment.proc_mk_custwhs_rec("out",lastStkinout)
+					lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_saledate"].to_time ).strftime("%Y-%m-%d %H:%M:%S")  #
+					lastStkinout = Shipment.proc_mk_custwhs_rec("out",lastStkinout)
 					proc_update_inoutlot_and_src_stk("out","custwhs",lastStkinout)
 					stkinout["starttime"] = (@tbldata["saledate"].to_time ).strftime("%Y-%m-%d %H:%M:%S")  #
 				when "custrets"  ###packnoはない
-					lastStkinout["starttime"] = (@last_rec["retdate"].to_time - 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
+					lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_retdate"].to_time - 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
 					lastStkinout[@str_qty] = lastStkinout[@str_qty] * -1   ###retのみ例外
-					latStkinout = Shipment.proc_mk_custwhs_rec("in",lastStkinout)
+					lastStkinout = Shipment.proc_mk_custwhs_rec("in",lastStkinout)
 					proc_update_inoutlot_and_src_stk("in","custwhs",lastStkinout)
 					stkinout["starttime"] = (@tbldata["retdate"].to_time - 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
 					###例外
 					inout = "out" 
 				when "custdlvs"  ###packnoはない
-					lastStkinout["starttime"] = (@last_rec["dlvdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-					latStkinout = Shipment.proc_mk_custwhs_rec("out",lastStkinout)
+					lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_dlvdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
+					lastStkinout = Shipment.proc_mk_custwhs_rec("out",lastStkinout)
 					proc_update_inoutlot_and_src_stk("out","custwhs",lastStkinout)
 					stkinout["starttime"] = (@tbldata["dlvdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
 				else
-					latStkinout = Shipment.proc_mk_custwhs_rec("out",lastStkinout)
+					lastStkinout = Shipment.proc_mk_custwhs_rec("out",lastStkinout)
 					proc_update_inoutlot_and_src_stk("out","custwhs",lastStkinout)
 					stkinout["starttime"] = (@tbldata["duedate"].to_time).strftime("%Y-%m-%d %H:%M:%S")  
 				end
 				if stkinout[@str_qty].to_f > 0
+					stkinout["shelfnos_id"] =  @tbldata["shelfnos_id_to"]
 					stkinout = Shipment.proc_mk_custwhs_rec("in",stkinout)
 					proc_update_inoutlot_and_src_stk("in","custwhs",stkinout)
 				end
 			# when /^prdrets/
 			# 	stkinout = Shipment.proc_lotstkhists_in_out("in",lastStkinout)  ###在庫の更新
-			# 	proc_update_inoutlot_and_src_stk("in","lotstkhists",latStkinout)
+			# 	proc_update_inoutlot_and_src_stk("in","lotstkhists",lastStkinout)
 			# 	if stkinout[@str_qty].to_f > 0
 			# 		stkinout = Shipment.proc_lotstkhists_in_out("out",stkinout)  ###在庫の更新
 			# 		proc_update_inoutlot_and_src_stk("out","lotstkhists",stkinout)
@@ -477,7 +482,7 @@ class OpeClass
 			# 	lastStkinout["shelfnos_id"] =  @last_rec["shelfnos_id_fm"]
 			# 	lastStkinout["starttime"] = (@last_rec["retdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
 			# 	lastStkinout["suppliers_id"] = @last_rec["supplers_id"]
-			# 	lastStkinout = Shipment.proc_mk_supplierwhs_rec("out",latStkinout)
+			# 	lastStkinout = Shipment.proc_mk_supplierwhs_rec("out",lastStkinout)
 			# 	proc_update_inoutlot_and_src_stk("out","suppliers",lastStkinout)
 			# 	if stkinout[@str_qty].to_f > 0
 			# 		stkinout = Shipment.proc_lotstkhists_in_out("out",stkinout)  ###在庫の更新
@@ -489,12 +494,12 @@ class OpeClass
 			# 		proc_update_inoutlot_and_src_stk("out","suppliers",stkinout)
 			# 	end
 			when /^purdlvs/  ###packnoはない
-				lastStkinout["starttime"] = (@last_rec["depdate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
+				lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_depdate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
 				lastStkinout = Shipment.proc_lotstkhists_in_out("out",lastStkinout)  ###在庫の更新
 				proc_update_inoutlot_and_src_stk("out","lotstkhists",lastStkinout)
-				lastStkinout["shelfnos_id"] =  @last_rec["shelfnos_id_fm"]
-				lastStkinout["starttime"] = @last_rec["depdate"] ###カレンダー考慮要
-				lastStkinout["suppliers_id"] = @last_rec["supplers_id"]
+				lastStkinout["shelfnos_id"] =  @last_rec["#{@tblname.chop}_shelfno_id_fm"]
+				lastStkinout["starttime"] = @last_rec["#{@tblname.chop}_depdate"] ###カレンダー考慮要
+				lastStkinout["suppliers_id"] = @last_rec["#{@tblname.chop}_suppler_id"]
 				Shipment.proc_mk_supplierwhs_rec("in",lastStkinout)
 				proc_update_inoutlot_and_src_stk("in","suppliers",stkinout)
 				if stkinout[@str_qty].to_f > 0
@@ -535,7 +540,7 @@ class OpeClass
 				ActiveRecord::Base.connection.select_values(strsql).each do |trngantts_id|
 						update_sql = %Q&
 								update trngantts set qty_stk = #{stk["qty_stk"]},qty = #{stk["qty"]},qty_sch = #{stk["qty_sch"]},
-									remark = 'Operation.proc_link_lotstkhists_update line #{__LINE__}',
+									remark = '#{self}  line #{__LINE__}'||remark,
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
 									where id = #{stk["trngantts_id"]}
 							&
@@ -544,7 +549,7 @@ class OpeClass
 				stkinout = Shipment.proc_lotstkhists_in_out("in",stkinout)  ###在庫の更新
 				proc_update_inoutlot_and_src_stk("in","lotstkhists",stkinout)
 			when /^prd|^pur/
-				stkinout = Shipment.proc_lotstkhists_in_out("out",latStkinout)  ###在庫の更新
+				stkinout = Shipment.proc_lotstkhists_in_out("out",lastStkinout)  ###在庫の更新
 				proc_update_inoutlot_and_src_stk("out","lotstkhists",lastStkinout)
 				if stkinout[@str_qty].to_f > 0
 					stkinout = Shipment.proc_lotstkhists_in_out("in",stkinout)  ###在庫の更新
@@ -598,18 +603,9 @@ class OpeClass
 				 from sio.sio_r_#{@tblname} sio where id = #{@tblid} 
 					order by sio_id desc limit 1
 		&
-		last_view = ActiveRecord::Base.connection.select_one(strsql)
-		@last_rec = {}
-		if last_view
-			last_view.each do |fd,val|
-				tblfd = fd.sub("#{@tblname.chop}_","")
-				@last_rec[tblfd] = val
-			end
-			@last_rec["tblname"] = @tblname
-			@last_rec["tblid"] = @tblid
-			@last_rec["itms_id"] = last_view["itms_id"]
-			@last_rec["processseq"] = last_view["processseq"]
-		end
+		@last_rec = ActiveRecord::Base.connection.select_one(strsql)
+		@last_rec["tblname"] = @tblname
+		@last_rec["tblid"] = @tblid
 	end
 	
 	def check_shelfnos_duedate_qty
@@ -620,10 +616,10 @@ class OpeClass
 		if @tbldata[@str_duedate] != @last_rec[@str_duedate]
 			chng_flg << "due"
 		end
-		if @tbldata["shelfnos_id_to"] != @last_rec["shelfnos_id_to"]
+		if @tbldata["shelfnos_id_to"] != @last_rec["#{@tblname.chop}_shelfno_id_to"]
 			chng_flg << "shelfno"
 		end
-		if @tbldata["shelfnos_id_fm"] != @last_rec["shelfnos_id_fm"]
+		if @tbldata["shelfnos_id"] != @last_rec["#{@tblname.chop}_shelfno_id"]
 			chng_flg << "shelfno"
 		end
 		###
@@ -647,7 +643,8 @@ class OpeClass
 			if qty_sch < src_link["qty_linkto_alloctbl"].to_f   ###ords,insts・・・では　qty < src_link["qty_src"].to_fは不可
 				sql_alloctbl_update = %Q&
 						update alloctbls set  qty_linkto_alloctbl = #{qty_sch},
-								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss') 
+								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss') ,
+								remark = '#{self} line:(#{__LINE__})'|| remark
 								where id = #{src_link["alloc_id"]}
 						&
 				ActiveRecord::Base.connection.update(sql_alloctbls_update)
@@ -674,7 +671,8 @@ class OpeClass
 				save_qty = 0
 				update_strsql = %Q&
 					update linktbls set qty_src = #{qty_src},
-							updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')											
+							updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')	,
+							remark = '#{self} line:(#{__LINE__})'|| remark										
 							where id = #{link["id"]}
 						& 
 				ActiveRecord::Base.connection.update(update_strsql)
@@ -682,7 +680,8 @@ class OpeClass
 				### schs.qty_schの復活とqty_schの在庫修正
 				src_alloc_update_strsql = %Q&
 					update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{link["qty_src"]},
-							updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')												
+							updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+							remark = '#{self} line:(#{__LINE__})'|| remark
 							where trngantts_id = #{link["trngantts_id"]}
 							and srctblname = '#{link["srctblname"]}' and srctblname = '#{link["srctblid"]}' 
 						& 
@@ -707,12 +706,12 @@ class OpeClass
 			###free_ordtbl_alloc_to_sch(stkinout)
 			if @mkprdpurords_id == 0 ###mkordinstsの時は子部品展開は対象外
 					@reqparams["segment"]  = "mkschs"   ###構成展開
-					@reqparams["remark"]  = "Operation.proc_trngantts.init_trngantts_add_detail  構成展開"  ###構成展開
+					@reqparams["remark"]  = "#{self}   構成展開"  ###構成展開
 					processreqs_id ,@reqparams = ArelCtl.proc_processreqs_add @reqparams
 			end
 		when /^custschs|^custords/
 			@reqparams["segment"]  = "mkprdpurchildFromCustxxxs"   ###構成展開		
-			@reqparams["remark"]  = "Operation.init_trngantts_add_detail  pur,prd by custschs,ords"  
+			@reqparams["remark"]  = "#{self}   pur,prd by custschs,ords"  
 			processreqs_id ,@reqparams = ArelCtl.proc_processreqs_add @reqparams
 		end
 		return
@@ -734,20 +733,15 @@ class OpeClass
 		###@gantt["qty_require"] create_other_table_record_job.mkschで対応済
 		### parenum chilnum
 		@gantt["id"] = @gantt["trngantts_id"]  = @trngantts_id = ArelCtl.proc_get_nextval("trngantts_seq")
-		@gantt["remark"] =  " Operation.child_trngantts line:#{__LINE__} "
+		@gantt["remark"] =  " #{self}  line:#{__LINE__} "
 		@reqparams["gantt"] = @gantt
 		linktbl_id,alloctbl_id = ArelCtl.proc_insert_trngantts(@gantt)  ###@ganttの内容をセット
 		@reqparams["linktbl_ids"] = [linktbl_id]
 
 	 	###proc_mk_instks_rec stkinout,"add"
-		###元(top)がordsの時のみ子のschsをords等に引き当てる。
-		# if @orgtblname =~ /^custschs|^custords|^purords|^prdords/   ###データはxxxschsのデータのみ　
-		# 	###新規登録なのでqty_linkto_alloctbl=0
-		# 	schstbl_alloc_to_freetbl(stkinout) ###trn==sch
-		# end
 		if @gantt["qty_handover"].to_f  > 0  and  @gantt["tblname"] != "dymschs"
 			@reqparams["segment"]  = "mkschs"   ###構成展開
-			@reqparams["remark"]  = "Operation line:#{__LINE__}  構成展開 level > 1"  
+			@reqparams["remark"]  = "#{self}  line:#{__LINE__}  構成展開 level > 1"  
 			processreqs_id ,@reqparams = ArelCtl.proc_processreqs_add @reqparams
 		end
 		return 
@@ -827,7 +821,7 @@ class OpeClass
 					updatesql = %Q&
 						update inoutlotstks set #{srcStrQty} = #{srcStrQty} - #{new_src_qty * plusminus},
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-									remark = 'Operation.update_inoutlot_and_src_stk line #{__LINE__}'
+									remark = '#{self}  line #{__LINE__}'||remark
 						where id = #{src_inout["id"]}
 					&
 					ActiveRecord::Base.connection.update(updatesql)
@@ -874,7 +868,7 @@ class OpeClass
 						updatesql = %Q&
 							update #{src_inout["srctblname"]} set #{srcStrQty} = #{srcStrQty} - #{new_src_qty * plusminus},
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-									remark = 'Operation.update_inoutlot_and_src_stk line #{__LINE__}'
+									remark = '#{self}  #{__LINE__}'||remark
 							where id = #{hist["id"]}
 							&
 						ActiveRecord::Base.connection.update(updatesql)

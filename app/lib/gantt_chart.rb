@@ -167,20 +167,20 @@ module GanttChart
 									:paretblname=>trn["paretblname"],:paretblid=>trn["paretblid"],
 									:parenum=>1,:chilnum=>1,:processseq=>trn["processseq_trn"],
 									:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],									
-									:qty =>case  trn["srctblname"]
+									:qty =>case  trn["tblname"]
 										when  /acts|dlvs|schs/
 											0
 										else	 
 								 			trn["qty_src"].to_f
 										end,
-									:qty_sch =>case  trn["srctblname"]
+									:qty_sch =>case  trn["tblname"]
 										when  /schs/
 											trn["qty_src"].to_f
 										else	 
 											0
 										end,
-									:qty_stk =>case  trn["srctblname"]
-										when  /acts/
+									:qty_stk =>case  trn["tblname"]
+										when  /acts|dlvs/
 											trn["qty_src"].to_f
 										else	 
 											0
@@ -260,8 +260,8 @@ module GanttChart
 								@min_time = n1[idx][:start]
 						end
 					end
+					n0 = get_item_loca_contents(n0,gantt_reverse)
 					@level = n0[:id]
-					n0 = get_item_loca_contents(n0,gantt_reverse) 
 					if n1.size > 0 
 						@bgantts[n0[:id]] = n0
 						n1.each do |nx|
@@ -273,7 +273,7 @@ module GanttChart
 						@level = n0[:id]
 						strsql = %Q&
 										select trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
-												trn.tblname,trn.tblid,
+												a.srctblname tblname,a.srctblid tblid,
 												trn.parenum,trn.chilnum,trn.processseq_trn,trn.starttime_trn,trn.duedate_trn,
 												trn.id trngantts_id ,trn.qty_sch,trn.qty,trn.qty_stk,(a.qty_linkto_alloctbl) qty_src
 												from trngantts trn 
@@ -290,19 +290,19 @@ module GanttChart
 									:paretblname=>trn["paretblname"],:paretblid=>trn["paretblid"],
 									:parenum=>1,:chilnum=>1,:processseq=>trn["processseq_trn"],
 									:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],									
-									:qty =>case  trn["srctblname"]
+									:qty =>case  trn["tblname"]
 										when  /acts|dlvs|schs/
 											0
 										else	 
 								 			trn["qty_src"].to_f
 										end,
-									:qty_sch =>case  trn["srctblname"]
+									:qty_sch =>case  trn["tblname"]
 										when  /schs/
 											trn["qty_src"].to_f
 										else	 
 											0
 										end,
-									:qty_stk =>case  trn["srctblname"]
+									:qty_stk =>case  trn["tblname"]
 										when  /acts/
 											trn["qty_src"].to_f
 										else	 
@@ -345,7 +345,7 @@ module GanttChart
 									& 
 					else  ###custschs,custordsはganttのみ
 						strsql = %Q&
-								select  max(trn.itms_id_pare) itms_id_trn,max(trn.locas_id_pare) locas_id_trn,max(trn.orgtblname) orgtblname,
+								select  max(trn.itms_id_pare) itms_id_trn,max(trn.orgtblname) orgtblname,
 										max(trn.orgtblid) orgtblid,max(trn.paretblname) paretblname,max(trn.paretblid) paretblid,
 										pare.srctblname tblname,pare.srctblid tblid,
 										pare.srctblname linktblname,pare.srctblid linktblid,
@@ -365,7 +365,7 @@ module GanttChart
 											and alloc.qty_linkto_alloctbl > 0 
 										group by pare.srctblname ,pare.srctblid 
 							union	---  custords										
-								select  (trn.itms_id_pare) itms_id_trn,(trn.locas_id_pare) locas_id_trn,(trn.orgtblname) orgtblname,
+								select  (trn.itms_id_pare) itms_id_trn,(trn.orgtblname) orgtblname,
 										(trn.orgtblid) orgtblid,(trn.paretblname) paretblname,(trn.paretblid) paretblid,
 										trn.paretblname tblname,trn.paretblid tblid,
 										pare.srctblname linktblname,pare.srctblid linktblid,
@@ -379,10 +379,12 @@ module GanttChart
 															inner join linkcusts l  on l.trngantts_id  = t.id  and l.srctblid = t.tblid  
 															and l.qty_src > 0) pare 
 												on trn.orgtblname = pare.orgtblname and trn.paretblname = pare.tblname
-																		and trn.orgtblid = pare.orgtblid and trn.paretblid = pare.tblid										
-										where trn.tblname = '#{ngantt[:linktblname]}' and trn.tblid = #{ngantt[:linktblid]}
+																		and trn.orgtblid = pare.orgtblid and trn.paretblid = pare.tblid		
+										
+										inner join alloctbls alloc on alloc.trngantts_id = trn.id
+										where alloc.srctblname = '#{ngantt[:linktblname]}' and alloc.srctblid = #{ngantt[:linktblid]}
 											and (trn.tblname != trn.paretblname or trn.tblid != trn.paretblid) 
-										group by  (trn.itms_id_pare) ,(trn.locas_id_pare) ,(trn.orgtblname) ,
+										group by  (trn.itms_id_pare) ,(trn.orgtblname) ,
 										(trn.orgtblid) ,(trn.paretblname) ,(trn.paretblid) ,
 										trn.paretblname ,trn.paretblid ,
 										pare.srctblname ,pare.srctblid ,
@@ -407,19 +409,19 @@ module GanttChart
 						gantt_id = @level + format('%03d',idx)
 						n0 =   {:itms_id=>trn["itms_id_trn"],:locas_id=>trn["locas_id_trn"],:type=>"task",
 								:depend => [],
-								:qty =>case  trn["srctblname"]
+								:qty =>case  trn["tblname"]
 										when  /acts|dlvs|schs/
 											0
 										else	 
 											 trn["qty_src"].to_f
 										end,
-								:qty_sch =>case  trn["srctblname"]
+								:qty_sch =>case  trn["tblname"]
 											when  /schs/
 												trn["qty_src"].to_f
 											else	 
 												0
 											end,
-								:qty_stk =>case  trn["srctblname"]
+								:qty_stk =>case  trn["tblname"]
 											when  /acts/
 												trn["qty_src"].to_f
 											else	 

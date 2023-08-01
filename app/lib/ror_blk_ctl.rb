@@ -78,11 +78,11 @@ module RorBlkCtl
             	command_c["sio_result_f"] = "9"  ##9:error
 				params[:err] = "state 500"
 				params[:parse_linedata][:confirm] = false  
-				err_message = command_c["sio_message_contents"].split(":")[1][0..100] + 
-											command_c["sio_errline"].split(":")[1][0..100]  
-				params[:parse_linedata][:confirm_gridmessage] = err_message
             	command_c["sio_message_contents"] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
             	command_c["sio_errline"] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
+				err_message = command_c["sio_message_contents"].split(":")[1][0..100] + 
+				 							command_c["sio_errline"].split(":")[1][0..100]  
+				params[:parse_linedata][:confirm_gridmessage] = err_message
             	Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
           		Rails.logger.debug"error class #{self} : $!: #{$!} "
           		Rails.logger.debug"  command_c: #{command_c} " 
@@ -145,22 +145,63 @@ module RorBlkCtl
 				end
 			end
 
+			
 			setParams["seqno"] ||= []
 			setParams["child"] ||= {}
-			if @tbldata["opeitms_id"]
-				opeitm = ActiveRecord::Base.connection.select_one("select * from opeitms where id = #{@tbldata["opeitms_id"]}")
-				opeitm["locas_id_opeitm"] = ActiveRecord::Base.connection.select_value(%Q%
+			setParams["opeitm"] = {}
+			if @tblname =~ /schs$|ords$|insts|inputs$|dlvs|acts$|rets$/
+				if @tbldata["opeitms_id"]
+					opeitm = ActiveRecord::Base.connection.select_one("select * from opeitms where id = #{@tbldata["opeitms_id"]}")
+					opeitm["locas_id_opeitm"] = ActiveRecord::Base.connection.select_value(%Q%
 														select locas_id_shelfno from shelfnos where id = #{opeitm["shelfnos_id_opeitm"]} %)
-				opeitm["locas_id_to_opeitm"] = ActiveRecord::Base.connection.select_value(%Q%
+					opeitm["locas_id_to_opeitm"] = ActiveRecord::Base.connection.select_value(%Q%
 														select locas_id_shelfno from shelfnos where id = #{opeitm["shelfnos_id_to_opeitm"]} %)
+				else
+					opeitm = {}
+				end
+				setParams["opeitm"] = opeitm.dup
+				setParams["classname"] = command_c["sio_classname"]
+				mkprdpurords_id = setParams["mkprdpurords_id"] 
+				gantt = setGantt(setParams)
 			else
-				opeitm = {}
+				if @tblname == "trngantts" and	@screenCode == "update_trngantts"
+					gantt = {}
+					gantt["tblname"] = @tbldata[:tblname]
+					gantt["tblid"] = @tbldata[:tblid]
+					gantt["paretblname"] = @tbldata[:paretblname]
+					gantt["paretblid"] = @tbldata[:paretblid]
+					gantt["orgtblname"] = @tbldata[:orgtblname]
+					gantt["orgtblid"] = @tbldata[:orgtblid]
+					gantt["trngantts_id"] = @tbldata[:id]
+					gantt["itms_id"]  =  gantt["itms_id_trn"] = @tbldata[:itms_id_trn] 
+					gantt["processseq"]  =   gantt["processseq_trn"]  =   @tbldata[:processseq_trn]
+					gantt["starttime"]  =  gantt["starttime_trn"] =  @tbldata[:starttime_trn]   
+					gantt["duedate"]  =  gantt["duedate_trn"]   =  @tbldata[:duedate_trn]     
+					gantt["toduedate"]  =  gantt["toduedate_trn"]   =  @tbldata[:toduedate_trn]
+					setParams["gantt"] = gantt.dup  	
+					ope = Operation::OpeClass.new(setParams) 	
+					ope.proc_link_lotstkhists_update()	
+					update_strsql = %Q&
+							update #{@tbldata[:tblname]}
+									set shelfnos_id = #{@tbldata[:shelfnos_id_trn]},shelfnos_id_to = #{@tbldata[:shelfnos_id_to_trn]},
+										duedate = #{@tbldata[:duedate_trn]},starttime = #{@tbldata[:stsrttime_trn]},
+										qty_sch = #{@tbldata[:qty_sch]},expiredate = #{@tbldata[:expiredate]},
+										remark = '#{self} line:(#{__LINE__})'||remark,
+										updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
+								where id = #{@tbldata[:tblid]}
+					&
+					ActiveRecord::Base.connection.update(update_strsql)	
+					update_strsql = %Q&
+							update alloctbls
+									set qty_linkto_alloctbl = #{@tbldata[:qty_sch]},remark = '#{self} line:(#{__LINE__})'||remark,
+										updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
+								where trngantts_id = #{@tbldata[:id]} and srctblname = '#{@tbldata[:tblname]}' and srctblid = #{@tbldata[:tblid]} 
+					&
+					ActiveRecord::Base.connection.update(update_strsql)		
+				else
+				end	
+				return setParams
 			end
-			setParams["opeitm"] = opeitm.dup
-			setParams["classname"] = command_c["sio_classname"]
-			mkprdpurords_id = setParams["mkprdpurords_id"] 
-			gantt = setGantt(setParams)
-
 			case  @tblname
 			when /^bill|^pay/
 				account = setAccount(setParams)
@@ -186,7 +227,7 @@ module RorBlkCtl
 					gantt["qty_handover"] = @tbldata["qty_sch"] 
 					gantt["starttime_trn"] = (@tbldata["duedate"].to_time - opeitm["duration"].to_f*60*60*24).strftime("%Y-%m-%d %H:%M:%S") 
 					###作業場所の稼働日考慮要
-					gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"]  = command_c["shelfno_loca_id_shelfno"]
+					gantt["locas_id_org"]  = command_c["shelfno_loca_id_shelfno"]
 					gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
 					gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 				end
@@ -203,7 +244,7 @@ module RorBlkCtl
 				gantt["qty_require"] = 0
 				gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
 				gantt["starttime_trn"] = @tbldata["starttime"] 
-				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
+				gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
 				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
 				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^prdinsts/  ###insts,actsでは trnganttsは作成しない。
@@ -221,7 +262,7 @@ module RorBlkCtl
 				gantt["qty_require"] = 0
 				gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
 				gantt["starttime_trn"] = @tbldata["starttime"] 
-				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] =  command_c["shelfno_loca_id_shelfno"]
+				gantt["locas_id_org"] =  command_c["shelfno_loca_id_shelfno"]
 				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
 				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 			when /^replyinputs/ ###trnganttsは作成しない。
@@ -233,7 +274,7 @@ module RorBlkCtl
 				gantt["qty_handover"] = @tbldata["qty_sch"] ###下位部品所要量計算用
 				gantt["qty"] = 0
 				gantt["starttime_trn"] = @tbldata["starttime"] = (@tbldata["duedate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S") 
-				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] = command_c["cust_loca_id_cust"]
+				gantt["locas_id_org"] = command_c["cust_loca_id_cust"]
 				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = 0 ###custschs,custords用dummy id
 				gantt["shelfnos_id_to_trn"] =  gantt["shelfnos_id_to_pare"] = 0 
 			when /^custords/  ### setParams["gantt"].nil?==trueのはず
@@ -242,7 +283,7 @@ module RorBlkCtl
 				gantt["qty"] =  gantt["qty_handover"] = gantt["qty_require"] = @tbldata["qty"]
 				gantt["qty_sch"] = 0
 				gantt["starttime_trn"] = @tbldata["starttime"] = (@tbldata["duedate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")
-				gantt["locas_id_trn"] = gantt["locas_id_pare"] = gantt["locas_id_org"] =  command_c["cust_loca_id_cust"] ###
+				gantt["locas_id_org"] =  command_c["cust_loca_id_cust"] ###
 				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = 0 ###custschs,custords用dummy id
 				gantt["shelfnos_id_to_trn"] =  gantt["shelfnos_id_to_pare"] = 0 
 			when /acts$/ ###trnganttsは作成しない。
@@ -286,7 +327,8 @@ module RorBlkCtl
 							linktbl_ids  << ArelCtl.proc_insert_linktbls(src,base)
 							strsql = %Q&
 								update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{alloc_qty},
-										remark = '#{self}.add_update_alloc_add_link line:(#{__LINE__})'
+								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+								remark = '#{self} line:(#{__LINE__})'|| remark
 									where id = #{src["alloc_id"]} 
 								&
 							ActiveRecord::Base.connection.update(strsql)
@@ -394,7 +436,7 @@ module RorBlkCtl
 										"qty_src" => qty_src ,"amt_src" => 0,	"trngantts_id" => src["trngantts_id"]}
 							linktbl_ids  << ArelCtl.proc_insert_linkcusts(src,base)
 							update_strsql = %Q&
-									update  linkcusts link set qty_src = #{src["qty_src"]},	remark = '#{self} line:#{__LINE__}'
+									update  linkcusts link set qty_src = #{src["qty_src"]},	remark = '#{self} line:#{__LINE__}'||remark
 													where id  = '#{src["link_id"]}'
 							&
 							ActiveRecord::Base.connection.update(update_strsql)
@@ -578,7 +620,7 @@ module RorBlkCtl
 				gantt["mlevel"] = 0
 				gantt["parenum"] = gantt["chilnum"] = 1
 				gantt["qty_pare"] = 0
-				gantt["qty_stk_pare"] = 0
+				gantt["qty_sch_pare"] = if  @tblname =~ /schs/ then @tbldata["qty_sch"] else 0 end
 				gantt["shelfnos_id_to_trn"] =  @tbldata["shelfnos_id_to"]
 				gantt["shelfnos_id_trn"] = @tbldata["shelfnos_id"]     
 				gantt["chrgs_id_trn"] =  gantt["chrgs_id_pare"] =  gantt["chrgs_id_org"] =  @tbldata["chrgs_id"]
@@ -590,7 +632,6 @@ module RorBlkCtl
 				gantt["duedate_trn"] = gantt["duedate_pare"] = gantt["duedate_org"] = @tbldata["duedate"]
 				gantt["toduedate_trn"] = gantt["toduedate_pare"] = gantt["toduedate_org"] = (@tbldata["toduedate"]||=@tbldata["duedate"])
 				gantt["starttime_trn"] = gantt["starttime_pare"] = gantt["starttime_org"] = @tbldata["starttime"]
-				gantt["locas_id_pare"] = gantt["locas_id_org"] = gantt["locas_id_trn"] ###tbldataにlocas_idがない。
 				gantt["consumunitqty"] = 1 ###消費単位
 				gantt["consumminqty"]  = 0 ###最小消費数
 				gantt["consumchgoverqty"] = 0  ###段取り消費数
@@ -624,7 +665,7 @@ module RorBlkCtl
 			 		gantt["toduedate_trn"] = @tbldata["toduedate"]
 			 		gantt["starttime_trn"] = @tbldata["starttime"]
 				end
-			 	gantt["remark"] = " RorBlkCtl.setGantt line:#{__LINE__} "
+			 	gantt["remark"] = " #{self}  line:#{__LINE__} "
 			end
 			gantt["tblname"] = @tblname
 			gantt["tblid"] = tblid = @tbldata["id"]	
@@ -633,7 +674,7 @@ module RorBlkCtl
 	
 		def update_alloctbls_linktbl(link,src_qty)
 			strsql = %Q&
-				update linktbls set qty_src = #{src_qty},remark = '#{self}.update_alloctbls_linktbl line:(#{__LINE__})',
+				update linktbls set qty_src = #{src_qty},remark = '#{self} line:(#{__LINE__})'||reamrk,
 								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
 								where id = #{link["id"]}
 			&
@@ -647,7 +688,7 @@ module RorBlkCtl
 			ActiveRecord::Base.connection.update(strsql)
 			strsql = %Q&
 				update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl  - #{src_qty},
-								remark = '#{self}.update_alloctbls_linktbl line:(#{__LINE__})',
+								remark = '#{self} line:(#{__LINE__})'||remark,
 								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
 								where srctblname = '#{link["tblname"]}' and srctblid = #{link["tblid"]}
 								and trngantts_id = #{link["trngantts_id"]} 

@@ -77,9 +77,12 @@ export const GANTT_RESET = 'GANTT_RESET'
 export const GANTTCHART_REQUEST = 'GANTTCHART_REQUEST'
 export const GANTTCHART_FAILURE = 'GANTTCHART_FAILURE'
 export const GANTTCHART_SUCCESS = 'GANTTCHART_SUCCESS'
-export const UPDATEGANTT_REQUEST = 'UPDATEGANTT_REQUEST'
-export const UPDATEGANTT_SUCCESS = 'UPDATEGANTT_SUCCESS'
-export const UPDATEGANTT_FAILURE = 'UPDATEGANTT_FAILURE'
+export const UPDATENDITM_REQUEST = 'UPDATENDITM_REQUEST'
+export const UPDATENDITM_SUCCESS = 'UPDATENDITM_SUCCESS'
+export const UPDATENDITM_FAILURE = 'UPDATENDITM_FAILURE'
+export const UPDATEALLOC_REQUEST = 'UPDATEALLOC_REQUEST'
+export const UPDATEALLOC_SUCCESS = 'UPDATEALLOC_SUCCESS'
+export const UPDATEALLOC_FAILURE = 'UPDATEALLOC_FAILURE'
 
 export const SCREEN_DATASET = 'SCREEN_DATASET'
 export const SECOND_DATASET = 'SECOND_DATASET'
@@ -343,18 +346,18 @@ export const GanttChartFailure = (params,auth) => ({
   payload: { params,auth}  //
 })
 
-export const UpdateGantttSuccess = (params,auth) => ({
-  type:  UPDATEGANTT_SUCCESS,
+export const UpdateNditmSuccess = (params,auth) => ({
+  type:  UPDATENDITM_SUCCESS,
   payload: { params,auth}  //
 })
 
-// export const UpdateGantttREquest = (params,auth) => ({
-//   type:  UPDATEGANTT_REQUEST,
+// export const UpdateNditmREquest = (params,auth) => ({
+//   type:  UPDATENDITM_REQUEST,
 //   payload: { params}  //
 // })
 
-export const UpdateGanttFailure = (params,auth) => ({
-  type:  UPDATEGANTT_FAILURE,
+export const UpdateNditmFailure = (params,auth) => ({
+  type:  UPDATENDITM_FAILURE,
   payload: { params,auth}  //
 })
 

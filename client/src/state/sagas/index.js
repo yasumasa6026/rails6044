@@ -1,12 +1,13 @@
 
 import {takeEvery} from 'redux-saga/effects'
 
-import {LOGIN_REQUEST,SIGNUP_REQUEST,MENU_REQUEST,FETCH_REQUEST,
+import {LOGIN_REQUEST,SIGNUP_REQUEST,LOGOUT_REQUEST,
+        MENU_REQUEST,FETCH_REQUEST,
         SCREENINIT_REQUEST,SCREEN_REQUEST,IMPORTEXCEL_REQUEST,
         SCREEN_CONFIRM7,SECOND_CONFIRM7,SECOND_REQUEST,
         GANTTCHART_REQUEST,BUTTONLIST_REQUEST,
         DOWNLOAD_REQUEST, YUP_REQUEST,TBLFIELD_REQUEST,
-        INPUTFIELDPROTECT_REQUEST, LOGOUT_REQUEST,UPDATEGANTT_REQUEST,
+        INPUTFIELDPROTECT_REQUEST, UPDATENDITM_REQUEST, UPDATEALLOC_REQUEST,
       } from  '../../actions'
 
 // Route Sagas
@@ -38,7 +39,8 @@ export function * sagas () {
   yield takeEvery(YUP_REQUEST,TblfieldSaga)  //yupの作成　Tblfieldと同じdef
   yield takeEvery(TBLFIELD_REQUEST,TblfieldSaga)
   yield takeEvery(GANTTCHART_REQUEST,GanttChartSaga)
-  yield takeEvery(UPDATEGANTT_REQUEST,GanttChartSaga)
+  yield takeEvery(UPDATENDITM_REQUEST,GanttChartSaga)
+  yield takeEvery(UPDATEALLOC_REQUEST,GanttChartSaga)
   yield takeEvery(IMPORTEXCEL_REQUEST,ImportExcelSaga)
   yield takeEvery(INPUTFIELDPROTECT_REQUEST,ProtectSaga)
 }

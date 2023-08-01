@@ -38,7 +38,7 @@ function batchcheck(sheet,nameToCode,screenCode) {
                               formatError = true
                                }
                     }
-                else{   errHeader.push(`Screen Code(${screenCode}) has not  ${nameToCode[column]} field`)
+                else{   errHeader.push(`Screen Code(${screenCode}) has not  ${column} field`)
                         formatError = true
                       }      
             })

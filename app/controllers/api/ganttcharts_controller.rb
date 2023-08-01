@@ -31,10 +31,21 @@ module Api
                             gantt =  GanttChart::GanttClass.new(params[:buttonflg],"trns")
                             ganttData =  gantt.proc_get_ganttchart_data(tblcode,line["id"],params[:buttonflg])
                             ganttData.sort.each do |level,ganttdata|
+                                str_qty =  case ganttdata[:tblname]
+                                            when /schs/
+                                                "QTY_SCH:#{ganttdata[:qty_sch]}"
+                                            when /ords|insts|reply/
+                                                "QTY:#{ganttdata[:qty]}"
+                                             when /dlvs|acts/
+                                                "STK:#{ganttdata[:qty_stk]}"
+                                            else
+                                                ""
+                                            end
                                 tasks << {"id"=>ganttdata[:id],
-                                     "name"=>ganttdata[:itm_code]+":#{ganttdata[:itm_name]},#{ganttdata[:processseq]},#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]},
-                                                    QTY_SCH:#{ganttdata[:qty_sch]},QTY:#{ganttdata[:qty]},STK:#{ganttdata[:qty_stk]},
-                                                        #{ganttdata[:tblname]}:#{ganttdata[:sno]},#{ganttdata[:paretblname]}:#{ganttdata[:paretblid]}",
+                                     "name"=>"#{ganttdata[:tblname]}:#{ganttdata[:sno]}" + 
+                                                    ",#{ganttdata[:itm_code]}:#{ganttdata[:itm_name]},#{ganttdata[:processseq]},#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]}," +
+                                                    str_qty +
+                                                    " ,#{ganttdata[:paretblname]}:#{ganttdata[:paretblid]}",
                                      "type"=>ganttdata[:type],
                                      "start"=>ganttdata[:start],"end"=>ganttdata[:duedate],
                                       "progress"=>case ganttdata[:tblname]
@@ -59,10 +70,21 @@ module Api
                             gantt =  GanttChart::GanttClass.new(params[:buttonflg],"trns")
                             ganttData =  gantt.proc_get_ganttchart_data(tblcode,line["id"],params[:buttonflg])
                             ganttData.sort.each do |level,ganttdata|
+                                str_qty =  case ganttdata[:tblname]
+                                            when /schs/
+                                                "QTY_SCH:#{ganttdata[:qty_sch]}"
+                                            when /ords|insts|reply/
+                                                "QTY:#{ganttdata[:qty]}"
+                                             when /dlvs|acts/
+                                                "STK:#{ganttdata[:qty_stk]}"
+                                            else
+                                                ""
+                                            end
                                 tasks << {"id"=>ganttdata[:id],
-                                "name"=>ganttdata[:itm_code]+":#{ganttdata[:itm_name]},#{ganttdata[:processseq]},#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]},
-                                               QTY_SCH:#{ganttdata[:qty_sch]},QTY:#{ganttdata[:qty]},STK:#{ganttdata[:qty_stk]},
-                                               #{ganttdata[:tblname]}:#{ganttdata[:sno]},#{ganttdata[:paretblname]}:#{ganttdata[:paretblid]}",
+                                "name"=>"#{ganttdata[:tblname]}:#{ganttdata[:sno]}" + 
+                                            "#{ganttdata[:itm_code]}:#{ganttdata[:itm_name]},#{ganttdata[:processseq]},#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]}," +
+                                            str_qty + 
+                                            " ,#{ganttdata[:paretblname]}:#{ganttdata[:paretblid]}",
                                      "type"=>ganttdata[:type],
                                      "start"=>ganttdata[:start],"end"=>ganttdata[:duedate],
                                       "progress"=>case ganttdata[:tblname]
@@ -88,7 +110,7 @@ module Api
                         end
                     end
                     render json: {:tasks=>tasks}   
-                when "updategantt"
+                when "updateNditm"
                     $email = current_api_user[:email]
                     strsql = "select person_code_chrg,chrg_person_id_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
                     person = ActiveRecord::Base.connection.select_one(strsql)
@@ -142,6 +164,70 @@ module Api
                         end
                     else
                         itm,processseq,loca, qty_sch,qty,stk,tblname,sno = gantt_name.split(",")
+                    end   
+                when "updateTrngantt"
+                    $email = current_api_user[:email]
+                    strsql = "select person_code_chrg,chrg_person_id_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
+                    person = ActiveRecord::Base.connection.select_one(strsql)
+                    if person.nil?
+                        person = {"person_code_chrg" => "0","chrg_person_id_chrg" =>0 }
+                    end
+                    $person_code_chrg = person["person_code_chrg"]
+                    $person_id_upd = person["chrg_person_id_chrg"]
+                    gantt_name = JSON.parse(params[:task])["name"]
+                    reqparams = params.dup
+                    tbl_sno,item,processseq,loca, qty,parent = gantt_name.split(",")
+                    tblname,sno = tbl_sno.split(":")
+                    itm_code,itm_name = item.split(":")
+                    loca_code,loca_name = loca.split(":")
+                    reqparams[:screenFlg] = "second"
+                    reqparams[:pageSize] = 1
+                    case params[:aud]
+                    when /update_trngantts/
+                            reqparams[:buttonflg] = "inlineedit7"
+                            reqparams[:screenCode] = "update_trngantts"
+                            screen = ScreenLib::ScreenClass.new(reqparams)
+                            reqparams[:screenCode]  = "update_trngantts('#{tblname}','#{sno}','#{itm_code}','#{itm_name}',#{processseq})"
+                            pagedata,reqparams = screen.proc_search_blk(reqparams)   ###:pageInfo  -->menu7から未使用
+                            render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
+                    when /update_free_to_alloc/
+                            reqparams[:buttonflg] = "inlineadd7"
+                            reqparams[:screenCode] = "freetoalloc_alloctbls('#{tblname}','#{sno}')"
+                            screen = ScreenLib::ScreenClass.new(reqparams)
+                            pagedata,reqparams = screen.proc_search_blk(reqparams)   ###:pageInfo  -->menu7から未使用
+                            render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
+                    when /insert_trngantts/
+                            reqparams[:buttonflg] = "inlineadd7"
+                            reqparams[:screenCode] = "insert_trngantts"
+                            screen = ScreenLib::ScreenClass.new(reqparams)
+                            strsql = %Q&                                        
+                                        select 	t.key,t.mlevel,
+                                                orgitm.code itm_code_org,orgitm.name itm_name_org,t.processseq_org trngantt_processseq_org,
+                                                orgloca.code loca_code_org,orgloca.name loca_name_org,
+                                                t.duedate_org trngantt_duedate_org,
+                                                trnitm.code itm_code_trn,trnitm.name itm_name_trn,t.processseq_trn trngantt_processseq_trn,
+                                                trnloca.code loca_code_trn,trnloca.name loca_name_trn,
+                                                trnshelfno.code shelfno_code_trn,trnshelfno.name shelfno_name_trn,
+                                                t.qty_sch trngantt_qty_sch,prjno.code prjno_code,prjno.name prjno_name,
+                                                t.itms_id_org trngantt_itm_id_org,t.locas_id_org trngantt_loca_id_org,
+                                                t.itms_id_trn trngantt_itm_id_trn,t.locas_id_trn trngantt_loca_id_trn,
+                                                t.shelfnos_id_trn trngantt_shelfno_id_trn,t.shelfnos_id_to_trn trngantt_shelfno_id_to_trn,
+                                                t.prjnos_id trngantt_prjno_id
+                                                from trngantts t
+                                                    inner join purschs p on p.id = t.tblid
+                                                    inner join itms orgitm on orgitm.id = t.itms_id_org
+                                                    inner join itms trnitm on trnitm.id = t.itms_id_trn
+                                                    inner join locas orgloca on orgloca.id = t.locas_id_org
+                                                    inner join locas trnloca on trnloca.id = t.locas_id_trn
+                                                    inner join shelfnos trnshelfno on trnshelfno.id = t.shelfnos_id_trn
+                                                    inner join prjnos prjno on prjno.id = t.prjnos_id 
+                                                    where t.tblname = '#{params[:parse_linedata][:tblname]}' and p.sno = '#{params[:parse_linedata][:sno]}'
+                            &
+                            reqparams[:trngantt] = ActiveRecord::Base.connection.select_one(strsql)
+                            pagedata,reqparams = screen.proc_search_blk(reqparams)   ###:pageInfo  -->menu7から未使用
+                            render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
+                    else
+                            raise
                     end
                 else
                      raise

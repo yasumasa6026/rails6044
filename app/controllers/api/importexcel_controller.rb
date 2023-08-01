@@ -81,27 +81,25 @@ class ImportexcelController < ApplicationController
                     if fetchCode[field] 
                         jparams[:fetchCode] = %Q%{"#{field}":"#{val}"}%
                         jparams[:fetchview] = fetchCode[field]
-                        jparams = CtlFields.proc_chk_fetch_rec jparams
-                        if jparams[:err].nil?
-                            if checkCode[field] and val != ""
-                                jparams = CtlFields.proc_judge_check_code jparams,field,checkCode[field]
-                                if jparams[:err]   ###CtlFields.proc_judge_check_codeの結果
-                                        importError = true
-                                        jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
-                                end
-                            end
-                        else   
-                            importError = true  
-                            jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
-                            jparams[:parse_linedata]["confirm"] = false
-                        end  
-                    else  
                     end
-                end 
+                end
             else
-                importError = true
+                importError = true  
+                jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
+                jparams[:parse_linedata]["confirm"] = false
+            end 
+            if linevalues["confirm"] != false  and  jparams[:err].nil? 
+                linevalues.each do |field,val| ###confirmはfunction batchcheckで項目追加している。
+                    if checkCode[field] 
+                        jparams = CtlFields.proc_judge_check_code jparams,field,checkCode[field]
+                    end
+                end
             end 
             rows << jparams[:parse_linedata]
+            if linevalues["confirm"] == false   ###CtlFields.proc_judge_check_codeの結果
+                    importError = true
+                    jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
+            end
         end
         begin
             ActiveRecord::Base.connection.begin_db_transaction()

@@ -1271,7 +1271,8 @@ module Shipment
 				%
 			ActiveRecord::Base.connection.update(update_sql) 
 		end
-		stkinout["srctblid"] =  custwhs_id
+		stkinout["srctblid"] =  stkinout["custwhs_id"] =  custwhs_id
+		stkinout["srctblname"] =  stkinout["wh"] =  "custwhs"
 		return stkinout
 	end
 
