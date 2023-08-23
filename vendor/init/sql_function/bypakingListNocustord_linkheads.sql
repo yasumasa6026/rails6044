@@ -1,0 +1,43 @@
+drop view if exists bypackinglistnocustdlv_linkheads;
+CREATE OR REPLACE VIEW bypackinglistnocustdlv_linkheads
+AS 
+select  
+	null id,
+  	'' person_code_upd ,
+  	''  person_name_upd ,
+	null  linkhead_id,
+	''  linkhead_remark,
+	'2099/12/31'  linkhead_expiredate,
+	''  linkhead_update_ip,
+	current_timestamp  linkhead_created_at,
+	current_timestamp   linkhead_updated_at,
+	null   linkhead_person_id_upd,
+	''  linkhead_contents,
+	'custdlvs'  linkhead_tblname,
+	'linkheads'  linkhead_paretblname,
+	null  linkhead_paretblid,
+	custdlv.packingListNo  linkhead_packingListNo_tblname,
+	''   linkhead_sno_tblname,
+	''   linkhead_cnotblname,
+	'' itm_code,
+	'' itm_name,
+	'' custord_duedate,
+	min(custdlv.depdate) custdlv_depdate,
+	sum(custdlv.qty_stk) linkhead_qty,
+	sum(custdlv.amt) linkhead_amt, 
+	cust.loca_code_cust loca_code_cust,
+	cust.loca_name_cust loca_name_cust ,
+	custrcvplc.loca_code_custrcvplc loca_code_custrcvplc,
+	custrcvplc.loca_name_custrcvplc loca_name_custrcvplc 
+ from 	custdlvs custdlv
+ inner join r_custs cust on cust_id = custdlv.custs_id
+ inner join r_custrcvplcs  custrcvplc on custrcvplc.custrcvplc_id  = custdlv.custrcvplcs_id
+ inner join persons person on person.id = custdlv.persons_id_upd 
+ 	where not exists(select 1 from linkheads   linkhead where linkhead.tblname = 'custdlvs' 
+ 						and linkhead.packingListNo_tblname = custdlv.packingListNo
+ 						and linkhead.paretblname = 'custacthead') 
+ 	and not exists(select 1 from linkcusts   linkcust where linkcust.srctblname = 'custdlvs' 
+ 						and srctblid = custdlv.id)
+	group by cust.loca_name_cust ,cust.loca_code_cust ,custrcvplc.loca_code_custrcvplc ,custrcvplc.loca_name_custrcvplc
+			,custdlv.packinglistno 
+ 	;

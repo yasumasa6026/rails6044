@@ -1,0 +1,43 @@
+drop view if exists public.bycnocustord_linkheads;
+CREATE OR REPLACE VIEW public.bycnocustord_linkheads
+AS 
+select  
+	null id,
+  	'' person_code_upd ,
+  	''  person_name_upd ,
+	null  linkhead_id,
+	''  linkhead_remark,
+	'2099/12/31'  linkhead_expiredate,
+	''  linkhead_update_ip,
+	current_timestamp  linkhead_created_at,
+	current_timestamp   linkhead_updated_at,
+	null   linkhead_person_id_upd,
+	''  linkhead_contents,
+	'custords'  linkhead_tblname,
+	'linkheads'  linkhead_paretblname,
+	null  linkhead_paretblid,
+	''  linkhead_packingListNo_tblname,
+	custord.sno  linkhead_sno_tblname,
+	custord.cno   linkhead_cno_tblname,
+	custord.gno   linkhead_gno_tblname,
+	ope.itm_code itm_code,
+	ope.itm_name itm_name,
+	custord.duedate custord_duedate,
+	link.qty linkhead_qty,
+	(link.qty * custord.price) linkhead_amt, 
+	null custdlv_depdate,
+	cust.loca_code_cust loca_code_cust,
+	cust.loca_name_cust loca_name_cust ,
+	custrcvplc.loca_code_custrcvplc loca_code_custrcvplc,
+	custrcvplc.loca_name_custrcvplc loca_name_custrcvplc 
+ from 	custords custord
+ inner join r_custs cust on cust_id = custord.custs_id
+ inner join r_custrcvplcs  custrcvplc on custrcvplc.custrcvplc_id  = custord.custrcvplcs_id
+ inner join r_opeitms ope on ope.opeitm_id = custord.opeitms_id 
+ inner join persons person on person.id = custord.persons_id_upd 
+ inner join (select sum(qty_src) qty ,tblid from linkcusts link 
+ 				where srctblname = tblname and srctblid = tblid and srctblname = 'custords' and qty_src > 0
+ 				group by tblname,tblid) link on link.tblid = custord.id 
+ 	where not exists(select 1 from linkheads   linkhead where linkhead.tblname = 'custords' and linkhead.cno_tblname = custord.cno)
+ 	
+ 	;
