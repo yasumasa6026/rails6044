@@ -5,35 +5,39 @@ module Api
         end
         def create
             ###JSON.parseのエラー対応　要
-            $email = current_api_user[:email]
-            strsql = "select person_code_chrg,chrg_person_id_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
+            params[:email] = current_api_user[:email]
+            strsql = "select code,id from persons where email = '#{params[:email]}'"
             person = ActiveRecord::Base.connection.select_one(strsql)
             if person.nil?
-                person = {"person_code_chrg" => "0","chrg_person_id_chrg" =>0 }
+                params["status"] = 403
+                params[:err] = "Forbidden paerson code not detect"
+                render json: {:params => params}
+                return   
+                
             end
-            $person_code_chrg = person["person_code_chrg"]
-            $person_id_upd = person["chrg_person_id_chrg"]
+            params[:person_code_ups] = person["code"]
+            params[:person_id_upd] = person["id"]
 
             screen = ScreenLib::ScreenClass.new(params)
             #####    
             case params[:buttonflg] 
             when 'menureq'   ###大項目
-                sgrp_menue = Rails.cache.fetch('sgrp_menue'+$email) do
+                sgrp_menue = Rails.cache.fetch('sgrp_menue'+params[:email]) do
                     if Rails.env == "development" 
-                        strsql = "select * from func_get_screen_menu('#{$email}')"
+                        strsql = "select * from func_get_screen_menu('#{params[:email]}')"
                     else
-                        strsql = "select * from func_get_screen_menu('#{$email}') and pobject_code_sgrp <'S'"
+                        strsql = "select * from func_get_screen_menu('#{params[:email]}') and pobject_code_sgrp <'S'"
                     end      
                     sgrp_menue = ActiveRecord::Base.connection.select_all(strsql)
                 end
                 render json:  sgrp_menue , status: :ok 
 
             when 'bottunlistreq'  ###大項目内のメニュー
-                screenList = Rails.cache.fetch('screenList'+$email) do
+                screenList = Rails.cache.fetch('screenList'+params[:email]) do
                     strsql = "select pobject_code_scr_ub screen_code,button_code,button_contents,button_title
                         from r_usebuttons u
                         inner join r_persons p on u.screen_scrlv_id_ub = p.person_scrlv_id
-                                   and p.person_email = '#{$email}' 
+                                   and p.person_email = '#{params[:email]}' 
                         where usebutton_expiredate > current_date
                         order by pobject_code_scr_ub,button_seqno"
                     screenList = ActiveRecord::Base.connection.select_all(strsql)
@@ -294,7 +298,7 @@ module Api
 
             when 'mkShpords'  ###shpschsは作成済が条件。shpschsはpurords,prdords時に自動作成
                 if params[:clickIndex]
-                    outcnt,shortcnt,err = Shipment.proc_mkShpords(screen.screenCode,params[:clickIndex])
+                    outcnt,shortcnt,err = Shipment.proc_mkShpords(screen.screenCode,params)
                     render json:{:outcnt=>outcnt,:shortcnt=>shortcnt,:err=>err,:params=>{:buttonflg=>"mkShpords"}}
                 else
                     render json:{:outcnt=>0,:shortcnt=>0,:err=>" please select",:params=>{:buttonflg=>"mkShpords"}}

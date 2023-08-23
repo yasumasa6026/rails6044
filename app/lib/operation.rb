@@ -19,10 +19,7 @@ class OpeClass
 		@tbldata["tblid"] = @tblid
 		@tbldata["trngantts_id"] = @gantt["trngantts_id"]
 		@gantt["itms_id"]  =  @tbldata["itms_id"] = @gantt["itms_id_trn"]
-		@gantt["processseq"]  =  @tbldata["processseq"] = @gantt["processseq_trn"]  
-		@gantt["starttime"]  =  @gantt["starttime_trn"]    
-		@gantt["duedate"]  =  @gantt["duedate_trn"]     
-		@gantt["toduedate"]  =  @gantt["toduedate_trn"]  
+		@tbldata["processseq"] = @gantt["processseq_trn"]  
 		@mkprdpurords_id = (params["mkprdpurords_id"]||=0)
 		@mkbillinsts_id = (params["mkbillinsts_id"]||=0)
 		
@@ -196,6 +193,7 @@ class OpeClass
 			base["prjnos_id"]  = @gantt["prjnos_id"]
 			base["tblname"]  = @gantt["tblname"]
 			base["tblid"]  = @gantt["tblid"]
+			base["persons_id_upd"]  = @gantt["persons_id_upd"]
 			base["qty_sch"] = base["qty"] = base["qty_stk"] = 0
 			inout = "in"
 			base["wh"] = "lotstkhists"
@@ -395,6 +393,7 @@ class OpeClass
 			end	
 		else ###変更　(削除 qty_sch=qty=qty_stk=0 　を含む) 
 			lastStkinout = ArelCtl.proc_set_stkinout(@last_rec) 
+			lastStkinout["persons_id_upd"] = @tbldata["persons_id_upd"]
 			stkinout = @tbldata.dup
 			case @tblname
 			when /^cust/
@@ -537,12 +536,12 @@ class OpeClass
 									and alloc.qty_linkto_alloctbl > 0 and alloc.srctblname like '%acts'
 									group by trn.id 
 						&
-				ActiveRecord::Base.connection.select_values(strsql).each do |trngantts_id|
+				ActiveRecord::Base.connection.select_values(strsql).each do |stk|
 						update_sql = %Q&
 								update trngantts set qty_stk = #{stk["qty_stk"]},qty = #{stk["qty"]},qty_sch = #{stk["qty_sch"]},
 									remark = '#{self}  line #{__LINE__}'||remark,
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
-									where id = #{stk["trngantts_id"]}
+									where id = #{stk["id"]}
 							&
 						ActiveRecord::Base.connection.update(update_sql)
 				end
@@ -582,7 +581,7 @@ class OpeClass
 			if qty_require > (trn["qty"].to_f + trn["qty_stk"].to_f)
 				command_c["#{trn["tblname"].chop}_qty_sch"]  = qty_require - (trn["qty"].to_f + trn["qty_stk"].to_f)
 			else
-				command_c["#{trn["tblname"].chop}_qty_sch"]  =0
+				command_c["#{trn["tblname"].chop}_qty_sch"]  = 0
 			end
 		end
 		starttime = CtlFields.proc_field_starttime(command_c["#{trn["tblname"].chop}_duedate"],trn,"gantt")

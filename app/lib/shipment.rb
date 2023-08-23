@@ -3,7 +3,8 @@
 # 2099/12/31を修正する時は　2100/01/01の修正も
 module Shipment
 	extend self
-	def proc_mkShpords screenCode,clickIndex  ###screenCode:r_purords,r_prdords
+	def proc_mkShpords screenCode,params   ###screenCode:r_purords,r_prdords
+		clickIndex  = params ["clickIndex"].dup
 		###shpschsは変更済
 		pagedata = []
 		outcnt = 0
@@ -111,12 +112,15 @@ module Shipment
 				save_itms_id = save_processseq = ""
 				save_qty = 0
                 ActiveRecord::Base.connection.select_all(ord_strsql).each do |nd|
+					save_nd =  nd.dup
 					if nd["consumtype"] =~ /CON|MET/  ###出庫 消費と金型・設備の使用
 						if nd["shpordauto"] != "M"   ###手動出庫は除く
 							if save_itms_id == nd["itms_id"] and save_processseq == nd["processseq"]
 								next if save_qty <= 0
 								qty = save_qty
 							else
+								shp = {}
+								shp["persons_id_upd"] = params[:person_id_ipd]
 								if save_qty > 0
 									shp["qty"] = save_qty
 									shp["qty_shortage"] = save_qty
@@ -132,7 +136,6 @@ module Shipment
 										shpord_create_by_shpsch(shp,save_nd,stk)   ###
 									end
 								end
-								shp = {}
 								shp["pare_qty"] = tblrec["qty"]
 								shp["pare_starttime"] = tblrec["starttime"].to_time
 								shp["trngantts_id"] = nd["trngantts_id"]
@@ -373,11 +376,12 @@ module Shipment
 					end
 					command_c["shpord_qty"] =  0
 					command_c["shpord_qty_shortage"] =  0
+					commad_c["shpord_person_id_upd"] = params[:person_id_upd]
 					blk.proc_create_tbldata(command_c) ##
 					blk.proc_private_aud_rec({},command_c)
 				end
 				if shpords.to_ary.size > 0
-					proc_mkShpords("r_#{pareTblName}",params["clickIndex"])
+					proc_mkShpords("r_#{pareTblName}",params)
 				else
 					pagedata = []
 					params[:pageCount] = 0
@@ -548,6 +552,7 @@ module Shipment
 				stkinout["units_id_case_shp"] = command_c[tblnamechop+"_unit_id_case_shp"]
 				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_fm"]   ###出
 				stkinout["remark"] = "Shipment line #{__LINE__}"
+				stkinout["persons_id_upd"] = params[:person_id_upd]
 				case yield
 				when /shpsch|shpord/
 					stkinout = proc_lotstkhists_in_out("out",stkinout)
@@ -610,6 +615,7 @@ module Shipment
 					selected = JSON.parse(selected)
 					if selected["screenCode"] == "forInsts_shpords"
 						prev_shpord = ActiveRecord::Base.connection.select_one(%Q&select * from r_shpords where id = #{selected["id"]}&)
+						prev_shpord["shpord_person_id_upd"] = params[:person_id_upd]
 						nextshp_create_by_prevshp(prev_shpord,"shpords","shpinsts")
 						outcnt += 1
 						err = ""
@@ -720,6 +726,7 @@ module Shipment
 		stkinout["qty"] =  0
 		stkinout["qty_stk"] = command_c["#{nextshpchop}_qty_stk"]
 		stkinout["qty_real"] = command_c["#{nextshpchop}_qty_real"]
+		stkinout["persons_id_upd"] = command_c["#{nextshpchop}_person_id_upd"]
 		if nextshp == "shpinsts"
 			stkinout["shelfnos_id"] = command_c["#{nextshpchop}_shelfno_id_fm"]
 			stkinout["starttime"] = command_c["#{nextshpchop}_depdate"]
@@ -867,6 +874,7 @@ module Shipment
 										child["consumminqty"],child["consumchgoverqty"])
 		stkinout[str_con_qty] = command_c["#{tblnamechop}_#{str_con_qty}"] =  con_qty
 		stkinout["qty_real"] = stkinout["qty_stk"]
+		command_c["#{tblnamechop}_person_id_upd"] = reqparams[:person_id_upd]
 		blk.proc_create_tbldata(command_c) ##
 		blk.proc_private_aud_rec(reqparams,command_c)
 			
@@ -879,6 +887,7 @@ module Shipment
 		stkinout["prjnos_id"] = command_c[tblnamechop+"_prjno_id"]
 		stkinout["itms_id"] = command_c[tblnamechop+"_itm_id"]
 		stkinout["processseq"] = command_c[tblnamechop+"_processseq"]
+		stkinout["persons_id_upd"] = command_c[tblnamechop+"_person_id_upd"]
 		if  parent["tblname"] =~ /^pur/
 			stkinout["wh"] = "supplierwhs"
 			case  parent["tblname"] 
@@ -987,6 +996,7 @@ module Shipment
 			stkinout["packno"] =  command_c["#{tblnamechop}_packno"] = shp["packno"]   
 			stkinout["lotno"] = command_c["#{tblnamechop}_lotno"] = shp["lotno"]
 			stkinout["prjnos_id"] = command_c[tblnamechop+"_prjno_id"] = shp["prjnos_id"]
+			stkinout["persons_id_upd"] = command_c[tblnamechop+"_person_id_upd"] 
 			case tblnamechop
 			when /shpsch/
 				qty_sch = shp["qty_sch"].to_f / last_pare_qty * parent["qty"].to_f 
@@ -999,7 +1009,8 @@ module Shipment
 				stkinout["qty_stk"] = stkinout["qty_sch"] =  stkinout["qty_real"] = 0
 				command_c["#{tblnamechop}_amt"] = shp["qty"].to_f * command_c["#{tblnamechop}_price"]
 			end
-
+			
+			command_c["#{tblnamechop}_person_id_upd"] = reqparams[:person_id_upd]
 			blk.proc_create_tbldata(command_c) ##
 			setParams = blk.proc_private_aud_rec(reqparams,command_c)
 
@@ -1114,7 +1125,7 @@ module Shipment
 			new_stkinout["qty_real"] = stkinout["qty_real"].to_f * plusminus  +  lotstkhists["qty_real"].to_f
 			strsql = %Q& update lotstkhists set  
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-									persons_id_upd = #{$person_code_chrg||=0},
+									persons_id_upd = #{new_stkinout["person_id_upd"]},
 									qty_stk = #{new_stkinout["qty_stk"]},
 									qty_real = #{new_stkinout["qty_real"]},
 									qty = #{new_stkinout["qty"]} ,
@@ -1139,7 +1150,7 @@ module Shipment
 		ActiveRecord::Base.connection.select_all(strsql).each do |futrec|
 			strsql = %Q& update lotstkhists set  
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-									persons_id_upd = #{$person_code_chrg||=0},
+									persons_id_upd = #{new_stkinout["person_id_upd"]},
 									qty_stk = #{stkinout["qty_stk"].to_f * plusminus + futrec["qty_stk"].to_f},
 									qty = #{stkinout["qty"].to_f * plusminus + futrec["qty"].to_f},
 									qty_sch = #{stkinout["qty_sch"].to_f  * plusminus + futrec["qty_sch"].to_f} 
@@ -1198,7 +1209,7 @@ module Shipment
 								#{stkinout["prjnos_id"]},
 								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-								' ',#{$person_code_chrg||=0},'2099/12/31','#{stkinout["remark"]}')
+								' ',#{stkinout["persons_id_upd"]},'2099/12/31','#{stkinout["remark"]}')
 		&
 	 end
 
@@ -1223,7 +1234,7 @@ module Shipment
 								 #{stkinout["qty"].to_f * plusminus},
 								 to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 								 to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-								 ' ',#{$person_code_chrg||=0},'2099/12/31','#{stkinout["remark"]}')
+								 ' ',#{stkinot["person_id_upd"]},'2099/12/31','#{stkinout["remark"]}')
 		&
 		ActiveRecord::Base.connection.insert(strsql)
 		return inoutlotstks_seq
@@ -1256,7 +1267,7 @@ module Shipment
 								'#{stkinout["lotno"]}',#{stkinout["itms_id"]},#{stkinout["processseq"]},
 								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-								' ','#{$person_code_chrg||=0}','2099/12/31','#{stkinout["remark"]}')
+								' ',#{stkinot["person_id_upd"]}','2099/12/31','#{stkinout["remark"]}')
 				&
 			ActiveRecord::Base.connection.insert(strsql)
 		else
@@ -1308,7 +1319,7 @@ module Shipment
 								'#{stkinout["lotno"]}',#{stkinout["itms_id"]},#{stkinout["processseq"]},
 								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-								' ','#{$person_code_chrg||=0}','2099/12/31','')
+								' ',#{stkinot["person_id_upd"]},'2099/12/31','')
 				&
 			ActiveRecord::Base.connection.insert(strsql)
 		else
@@ -1344,6 +1355,7 @@ module Shipment
 		command_c["shpord_processseq"] = shp["processseq"]
 		command_c["shpord_prjno_id"] = shp["prjnos_id"]
 		command_c["shpord_chrg_id"] = shp["chrgs_id"]
+		command_c["shpord_person_id_upd"] = shp["persons_id_upd"]
 
 		if shp["paretblname"] =~ /^pur/   ###tblname= 'feepayment'--->有償支給
 			command_c = PriceLib.proc_price_amt("shpord",command_c)
@@ -1385,6 +1397,7 @@ module Shipment
 		stkinout["qty"] =  command_c["shpord_qty"]
 		stkinout["qty_stk"] = stkinout["qty_real"] = 0
 		stkinout["shelfnos_id"] = command_c["shpord_shelfno_id_fm"]
+		stkinout["persons_id_upd"] = command_c["shpord_person_id_upd"]
 		stkinout["wh"] = "lotstkhists"
 		stkinout["remark"] = "Shipment line #{__LINE__}"
 		stkinout = proc_lotstkhists_in_out("out",stkinout)

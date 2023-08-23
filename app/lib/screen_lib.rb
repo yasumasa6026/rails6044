@@ -9,14 +9,16 @@ module ScreenLib
 		
 		def initialize(params)
 			@screenCode = params[:screenCode]
-			$proc_grp_code =  ActiveRecord::Base.connection.select_value("select usrgrp_code from r_persons where person_email = '#{$email}'")
-			if $proc_grp_code.nil?
+			@proc_grp_code =  ActiveRecord::Base.connection.select_value("select usrgrp_code from r_persons where person_email = '#{params[:email]}'")
+			if @proc_grp_code.nil?
 				p "add person to his or her email "
 				raise   ### 別画面に移動する　後で対応
 			end
 			if params[:screenCode] and (params[:buttonflg] != "import" or params[:buttonflg] !~ /confirm/)
 				proc_create_grid_editable_columns_info(params)
 			end
+			
+			params[:view] =  ActiveRecord::Base.connection.select_value("select pobject_code_view from r_screens where pobject_code_scr = '#{@screenCode}'")
 		end
 		def grid_columns_info
 			@grid_columns_info
@@ -28,10 +30,10 @@ module ScreenLib
 		def proc_create_grid_editable_columns_info(params) 
 			buttonflg = params[:buttonflg]
 			aud = params[:aud] ### buttonflg = inlineedit7,aud = add --> 明細追加　
-			@grid_columns_info = Rails.cache.fetch('screenfield'+$proc_grp_code+screenCode+buttonflg) do
+			@grid_columns_info = Rails.cache.fetch('screenfield'+@proc_grp_code+screenCode+buttonflg) do
 				@grid_columns_info = {}
 				###  ダブルコーティション　「"」は使用できない。 
-				strsql = "select * from  func_get_screenfield_grpname('#{$email}','#{screenCode}')"
+				strsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{screenCode}')"
 				screenwidth = 0
 				select_fields = ""
 				select_row_fields = ""
@@ -369,6 +371,11 @@ module ScreenLib
 
 		def proc_search_blk(params) 
 			setParams = create_filteredstr(params) 
+			str_func = %Q&select * from func_get_name('screen','#{params[:screenCode]}','#{params[:email]}')&
+			setParams[:screenName] = ActiveRecord::Base.connection.select_value(str_func)
+			if setParams[:screenName].nil?
+				setParams[:screenName] = params[:screenCode]
+			end
 			where_str = setParams[:where_str]
 			strsorting = ""
 			if setParams[:sortBy]  and   setParams[:sortBy] != [] ###: {id: "itm_name", desc: false}
@@ -394,15 +401,15 @@ module ScreenLib
 			setParams[:clickIndex] = []
 			strsql = "select #{grid_columns_info[:select_fields]} 
 						from (SELECT ROW_NUMBER() OVER (#{strsorting}) ,#{grid_columns_info[:select_row_fields]}
-													 FROM #{params[:screenCode]} #{if where_str == '' then '' else where_str end } ) x
+													 FROM #{params[:view]} #{if where_str == '' then '' else where_str end } ) x
 														where ROW_NUMBER > #{(setParams[:pageIndex])*setParams[:pageSize] } 
 														and ROW_NUMBER <= #{(setParams[:pageIndex] + 1)*setParams[:pageSize] } 
 																  "
 			pagedata = ActiveRecord::Base.connection.select_all(strsql)
-			if where_str =~ /where/ or params[:screenCode] =~ /^fmcust/
-				strsql = "SELECT count(*) FROM #{params[:screenCode]} #{where_str}"
+			if where_str =~ /where/ or params[:screenCode] !~ /^r_/
+				strsql = "SELECT count(*) FROM #{params[:view]} #{where_str}"
 			else
-				strsql = "SELECT count(*) FROM #{params[:screenCode].split("_")[1]} "
+				strsql = "SELECT count(*) FROM #{params[:view].split("_")[1]} "
 			end  ###fillterがあるので、table名は抽出条件に合わず使用できない。
 			totalCount = ActiveRecord::Base.connection.select_value(strsql)
 			setParams[:pageCount] = (totalCount.to_f/setParams[:pageSize]).ceil
@@ -441,7 +448,7 @@ module ScreenLib
 						when /mkprdpurord_priority|mkprdpurord_processseq/	
 							temp[cell[:accessor]] = "0"
 						when /person_code_chrg/	
-							temp[cell[:accessor]] = $person_code_chrg
+							temp[cell[:accessor]] = params[:person_code_upd]
 						when /prjno_code/	
 							temp[cell[:accessor]] = "0"
 						when /custinst_starttime/
@@ -484,8 +491,7 @@ module ScreenLib
 						when /_org$|prjno|trngantt_qty_sch/	
                             temp[cell[:accessor]] = params[:trngantt][cell[:accessor].to_sym]
 						when /_pare$/
-							strpare = cell[:accessor].sub(/_pare$/,"_trn").to_sym	
-                            temp[cell[:accessor]] = params[:trngantt][strpare] 
+                            temp[cell[:accessor]] = params[:trngantt][cell[:accessor].to_sym] 
 						end
 					end
 				end	
@@ -520,7 +526,7 @@ module ScreenLib
 			end
         	if params[:whoupdate] == '1' then
 	        	tmpwhere <<  if tmpwhere.size > 1 then " and " else " where " end
-	        	tmpwhere << " person_code_upd = '#{$person_code_chrg}'"
+	        	tmpwhere << " person_code_upd = '#{params[:person_code_upd]}'"
         	end
         	if pdfscript[:pobject_code_rep] =~ /order_list/ then
 	        	tmpwhere <<  if tmpwhere.size > 1 then " and " else " where " end
@@ -532,9 +538,9 @@ module ScreenLib
 
 		def create_download_columns_info    ###screenCodeはinitializeでset
 			download_columns_info = {}
-			###download_columns_info = Rails.cache.fetch('download'+$proc_grp_code+screenCode) do
+			###download_columns_info = Rails.cache.fetch('download'+@proc_grp_code+screenCode) do
 				###  ダブルコーティション　「"」は使用できない。 
-				strsql = "select * from  func_get_screenfield_grpname('#{$email}','#{screenCode}')"
+				strsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{screenCode}')"
 				ActiveRecord::Base.connection.select_all(strsql).each do |i|
 					contents = []
 					if i["screenfield_hideflg"] == "0"
@@ -602,9 +608,9 @@ module ScreenLib
 		end	
 
 		def proc_create_upload_editable_columns_info buttonflg
-			upload_columns_info = Rails.cache.fetch('uploadscreenfield'+$proc_grp_code+screenCode) do
+			upload_columns_info = Rails.cache.fetch('uploadscreenfield'+@proc_grp_code+screenCode) do
 				###  ダブルコーティション　「"」は使用できない。 
-				strsql = "select * from  func_get_screenfield_grpname('#{$email}','#{screenCode}')"
+				strsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{screenCode}')"
 				columns_info = []
 				page_info = {}
 				init_where_info = {}
@@ -788,6 +794,7 @@ module ScreenLib
 				else         
 				  command_c["sio_classname"] = "_edit_update_grid_linedata"
 				end
+				command_c["#{tblnamechop}_person_id_upd"] = setParams[:person_id_upd]
 				command_c = blk.proc_create_tbldata(command_c) ##:
 				case screenCode 
 				when /tblfields/  ###前処理 　 　
@@ -889,6 +896,7 @@ module ScreenLib
 															end
 								gantt["qty_sch"] = CtlFields.proc_cal_qty_sch(gantt["qty_sch_pare"].to_f,gantt["chilnum"].to_f,gantt["parenum"].to_f,
 															gantt["consumunitqty"],gantt["consumminqty"].to_f,gantt["consumchgoverqty"].to_f)
+								gantt["person_id_upd"] = params[:person_id_upd]
 								ArelCtl.proc_insert_trngantts(gantt)   ###子。孫への展開はない
 							rescue
 								command_c[:confirm] = false
@@ -934,13 +942,15 @@ module ScreenLib
 											link = ActiveRecord::Base.connection.select_one(linksql)
 											if link
 												if link["tblname"] == "custacts"  ###修正できるのはpclinglistnoとinvoicenoのみ
-													head = ArelCtl.proc_createDetailTableFmHead "custactheads",tblnamechop+"s",command_c,fmView,"_update_"
+													setParams[:classname] = "_update_"
+													head = ArelCtl.proc_createDetailTableFmHead "custactheads",tblnamechop+"s",command_c,fmView,setParams = [:classname] 
 												else
 													setParams[:err] = " error #{key} logic error line:#{setParams[:index]} "
 													break
 												end
 											else
-												head = ArelCtl.proc_createDetailTableFmHead  "custactheads",tblnamechop+"s",command_c,fmView,"_add_"
+												setParams[:classname] =  "_add_"
+												etailTableFmHead  "custactheads",tblnamechop+"s",command_c,fmView,setParams = [:classname] 
 											end
 										end
 										setParams["heads"] << head

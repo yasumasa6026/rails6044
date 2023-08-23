@@ -82,12 +82,14 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
                 </Tabs>
               {showScreen&&<div> <ScreenGrid7 screenFlg = "first" /></div>}
               {showScreen&&!toggleSubForm&&<div> <ButtonList screenFlg = "first" /></div>}
-              <p> {hostError?hostError:""} </p>
+              {showScreen&&screenFlg==="first"&&<p> {hostError?hostError:""} </p>}
+              {showScreen&&screenFlg==="second"&&<p> {params.screenName} </p>}
               <div> {showScreen&&screenFlg==="second"?<ScreenGrid7 screenFlg = "second" />:""}</div>
               {showScreen&&screenFlg==="second"&&!toggleSubFormSecond&&<div> <ButtonList screenFlg = "second" /></div>}
               {loading && ( <div colSpan="10000">
             	              Loading...
           	              </div>)}
+              {showScreen&&screenFlg==="second"&&<p> {hostError?hostError:""} </p>}
         </div>
       )
     }else{

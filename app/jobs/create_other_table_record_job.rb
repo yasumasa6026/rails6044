@@ -13,9 +13,9 @@ class CreateOtherTableRecordJob < ApplicationJob
             strsql = %Q% select * from persons where id = #{params["tbldata"]["persons_id_upd"]}
                     %
             rec = ActiveRecord::Base.connection.select_one(strsql) ###
-            $email = rec["email"]
-            $person_code_chrg = rec["code"]
-            $person_id_upd = rec["id"]
+            params[:email] = rec["email"]
+            params[:person_code_chrg] = rec["code"]
+            params[:person_id_upd] = rec["id"]
             ActiveRecord::Base.connection.begin_db_transaction()
             until processreq.nil? do
                     tbldata = params["tbldata"].dup
@@ -61,7 +61,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     fmtbl_totbls = JSON.parse(val)  ###table suppliers等の項目autocreateに次に作成されるテーブルが登録されている。
                                     fmtbl_totbls.each do |totbl,fmtbl|   ### {totbl => fmtbl}
                                         if fmtbl == tblname
-                                            ArelCtl.proc_createtable(fmtbl,totbl,parent,params["classname"])
+                                            ArelCtl.proc_createtable(fmtbl,totbl,parent,params)
                                         end
                                     end
                                 end
@@ -288,7 +288,8 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     end
                                     src = {"trngantts_id" => sch["trngantts_id"],"tblname"=> sch["tblname"],"tblid"=> sch["tblid"]}
                                     base = {"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"qty_src" => qty_src,"amt_src" => 0,
-                                                "remark" => "#{self} line:#{__LINE__}"}
+                                            "persons_id_upd" => gantt["persons_id_upd"],    
+                                            "remark" => "#{self} line:#{__LINE__}"}
                                     ArelCtl.proc_insert_linkcusts(src,base)
                                     update_sql = %Q&
                                             update linkcusts set qty_src = #{sch["qty_src"]},remark = '#{self} line:#{__LINE__}'||remark,

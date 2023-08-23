@@ -62,7 +62,7 @@ module RorBlkCtl
 					end
             	end   ## if j_to_s.
 			end ## command_c.each
-        	@tbldata["persons_id_upd"] = command_c["#{@tblname.chop}_person_id_upd"] = $person_id_upd ###
+        	@tbldata["persons_id_upd"] = command_c["#{@tblname.chop}_person_id_upd"]
 			@tbldata["updated_at"] = command_c["#{@tblname.chop}_updated_at"] = Time.now
 			return command_c
 		end
@@ -174,10 +174,11 @@ module RorBlkCtl
 					gantt["orgtblid"] = @tbldata[:orgtblid]
 					gantt["trngantts_id"] = @tbldata[:id]
 					gantt["itms_id"]  =  gantt["itms_id_trn"] = @tbldata[:itms_id_trn] 
-					gantt["processseq"]  =   gantt["processseq_trn"]  =   @tbldata[:processseq_trn]
-					gantt["starttime"]  =  gantt["starttime_trn"] =  @tbldata[:starttime_trn]   
-					gantt["duedate"]  =  gantt["duedate_trn"]   =  @tbldata[:duedate_trn]     
-					gantt["toduedate"]  =  gantt["toduedate_trn"]   =  @tbldata[:toduedate_trn]
+					gantt["processseq_trn"]  =   @tbldata[:processseq_trn]
+					gantt["starttime_trn"] =  @tbldata[:starttime_trn]   
+					gantt["duedate_trn"]   =  @tbldata[:duedate_trn]     
+					gantt["toduedate_trn"]   =  @tbldata[:toduedate_trn]
+					gantt["persons_id_upd"]   =  setParams[:person_id_upd]
 					setParams["gantt"] = gantt.dup  	
 					ope = Operation::OpeClass.new(setParams) 	
 					ope.proc_link_lotstkhists_update()	
@@ -323,7 +324,8 @@ module RorBlkCtl
 								src_qty = 0
 							end
 							base = {"tblname" => @tblname ,	"tblid" => @tbldata["id"],
-										"qty_src" => alloc_qty ,"amt_src" => 0,	"trngantts_id" => src["trngantts_id"]}
+										"qty_src" => alloc_qty ,"amt_src" => 0,	"trngantts_id" => src["trngantts_id"],
+										"persons_id_upd" => gantt["persons_id_upd"]}
 							linktbl_ids  << ArelCtl.proc_insert_linktbls(src,base)
 							strsql = %Q&
 								update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{alloc_qty},
@@ -334,7 +336,8 @@ module RorBlkCtl
 							ActiveRecord::Base.connection.update(strsql)
 
 							alloc = {"srctblname" => @tblname ,	"srctblid" => @tbldata["id"],
-										"qty_linkto_alloctbl" => alloc_qty ,"trngantts_id" => src["trngantts_id"]}
+										"qty_linkto_alloctbl" => alloc_qty ,"trngantts_id" => src["trngantts_id"],
+										"persons_id_upd" => gantt["persons_id_upd"]}
 							ArelCtl.proc_insert_alloctbls(alloc)
 							break if src_qty <= 0
 						end
@@ -433,7 +436,8 @@ module RorBlkCtl
 								qty = 0
 							end
 							base = {"tblname" => @tblname ,	"tblid" => @tbldata["id"],
-										"qty_src" => qty_src ,"amt_src" => 0,	"trngantts_id" => src["trngantts_id"]}
+										"qty_src" => qty_src ,"amt_src" => 0,	"trngantts_id" => src["trngantts_id"],
+										"persons_id_upd" => setParams["persons_id_upd"]}
 							linktbl_ids  << ArelCtl.proc_insert_linkcusts(src,base)
 							update_strsql = %Q&
 									update  linkcusts link set qty_src = #{src["qty_src"]},	remark = '#{self} line:#{__LINE__}'||remark

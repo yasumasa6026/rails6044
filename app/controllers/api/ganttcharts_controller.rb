@@ -111,16 +111,20 @@ module Api
                     end
                     render json: {:tasks=>tasks}   
                 when "updateNditm"
-                    $email = current_api_user[:email]
-                    strsql = "select person_code_chrg,chrg_person_id_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
+                    reqparams = params.dup
+                    reqparams[:email] = current_api_user[:email]
+                    strsql = "select code,id from persons where email = '#{reqparams[:email]}'"
                     person = ActiveRecord::Base.connection.select_one(strsql)
                     if person.nil?
-                        person = {"person_code_chrg" => "0","chrg_person_id_chrg" =>0 }
+						reqparams["status"] = 403
+						reqparams[:err] = "Forbidden charge_paerson not detect"
+
+                        render json: {:params => reqparams}
+                        return   
                     end
-                    $person_code_chrg = person["person_code_chrg"]
-                    $person_id_upd = person["chrg_person_id_chrg"]
+                    reqparams[:person_code_upd] = person["code"]
+                    reqparams[:person_id_upd] = person["id"]
                     gantt_name = JSON.parse(params[:task])["name"]
-                    reqparams = params.dup
                     if params[:screenCode] =~ /itm/
                         itm,processseq,loca, qty,numberOfItems = gantt_name.split(",")
                         reqparams[:filtered] = [%Q%{"id":"itm_code","value":"#{itm.split(":")[0]}"}%,
@@ -166,16 +170,19 @@ module Api
                         itm,processseq,loca, qty_sch,qty,stk,tblname,sno = gantt_name.split(",")
                     end   
                 when "updateTrngantt"
-                    $email = current_api_user[:email]
-                    strsql = "select person_code_chrg,chrg_person_id_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
+                    reqparams = params.dup
+                    reqparams[:email] = current_api_user[:email]
+                    strsql = "select code,id from persons  where email = '#{reqparams[:email]}'"
                     person = ActiveRecord::Base.connection.select_one(strsql)
                     if person.nil?
-                        person = {"person_code_chrg" => "0","chrg_person_id_chrg" =>0 }
+						reqparams["status"] = 403
+						reqparams[:err] = "Forbidden paerson code  not detect"
+                        render json: {:params => reqparams}
+                        return   
                     end
-                    $person_code_chrg = person["person_code_chrg"]
-                    $person_id_upd = person["chrg_person_id_chrg"]
+                    reqparams[:person_code_upd] = person["code"]
+                    reqparams[:person_id_upd] = person["id"]
                     gantt_name = JSON.parse(params[:task])["name"]
-                    reqparams = params.dup
                     tbl_sno,item,processseq,loca, qty,parent = gantt_name.split(",")
                     tblname,sno = tbl_sno.split(":")
                     itm_code,itm_name = item.split(":")
@@ -187,13 +194,14 @@ module Api
                             reqparams[:buttonflg] = "inlineedit7"
                             reqparams[:screenCode] = "update_trngantts"
                             screen = ScreenLib::ScreenClass.new(reqparams)
-                            reqparams[:screenCode]  = "update_trngantts('#{tblname}','#{sno}','#{itm_code}','#{itm_name}',#{processseq})"
+                            reqparams[:view]  = "update_trngantts('#{tblname}','#{sno}','#{itm_code}','#{itm_name}',#{processseq})"
                             pagedata,reqparams = screen.proc_search_blk(reqparams)   ###:pageInfo  -->menu7から未使用
                             render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
                     when /update_free_to_alloc/
                             reqparams[:buttonflg] = "inlineadd7"
-                            reqparams[:screenCode] = "freetoalloc_alloctbls('#{tblname}','#{sno}')"
+                            reqparams[:screenCode] = "freetoalloc_alloctbls"
                             screen = ScreenLib::ScreenClass.new(reqparams)
+                            reqparams[:view] = "freetoalloc_alloctbls('#{tblname}','#{sno}')"
                             pagedata,reqparams = screen.proc_search_blk(reqparams)   ###:pageInfo  -->menu7から未使用
                             render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
                     when /insert_trngantts/
@@ -205,26 +213,41 @@ module Api
                                                 orgitm.code itm_code_org,orgitm.name itm_name_org,t.processseq_org trngantt_processseq_org,
                                                 orgloca.code loca_code_org,orgloca.name loca_name_org,
                                                 t.duedate_org trngantt_duedate_org,
-                                                trnitm.code itm_code_trn,trnitm.name itm_name_trn,t.processseq_trn trngantt_processseq_trn,
-                                                trnloca.code loca_code_trn,trnloca.name loca_name_trn,
-                                                trnshelfno.code shelfno_code_trn,trnshelfno.name shelfno_name_trn,
-                                                t.qty_sch trngantt_qty_sch,prjno.code prjno_code,prjno.name prjno_name,
+                                                t.duedate_trn trngantt_duedate_trn,t.toduedate_trn trngantt_toduedate_pare,t.starttime_trn trngantt_starttime_pare,
+                                                trnitm.code itm_code_pare,trnitm.name itm_name_pare,t.processseq_trn trngantt_processseq_pare,
+                                                trnshelfno.code shelfno_code_pare,trnshelfno.name shelfno_name_pare,
+                                                trnshelfno.loca_code loca_code_shelfno_pare,trnshelfno.loca_name loca_name_shelfno_pare,
+                                                t.qty_sch trngantt_qty_sch_pare,prjno.code prjno_code,prjno.name prjno_name,
                                                 t.itms_id_org trngantt_itm_id_org,t.locas_id_org trngantt_loca_id_org,
-                                                t.itms_id_trn trngantt_itm_id_trn,t.locas_id_trn trngantt_loca_id_trn,
-                                                t.shelfnos_id_trn trngantt_shelfno_id_trn,t.shelfnos_id_to_trn trngantt_shelfno_id_to_trn,
+                                                t.itms_id_trn trngantt_itm_id_pare,
+                                                t.shelfnos_id_trn trngantt_shelfno_id_pare,t.shelfnos_id_to_trn trngantt_shelfno_id_to_pare,
                                                 t.prjnos_id trngantt_prjno_id
-                                                from trngantts t
-                                                    inner join purschs p on p.id = t.tblid
-                                                    inner join itms orgitm on orgitm.id = t.itms_id_org
-                                                    inner join itms trnitm on trnitm.id = t.itms_id_trn
-                                                    inner join locas orgloca on orgloca.id = t.locas_id_org
-                                                    inner join locas trnloca on trnloca.id = t.locas_id_trn
-                                                    inner join shelfnos trnshelfno on trnshelfno.id = t.shelfnos_id_trn
-                                                    inner join prjnos prjno on prjno.id = t.prjnos_id 
-                                                    where t.tblname = '#{params[:parse_linedata][:tblname]}' and p.sno = '#{params[:parse_linedata][:sno]}'
+                                            from trngantts t
+                                            inner join #{tblname} p on p.id = t.tblid
+                                            inner join itms orgitm on orgitm.id = t.itms_id_org
+                                            inner join itms trnitm on trnitm.id = t.itms_id_trn
+                                            inner join locas orgloca on orgloca.id = t.locas_id_org
+                                            inner join (select s.id,s.code,s.name,l.code loca_code,l.name loca_name,
+                                                                                    l.id locas_id
+                                                                from shelfnos s 
+                                                                inner join locas l on s.locas_id_shelfno = l.id) 
+                                                        trnshelfno on trnshelfno.id = t.shelfnos_id_trn
+                                            inner join prjnos prjno on prjno.id = t.prjnos_id 
+                                        where t.tblname = '#{tblname}' and p.sno = '#{sno}'
                             &
                             reqparams[:trngantt] = ActiveRecord::Base.connection.select_one(strsql)
-                            pagedata,reqparams = screen.proc_search_blk(reqparams)   ###:pageInfo  -->menu7から未使用
+                            strsql = %Q&
+                                        select * from screens s
+                                                inner join pobjects p on s.pobjects_id_scr = p.id
+                                                where p.code = 'insert_trngantts' and s.expiredate > current_date
+                            &
+                            rec = ActiveRecord::Base.connection.select_one(strsql)
+                            if rec 
+                                reqparams[:pageSize] = if rec["rows_per_page"].to_i == 0 then 5 else rec["rows_per_page"].to_i end  
+                            else
+                                reqparams[:pageSize] = 5
+                            end
+                            pagedata,reqparams = screen.proc_add_empty_data(reqparams)   ###:pageInfo  -->menu7から未使用
                             render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
                     else
                             raise

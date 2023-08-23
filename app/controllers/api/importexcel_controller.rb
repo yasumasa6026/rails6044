@@ -17,16 +17,18 @@ class ImportexcelController < ApplicationController
         ##skip_before_action :verify_authenticity_token
         ###@importexcel = Importexcel.new(params[:importexcel])
         ###if @importexcel.save
+        jparams = params.dup
         tblname = params[:screenCode].split("_")[1]
-        $email = params[:email]  ###tokenのuid  ===>uidはemailであること
-        strsql = "select person_code_chrg,chrg_person_id_chrg from r_chrgs rc where person_email_chrg = '#{$email}'"
+        strsql = "select code,id from personsc where email = '#{params[:email]}'"
         person = ActiveRecord::Base.connection.select_one(strsql)
         if person.nil?
-            person = {"person_code_chrg" => "0","chrg_person_id_chrg" =>0 }
+            reqparams["status"] = 403
+            reqparams[:err] = "Forbidden paerson code not detect"
+            render json: {:params => reqparams}
+            return   
         end
-        $person_code_chrg = person["person_code_chrg"]
-        $person_id_upd = person["chrg_person_id_chrg"]
-        jparams = params.dup
+        jparams[:person_code_upd] = person["code"]
+        jparams[:person_id_upd] = person["id"]
         jparams[:importData] = {}  ###jparamsではimportdataは使用しない。processreqへの保存対象外
         jparams[:buttonflg] = "import"
         command_c = {}
@@ -34,10 +36,6 @@ class ImportexcelController < ApplicationController
         column_info,page_info,where_info,select_fields,fetch_check,dropdownlist,sort_info,nameToCode = 
                   screen.proc_create_upload_editable_columns_info "import" 
         
-        # strsql = "select	column_name from 	information_schema.columns 
-        #           where 	table_catalog='#{ActiveRecord::Base.configurations["development"]["database"]}' 
-        #           and table_name='#{screen.screenCode}' and  column_name not like  '%person_id_upd' "
-        # keyids = ActiveRecord::Base.connection.select_values(strsql)
         
         performSeqNos = []
         results = {}   
@@ -74,29 +72,29 @@ class ImportexcelController < ApplicationController
             jparams[:screenCode] = screen.screenCode
             jparams[:err] = nil
             jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] ||= ""
-            if linevalues["confirm"] != false  
+            if linevalues["confirm"] == true
                 linevalues.each do |field,val| ###confirmはfunction batchcheckで項目追加している。
                         ##エラーと最初のレコード(confirm="confirm")のname項目行を除く
                     jparams[:parse_linedata]["confirm"] = true
                     if fetchCode[field] 
                         jparams[:fetchCode] = %Q%{"#{field}":"#{val}"}%
                         jparams[:fetchview] = fetchCode[field]
+                        jparams = CtlFields.proc_chk_fetch_rec jparams    
                     end
                 end
             else
                 importError = true  
                 jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
-                jparams[:parse_linedata]["confirm"] = false
             end 
-            if linevalues["confirm"] != false  and  jparams[:err].nil? 
-                linevalues.each do |field,val| ###confirmはfunction batchcheckで項目追加している。
+            if jparams[:parse_linedata]["confirm"]  == true 
+                jparams[:parse_linedata].each do |field,val| ###confirmはfunction batchcheckで項目追加している。
                     if checkCode[field] 
                         jparams = CtlFields.proc_judge_check_code jparams,field,checkCode[field]
                     end
                 end
             end 
             rows << jparams[:parse_linedata]
-            if linevalues["confirm"] == false   ###CtlFields.proc_judge_check_codeの結果
+            if jparams[:parse_linedata] == false   ###CtlFields.proc_judge_check_codeの結果
                     importError = true
                     jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
             end

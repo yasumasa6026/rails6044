@@ -383,13 +383,13 @@ const ScreenGrid7 = ({
           />
         </TableGridStyles>
            {/*params["buttonflg"]!=="viewtablereq7"||params["buttonflg"]==="cinlineedit7")?<div colSpan="10000" className="td" ></div>:*/}
-          <div colSpan="10000" className="td" >
+           {buttonflg !==  'inlineadd7'&&<div colSpan="10000" className="td" >
                {screenCode===""?"":Number(params["totalCount"])===0?"No Record":
                 `Showing ${params.pageIndex * params["pageSize"] + 1} of ~
                  ${Number(params["totalCount"]) < ((params.pageIndex + 1) * params["pageSize"])? 
                   Number(params["totalCount"]) : ((params.pageIndex + 1) * params["pageSize"])} 
                   results of  total ${Number(params["totalCount"])} records`}
-          </div>
+          </div>}
       {(Number(params["totalCount"])>0&&!toggleSubForm)&& 
       <span className="pagination">
           <button onClick={() => {

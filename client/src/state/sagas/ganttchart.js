@@ -32,7 +32,7 @@ export function* GanttChartSaga({ payload: {params}  }) {
     let uid = auth.uid   
     let {response,error} = yield call(GanttApi,{params ,token,client,uid} )
     if(response || !error){
-        switch (params.buttonflg){
+        switch (params.buttonflg){  //buttonflg req　時の内容
             case "ganttchart":
             case "reversechart":
                 let tasks = []
@@ -42,7 +42,8 @@ export function* GanttChartSaga({ payload: {params}  }) {
                 return yield put({ type: GANTTCHART_SUCCESS, payload:{ tasks:tasks,viewMode:params.viewMode,
                                                                                 screenCode:params.screenCode,
                                                                                 buttonflg:params.buttonflg,}} )  
-            case "updateNditm":
+            case "updateNditm":  //ganttchartからtaskをclickされた時
+            case "updateTrngantt":
                 params = {...response.data.params,err:null,parse_linedata:{},index:0,clickIndex:[]}
                 return yield put({type:SECOND_SUCCESS7,payload:{data:response.data,params:params} })
         }}else

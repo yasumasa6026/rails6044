@@ -99,7 +99,7 @@ module GanttChart
 				case mst_code
 				when /purords|prdords|purschs|prdschs/
 					strsql =	%Q&
-									select  max(trn.itms_id_trn) itms_id_trn,max(trn.locas_id_trn) locas_id_trn,max(trn.orgtblname) orgtblname,
+									select  max(trn.itms_id_trn) itms_id_trn,max(s.locas_id_shelfno) locas_id_trn,max(trn.orgtblname) orgtblname,
 											max(trn.orgtblid) orgtblid,max(trn.paretblname) paretblname,max(trn.paretblid) paretblid,
 											a.srctblname linktblname,a.srctblid linktblid,
 											a.srctblname tblname,a.srctblid tblid,
@@ -108,6 +108,7 @@ module GanttChart
 											sum(a.qty_linkto_alloctbl) qty_src,max(trn.id) trngantts_id 
 										from trngantts trn
 										inner join alloctbls a  on a.trngantts_id = trn.id  and a.qty_linkto_alloctbl > 0 
+										inner join shelfnos s on s.id = trn.shelfnos_id_trn 
 										inner join opeitms ope  on trn.itms_id_trn = ope.itms_id and trn.processseq_trn = ope.processseq
 																	and ope.priority = 999
 									where a.srctblname = '#{mst_code}' and a.srctblid = #{id}
@@ -199,11 +200,13 @@ module GanttChart
 					end
 				when /custschs|custords/  ###custords,custschs単独の時　custordsがcustschsを引き当てた時
 					strsql = %Q&
-									select trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
+									select trn.itms_id_trn,s.locas_id_shelfno locas_id_trn,
+											trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
 											trn.tblname,trn.tblid,
 											trn.parenum,trn.chilnum,trn.processseq_trn,trn.starttime_trn,trn.duedate_trn,
 											trn.id trngantts_id ,trn.qty_sch,trn.qty,trn.qty_stk
 										from trngantts trn 
+										inner join shelfnos s on s.id = trn.shelfnos_id_trn  
 										where  trn.tblid = #{id} and trn.tblname = '#{mst_code}' --- -->画面でclickされたtableのid
 							&
 					trn = ActiveRecord::Base.connection.select_one(strsql)
@@ -221,18 +224,20 @@ module GanttChart
 					strsql =	%Q&
 							  	---  custordsがcustschsを引き当てた時
 								--- org=pare=tblの子供org=pareの時　pare:tblは1:1
-								select trn.mlevel ,trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
+								select trn.mlevel ,trn.itms_id_trn,s.locas_id_shelfno locas_id_trn,
+										trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
 										trn.parenum,trn.chilnum,trn.processseq_trn,trn.starttime_trn,trn.duedate_trn,
 										l.tblname tblname,l.tblid tblid,  
 										custsch.srctblname linktblname,custsch.srctblid linktblid,---次への引継ぎ
 										l.qty_src,trn.id trngantts_id
 									from trngantts trn
-										inner join linkcusts l on l.srctblid = trn.paretblid 
+										inner join linkcusts l on l.srctblid = trn.paretblid
+										inner join shelfnos s on s.id = trn.shelfnos_id_trn  
 										inner join (select a.srctblname,srctblid  from trngantts t 
 													inner join alloctbls a on t.id = a.trngantts_id
 														and a.qty_linkto_alloctbl > 0 
 														and t.mlevel = '1' and paretblname = 'custschs') custsch
-										on trn.tblname = custsch.srctblname and  trn.tblid = custsch.srctblid  
+													on trn.tblname = custsch.srctblname and  trn.tblid = custsch.srctblid  
 									where l.tblname = 'custords' and l.tblid =  #{n0[:linktblid]} 
 										and l.qty_src > 0 and ( l.tblname != l.srctblname or l.tblid !=  l.srctblid)
 										and trn.paretblname = 'custschs' and l.tblname = 'custords'
@@ -272,12 +277,14 @@ module GanttChart
 						@bgantts[n0[:id]] = n0
 						@level = n0[:id]
 						strsql = %Q&
-										select trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
+										select trn.itms_id_trn,s.locas_id_shelfno locas_id_trn,
+												trn.orgtblname,trn.orgtblid,trn.paretblname,trn.paretblid,
 												a.srctblname tblname,a.srctblid tblid,
 												trn.parenum,trn.chilnum,trn.processseq_trn,trn.starttime_trn,trn.duedate_trn,
 												trn.id trngantts_id ,trn.qty_sch,trn.qty,trn.qty_stk,(a.qty_linkto_alloctbl) qty_src
 												from trngantts trn 
-											inner join alloctbls a on a.trngantts_id = trn.id 
+											inner join alloctbls a on a.trngantts_id = trn.id
+											inner join shelfnos s on s.id = trn.shelfnos_id_trn  
 											where  trn.paretblid = #{id} and trn.paretblname = '#{mst_code}' --- -->画面でclickされたtableのid
 											and a.qty_linkto_alloctbl > 0
 								&
@@ -322,7 +329,7 @@ module GanttChart
 					case gantt_reverse
 					when /gantt/  ###custschs,custordsは対象済
 						strsql =	%Q&
-								select  max(trn.itms_id_trn) itms_id_trn,max(trn.locas_id_trn) locas_id_trn,max(trn.orgtblname) orgtblname,
+								select  max(trn.itms_id_trn) itms_id_trn,max(s.locas_id_shelfno) locas_id_trn,max(trn.orgtblname) orgtblname,
 										max(trn.orgtblid) orgtblid,max(trn.paretblname) paretblname,max(trn.paretblid) paretblid,
 										alloc.srctblname linktblname,alloc.srctblid linktblid,
 										alloc.srctblname tblname,alloc.srctblid tblid,
@@ -340,6 +347,7 @@ module GanttChart
 																and trn.orgtblid = pare.orgtblid and trn.paretblid = pare.tblid
 									inner join alloctbls alloc on alloc.trngantts_id = trn.id
 																and alloc.qty_linkto_alloctbl > 0
+									inner join shelfnos s on s.id = trn.shelfnos_id_trn
 								where (trn.tblname != trn.paretblname or trn.tblid != trn.paretblid) 
 								group by alloc.srctblname ,alloc.srctblid 
 									& 
@@ -391,14 +399,15 @@ module GanttChart
 										(trn.parenum) ,(trn.chilnum) ,(trn.processseq_pare) ,(pare.id)  
 							union  ---  custordsがcustschsを引き当てた時
 									--- org=pare=tblの子供org=pareの時　pare:tblは1:1
-								select trn.itms_id_trn,trn.locas_id_trn,trn.orgtblname,
-										trn.orgtblid,trn.paretblname,trn.paretblid,
+								select trn.itms_id_trn,s.locas_id_shelfno locas_id_trn,
+										trn.orgtblname,	trn.orgtblid,trn.paretblname,trn.paretblid,
 										trn.tblname ,trn.tblid,
 										'' linktblname ,0 linktblid,
 										trn.parenum,trn.chilnum,trn.processseq_trn,
 										trn.starttime_trn,trn.duedate_trn,
 										l.qty_src,trn.id trngantts_id
 									from trngantts trn
+									inner shelfnos s on s.id = trn.shelfnos_id_trn 
 									inner join linkcusts l on l.tblname = trn.tblname and  l.tblid = trn.tblid
 										where l.srctblname = '#{ngantt[:linktblname]}' and l.srctblid = #{ngantt[:linktblid]} 
 											and l.qty_src > 0 and ( l.tblname != l.srctblname or l.tblid !=  l.srctblid)
@@ -833,7 +842,7 @@ module GanttChart
 	###
 	def uploadgantt params  ### trnは別
 		ActiveRecord::Base.connection.begin_db_transaction()
-        $person_code_chrg =  ActiveRecord::Base.connection.select_value("select id from persons where email = '#{$email}'")   ###########   LOGIN USER
+        params[:person_id_upd] =  ActiveRecord::Base.connection.select_value("select id from persons where email = '#{reqparams[:email]}'")   ###########   LOGIN USER
 		@sio_session_counter = user_seq_nextval
 		@ganttdata = params[:tasks]
 		@err = false

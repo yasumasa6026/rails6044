@@ -117,7 +117,7 @@ module CtlFields
 					if cnt >= fetchs.to_a.size
 						case fetch["pobject_code_sfd"]
 						when  /_sno_|_cno_|_packinglistno_/ ###duedate,starttime,expiredateの引継ぎがあるとき
-							viewstrsql = "select * from  func_get_screenfield_grpname('#{$email}','#{fetchview}')"
+							viewstrsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{fetchview}')"
 							select_fields = ""
 							ActiveRecord::Base.connection.select_all(viewstrsql).each_with_index do |i|			
 								select_fields = 	select_fields + 

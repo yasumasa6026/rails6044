@@ -50,7 +50,7 @@ module ArelCtl
 		end
         if params[:whoupdate] == '1' then
 	        	tmpwhere <<  if tmpwhere.size > 1 then " and " else " where " end
-	        	tmpwhere << " person_code_upd = '#{$person_code_chrg}'"
+	        	tmpwhere << " person_code_upd = '#{params[:person_code_chrg]}'"
         end
         if pdfscript[:pobject_code_rep] =~ /order_list/ then
 	        	tmpwhere <<  if tmpwhere.size > 1 then " and " else " where " end
@@ -77,7 +77,7 @@ module ArelCtl
 		if reqparams["seqno"].nil?
 			reqparams["seqno"] = []
 		end	
-		strsql = %Q%select id from persons where email = '#{$email}'
+		strsql = %Q%select id from persons where email = '#{reqparams[:email]}'
 		%
 		person_id = ActiveRecord::Base.connection.select_value(strsql)
 		reqparams["seqno"] << processreqs_id  ###
@@ -101,8 +101,8 @@ module ArelCtl
 		return processreqs_id,reqparams
 	end
 
-	def proc_createtable fmtbl,totbl,fmview,add_or_update  ###fmtbl:元のテーブル totbl:fmtblから自動作成するテーブル
-		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{$email}','r_#{totbl}')
+	def proc_createtable fmtbl,totbl,fmview,params  ### fmtbl:元のテーブル totbl:fmtblから自動作成するテーブル
+		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{params[:email]}','r_#{totbl}')
 		%
 		toFields = ActiveRecord::Base.connection.select_values(strsql) 
 		blk = RorBlkCtl::RorClass.new("r_#{totbl}")
@@ -111,13 +111,13 @@ module ArelCtl
 			prevkey = key.gsub(totbl.chop,fmtbl.chop)
 			case key.to_s
 			when /^id$/ 
-				if add_or_update =~ /_add_|_insert_/
+				if params[:classname] =~ /_add_|_insert_/
 					command_c["id"] = ""
 				else
 					command_c["id"] = fmview["id"]
 				end
 			when /_sno$|_cno$|_gno$/ 
-				if add_or_update =~ /_add_|_insert_/
+				if params[:classname] =~ /_add_|_insert_/
 					command_c[key] = ""
 				else
 					command_c[key] = fmview[prevkey]
@@ -175,13 +175,13 @@ module ArelCtl
 						prevkey = key.to_s.gsub("payord","prdact")
 						case key.to_s
 						when /^id$/ 
-							if add_or_update =~ /_add_|_insert_/
+							if params[:classname] =~ /_add_|_insert_/
 								command_c["id"] = ""
 							else
 								command_c["id"] = fmview["id"]
 							end
 						when /_sno$|_cno$|_gno$/ 
-							if add_or_update =~ /_add_|_insert_/
+							if params[:classname] =~ /_add_|_insert_/
 								command_c[key] = ""
 							else
 								command_c[key] = puract[prevkey]
@@ -239,18 +239,19 @@ module ArelCtl
 				end
 		end
 		command_c["sio_classname"] =
-			if add_or_update =~ /_add_|_insert_/
+			if params[:classname] =~ /_add_|_insert_/
 				"_add_proc_createtable_data"
 			else
 				"_update_proc_createtable_data"
 			end
+		command_c["#{totbl.chop}_person_id_upd"] = params[:person_id_upd]
 		blk.proc_create_tbldata(command_c)
 		blk.proc_private_aud_rec({},command_c)
 	end	
 
-	def proc_createDetailTableFmHead  headTbl,baseTbl,headCommand,fmView,add_or_update
+	def proc_createDetailTableFmHead  headTbl,baseTbl,headCommand,fmView,params
 		detailTbl = headTbl.sub(/heads$/,"s") 
-		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{$email}','r_#{detailTbl}')
+		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{params[:email]}','r_#{detailTbl}')
 		%
 		toFields = ActiveRecord::Base.connection.select_values(strsql) 
 		blk = RorBlkCtl::RorClass.new("r_#{detailTbl}")
@@ -261,13 +262,13 @@ module ArelCtl
 			when /updated_at|created_at|remark|contents|_upd/
 				next
 			when /^id$/ 
-				if add_or_update =~ /_add_|_insert_/
+				if params[:classname] =~ /_add_|_insert_/
 					command_c["id"] = ""
 				else
 					command_c["id"] = fmView["id"]
 				end
 			when /_sno$|_cno$|_gno$/ 
-				if add_or_update =~ /_add_|_insert_/
+				if params[:classname] =~ /_add_|_insert_/
 					command_c[key] = ""
 				else
 					command_c[key] = fmView[prevkey]
@@ -292,11 +293,12 @@ module ArelCtl
 			taxrate = command_c["custact_taxrate"] 
 		end
 		command_c["sio_classname"] =
-			if add_or_update =~ /_add_|_insert_/
+			if params[:classname] =~ /_add_|_insert_/
 				"_add_proc_createtable_data"
 			else
 				"_update_proc_createtable_data"
 			end
+		command_c["#{totbl.chop}_person_id_upd"] = params[:person_id_upd]
 		blk.proc_create_tbldata(command_c)
 		blk.proc_private_aud_rec({},command_c)
 		head = {"amt" => amt,"taxrate" => taxrate,"#{headTbl.chop}_id" => command_c["id"]}
@@ -354,7 +356,7 @@ module ArelCtl
 					'#{base["tblname"]}',#{base["tblid"]},#{base["qty_src"]} ,#{base["amt_src"]} , 
 					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-					' ',#{$person_code_chrg||=0},'2099/12/31','#{base["remark"]}')
+					' ',#{base["persons_id_upd"]},'2099/12/31','#{base["remark"]}')
 				&
 		ActiveRecord::Base.connection.insert(strsql)
 		return linktbl_id
@@ -374,7 +376,7 @@ module ArelCtl
 					'#{base["tblname"]}',#{base["tblid"]},#{base["qty_src"]} ,#{base["amt_src"]} , 
 					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-					' ',#{$person_code_chrg||=0},'2099/12/31','#{base["remark"]}')
+					' ',#{base["persons_id_upd"]},'2099/12/31','#{base["remark"]}')
 				&
 		ActiveRecord::Base.connection.insert(strsql)
 		return linkcust_id
@@ -396,7 +398,8 @@ module ArelCtl
 							#{rec_alloc["qty_linkto_alloctbl"]},
 							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-							' ','0','2099/12/31','#{rec_alloc["remark"]}','#{rec_alloc["allocfree"]}')
+							' ',#{rec_alloc["persons_id_upd"]},'2099/12/31','#{rec_alloc["remark"]}',
+							'#{rec_alloc["allocfree"]}')
 		&
 		ActiveRecord::Base.connection.insert(strsql)
 		return alloctbl_id
@@ -466,18 +469,19 @@ module ArelCtl
 					#{gantt["chrgs_id_trn"]},#{gantt["chrgs_id_pare"]},#{gantt["chrgs_id_org"]},
 					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-					' ','0','2099/12/31','#{gantt["remark"]}')
+					' ',#{gantt["persons_id_upd"]},'2099/12/31','#{gantt["remark"]}')
 		&
 		ActiveRecord::Base.connection.insert(strsql)
 		src = {"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"trngantts_id" => gantt["trngantts_id"]}
 		qty_src = gantt["qty_sch"].to_f + gantt["qty"].to_f + gantt["qty_stk"].to_f  ###qty_sch,qty,qty_stkの一つのみ有効
-		base = {"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"qty_src" => qty_src,"amt_src" => 0}
+		base = {"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"qty_src" => qty_src,"amt_src" => 0,
+					"persons_id_upd" => gantt["persons_id_upd"]}
 		case gantt["tblname"] 
 		when /^prd|^pur|dymschs/
 			linktbl_id = proc_insert_linktbls(src,base)
 			alloc = {"srctblname" => gantt["tblname"],"srctblid" => gantt["tblid"],"trngantts_id" => gantt["trngantts_id"],
 						"qty_linkto_alloctbl" => gantt["qty_sch"].to_f + gantt["qty"].to_f + gantt["qty_stk"].to_f,
-						"remark" => "#{self} line #{__LINE__} #{Time.now}",
+						"remark" => "#{self} line #{__LINE__} #{Time.now}","persons_id_upd" => gantt["persons_id_upd"],
 						"allocfree" => if gantt["tblid"] == gantt["paretblid"] and gantt["tblid"] == gantt["orgtblid"]
 											"free" 
 										else
@@ -515,7 +519,8 @@ module ArelCtl
 		strsql = %Q&
 			update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
 						updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-						remark = '#{self} line:(#{__LINE__})'|| remark
+						remark = '#{self} line:(#{__LINE__})'|| remark,
+						persons_id_upd = #{base["persons_id_upd"]}
 					where id = #{src["alloc_id"]} 
 			 &
 		 ActiveRecord::Base.connection.update(strsql)
@@ -523,14 +528,15 @@ module ArelCtl
 		strsql = %Q&
 		 	  update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
 			   				updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-		 					remark = '#{self} line:(#{__LINE__})'||remark
+		 					remark = '#{self} line:(#{__LINE__})'||remark,
+							persons_id_upd =  #{base["persons_id_upd"]}
 		 			where id = #{base["alloc_id"]} 
 		 	  &
 		ActiveRecord::Base.connection.update(strsql)
 
 		alloc = {"trngantts_id" => src["trngantts_id"],"srctblname" => base["tblname"] ,
 			 "srctblid" => base["tblid"],"allocfree" => "alloc",
-			"qty_linkto_alloctbl" => base["qty_src"],
+			"qty_linkto_alloctbl" => base["qty_src"],"persons_id_upd" => base["persons_id_upd"],
 			 "remark" => "#{self} (line: #{__LINE__} #{Time.now})"}
 		alloctbl_ids << proc_insert_alloctbls(alloc)
 
@@ -544,7 +550,8 @@ module ArelCtl
 		strsql = %Q&
 			update linktbls set qty_src = #{src["qty_sch"]},
 						updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-						remark = '#{self} line:(#{__LINE__})'|| remark
+						remark = '#{self} line:(#{__LINE__})'|| remark,
+						persons_id_upd = #{src["persons_id_upd"]}
 					where trngantts_id = #{scr["trngantts_id"]} and srctblid = #{src["tblid"]} and tblid = #{src["tblid"]}
 					and srctblname = #{src["tblname"]} and tblname = #{src["tblname"]}   
 			 &
@@ -553,7 +560,8 @@ module ArelCtl
 		strsql = %Q&
 			update alloctbls set qty_linkto_alloctbl = #{src["qty_sch"]},
 					 updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-						 remark = '#{self} line:(#{__LINE__})'|| remark
+						 remark = '#{self} line:(#{__LINE__})'|| remark,
+						 persons_id_upd = #{src["persons_id_upd"]}
 					 where trngantts_id = #{scr["trngantts_id"]} and srctblid = #{src["tblid"]} and srctblname = #{src["tblname"]}   
 			  &
 		ActiveRecord::Base.connection.update(strsql)
