@@ -28,17 +28,7 @@ module RorBlkCtl
         end
 
 		def proc_create_tbldata(command_c) ##
-			if command_c["sio_classname"] =~ /_add_|_insert_/ or command_c["id"] == "" or command_c["id"].nil?
-				@tbldata["created_at"] =  command_c["#{@tblname.chop}_created_at"] = Time.now
-				if  command_c["id"] == "" or command_c["id"].nil?
-					command_c["id"] = ArelCtl.proc_get_nextval("#{@tblname}_seq")
-					command_c[@tblname.chop+"_id"] = @tbldata["id"] = command_c["id"] 
-				else
-					@tbldata["id"] = command_c["id"]  ###fields_updateでセット済
-				end
-			else
-				@tbldata["id"] = command_c["id"]	
-			end	
+			@tbldata["id"] = command_c["id"]
         	command_c.each do |j,k|
         		j_to_stbl,j_to_sfld = j.to_s.split("_",2)
 				if  j_to_stbl == @tblname.chop  and j_to_sfld !~ /_gridmessage/ and j_to_sfld != "id" and
@@ -62,6 +52,7 @@ module RorBlkCtl
 					end
             	end   ## if j_to_s.
 			end ## command_c.each
+			command_c[@tblname.chop+"_id"] = command_c["id"] 
         	@tbldata["persons_id_upd"] = command_c["#{@tblname.chop}_person_id_upd"]
 			@tbldata["updated_at"] = command_c["#{@tblname.chop}_updated_at"] = Time.now
 			return command_c
@@ -71,7 +62,7 @@ module RorBlkCtl
 			begin
 				ActiveRecord::Base.connection.begin_db_transaction()
 				params["status"] = 200
-				params = proc_private_aud_rec(params,command_c) 
+				params = proc_private_aud_rec(params,command_c)
 			rescue
         		ActiveRecord::Base.connection.rollback_db_transaction()
 				params["status"] = 500
@@ -107,7 +98,7 @@ module RorBlkCtl
 			when /_add_|_insert_/
 				tbl_add_arel(@tblname,@tbldata) ###sioXXXX,tbldata
 			when /_edit_|_update_/
-				tbl_edit_arel(" id = #{@tbldata["id"]}")
+				tbl_edit_arel(@tblname,@tbldata," id = #{@tbldata["id"]}")
 			when  /_delete_|_purge_/
 				if @tblname =~ /schs$|ords$|insts$|dlvs$|acts$|inputs$/ and   @tblname !~ /^shp/ ##削除なし
 					@tbldata["qty_sch"] = 0 if @tbldata["qty_sch"]
@@ -117,7 +108,7 @@ module RorBlkCtl
 					@tbldata["amt_sch"] = 0 if @tbldata["amt_sch"]
 					@tbldata["cash"] = 0 if @tbldata["cash"]
 					@tbldata["tax"] = 0 if @tbldata["tax"]      ##変更分のみ更新
-					tbl_edit_arel(" id = #{@tbldata["id"]}")
+					tbl_edit_arel(@tblname,@tbldata," id = #{@tbldata["id"]}")
 				else
 					tbl_delete_arel(" id = #{@tbldata["id"]}")
 				end
@@ -483,6 +474,25 @@ module RorBlkCtl
 					setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
 				end
 			end
+
+			case @screenCode
+			when /cust1_custords/
+				case command_c["sio_classname"]
+				when /_add_|_insert_/
+					pare = JSON.parse(setParams["head"])
+					head = {"paretblname"=>pare["pareScreen"].split("_")[1],"paretblid"=>pare["id"]}
+					detail = {"tblname"=>@tblname,"tblid"=> @tbldata["id"],"persons_id_upd"=>setParams[:person_id_upd]}
+					ArelCtl.proc_insert_linkheads(head,detail)
+					###親
+					paretbldata = ActiveRecord::Base.connection.select_one("select * from #{head["paretblname"]} where id = #{head["paretblid"]} ")
+					paretbldata["amt"] = paretbldata["amt"].to_f + @tbldata["amt"].to_f 
+					paretbldata["tax"] = paretbldata["tax"].to_f + @tbldata["tax"].to_f 
+					tbl_edit_arel(head["paretblname"],paretbldata," id = #{head["paretblid"]}")
+				when /_edit_|_update_/
+					tbl_edit_arel(tblname,tbldata," id = #{@tbldata["id"]}")
+				when  /_delete_|_purge_/
+				end
+			end
 			return setParams
 		end
 
@@ -641,8 +651,10 @@ module RorBlkCtl
 				gantt["consumchgoverqty"] = 0  ###段取り消費数
 				gantt["remark"] = " RorBlkCtl line:#{__LINE__} "
 				gantt["qty_require"] = 0
+				gantt["persons_id_upd"]   =  setParams[:person_id_upd]
 		 	else
 				gantt = setParams["gantt"].dup
+				gantt["persons_id_upd"]   =  setParams[:person_id_upd]
 				if  @tblname == "dymschs"
 					gantt["shuffle_flg"] = "0"
 				   ####
@@ -740,7 +752,7 @@ module RorBlkCtl
 			 			when /char/  ###db type
 			 				%Q&'#{(val||="").gsub("'","''")}',&
 			 			when "numeric"
-			 				"#{val.to_s.gsub(",","")},"   ###入力データはzzz0,zzz,zzz.zz,・・・であること
+			 					"#{val.to_s.gsub(",","")},"   ###入力データはzzz0,zzz,zzz.zz,
 						when /timestamp|date/  ##db type
 							case (val||="").class.to_s  ### ruby type
 							when  /Time|Date/
@@ -782,10 +794,10 @@ module RorBlkCtl
 			end
 		end
 
-		def tbl_edit_arel  strwhere ##
+		def tbl_edit_arel  tblname,tbldata,strwhere ##
 			strset = ""
 			strset = ""
-			@tbldata.each do |key,val|
+			tbldata.each do |key,val|
 				next if key.to_s == "id"
 				# strsql = %Q&select fieldcode_ftype from r_fieldcodes where  pobject_code_fld = '#{key.to_s}'&
 				# ftype = ActiveRecord::Base.connection.select_value(strsql)
@@ -824,7 +836,7 @@ module RorBlkCtl
 				  			p " line #{__LINE__} : error val.class #{ftype}  key #{key.to_s} "
 			   			end	
 				else
-					if @tblname.downcase =~ /^sio_|^bk_/
+					if tblname.downcase =~ /^sio_|^bk_/
 						%Q& #{key.to_s} = '#{val.to_s.gsub("'","''")}',&
 					else
 						Rails.logger.debug " line #{__LINE__} : error val.class #{ftype}  key #{key.to_s} "

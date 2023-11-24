@@ -2,7 +2,7 @@
 import {takeEvery} from 'redux-saga/effects'
 
 import {LOGIN_REQUEST,SIGNUP_REQUEST,LOGOUT_REQUEST,
-        MENU_REQUEST,FETCH_REQUEST,
+        MENU_REQUEST,FETCH_REQUEST,SECONDFETCH_REQUEST,
         SCREENINIT_REQUEST,SCREEN_REQUEST,IMPORTEXCEL_REQUEST,
         SCREEN_CONFIRM7,SECOND_CONFIRM7,SECOND_REQUEST,
         GANTTCHART_REQUEST,BUTTONLIST_REQUEST,
@@ -34,6 +34,7 @@ export function * sagas () {
   yield takeEvery(SCREEN_CONFIRM7,ScreenSaga)
   yield takeEvery(SECOND_CONFIRM7,ScreenSaga)
   yield takeEvery(FETCH_REQUEST,ScreenSaga)
+  yield takeEvery(SECONDFETCH_REQUEST,ScreenSaga)
   yield takeEvery(BUTTONLIST_REQUEST,ButtonListSaga)
   yield takeEvery(DOWNLOAD_REQUEST,DownloadSaga)
   yield takeEvery(YUP_REQUEST,TblfieldSaga)  //yupの作成　Tblfieldと同じdef

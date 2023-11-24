@@ -35,7 +35,7 @@
   opeitm.boxe_code boxe_code,
   ''  boxe_code_custdlv ,
   ''  boxe_name_custdlv ,
-  0  custdlv_boxe_id_custdlv ,---boxes_id=0 –¢’è,dummy
+  0  custdlv_boxe_id_custdlv ,---boxes_id=0 ï¿½ï¿½ï¿½ï¿½,dummy
     '' boxe_outdepth_custdlv,
     '' boxe_outwide_custdlv,
     '' boxe_outheight_custdlv,
@@ -62,7 +62,7 @@ custinst.itm_code_client  custdlv_itm_code_client,
 custinst.custrcvplcs_id   custdlv_custrcvplc_id,
 ''  custdlv_id,
 custinst.gno  custdlv_gno,
-custinst.contract_price  custdlv_contract_price,
+custinst.contractprice  custdlv_contractprice,
 custinst.starttime  custdlv_starttime,
 custinst.price  custdlv_price,
 custinst.expiredate  custdlv_expiredate,
@@ -182,7 +182,7 @@ custinst.packno custdlv_packno,
 ,custdlv_cust_id  numeric (38,0)
 ,custdlv_gno  varchar (40) 
 ,custdlv_packinglistno varchar(40)
-,custdlv_contract_price  varchar (1) 
+,custdlv_contractprice  varchar (1) 
 ,custdlv_starttime   timestamp(6) 
 ,custdlv_price  numeric (38,4)
 ,custdlv_expiredate   date 

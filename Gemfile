@@ -32,6 +32,9 @@ gem 'bootsnap', '>= 1.4.2', require: false
 ###アプリケーションによっては、別のオリジン間でデータのやりとりをしたいケースもあるため、
 ###  この制約を部分的に解除する仕組みのことをCORS (Cross-Origin Resource Sharing)と呼びます。
 gem 'rack-cors'
+gem 'devise'
+gem 'devise_token_auth'
+gem 'omniauth','>= 1.0.0'
 
 ###CarrierWaveとは、ファイルのアップロード機能を簡単に追加する事が出来るgemです
 ###CarrierWaveは、アップロードしたファイルの保存先はデフォルトでpublic/uploadsですが、外部のストレージ(例: Amazon S3)にも設定する事が出来ます。
@@ -70,9 +73,3 @@ gem 'active_model_serializers'
 
 gem 'sidekiq' 
 gem 'rubyzip','~>1.3.0'
-
-gem 'devise'
-gem 'devise_token_auth'
-gem 'rack-cors'
-gem 'omniauth','>= 1.0.0'
-

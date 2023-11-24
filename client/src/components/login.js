@@ -30,6 +30,7 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
     <div>
     <h1>Login</h1>
     <form  onSubmit={handleSubmit(onSubmit)}>
+      <p>
       <label htmlFor="email">
       email:
       </label>
@@ -43,14 +44,21 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
             },
           })}/>
       {errors.email && errors.email.message}
+      </p>
+      <p>
       <label htmlFor="password">
       password:
       </label>
       <input type="password"  {...register("password",{ required: true })}  />
-
+      </p>
       <button type="submit" >
       Submit
       </button>
+        <div style={{ color: 'red' }}>
+          {Object.keys(errors).length > 0 &&
+            'There are errors, check your console.'}
+            {error}
+        </div>
       <h1>概要</h1>
           <p>独学でruby,rails,react,postgresqlを学習し社内物流システムを作成してみた。</p>
           <p>ruby,rails,react,postgresqlについては素人なのでソースを参照するときは原本のマニュアルで妥当性、最適化を確認すること</p>
@@ -80,11 +88,6 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
       <h1 className="error">注意事項　あくまでも案であって利用に関しては各自十分に検証し自己責任で利用すること</h1>
     {/*}  <MyGanttChart/>*/}
     </form>
-        <div style={{ color: 'red' }}>
-          {Object.keys(errors).length > 0 &&
-            'There are errors, check your console.'}
-            {error}
-        </div>
     
     </div>  
     )

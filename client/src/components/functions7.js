@@ -1,66 +1,95 @@
 //yupでできなかったこと
-export function  setProtectFunc(id,type){
-    let readOnly = false  //row.values.fieldcode_ftype 
-    switch (type){ 
-        case "numeric":
+export function  setProtectFunc(id,values){
+    let readOnly = false  //type = row.values.fieldcode_ftype 
+    if(values.fieldcode_ftype)
+        {switch (values.fieldcode_ftype){ 
+            case "numeric":
             switch (id) {
                 case "fieldcode_fieldlength":
-                    readOnly = true
-                    break  
                 case "screenfield_edoptmaxlength": 
                     readOnly = true
                      break
                 }
              break   
-        case "char":   
-        case "varchar":
+            case "char":   
+            case "varchar":
             switch (id) {
                 case "fieldcode_dataprecision":
-                    readOnly = true
-                    break   
-                case "fieldcode_datascale":       
-                    readOnly = true
-                    break
+                case "fieldcode_datascale":      
                 case "screenfield_dataprecision":
-                         readOnly = true
-                         break
                 case "screenfield_datascale":
                          readOnly = true
                          break
             } 
             break
-        case "date":
-        case "timestamp(6)":
+            case "date":
+            case "timestamp(6)":
                switch (id) {
                     case "fieldcode_fieldlength":
-                        readOnly = true
-                        break
                     case "fieldcode_dataprecision":
-                       readOnly = true
-                       break   
                     case "fieldcode_datascale":       
-                       readOnly = true
-                       break
                     case "screenfield_edoptmaxlength": 
-                           readOnly = true
-                           break
                     case "screenfield_dataprecision":
-                            readOnly = true
-                            break
                     case "screenfield_datascale":
                             readOnly = true
-                            break
+                    break
                }
              break  
          default:  
          }
+        }else{
+            if (/_amt$|purord_price|purdlv_price|custord_price|custdlv_price|puract_price|custact_price/.test(id)) {
+                switch(values.purord_contractprice){
+                case "1":
+                case "2": 
+                case "3": 
+                    readOnly = true
+                     break
+                }
+                switch(values.purdlv_contractrice){
+                case "1":
+                case "2": 
+                case "3": 
+                    readOnly = true
+                     break
+                }
+                switch(values.puract_contractprice){
+                case "1":
+                case "2": 
+                case "3": 
+                    readOnly = true
+                     break
+                }
+                switch(values.custord_contractprice){
+                case "1":
+                case "2": 
+                case "3": 
+                    readOnly = true
+                     break
+                }
+                switch(values.custdlv_contractprice){
+                case "1":
+                case "2": 
+                case "3": 
+                    readOnly = true
+                     break
+                }
+                switch(values.custact_contractprice){
+                case "1":
+                case "2": 
+                case "3": 
+                    readOnly = true
+                     break
+                }
+                }
+        }
     return readOnly    
 }
 
 
-export function  setClassFunc(field,values,className,buttonflg){  //error処理
+export function  setClassFunc(field,values,className,aud){  //error処理
 
-                if(buttonflg==="viewtablereq7"){return(className)}
+                if(aud==="view"){return(className)}
                 else{
                     let msgid = field + "_gridmessage"
                     if(/error/.test(values[msgid])){  // "!"はjavascriptでは正規化の判定がわからない。

@@ -598,7 +598,7 @@ class OpeClass
 
 	def get_last_rec
 		strsql = %Q&---最後に登録・修正されたレコード
-		select 	opeitm_itm_id itms_id,opeitm_processseq processseq,sio.*
+			select 	opeitm_itm_id itms_id,opeitm_processseq processseq,sio.*
 				 from sio.sio_r_#{@tblname} sio where id = #{@tblid} 
 					order by sio_id desc limit 1
 		&

@@ -19,7 +19,7 @@ class ImportexcelController < ApplicationController
         ###if @importexcel.save
         jparams = params.dup
         tblname = params[:screenCode].split("_")[1]
-        strsql = "select code,id from personsc where email = '#{params[:email]}'"
+        strsql = "select code,id from persons where email = '#{params[:email]}'"
         person = ActiveRecord::Base.connection.select_one(strsql)
         if person.nil?
             reqparams["status"] = 403
@@ -34,7 +34,7 @@ class ImportexcelController < ApplicationController
         command_c = {}
         screen = ScreenLib::ScreenClass.new(jparams)
         column_info,page_info,where_info,select_fields,fetch_check,dropdownlist,sort_info,nameToCode = 
-                  screen.proc_create_upload_editable_columns_info "import" 
+                  screen.proc_create_upload_editable_columns_info jparams,"import" 
         
         
         performSeqNos = []
@@ -79,7 +79,13 @@ class ImportexcelController < ApplicationController
                     if fetchCode[field] 
                         jparams[:fetchCode] = %Q%{"#{field}":"#{val}"}%
                         jparams[:fetchview] = fetchCode[field]
-                        jparams = CtlFields.proc_chk_fetch_rec jparams    
+                        jparams = CtlFields.proc_chk_fetch_rec jparams  
+                        if jparams[:err] 
+                            jparams[:parse_linedata][:confirm_gridmessage] = jparams[:err] 
+                            jparams[:parse_linedata][:confirm] = false 
+                            jparams[:parse_linedata][(field+"_gridmessage").to_sym] = jparams[:err] 
+                            break
+                        end    
                     end
                 end
             else
@@ -92,12 +98,11 @@ class ImportexcelController < ApplicationController
                         jparams = CtlFields.proc_judge_check_code jparams,field,checkCode[field]
                     end
                 end
-            end 
-            rows << jparams[:parse_linedata]
-            if jparams[:parse_linedata] == false   ###CtlFields.proc_judge_check_codeの結果
-                    importError = true
-                    jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
+            else
+                importError = true
+                jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
             end
+            rows << jparams[:parse_linedata]
         end
         begin
             ActiveRecord::Base.connection.begin_db_transaction()
@@ -133,6 +138,9 @@ class ImportexcelController < ApplicationController
                             end
                         end  
                     end
+                else
+                    importError = true
+                    parse_linedata["confirm"] = false 
                 end                
                 parse_linedata.each do |key,value|
                     case value.class.to_s  ###画面からの入力はすべてcharとして扱っている。
@@ -148,9 +156,12 @@ class ImportexcelController < ApplicationController
                         command_c[key] = (value||="")
                     end
                 end
+                command_c["#{tblname.chop}_person_id_upd"] = person["id"]
                 case command_c["aud"] 
                 when "add" 
                     command_c["sio_classname"] = "_add_grid_linedata"
+                    command_c["id"] = ArelCtl.proc_get_nextval("#{tblname}_seq")
+                    command_c[@tblname.chop+"_id"] = command_c["id"] 
                 when "update"         
                     command_c["sio_classname"] = "_update_grid_linedata"
                 when "delete"       

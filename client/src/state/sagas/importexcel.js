@@ -97,9 +97,10 @@ export function* ImportExcelSaga({ payload: {excelfile,nameToCode,params,auth} }
                     let {importexcel,importErrorCheckMaster} = yupErrCheckBatch(importdata,screenCode)
                     if(importErrorCheckMaster){
                             errHeader.push(`check_master write error ${excelfile.name} Screen Code :${screenCode} `)
-                            errMessage = "error => " +  JSON.stringify(importexcel[0])
-                           yield put({ type: IMPORTEXCEL_FAILURE, errHeader: errHeader ,importErrorCheckMaster:true,errMessage:errMessage })
-                    }//else{
+                            errMessage = "error => "
+                            importexcel.map((line) =>{if(line['confirm']===false){errMessage = errMessage +  JSON.stringify(line)}})
+                           yield put({ type: IMPORTEXCEL_FAILURE, errHeader: errHeader ,errMessage:errMessage })
+                    }else{
                             try{
                                 let res = yield call(sendExcelData,{params,importexcel,auth})
                                 let importError = res.data.importError
@@ -163,7 +164,7 @@ export function* ImportExcelSaga({ payload: {excelfile,nameToCode,params,auth} }
                                 yield put({ type: IMPORTEXCEL_FAILURE, errHeader: errHeader ,errMessage:errMessage})
                             }
                     }
-                //}
+                }
         }catch(e){
                     errMessage = `err:${e}, excel read error ${excelfile.name} Screen Code :${screenCode}`
                     yield put({ type: IMPORTEXCEL_FAILURE, errMessage: errMessage })

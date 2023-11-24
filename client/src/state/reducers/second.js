@@ -1,12 +1,12 @@
-import {LOGOUT_REQUEST,  //SECONDSCREEN_REQUEST,
+import {LOGIN_REQUEST,LOGOUT_REQUEST,LOGIN_SUCCESS,  //SECONDSCREEN_REQUEST,
         //MKSHPACTS_RESULT,
         SECOND_CONFIRMALL_SUCCESS,SECOND_SUCCESS7,SECOND_DATASET,
         SECOND_CONFIRM7,SECOND_CONFIRM7_SUCCESS,SECOND_FAILURE, SECONDFETCH_REQUEST,SECOND_SUBFORM,
         SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT, CHANGE_SHOW_SCREEN,
-        SCREENINIT_REQUEST, SCREEN_SUCCESS7,SCREEN_REQUEST} from '../../actions'
+        SCREENINIT_REQUEST, SCREEN_SUCCESS7,SCREEN_REQUEST,} from '../../actions'
 
         const initialValues = {data:[],
-            params:{screenCode:""},
+            params:{screenCode:null,screenName:null},
             grid_columns_info:{pageSizeList:[],
                                columns_info:[],
                                creenwidth:0,
@@ -19,21 +19,9 @@ const secondreducer =  (state = initialValues , actions) =>{
     let date = new Date()
   switch (actions.type) {
 
-    // case MKSHPACTS_RESULT:
-    //    return {...state,
-    //     loading:false,
-    //     hostError: null,
-    //     disabled:false,
-    //     buttonflg:'inlineedit7',
-    //     data: actions.payload.data.data,
-    //     params: actions.payload.data.params,
-    //     status: actions.payload.data.status,
-    //     grid_columns_info:actions.payload.data.grid_columns_info,
-    //  }
-
     case SECOND_CONFIRMALL_SUCCESS:
         return {...state,
-             secondloading:false,
+             loading:false,
              hostError: null,
              disabled:false,
             messages:actions.payload.messages,
@@ -42,7 +30,7 @@ const secondreducer =  (state = initialValues , actions) =>{
     case SECOND_REQUEST:
         return {...state,
         screenFlg:"second",
-        secondloading:true,
+        loading:true,
          // editableflg:actions.payload.editableflg
      }
 
@@ -50,7 +38,7 @@ const secondreducer =  (state = initialValues , actions) =>{
         return {...state,
             data:actions.payload.data,
             screenFlg:"second",
-            secondloading:true,
+            loading:true,
              // editableflg:actions.payload.editableflg
          }
    
@@ -63,8 +51,7 @@ const secondreducer =  (state = initialValues , actions) =>{
             params: actions.payload.params,
             status: actions.payload.data.status,
             grid_columns_info:actions.payload.data.grid_columns_info,
-            buttonflg:"inlineedit7",
-            secondloading:false,
+            loading:false,
         }
 
     case SECOND_CONFIRM7_SUCCESS:
@@ -73,7 +60,7 @@ const secondreducer =  (state = initialValues , actions) =>{
         return {...state,
             data:actions.payload.data,
             params:actions.payload.params,
-            secondloading:false,
+            loading:false,
             hostError:actions.payload.data[actions.payload.params.index].confirm_message,
             message:`${date.toJSON()} confirmed line ${actions.payload.params.index}`,
         } 
@@ -84,21 +71,20 @@ const secondreducer =  (state = initialValues , actions) =>{
         return {...state,
             hostError: actions.payload.message,
             data: actions.payload.data,
-            secondloading:false,
+            loading:false,
         }
 
     case SECONDFETCH_REQUEST:
         return {...state,
             params:actions.payload.params, 
-            data:actions.payload.data, 
-            secondloading:true,
+            loading:true,
           //editableflg:false
         }
         
     case SECONDFETCH_FAILURE:
         return {...state,
             params:actions.payload.params, 
-            secondloading:false,
+            loading:false,
             hostError: actions.payload.params.err,  
         }
         
@@ -108,7 +94,7 @@ const secondreducer =  (state = initialValues , actions) =>{
         return {...state,
             params:actions.payload.params,  
             data:data,
-            secondloading:false,
+            loading:false,
             hostError: null,
         }
 
@@ -139,11 +125,23 @@ const secondreducer =  (state = initialValues , actions) =>{
                     creenwidth:0,
                     dropDownList:[],
                     hiddenColumns:[]},}
-  
-    case  LOGOUT_REQUEST:
-        return {}  
 
     
+  case  LOGIN_REQUEST:
+  case  LOGIN_SUCCESS:
+    return {
+        ...state,
+    }
+               
+    case  LOGOUT_REQUEST:
+            return {data:[],
+                params:{screenCode:null,screenName:null},
+                grid_columns_info:{pageSizeList:[],
+                                   columns_info:[],
+                                   creenwidth:0,
+                                   dropDownList:[],
+                                   hiddenColumns:[]},}  
+                           
      default:
         return {...state}
   }

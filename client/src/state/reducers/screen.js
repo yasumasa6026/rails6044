@@ -1,5 +1,5 @@
 import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
-  SCREEN_FAILURE,LOGOUT_REQUEST,SCREEN_CONFIRM7,SCREEN_CONFIRM7_SUCCESS,
+  LOGOUT_REQUEST,SCREEN_CONFIRM7,SCREEN_CONFIRM7_SUCCESS,SCREEN_FAILURE,
   FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,YUP_RESULT,
   INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
   SECOND_SUCCESS7,
@@ -94,6 +94,14 @@ case CONFIRMALL_SUCCESS:
 }
 
 
+case SCREEN_FAILURE:
+  return {...state,
+    hostError: actions.payload.message.message,
+    loading:false,
+  }
+
+
+
 case  DROPDOWNVALUE_SET:
     let {index,field,val} = {...actions.payload.dropDownValue}
     state.data[index][field] = val
@@ -103,12 +111,6 @@ case  DROPDOWNVALUE_SET:
 
 // Append the error returned from our api
 // set the success and requesting flags to false
-case SCREEN_FAILURE:
-  return {...state,
-  hostError: actions.payload.message,
-  loading:false,
-}
-
 case FETCH_REQUEST:
 return {...state,
   params:actions.payload.params, 
@@ -165,6 +167,7 @@ case MKSHPORDS_SUCCESS:
     disabled:false,
     message:"",
     toggleSubForm:false,
+    hostError:null,
   }
 
   case  LOGIN_SUCCESS:

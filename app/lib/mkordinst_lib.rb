@@ -240,6 +240,7 @@ module MkordinstLib
 					###  xxxords作成
 					###
 					command_c["#{tblord}_person_id_upd"] = setParams[:person_id_upd]
+					command_c["id"] = ArelCtl.proc_get_nextval("#{tblord}_seq")
 					blk.proc_create_tbldata(command_c)
 					setParams = blk.proc_private_aud_rec(setParams,command_c)
 					base = {"tblname"=> tblord + "s" ,"tblid" => command_c["id"],
@@ -419,6 +420,7 @@ module MkordinstLib
 			gantt["orgtblid"] = gantt["paretblid"] =  gantt["tblid"] = command_c["id"]
 			setParams["gantt"] = gantt.dup		
 			command_c["billinst_person_id_upd"] = setParams[:person_id_upd]
+			command_c["id"] = ArelCtl.proc_get_nextval("billinsts_seq")
 			blk.proc_create_tbldata(command_c)
 			blk.proc_private_aud_rec({},command_c)
 			###CreateOtherTableRecordJob.perform_later(setParams["seqno"][0])			

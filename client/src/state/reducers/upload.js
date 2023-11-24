@@ -1,5 +1,4 @@
-import {  IMPORTEXCEL_REQUEST,IMPORTEXCEL_FAILURE,IMPORTEXCEL_SUCCESS,INITIMPORT_REQUEST,
-            LOGOUT_REQUEST} from '../../actions'
+import {  IMPORTEXCEL_REQUEST,IMPORTEXCEL_FAILURE,IMPORTEXCEL_SUCCESS,LOGOUT_REQUEST} from '../../actions'
         const initialValues = {
         isEditable:false,
         isUpload:false,
@@ -20,15 +19,11 @@ switch (actions.type) {
             nameToCode: actions.payload.nameToCode,
             errMessage:"",
             formatError:null,
-            importErrorCheckMaster:null,
+            importErrorCheckMaster:false,
             normalEnd:false,
+            loading : true,
             idx:null,
-        }    
-
-                      
-    case  LOGOUT_REQUEST:
-            return {}  
-
+        }
     case IMPORTEXCEL_SUCCESS:
         return {...state,
                     params:{token:actions.params.token,
@@ -47,10 +42,14 @@ switch (actions.type) {
                 importError:true,
                 formatError:actions.formatError,
                 errMessage:actions.errMessage,
-                importErrorCheckMaster:actions.importErrorCheckMaster,
+                importErrorCheckMaster:true,
                 normalEnd:false
-            }                
-            
+            }    
+
+                      
+    case  LOGOUT_REQUEST:
+        return {}  
+             
         
     default:
         return {...state,
@@ -58,7 +57,7 @@ switch (actions.type) {
             importError:null,
             formatError:null,
             errMessage:"",
-            importErrorCheckMaster:null,
+            importErrorCheckMaster:false,
             normalEnd:false
         }
     }

@@ -1,6 +1,6 @@
 //https://github.com/reactjs/react-tabs
 //import axios from 'axios'
-import React ,{useState,useEffect} from 'react'
+import React ,{useState,useMemo} from 'react'
 import { connect } from 'react-redux'
 import { Tab, Tabs, TabList, TabPanel, } from 'react-tabs'
 import "react-tabs/style/react-tabs.css"
@@ -19,28 +19,28 @@ const titleNameSet = (screenName) =>{ return (
 }
 
 const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,loadingOrg,
-          toggleSubForm,toggleSubFormSecond,showScreen,changeShowScreen,
+          toggleSubForm,toggleSubFormSecond,showScreen,changeShowScreen,hostErrorSecond,screenNameSecond,
             isSignUp,screenFlg,auth}) =>{
     const [tabIndex, setTabIndex] = useState(0)
     const [subTabIndex, setSubTabIndex] = useState(0)
-    const [loading, setLoading] = useState(true)
-    useEffect(()=>{   setLoading(loadingOrg)},[loadingOrg])
+    const loading = useMemo(()=>loadingOrg,[loadingOrg])
+    //useEffect(()=>{   setLoading(loadingOrg)},[loadingOrg])
     if(params){}else{params = {}}
     if (isAuthenticated) {
       if(menuListData)
-      {
-      let tmpgrpscr =[]   //グルーブ化されたメニュー
-      let ii = 0    
-      let lastGrp_name = ""
-       menuListData.map((cate,idx) => {
+        {
+        let tmpgrpscr =[]   //グルーブ化されたメニュー
+        let ii = 0    
+        let lastGrp_name = ""
+        menuListData.map((cate,idx) => {
              if(lastGrp_name!==cate.grp_name){tmpgrpscr[ii]=cate.grp_name
                                                   lastGrp_name = cate.grp_name
                                                   ii += 1
            }})  
       
-      //titleNameSet(tmpgrpscr[tabIndex])
-      return (
-        <div>
+        //titleNameSet(tmpgrpscr[tabIndex])
+        return (
+          <div>
             <Tabs  selectedIndex={tabIndex}  onSelect={(changeTabIndex) => {setTabIndex(changeTabIndex)
                                                                             changeShowScreen(false) //別のメニューの残存を消去する。
                                                                             setSubTabIndex(-1)}}
@@ -81,22 +81,31 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
                     </TabPanel>)}
                 </Tabs>
               {showScreen&&<div> <ScreenGrid7 screenFlg = "first" /></div>}
+              { 
+                  //  第一画面  
+               }  
               {showScreen&&!toggleSubForm&&<div> <ButtonList screenFlg = "first" /></div>}
               {showScreen&&screenFlg==="first"&&<p> {hostError?hostError:""} </p>}
-              {showScreen&&screenFlg==="second"&&<p> {params.screenName} </p>}
-              <div> {showScreen&&screenFlg==="second"?<ScreenGrid7 screenFlg = "second" />:""}</div>
-              {showScreen&&screenFlg==="second"&&!toggleSubFormSecond&&<div> <ButtonList screenFlg = "second" /></div>}
-              {loading && ( <div colSpan="10000">
+              {loading&&screenFlg==="first" && ( <div colSpan="10000">
             	              Loading...
           	              </div>)}
-              {showScreen&&screenFlg==="second"&&<p> {hostError?hostError:""} </p>}
-        </div>
-      )
-    }else{
-     return(
-     <div>
-      <p> aa{hostError?hostError:""} </p>
-    </div>)}
+              {  
+                  //第二画 
+              }
+              {showScreen&&screenFlg==="second"&&<p> {screenNameSecond} </p>  }
+              <div> {showScreen&&screenFlg==="second"?<ScreenGrid7 screenFlg = "second" />:""}</div>
+              {showScreen&&screenFlg==="second"&&!toggleSubFormSecond&&<div> <ButtonList screenFlg = "second" /></div>}
+              {loading&&screenFlg==="second" && ( <div colSpan="10000">
+            	              Loading...
+          	              </div>)}
+              {showScreen&&screenFlg==="second"&&<p> {hostErrorSecond?hostErrorSecond:""} </p>}
+          </div>
+        )
+        }else{
+          return(
+            <div>
+              <p> aa{hostError?hostError:""} </p>
+            </div>)}
     }else{
       if(isSignUp){
         return (
@@ -117,9 +126,11 @@ const  mapStateToProps = (state,ownProps) =>({
   showScreen:state.menu.showScreen,//screen bottunが押された時
   menuListData:state.menu.menuListData ,
   params:state.screen.params,
+  screenNameSecond:state.second.params.screenName,
   message:state.menu.message,
   grid_columns_info:state.screen.grid_columns_info,
   hostError: state.screen.hostError,
+  hostErrorSecond: state.second.hostError,
   second_columns_info:state.screen.second_columns_info,
   screenFlg:state.menu.screenFlg,
   loadingOrg:state.menu.loading,
@@ -139,19 +150,12 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                         index:0,err:null,clickIndex:[],
                         buttonflg:"inlineedit7",viewName:view_name} 
             break
-          case "custact_linkheads":  //初期画面は追加画面
-              params = { ...params,screenName:  (screenName||""),disableFilters:false,
-                          parse_linedata:{},
-                          filtered:[],where_str:"",sortBy:[],screenFlg:"first",
-                          screenCode:screenCode,pageIndex:0,pageSize:20,
-                          index:0,err:null,clickIndex:[],
-                          buttonflg:"inlineadd7",viewName:view_name} 
-              break
           default:
             params = { ...params,screenName:  (screenName||""),disableFilters:false,
                         parse_linedata:{},aud:"view",
-                        filtered:[],where_str:"",sortBy:[],screenFlg:"first",
-                        screenCode:screenCode,pageIndex:0,pageSize:20,
+                        filtered:[],where_str:"",
+                        sortBy:[],groupBy:[],aggregated:[],
+                        screenFlg:"first",screenCode:screenCode,pageIndex:0,pageSize:20,
                         index:0,clickIndex:[],err:null,
                         buttonflg:"viewtablereq7",viewName:view_name} 
         }

@@ -6,7 +6,6 @@ import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_CONFIRM7_SUCCESS, FETCH_RESULT, FE
         //MKSHPACTS_RESULT,
         }
          from '../../actions'
-import {getButtonState} from '../reducers/button'
 import {getAuthState} from '../reducers/auth'
 
 function screenApi({params ,url,headers} ) {
@@ -22,7 +21,6 @@ function screenApi({params ,url,headers} ) {
 
  // const delay = (ms) => new Promise(res => setTimeout(res, ms)) 
 export function* ScreenSaga({ payload: {params}  }) {
-  const buttonState = yield select(getButtonState) //buttonStateの変更は不可　思わぬことが発生。
   const auth = yield select(getAuthState) //
   let url = ""
   let tmp 
@@ -56,7 +54,7 @@ export function* ScreenSaga({ payload: {params}  }) {
                   {return yield put({ type:SCREEN_SUCCESS7, payload:{data:response.data,params:params}})}
             case "confirm7":  //データ更新時のEnteのbuttonflgはinlineedit7やinlineadd7ではなくてconfirm7になる。更新実行
               lineData  = response.data.params.parse_linedata
-              params = {...params,buttonflg:buttonState.buttonflg,screenFlg:response.data.params.screenFlg,
+              params = {...params,screenFlg:response.data.params.screenFlg,
                           screenCode:response.data.params.screenCode,err:response.data.params.err,index:parseInt(params.index)}
               if(params.screenFlg==="second")
                 {return yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{lineData:lineData,index:parseInt(params.index),params:params} })}
@@ -65,7 +63,7 @@ export function* ScreenSaga({ payload: {params}  }) {
             case "fetch_request":  //viewによる存在チェック内容表示
             case "check_request":   //項目毎のチェック帰りはfetchと同じ
                     lineData = response.data.params.parse_linedata
-                     params = {...params,...response.data.params,buttonflg:buttonState.buttonflg,screenFlg:response.data.params.screenFlg,
+                     params = {...params,...response.data.params,screenFlg:response.data.params.screenFlg,
                                  screenCode:response.data.params.screenCode,err:response.data.params.err} 
                      if(response.data.params.err){
                                  if(params.screenFlg==="second"){
@@ -80,11 +78,10 @@ export function* ScreenSaga({ payload: {params}  }) {
                                      yield put({type: FETCH_RESULT, payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
                                  }  
                                }
-                     break 
+                    return  
             case "delete":
                   data[parseInt(params.index)] = {...response.data.params.parse_linedata}
                   params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
-                  params.buttonflg = buttonState.buttonflg
                   if(params.screenFlg==="second")
                     {return yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{data:data,params:params} })}
                   else

@@ -14,8 +14,6 @@ module PriceLib
 		end 
 		command_c["#{tblnamechop}_tax"] = 0 
 		command_c["#{tblnamechop}_taxrate"] = 0 
-		###command_c["#{tblnamechop}_contract_price"] = "" 
-		###command_c["#{tblnamechop}_itm_code_client"] = "" ###pricemst["itm_code_client"] 
 		command_c["#{tblnamechop}_crr_id"] = 0  ###pricemst["crrs_id"] 
 
 
@@ -64,14 +62,14 @@ module PriceLib
 				return command_c
 		end
 		strsql = "select *
-				from r_#{pricetbl} 	/*同一品目内ではcontract_price<pricemst_amtroundは有効日内で同一であること*/
+				from r_#{pricetbl} 	/*同一品目内ではcontrac_price<pricemst_amtroundは有効日内で同一であること*/
 				where pricemst_tblname =  '#{pricetbl}' and pricemst_expiredate >= current_date and
 				itm_code = '#{command_c["itm_code"]}' AND loca_code = '#{loca_code}' 
 				processseq = '#{command_c["opeitm_opeprocessseq"]}' AND loca_code = '#{loca_code}' "
 		rec_contract = ActiveRecord::Base.connection.select_one(strsql)   ###画面のfield
-		command_c[("#{tblnamechop}_contract_price")]||=""
-		if command_c[("#{tblnamechop}_contract_price")]  != "" ###変更の時
-			contract = command_c[("#{tblnamechop}_contract_price")]
+		command_c[("#{tblnamechop}_contractprice")]||=""
+		if command_c[("#{tblnamechop}_contractprice")]  != "" ###変更の時
+			contract = command_c[("#{tblnamechop}_contractprice")]
 			price = (command_c[("#{tblnamechop}_price")]||=0).to_f
 			amtround = rec_contract["pricemst_amtround"] if rec_contract
 			amtdecimal = rec_contract["pricemst_amtdecimal"] if rec_contract
@@ -86,7 +84,7 @@ module PriceLib
 					when /^prd/
 						contract = "X"  ###単価未定
 						expiredate = ""
-						return {:price=>"0",:amt=>"0",:tax=>"0",:amtf=>"0",:contract_price => contract}   ##
+						return {:price=>"0",:amt=>"0",:tax=>"0",:amtf=>"0",:contractprice => contract}   ##
 					when /^shp/
 						case command_c["opeitm_oparation"]
 							when "shp:delivered_goods"
@@ -96,15 +94,15 @@ module PriceLib
 							when "shp:shipment"
 								contract = "X"  ###単価未定
 								expiredate = ""
-								return {:price=>"0",:amt=>"0",:tax=>"0",:amtf=>"0",:contract_price => contract}   ##
+								return {:price=>"0",:amt=>"0",:tax=>"0",:amtf=>"0",:contractprice => contract}   ##
 							else
 								contract = "X"  ###単価未定
 								expiredate = ""
-								return {:price=>"0",:amt=>"0",:tax=>"0",:amtf=>"0",:contract_price => contract}   ##
+								return {:price=>"0",:amt=>"0",:tax=>"0",:amtf=>"0",:contractprice => contract}   ##
 					end
 				end
 			else
-				contract = rec_contract["pricemst_contract_price"]
+				contract = rec_contract["pricemst_contractprice"]
 				amtround = rec_contract["pricemst_amtround"]
 				amtdecimal = rec_contract["pricemst_amtdecimal"]
 			end
@@ -135,12 +133,12 @@ module PriceLib
 								where loca_code_cust =  '#{loca_code}' and cust_expiredate > current_date "
 						pare_contract = ActiveRecord::Base.connection.select_one(strsql)   ###画面のfield
 						if pare_contract
-							expiredate = vproc_price_expiredate_set(pare_contract["cust_contract_price"],command_c)
+							expiredate = vproc_price_expiredate_set(pare_contract["cust_contractprice"],command_c)
 							if expiredate.nil?
 								logger.debug "line #{__LINE__} strsql #{strsql}"
 								raise
 							end
-							pare_rule_price = pare_contract["cust_rule_price"]
+							pare_ruleprice = pare_contract["cust_ruleprice"]
 							amtround = pare_contract["pricemst_amtround"]
 							amtdecimal = pare_contract["pricemst_amtdecimal"]
 						end
@@ -148,24 +146,24 @@ module PriceLib
 						strsql = "select  * from r_dealers
 									where loca_code_dealer =  '#{loca_code}' and dealer_expiredate > current_date "
 						pare_contract = ActiveRecord::Base.connection.select_one(strsql)   ###画面のfield
-						expiredate = vproc_price_expiredate_set(pare_contract["dealer_contract_price"],command_c)
+						expiredate = vproc_price_expiredate_set(pare_contract["dealer_contractprice"],command_c)
 						if expiredate.nil?
 							logger.debug "line #{__LINE__} strsql #{strsql}"
 							raise
 						end
-						pare_rule_price = pare_contract["dealer_rule_price"]
+						pare_ruleprice = pare_contract["dealer_ruleprice"]
 						amtround = pare_contract["pricemst_amtround"]
 						amtdecimal = pare_contract["pricemst_amtdecimal"]
 					when  "feepayms"
 						strsql = "select  * from r_feepayms
 									where loca_code_dealer_fee =  '#{loca_code}' and feepaym_expiredate > current_date "
 						pare_contract = ActiveRecord::Base.connection.select_one(strsql)   ###画面のfield
-						expiredate = vproc_price_expiredate_set(pare_contract["feepaym_contract_price"],command_c)
+						expiredate = vproc_price_expiredate_set(pare_contract["feepaym_contractprice"],command_c)
 						if expiredate.nil?
 							logger.debug "line #{__LINE__} strsql #{strsql}"
 							raise
 						end
-						pare_rule_price = pare_contract["feepaym_rule_price"]
+						pare_ruleprice = pare_contract["feepaym_ruleprice"]
 						amtround = pare_contract["pricemst_amtround"]
 						amtdecimal = pare_contract["pricemst_amtdecimal"]
 				end
@@ -180,15 +178,15 @@ module PriceLib
 						itm_code = '#{command_c["itm_code"]}' AND loca_code = '#{loca_code}' and
 						pricemst_maxqty >= #{qty} and
 						pricemst_expiredate >= to_date('#{expiredate}','yyyy/mm/dd') and
-						pricemst_contract_price = '#{contract}'
+						pricemst_contractprice = '#{contract}'
 						order by pricemst_expiredate ,pricemst_maxqty  &
 		price_rec = ActiveRecord::Base.connection.select_one(strsql)   ###画面のfield
 		if price_rec
 			amtf = true
-			contract = price_rec["pricemst_contract_price"]
+			contract = price_rec["pricemst_contractprice"]
 			amtround = price_rec["pricemst_amtround"]
 			amtdecimal = price_rec["pricemst_amtdecimal"]
-			if price_rec["pricemst_rule_price"] == "0"
+			if price_rec["pricemst_ruleprice"] == "0"
 				pricef = true
 				price =  price_rec["pricemst_price"]
 			else
@@ -200,13 +198,13 @@ module PriceLib
 				end
 			end
 		else
-			if pare_rule_price  == "0" and @pare_class != "batch"
+			if pare_ruleprice  == "0" and @pare_class != "batch"
 				price = proc_blkgetpobj("単価マスタなし","err_msg")
-				return {:price=>price.to_s,:amt=>"",:tax=>"",:pricef=>true,:amtf=>true,:contract_price => contract}
+				return {:price=>price.to_s,:amt=>"",:tax=>"",:pricef=>true,:amtf=>true,:contractprice => contract}
 			end
 			if @pare_class == "batch"
 				@errmsg = proc_blkgetpobj("単価マスタなし","err_msg")
-				return {:price=>"0",:amt=>"0",:tax=>"0",:pricef=>false,:amtf=>false,:contract_price => "X"}
+				return {:price=>"0",:amt=>"0",:tax=>"0",:pricef=>false,:amtf=>false,:contractprice => "X"}
 			end
             ###画面から単価入力された時
 		end

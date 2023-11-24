@@ -1,12 +1,9 @@
-import {  BUTTONLIST_REQUEST, BUTTONLIST_SUCCESS, BUTTONFLG_REQUEST,GANTT_RESET,SCREENINIT_REQUEST,
-  TBLFIELD_SUCCESS,GANTTCHART_SUCCESS,MKSHPORDS_SUCCESS, DOWNLOAD_REQUEST,
-  DOWNLOAD_SUCCESS,LOGOUT_REQUEST,RESET_REQUEST, DOWNLOAD_FAILURE,
+import { BUTTONLIST_SUCCESS, BUTTONFLG_REQUEST,SCREENINIT_REQUEST,
+  TBLFIELD_SUCCESS, DOWNLOAD_REQUEST, DOWNLOAD_SUCCESS,LOGOUT_REQUEST,RESET_REQUEST, DOWNLOAD_FAILURE,
     //MKSHPACTS_RESULT,
-  SCREEN_REQUEST,
-  SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,IMPORTEXCEL_REQUEST,SECOND_CONFIRMALL_SUCCESS, SECOND_SUCCESS7,} //
+  IMPORTEXCEL_REQUEST,} //
    from '../../actions'
 
-export let getButtonState = state => state.button
 const initialValues = {
 errors:[],
 buttonflg:"viewtablereq7",
@@ -38,37 +35,6 @@ case SCREENINIT_REQUEST:
 }
 
 
-case SCREEN_REQUEST:
-  return {...state,
-    loading:true,
-}
-
-case SCREEN_SUCCESS7:
-return {...state,
-disabled:false,
-loading:false,
-}
-
-
-case CONFIRMALL_SUCCESS:
-return {...state,
-disabled:false,
-loading:false,
-}
-
-// case SECOND_SUCCESS7:
-// return {...state,
-// disabled:false,
-// buttonflg:"inlineedit7",
-// loading:false,
-// }
-
-
-case GANTT_RESET:
-  return {...state,
-    disabled:false,}
-
-
 case BUTTONLIST_SUCCESS:
 return {...state,
 buttonListData:actions.payload,
@@ -80,28 +46,7 @@ return {...state,
 messages:actions.payload.messages,
 message:actions.payload.message,
 disabled:false,
-}
-
-case GANTTCHART_SUCCESS:
-return {...state,
-  buttonflg:"ganttchart",
-}
-
-case MKSHPORDS_SUCCESS:
-return {...state,
-  buttonflg:"mkShpords",
-  messages:actions.payload.messages,
-  loading:false,
-}
-
-// case MKSHPACTS_RESULT:
-// return {...state,
-//   buttonflg:"mkshpacts",
-//   loading:false,
-// }
-case SECOND_SUCCESS7: // payloadに統一
-return {...state,
-    disabled:false,
+loading:false,
 }
 
 case IMPORTEXCEL_REQUEST:
@@ -110,20 +55,6 @@ case IMPORTEXCEL_REQUEST:
     complete:false,
           // editableflg:action.payload.editableflg
 }
-
-case SECOND_SUCCESS7: // payloadに統一
-return {...state,
-  loading:false,
-  disabled:false,
-  message:"",
-  toggleSubForm:false,
-}
-
-case SECOND_CONFIRMALL_SUCCESS:
-  return {...state,
-   disabled:false,
-}
-
 
 case DOWNLOAD_REQUEST:
 return {...state,
@@ -154,12 +85,6 @@ message:null,
 }
 
 
-case GANTTCHART_SUCCESS:
-return {...state,
-disabled:false,
-messages:null,
-message:null,
-}
 
 
 case  LOGOUT_REQUEST:

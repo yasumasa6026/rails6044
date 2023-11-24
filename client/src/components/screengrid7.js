@@ -11,7 +11,7 @@ import { yupErrCheck } from './yuperrcheck'
 import Tooltip from 'react-tooltip-lite'
 import { onBlurFunc7,onFieldValite ,fetchCheck} from './onblurfunc'
 //import ButtonList from './buttonlist'
-import {useTable, useRowSelect, useFilters, useSortBy, useResizeColumns, useBlockLayout,
+import {useTable, useRowSelect, useFilters, useGroupBy,useSortBy, useResizeColumns, useBlockLayout,
         useExpanded,
         //useTokenPagination,  //usePagination,
         } from 'react-table'
@@ -66,7 +66,7 @@ const AutoCell = ({
                  values[id] =  e.target.value
                  updateMyData(index, id, values[id] ) //dataの内容が更新されない。但しとると、画面に入力内容が表示されない。
                  updateChangeData(index,id,values[id])
-                 handleDataSetRequest(data,params)
+                 // handleDataSetRequest(data,params)
                }   
         } 
   
@@ -76,11 +76,12 @@ const AutoCell = ({
             lineData[msg_id] = "ok"
             let autoAddFields = {}
             lineData = onFieldValite(lineData, id, params.screenCode)  //clientでのチェック
+            updateMyData(index, {[id]:lineData[id],[msg_id]:lineData[msg_id]})
             if(lineData[msg_id]==="ok"){
-                updateMyData(index, {[id]:lineData[id],[msg_id]:lineData[msg_id]})
                 lineData,autoAddFields = onBlurFunc7(params.screenCode, lineData, id)
-                updateData(index, lineData) 
             }
+            updateData(index, lineData) 
+            handleDataSetRequest(data,params)
             if ( lineData[msg_id] === "ok") {
               const {fetchCheckFlg,idKeys} = fetchCheck( lineData,id,fetch_check)
               params = {...params,fetchCode: JSON.stringify(idKeys),
@@ -159,17 +160,17 @@ const AutoCell = ({
         case /^Editable/.test(className):
             return (
                 <Tooltip content={data[index][id + '_gridmessage']||""}  border={true} tagName="span" arrowSize={2}>
-                {(buttonflg === "inlineadd7"||buttonflg === "inlineedit7")&&(  //params["buttonflg"] === "inlineadd7"?a:b  だとa,b両方処理した。
-                //buttonflg:画面のコントロール　params.buttonflg ScreenLibでcolumnsのclassName等をセット
+                {(params.aud === "add"||params.aud === "edit")&&(  //
                 <input value={initialValue||""}
                    //placeholder(入力されたことにならない。) defaultvale（照会内容の残像が残る。)
                    onChange={(e) => setFieldsByonChange(e)}
                      //onFocus={(e) => {setFieldsByonFocus(e)
                       //               }}
-                      readOnly={row.values.fieldcode_ftype?setProtectFunc(id,row.values.fieldcode_ftype ):
-                                row.values.screenfield_type?setProtectFunc(id,row.values.screenfield_type):false}
+                      readOnly={setProtectFunc(id,row.values)}
+                      // readOnly={row.values.fieldcode_ftype?setProtectFunc(id,row.values.fieldcode_ftype ):
+                      //           row.values.screenfield_type?setProtectFunc(id,row.values.screenfield_type):false}
                       onBlur={(e) => setFieldsByonBlur(e)}
-                      className={setClassFunc(id,row.values,className,buttonflg)}
+                      className={setClassFunc(id,row.values,className,params.aud)}
                       onKeyUp={(e) => {  
                            if (e.key === "Enter"&&!toggleSubForm ) 
                                  {
@@ -216,7 +217,7 @@ const AutoCell = ({
             return <input value={initialValue || ""} type="checkbox" readOnly />
     
         case /checkbox/.test(className):
-          let chekboxClassName = setClassFunc(id,row.values,className,buttonflg)
+          let chekboxClassName = setClassFunc(id,row.values,className,params.aud)
             return (
               <Tooltip content={data[index][`${id}_gridmessage`]||""}
               border={true} tagName="span" arrowSize={2}>
@@ -236,10 +237,10 @@ const AutoCell = ({
 
 
 const DefaultColumnFilter = ({
-    column:{ filterValue, setFilter, preFilteredRows, id} ,
-    dropDownList,column
+    column:{ filterValue, setFilter,filter, preFilteredRows, id} ,
+    dropDownList,
     }) => {
-            if(column.filter==="includes"){  
+            if(filter==="includes"){  
                 return (<select
                     value={filterValue||""}
                     onChange={e => {
@@ -263,18 +264,39 @@ const DefaultColumnFilter = ({
                 />
             )}
 }
- 
-{/* 
 
- let fieldSchema = (field, screenCode) => {
-   let tmp = {}
-   tmp[field] = yupschema[screenCode][field]
-   return (
-     Yup.object(
-       tmp
-     ))
- }
-*/}
+
+
+// const DefaultColumnFilter = ({
+//   column:{ filterValue, setFilter, preFilteredRows, id} ,
+//   dropDownList,column
+//   }) => {
+//           if(column.filter==="includes"){  
+//               return (<select
+//                   value={filterValue||""}
+//                   onChange={e => {
+//                       setFilter(e.target.value || "")
+//                   }}
+//                 >
+//                   {typeof(dropDownList[id])!=="undefined"&&JSON.parse(dropDownList[id]).map((option, i) => (
+//                     <option key={i} value={option.value}>
+//                       {option.label}
+//                     </option>
+//                   ))}
+//                 </select>)
+//           }
+//           else{return (
+//               <input
+//               value={filterValue||""}
+//               onChange={e => {  // onBlur can not use
+//               setFilter(e.target.value || "")
+//                   }
+//               }
+//               />
+//           )}
+// }
+
+
 ///
 ///ScreenGrid7 
 ///
@@ -292,6 +314,9 @@ const ScreenGrid7 = ({
                         () => (columnsOrg),[columnsOrg])
         const sortBy = useMemo(
                 () => ([]),[screenCodeOrg])
+        const groupBy = useMemo(
+                        () => ([]),[screenCodeOrg])
+        const [aggregated,setAggregated] = useState([]) //useState({})は動かなかった 
         const filters = useMemo(
                 () => ([]),[screenCodeOrg])
         const [changeData, setChangeData] = useState([]) 
@@ -354,36 +379,77 @@ const ScreenGrid7 = ({
             //controlledPageSize={controlledPageSize}
              buttonflg={buttonflg} loading={loading}
             pageSizeList={pageSizeList}  fetch_check={fetch_check} fetchCheck={fetchCheck}
-            params={params}   sortBy={sortBy}     filters={filters}  //skipReset={skipResetRef.current}
+            params={params}
+            sortBy={sortBy} filters={filters} groupBy={groupBy} 
+            aggregated={aggregated} setAggregated={setAggregated} //skipReset={skipResetRef.current}
             disableFilters={params.disableFilters} toggleSubForm={toggleSubForm}
             hiddenColumns={hiddenColumns} handleScreenRequest={handleScreenRequest} 
             handleFetchRequest={handleFetchRequest} handleSubForm={handleSubForm} handleDataSetRequest={handleDataSetRequest}
             getHeaderProps={column => ({  //セルのサイズ合わせとclick　keyが重複するのを避けるため
-              onClick: (e) =>{if(e.ctrlKey){  //sort時はctrlKey　keyが必須
+              onClick: (e) =>{if(e.ctrlKey){ //sort時はctrlKey　keyが必須
                                 switch(column.isSorted){
                                 case true:
                                   switch(column.isSortedDesc){
                                     case false:
-                                        column.toggleSortBy(true,true)
+                                        column.toggleSortBy(true,true)  //sort:true desc:true
                                         return
                                     default:
-                                        column.clearSortBy()
+                                        column.clearSortBy() //sort:false
                                         return
                                       }
                                 default: 
-                                        column.toggleSortBy(false,true)
+                                        column.toggleSortBy(false,true) //sort:true desc:false
                                         return
-                                        }}
-                              },
+                                        }
+                               }else{if(e.altKey&&params.aud==="view"){let index = aggregated.findIndex(({columnId}) => columnId === column.id) 
+                                                  switch(true){
+                                                    case /_qty|_amt|_cash/.test(column.id):
+                                                        if(index===-1){aggregated[0]= {columnId:column.id,value:"SUM:"}}
+                                                          else{if(aggregated[index].value){aggregated[index]= {columnId:column.id,value:null}}
+                                                                  else{aggregated[index]= {columnId:column.id,value:"SUM:"}}}
+                                                      break
+                                                    case /_price/.test(column.id):
+                                                        if(index===-1){aggregated[0]= {columnId:column.id,value:"MAX:"}}
+                                                          else{switch(aggregated[index].value){
+                                                                  case "MAX:":
+                                                                      aggregated[index]= {columnId:column.id,value:"MIN:"}
+                                                                  case "MIN:":
+                                                                      aggregated[index]= {columnId:column.id,value:null}
+                                                                  default:
+                                                                    aggregated[index]= {columnId:column.id,value:"MAX:"}                                                                    
+                                                                }
+                                                          }
+                                                        break  
+                                                    case /date$|_at$/.test(column.id):  //group by  対象
+                                                        if(index===-1){aggregated[0]= {columnId:column.id,value:"MM:"}}
+                                                              else{switch(aggregated[index].value){
+                                                                      case "MM:":
+                                                                          aggregated[index]= {columnId:column.id,value:"WW:"}
+                                                                      case "WW:":
+                                                                          aggregated[index]= {columnId:column.id,value:"DD:"}
+                                                                      case "DD:":
+                                                                              aggregated[index]= {columnId:column.id,value:null}
+                                                                      default:
+                                                                        aggregated[index]= {columnId:column.id,value:"MM:"}                                                                    
+                                                                    }
+                                                              }
+                                                        break  
+                                                    case /_code/.test(column.id): //group by  対象　code
+                                                      column.toggleGroupBy() //
+                                                      return
+                                                    default: 
+                                                      return
+                                                  }
+                              }
+                            }},
              style:{fontSize:cellFontSize(column,'Header')}, 
-            })}
+                          })}
             getCellProps={cell=>({
               style:{fontSize:cellFontSize(cell,'Cell')}, 
             })}
           />
         </TableGridStyles>
-           {/*params["buttonflg"]!=="viewtablereq7"||params["buttonflg"]==="cinlineedit7")?<div colSpan="10000" className="td" ></div>:*/}
-           {buttonflg !==  'inlineadd7'&&<div colSpan="10000" className="td" >
+           {params.aud !==  'add'&&<div colSpan="10000" className="td" >
                {screenCode===""?"":Number(params["totalCount"])===0?"No Record":
                 `Showing ${params.pageIndex * params["pageSize"] + 1} of ~
                  ${Number(params["totalCount"]) < ((params.pageIndex + 1) * params["pageSize"])? 
@@ -468,6 +534,8 @@ const ScreenGrid7 = ({
       <p>{hostError}</p>
      
       {toggleSubForm&&<ToSubForm/>}
+      
+      {screenCode==="r_fieldcodes"&&<p> 修正時には、再起動が必要</p>}
     </div>
     )
 }
@@ -482,10 +550,11 @@ const GridTable = ({
     data,
     dropDownList,setChangeData,changeData,
     fetch_check,
-    params,
+    params,aggregated,
     buttonflg,loading,disableFilters,
     hiddenColumns,handleScreenRequest,
     handleFetchRequest,fetchCheck,toggleSubForm,handleSubForm,handleDataSetRequest,
+    setAggregated,
     getHeaderProps = defaultPropGetter,
     //getColumnProps = defaultPropGetter,
     getCellProps = defaultPropGetter,
@@ -515,38 +584,6 @@ const GridTable = ({
         }),
         []
     )
-
-    // const setFetchCheckErr = (index, fetch_data) => {
-    //   setData(old=>
-    //     {let newData = old.map((row, idx) => {
-    //       if (index === idx) {
-    //               row = {...row,[params.parse_linedata.errPath]:fetch_data[params.parse_linedata.errPath],
-    //                             confirm_gridmessage:fetch_data[params.parse_linedata.errPath]}
-    //           }
-    //       return row
-    //     })
-    //     return newData
-    //   })
-    // }
-
-      
-    // useEffect(()=>{setFetchCheckErr(Number(params.index),params.parse_linedata)},[params.err])
-    
-    
-    // const setFetchData = (index, fetch_data) => {
-    //   setData(prevState=>
-    //     {let newData = prevState.map((row, idx) => {
-    //       if (index === idx) {
-    //               Object.keys(fetch_data).map((field)=>row = {...row,[field]:fetch_data[field]})
-    //           }
-    //       return row
-    //     })
-    //     return newData
-    //   })
-    // }
-        
-    // useEffect(()=>{setFetchData(Number(params.index),params.parse_linedata)},[params.parse_linedata])
-
     
 
     
@@ -562,8 +599,14 @@ const GridTable = ({
  
         setSortBy(params.sortBy?params.sortBy.map((sort)=>{
           return (typeof(sort)==="string"?JSON.parse(sort):sort)}):[])
-        },[loading])  
-        
+
+        setGroupBy(params.groupBy?params.groupBy.map((group)=>{
+          return (typeof(group)==="string"?JSON.parse(group):sort)}):[])
+
+        setAggregated(params.aggregated?params.aggregated.map((aggregate)=>{
+          return (typeof(aggregate)==="string"?JSON.parse(aggregate):aggregated)}):[])
+        },[loading])    
+                
     const {
         getTableProps,
         getTableBodyProps,
@@ -571,8 +614,8 @@ const GridTable = ({
         rows,
         prepareRow, 
         toggleAllRowsSelected, 
-        setAllFilters,setSortBy,
-        state:{filters,sortBy,selectedRowIds}  
+        setAllFilters,setSortBy,setGroupBy,
+        state:{filters,sortBy,groupBy,selectedRowIds,},  
     } = useTable(
         {
             columns,data,
@@ -583,18 +626,18 @@ const GridTable = ({
             manualPagination: false,
             manualFilters: true,
             manualSortBy: true,
+            manualGroupBy: true,
             disableMultiSort: false,
             autoResetSortBy: true,
             autoResetSelectedRows:true,
             autoResetFilters:true,
             disableFilters,
             initialState: {hiddenColumns:hiddenColumns,selectedRowIds:{},
-                      //filters:setAllFilters(filters),
-                      //sortBy:setSortBy(params.sortBy===[]?[]:params.sortBy.map((sort)=>{return sort}))
                     },
             handleFetchRequest,handleScreenRequest,toggleSubForm,handleDataSetRequest
     },
     useFilters, //
+    useGroupBy,
     useSortBy,  //The useSortBy plugin hook must be placed after the useFilters plugin hook!
     useBlockLayout,
     useResizeColumns,
@@ -620,10 +663,9 @@ const GridTable = ({
                       {  // filter sortでの検索しなおし
                        if (e.key === "Enter" &&!params.disableFilters&&!toggleSubForm)
                            { 
-                             params = {...params,filtered:filters,sortBy:sortBy}
-                             // Apply the header cell props
+                             params = {...params,filtered:filters,sortBy:sortBy,groupBy:groupBy,aggregated:aggregated,} // Apply the header cell props
                              handleScreenRequest(params,data)
-                           }else{e.key==="Enter"&&toggleSubForm&&alert("can not use filer and sord when subForm using")}
+                           }else{e.key==="Enter"&&toggleSubForm&&alert("can not use filer or sortBy or groupBy when subForm using")}
                        },
               onClick: (e) =>{
                               }
@@ -632,10 +674,14 @@ const GridTable = ({
               {headerGroup.headers.map(column => (
                 <th {...column.getHeaderProps([getHeaderProps(column),
                                                 ])} className="th">
-                  {/* Use column.getResizerProps to hook up the events correctly */}
+                  <span style={{ backgroundColor:"red"}}>
+                    {column.isGrouped ? 'Gr ' :  ''}  
+                    {aggregated?aggregated[column.id]?aggregated[column.id]:"":""}
+                  </span>
                   {column.render('Header')}
                   <span>
-                    {column.isSorted ? column.isSortedDesc ? '↓' : '↑' : ''}
+                  {/* Use column.getResizerProps to hook up the events correctly   🛅*/}
+                    {column.isSorted ? column.isSortedDesc ? ' 🔽' : ' 🔼' : ''}
                   </span>
                   {typeof(dropDownList)!=="undefined"&&column.canFilter&&<span>
                    {column.render('Filter') }
@@ -669,7 +715,7 @@ const GridTable = ({
                         default:
                           sNo = "sno"
                       }
-                      if(e.ctrlKey){
+                      if(e.ctrlKey){  //複数行選択
                           if(Object.keys(selectedRowIds).length===0){
                             toggleAllRowsSelected(true)
                             data.map((line,idx) => params["clickIndex"].push({lineId:idx,id:line["id"],
@@ -723,7 +769,7 @@ const GridTable = ({
 const mapStateToProps = (state,ownProps) => {
     if(ownProps.screenFlg==="second"){
         return {
-          buttonflg: state.second.buttonflg,
+          buttonflg: state.second.params.buttonflg,
           loadingOrg: state.second.loading,
           dataOrg: state.second.data,
           params: state.second.params,
@@ -741,7 +787,7 @@ const mapStateToProps = (state,ownProps) => {
        }
     }else{
         return {
-          buttonflg: state.button.buttonflg,
+          buttonflg: state.screen.params.buttonflg,
           loadingOrg: state.screen.loading,
           dataOrg: state.screen.data,
           params: state.screen.params,

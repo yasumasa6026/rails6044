@@ -29,37 +29,6 @@ module ArelCtl
 		end
 	end
 
-  	def  proc_pdfwhere pdfscript,command_c
-	    reports_id = pdfscript[:id]
-	    viewname = command_c["sio_viewname"]
-        tmpwhere = proc_strwhere command_c
-        case  params[:initprnt]
-            when  "1"  then
-	            tmpwhere <<  if tmpwhere.size > 1 then " and " else " where " end
-	            tmpwhere << "   not exists (select 1 from HisOfRprts x
-                                   where lower(tblname) = '#{viewname}' and #{viewname.split('_')[1].chop}_id = recordid
-				                and reports_id = #{reports_id}) "
-		end
-        case  params[:afterprnt]
-            when  "1"  then
-	            tmpwhere <<  if tmpwhere.size > 1 then " and " else " where " end
-	            tmpwhere << " exists (select 1 from  (select max(updated_at) updated_at ,recordid
-     							       from HisOfRprts x where reports_id = #{reports_id}
-     								   group by reports_id,recordid )
-								   where id = recordid and  #{viewname.split("_")[1].chop}_updated_at > updated_at )"
-		end
-        if params[:whoupdate] == '1' then
-	        	tmpwhere <<  if tmpwhere.size > 1 then " and " else " where " end
-	        	tmpwhere << " person_code_upd = '#{params[:person_code_chrg]}'"
-        end
-        if pdfscript[:pobject_code_rep] =~ /order_list/ then
-	        	tmpwhere <<  if tmpwhere.size > 1 then " and " else " where " end
-	        	tmpwhere << "  #{pdfscript[:pobject_code_view].split('_')[1].chop}_confirm  in('1','5')  "   ##order_listの時は確定又は確認済しか印刷しない
-        end
-        	##if params[:
-        return tmpwhere
-    end
-
     
 	def proc_get_nextval tbl_seq
 		ActiveRecord::Base.uncached() do
@@ -245,6 +214,7 @@ module ArelCtl
 				"_update_proc_createtable_data"
 			end
 		command_c["#{totbl.chop}_person_id_upd"] = params[:person_id_upd]
+		command_c["id"] = ArelCtl.proc_get_nextval("#{totbl}_seq")
 		blk.proc_create_tbldata(command_c)
 		blk.proc_private_aud_rec({},command_c)
 	end	
@@ -298,7 +268,8 @@ module ArelCtl
 			else
 				"_update_proc_createtable_data"
 			end
-		command_c["#{totbl.chop}_person_id_upd"] = params[:person_id_upd]
+		command_c["#{headTbl.chop}_person_id_upd"] = params[:person_id_upd]
+		command_c["id"] = ArelCtl.proc_get_nextval("#{headTbl}_seq")
 		blk.proc_create_tbldata(command_c)
 		blk.proc_private_aud_rec({},command_c)
 		head = {"amt" => amt,"taxrate" => taxrate,"#{headTbl.chop}_id" => command_c["id"]}
@@ -360,6 +331,26 @@ module ArelCtl
 				&
 		ActiveRecord::Base.connection.insert(strsql)
 		return linktbl_id
+	end
+
+	def proc_insert_linkheads(head,detail)
+		linkhead_id = proc_get_nextval("linkheads_seq")
+		strsql = %Q&
+				insert into linkheads(id,
+					paretblname,paretblid,
+					tblname,tblid,
+					created_at,
+					updated_at,
+					update_ip,persons_id_upd,expiredate,remark)
+				values(#{linkhead_id},
+					'#{head["paretblname"]}',#{head["paretblid"]}, 
+					'#{detail["tblname"]}',#{detail["tblid"]}, 
+					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					' ',#{detail["persons_id_upd"]},'2099/12/31','#{detail["remark"]}')
+				&
+		ActiveRecord::Base.connection.insert(strsql)
+		return linkhead_id
 	end
 
 	def proc_insert_linkcusts(src,base)
@@ -482,10 +473,11 @@ module ArelCtl
 			alloc = {"srctblname" => gantt["tblname"],"srctblid" => gantt["tblid"],"trngantts_id" => gantt["trngantts_id"],
 						"qty_linkto_alloctbl" => gantt["qty_sch"].to_f + gantt["qty"].to_f + gantt["qty_stk"].to_f,
 						"remark" => "#{self} line #{__LINE__} #{Time.now}","persons_id_upd" => gantt["persons_id_upd"],
-						"allocfree" => if gantt["tblid"] == gantt["paretblid"] and gantt["tblid"] == gantt["orgtblid"]
-											"free" 
+						"allocfree" => 	if gantt["tblid"] == gantt["paretblid"] and gantt["tblid"] == gantt["orgtblid"] and
+											gantt["tblname"] == gantt["paretblname"] and gantt["tblname"] == gantt["orgtblname"] 
+												"free" 
 										else
-											"alloc"
+												"alloc"
 										end}
 			alloctbl_id = proc_insert_alloctbls(alloc)
 		when /^cust/

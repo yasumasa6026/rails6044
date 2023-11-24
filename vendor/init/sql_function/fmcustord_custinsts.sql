@@ -46,38 +46,36 @@ custord.cno  custinst_cno,
 custord.prjnos_id   custinst_prjno_id,
 ''  custinst_gno,
   custrcvplc.custrcvplc_loca_id_custrcvplc  custrcvplc_loca_id_custrcvplc ,
-custord.contract_price  custinst_contract_price,
+custord.contractprice  custinst_contractprice,
   chrg.chrg_person_id_chrg  chrg_person_id_chrg ,
 custord.chrgs_id   custinst_chrg_id,
   opeitm.classlist_code  classlist_code ,
   opeitm.classlist_name  classlist_name ,
-  cust.bill_loca_id_bill  bill_loca_id_bill ,
-  cust.loca_code_bill  loca_code_bill ,
-  cust.loca_name_bill  loca_name_bill ,
-  cust.cust_bill_id  cust_bill_id ,
+  cust.bill_loca_id_bill_cust  bill_loca_id_bill_cust ,
+  cust.loca_code_bill_cust  loca_code_bill_cust ,
+  cust.loca_name_bill_cust  loca_name_bill_cust ,
+  cust.cust_bill_id_cust  cust_bill_id_cust ,
   crr.crr_code  crr_code ,
   crr.crr_name  crr_name ,
-  crr.crr_pricedecimal  crr_pricedecimal ,
+  crr.crr_decimal  crr_decimal ,
   cust.crr_name_cust  crr_name_cust ,
   cust.crr_code_cust  crr_code_cust ,
   opeitm.boxe_unit_id_box  boxe_unit_id_box ,
 custord.custrcvplcs_id   custinst_custrcvplc_id,
 custord.itm_code_client  custinst_itm_code_client,
 custord.contents  custinst_contents,
-  cust.bill_chrg_id_bill  bill_chrg_id_bill ,
-  cust.person_code_chrg_bill  person_code_chrg_bill ,
-  cust.person_name_chrg_bill  person_name_chrg_bill ,
+  cust.bill_chrg_id_bill_cust  bill_chrg_id_bill_cust ,
+  cust.person_code_chrg_bill_cust  person_code_chrg_bill_cust ,
+  cust.person_name_chrg_bill_cust  person_name_chrg_bill_cust ,
   opeitm.itm_classlist_id  itm_classlist_id ,
   shelfno_fm.shelfno_code  shelfno_code_fm ,
   shelfno_fm.shelfno_name  shelfno_name_fm ,
   shelfno_fm.loca_code_shelfno  loca_code_shelfno_fm ,
   shelfno_fm.loca_name_shelfno  loca_name_shelfno_fm ,
   shelfno_fm.shelfno_loca_id_shelfno  shelfno_loca_id_shelfno_fm ,
-  cust.person_sect_id_chrg_bill  person_sect_id_chrg_bill ,
-  cust.chrg_person_id_chrg_bill  chrg_person_id_chrg_bill ,
 custord.opeitms_id   custinst_opeitm_id,
-  cust.crr_code_bill  crr_code_bill ,
-  cust.crr_name_bill  crr_name_bill ,
+  cust.crr_code_bill_cust  crr_code_bill_cust ,
+  cust.crr_name_bill_cust  crr_name_bill_cust ,
 custord.starttime  custinst_starttime,
 lotpackno.shelfnos_id   custinst_shelfno_id_fm,
   prjno.prjno_priority  prjno_priority ,
@@ -133,7 +131,7 @@ custord.crrs_id   custinst_crr_id,
 ,custord_qty_stk  numeric (18,4)
 ,custinst_qty numeric (18,4)
 ,custinst_price  numeric (22,0)
-,custinst_contract_price  varchar (1) 
+,custinst_contractprice  varchar (1) 
 ,custinst_amt  numeric (18,4)
 ,loca_code_bill  varchar (50) 
 ,loca_name_bill  varchar (100) 
@@ -170,7 +168,6 @@ custord.crrs_id   custinst_crr_id,
 ,loca_name_custrcvplc  varchar (100) 
 ,person_code_chrg  varchar (50) 
 ,person_name_chrg  varchar (100) 
-,person_code_chrg_bill  varchar (50) 
 ,person_name_chrg_bill  varchar (100) 
 ,custinst_gno  varchar (40) 
 ,custinst_shelfno_id_fm  numeric (22,0)
@@ -202,9 +199,8 @@ custord.crrs_id   custinst_crr_id,
 ,custinst_prjno_id  numeric (38,0)
 ,itm_unit_id  numeric (22,0)
 ,shelfno_loca_id_shelfno_fm  numeric (38,0)
-,person_sect_id_chrg_bill  numeric (22,0)
-,chrg_person_id_chrg_bill  numeric (38,0)
-,opeitm_shelfno_id_opeitm  numeric (22,0)
+,chrg_person_id_chrg_bill  numeric (38,0),
+opeitm_shelfno_id_opeitm  numeric (22,0)
 ,shelfno_loca_id_shelfno_opeitm  numeric (38,0)
 ,itm_classlist_id  numeric (38,0)
 ,custinst_created_at   timestamp(6) 

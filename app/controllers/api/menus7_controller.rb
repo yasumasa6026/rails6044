@@ -15,10 +15,9 @@ module Api
                 return   
                 
             end
-            params[:person_code_ups] = person["code"]
+            params[:person_code_upd] = person["code"]
             params[:person_id_upd] = person["id"]
 
-            screen = ScreenLib::ScreenClass.new(params)
             #####    
             case params[:buttonflg] 
             when 'menureq'   ###大項目
@@ -45,16 +44,40 @@ module Api
                 render json:  screenList , status: :ok
             
             when 'viewtablereq7'
+                screen = ScreenLib::ScreenClass.new(params)
                 pagedata,reqparams = screen.proc_search_blk(params)   ###:pageInfo  -->menu7から未使用
                 render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
 
             when 'inlineedit7'
+                screen = ScreenLib::ScreenClass.new(params)
                 pagedata,reqparams = screen.proc_search_blk(params)   ###:pageInfo  -->menu7から未使用
                 render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
              
             when 'inlineadd7'
+                screen = ScreenLib::ScreenClass.new(params)
                 pagedata,reqparams = screen.proc_add_empty_data(params)  ### nil filtered sorting
-                render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}               
+                render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
+            
+             
+            when 'showdetail'   
+                reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。
+                reqparams[:where_str] ||= ""
+                reqparams[:filtered] ||= []
+                reqparams[:pageIndex] ||= 0
+                reqparams[:pageSize] ||= 100
+                reqparams[:buttonflg] = 'viewtablereq7'
+                reqparams[:screenCode] = params[:screenCode].sub("head","")
+                reqparams[:screenName] = params[:screenCode]
+                str_func = %Q&select * from func_get_name('screen','#{reqparams[:screenCode]}','#{reqparams[:email]}')&
+                reqparams[:screenName] = ActiveRecord::Base.connection.select_value(str_func)
+                if reqparams[:screenName].nil?
+                    reqparams[:screenName] = reqparams[:screenCode]
+                end
+                reqparams[:pareTblName] = params[:screenCode].split("_",2)[1]
+                secondScreen = ScreenLib::ScreenClass.new(reqparams)
+                grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
+                pagedata,reqparams = secondScreen.proc_showdetail reqparams,grid_columns_info  ###共通lib
+                render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}             
                 
             when "fetch_request"
                 reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
@@ -77,12 +100,14 @@ module Api
                 render json: {:params=>reqparams}   
 
             when "confirm7"
+                screen = ScreenLib::ScreenClass.new(params)
                 reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
                 reqparams[:parse_linedata] = JSON.parse(params[:lineData])
                 reqparams = screen.proc_confirm_screen(reqparams)
                 render json: {:params=>reqparams}
 
             when 'download7'
+                screen = ScreenLib::ScreenClass.new(params)
                 download_columns_info,totalCount,pagedata = screen.proc_download_data_blk(params)   ### nil filtered sorting
                 render json:{:excelData=>{:columns=>download_columns_info.to_json,:data=>pagedata.to_json},
                             :totalCount=>totalCount,:filttered=>params[:filtered] }    
@@ -96,6 +121,7 @@ module Api
                         next if strselected == "undefined"
                         selected = JSON.parse(strselected)
                         if params[:screenCode] == selected["screenCode"]
+                            screen = ScreenLib::ScreenClass.new(params)
                             grid_columns_info = screen.proc_create_grid_editable_columns_info(reqparams)
                             if selected["id"] == "" or selected["id"].nil? 
                                 case params[:screenCode]
@@ -156,6 +182,7 @@ module Api
                         next if strselected == "undefined"
                         selected = JSON.parse(strselected)
                         if params[:screenCode] == selected["screenCode"]
+                            screen = ScreenLib::ScreenClass.new(params)
                             grid_columns_info = screen.proc_create_grid_editable_columns_info(reqparams)
                             if selected["id"] == "" or selected["id"].nil? 
                                 case params[:screenCode]
@@ -219,6 +246,7 @@ module Api
                         next if strselected == "undefined"
                         selected = JSON.parse(strselected)
                         if params[:screenCode] == selected["screenCode"]
+                            screen = ScreenLib::ScreenClass.new(params)
                             grid_columns_info = screen.proc_create_grid_editable_columns_info(reqparams)
                             if selected["id"] == "" or selected["id"].nil? 
                                 render json:{:err=>"please  select after add custacts "}   ###mesaage    
@@ -249,7 +277,7 @@ module Api
                                 end
                             end
                             reqparams[:parse_linedata][strInvoiceNo] =  invoiceNo
-                            reqparams["heads"] = []  ###amtの計算用
+                            reqparams["custactheads"] = []  ###amtの計算用
                             reqparams = screen.proc_confirm_screen(reqparams)
                             if reqparams[:err].nil?
                                 outcnt += 1
@@ -270,7 +298,7 @@ module Api
                         end
                     end
                     amtTaxRate = {}
-                    reqparams["heads"].each do |head|
+                    reqparams["custactheads"].each do |head|
                         totalAmt += head["amt"]
                         totalTax += totalAmt * head["taxrate"]  / 100 ###変更要
                         if amtTaxRate[head["taxrate"]]
@@ -282,12 +310,12 @@ module Api
                     end
                     custactHead =  RorBlkCtl::BlkClass.new("r_custactheads")
                     custactHeadCommand_c = custactHead.command_init
-                    reqparams["heads"].each do |head|
+                    reqparams["custactheads"].each do |head|
                         custactHeadCommand_c["id"] = head["custacthead_id"]   ###修正のみ
                         custactHeadCommand_c["custacthead_amt"] = totalAmt
                         custactHeadCommand_c["custacthead_tax"] = totaltax
                         custactHeadCommand_c["custacthead_taxjson"] = amtTaxRate.to_json 
-                        custactHeadCommand_c = custactHead.proc_create_tbldata(command_c)
+                        custactHeadCommand_c = custactHead.proc_create_tbldata(custactHeadCommand_c)
                         custactHead.proc_private_aud_rec({},custactHeadCommand_c)
                     end
                     ActiveRecord::Base.connection.commit_db_transaction()
@@ -298,6 +326,7 @@ module Api
 
             when 'mkShpords'  ###shpschsは作成済が条件。shpschsはpurords,prdords時に自動作成
                 if params[:clickIndex]
+                    screen = ScreenLib::ScreenClass.new(params)
                     outcnt,shortcnt,err = Shipment.proc_mkShpords(screen.screenCode,params)
                     render json:{:outcnt=>outcnt,:shortcnt=>shortcnt,:err=>err,:params=>{:buttonflg=>"mkShpords"}}
                 else

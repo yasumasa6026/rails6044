@@ -535,7 +535,8 @@ module Shipment
 					stkinout["tblname"] = "shpords"
 				end
 	
-
+				
+				command_c["id"] = ArelCtl.proc_get_nextval("#{stkinout["tblname"]}_seq")
 				blk.proc_create_tbldata(command_c) ##
 				blk.proc_private_aud_rec(reqparams,command_c)
 				
@@ -710,6 +711,7 @@ module Shipment
 		end
 		command_c["#{nextshpchop}_qty_shortage"] = shp["#{prevshpchop}_qty_shortage"]
 		command_c["#{nextshpchop}_qty_case"] = shp["#{prevshpchop}_qty_case"]
+		command_c["id"] = ArelCtl.proc_get_nextval("#{nextshpcop}s_seq")
 		blk.proc_create_tbldata(command_c) ##
 		blk.proc_private_aud_rec({},command_c)
 		
@@ -875,6 +877,7 @@ module Shipment
 		stkinout[str_con_qty] = command_c["#{tblnamechop}_#{str_con_qty}"] =  con_qty
 		stkinout["qty_real"] = stkinout["qty_stk"]
 		command_c["#{tblnamechop}_person_id_upd"] = reqparams[:person_id_upd]
+		command_c["id"] = ArelCtl.proc_get_nextval("#{tblnamechop}_seq")
 		blk.proc_create_tbldata(command_c) ##
 		blk.proc_private_aud_rec(reqparams,command_c)
 			
@@ -1234,7 +1237,7 @@ module Shipment
 								 #{stkinout["qty"].to_f * plusminus},
 								 to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 								 to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-								 ' ',#{stkinot["person_id_upd"]},'2099/12/31','#{stkinout["remark"]}')
+								 ' ',#{stkinout["persons_id_upd"]},'2099/12/31','#{stkinout["remark"]}')
 		&
 		ActiveRecord::Base.connection.insert(strsql)
 		return inoutlotstks_seq
@@ -1267,7 +1270,7 @@ module Shipment
 								'#{stkinout["lotno"]}',#{stkinout["itms_id"]},#{stkinout["processseq"]},
 								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-								' ',#{stkinot["person_id_upd"]}','2099/12/31','#{stkinout["remark"]}')
+								' ',#{stkinout["persons_id_upd"]}','2099/12/31','#{stkinout["remark"]}')
 				&
 			ActiveRecord::Base.connection.insert(strsql)
 		else
@@ -1319,7 +1322,7 @@ module Shipment
 								'#{stkinout["lotno"]}',#{stkinout["itms_id"]},#{stkinout["processseq"]},
 								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-								' ',#{stkinot["person_id_upd"]},'2099/12/31','')
+								' ',#{stkinout["persons_id_upd"]},'2099/12/31','')
 				&
 			ActiveRecord::Base.connection.insert(strsql)
 		else
@@ -1378,7 +1381,8 @@ module Shipment
 		command_c["shpord_amt"] = command_c["shpord_qty"] * command_c["shpord_price"].to_f  ###CtlFieldsから求める。
 		command_c["shpord_packno"] = stk["packno"]  
 		command_c["shpord_lotno"] = stk["lotno"]
-
+		
+		command_c["id"] = ArelCtl.proc_get_nextval("shpords_seq")
 		blk.proc_create_tbldata(command_c) ##
 		blk.proc_private_aud_rec({},command_c)
 		

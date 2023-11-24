@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
 module TblField   ###developmentのみで起動
 extend self
-	def proc_blktbs params  ### r_blktbs又はr_tblfieldsから呼ばれることを想定
+class TblClass
+	def initialize
 		@checktbls = {}   ### 対象となるテーブル群
 		@tblsfields = {}   ### テーブルのfields
-		@messages =[]
 		@modifysql = ""
 		@add_id_to_tbl = {}   ### FIELD・・・s_idが追加された for foreign_key
 		@delete_id_to_tbl = {}  # ### FIELD・・・s_idが削除された
 		@screenfields = {}
+		@messages = [] 
+		@sql = ""
+	end
+	def proc_blktbs params  ### r_blktbs又はr_tblfieldsから呼ばれることを想定
 		skip_tblnames = ["persons","prjnos","scrlvs","locas","usrgrps","chrgs","pobjgrps","reports","pobjects"]
 		if params["data"]   ###画面でのチェックができなかった。
-			@params = params.dup
+			@tblsfields["persons_id_upd"] = params["person_id_upd"]
 		else
 			@messages << " no data"
 			@modifysql = ""
@@ -251,24 +255,24 @@ extend self
 		@modifysql << "\n ---- where  pobject_code_sfd = '#{column_name}'"
 		@modifysql << "\n  update screenfields set expiredate = '2000/1/1',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
 		@modifysql << "\n         ,updated_at = current_date " 
-		@modifysql << "\n         where id in  (select id from r_screenfields where  pobject_code_sfd = 'screenfield_#{column_name}' "
-		@modifysql << "\n         											and  pobject_code_scr = 'r_#{table_name}' );"
+		@modifysql << "\n         where id in  (select id from r_screenfields where  pobject_code_sfd = '#{table_name.chop}_#{column_name}' "
+		@modifysql << "\n         											and  pobject_code_scr like '%_#{table_name}' );"
 	end	
 
 	def create_modify_field_sql rec
 		case rec["fieldcode_ftype"]
 		when /char/
-			@modifysql << "\n alter table #{rec["pobject_code_tbl"]} ALTER COLUMN #{rec["pobject_code_fld"]}  TYPE #{rec["fieldcode_ftype"]}(#{rec["fieldcode_fieldlength"] })"
+			@modifysql << "\n alter table #{rec["pobject_code_tbl"]} ALTER COLUMN #{rec["pobject_code_fld"]}  TYPE #{rec["fieldcode_ftype"]}(#{rec["fieldcode_fieldlength"] });"
 			case rec["pobject_code_fld"]
 			when  "sno"
 				create_uniq_constraint rec["pobject_code_tbl"],"_sno",["sno"]
 			when "cno" 
 				case  rec["pobject_code_tbl"]
-				when /^custschs|^custords|^custinsts|^custdlvs|^custacts/
+				when /^custsch|^custord|^custinst|^custdlv|^custact/
 					create_uniq_constraint rec["pobject_code_tbl"],"_cno",["custs_id","cno"]
-				when /^purschs|^purords|^purinsts|^purdlvs|^puracts/
+				when /^pursch|^purord|^purinst|^purdlv|^puract/
 					create_uniq_constraint rec["pobject_code_tbl"],"_cno",["suppliers_id","cno"]
-				when /^prdschs|^prdords|^prdinsts|^prdacts/
+				when /^prdsch|^prdord|^prdinst|^prdact/
 					create_uniq_constraint rec["pobject_code_tbl"],"_cno",["workplaces_id","cno"]
 				end
 			when "gno"
@@ -276,7 +280,6 @@ extend self
 				###手動で設定
 				create_uniq_constraint rec["pobject_code_tbl"],"_gno",["gno","id"]
 			else
-				@modifysql << " ;\n"
 			end	
 		when "numeric"
 			@modifysql << "\n alter table  #{rec["pobject_code_tbl"]} ALTER COLUMN #{rec["pobject_code_fld"]}  TYPE #{rec["fieldcode_ftype"]}(#{rec["fieldcode_dataprecision"]},#{rec["fieldcode_datascale"]})"
@@ -368,9 +371,20 @@ extend self
 								other_field["screenfield_crtfield"] = othertbl.chop + delm
 								if delm 
 									pobjects_id_sfd = chk_pobject_sfd_and_add(other_sfd)
-									add_screenfield_record screens_id,pobjects_id_sfd,other_field,"add",false 
+									strsql = %Q&
+											select 1 from screenfields where screens_id = #{screens_id} and pobjects_id_sfd = #{pobjects_id_sfd}
+										&
+									if ActiveRecord::Base.connection.select_value(strsql).nil?
+										add_screenfield_record screens_id,pobjects_id_sfd,other_field,"add",false
+									end
 								else
-									add_screenfield_record screens_id,other_screenfield["pobjects_id_sfd"],other_field,"add",false
+									strsql = %Q&
+											select 1 from screenfields where screens_id = #{screens_id} 
+												and pobjects_id_sfd = #{other_screenfield["pobjects_id_sfd"]}
+										&
+									if ActiveRecord::Base.connection.select_value(strsql).nil?
+										add_screenfield_record screens_id,other_screenfield["pobjects_id_sfd"],other_field,"add",false
+									end
 								end
 							end
 						end
@@ -487,7 +501,7 @@ extend self
 					update_pobject_record screenfield,pobjects_id_sfd
 				end
 			else	
-				pobjects_id_sfd = add_pobject_record screenfield
+				pobjects_id_sfd = add_pobject_record(screenfield)
 			end
 		end		
 		return pobjects_id_sfd
@@ -503,6 +517,8 @@ extend self
 		command_r["pobject_code"] = screenfield
 		command_r["pobject_objecttype"] = "view_field"
 		command_r["pobject_expiredate"] = '2099/12/31'
+		command_r["pobject_person_id_upd"] = @tblsfields["persons_id_upd"]
+		command_c["id"] = ArelCtl.proc_get_nextval("pobjects_seq")
 		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r["sio_result_f"] ==   "9"
@@ -515,7 +531,7 @@ extend self
 	
 	def  update_pobject_record screenfield,id
 		blk = RorBlkCtl::BlkClass.new("r_pobjects")
-		command_c = blk.command_init
+		command_r = blk.command_init
 		command_r["id"] == id
 		command_r["sio_classname"] = "_update_pobject_screenfield"
 		command_r["pobject_id"] = ""
@@ -523,6 +539,7 @@ extend self
 		command_r["pobject_code"] = screenfield
 		command_r["pobject_objecttype"] = "view_field"
 		command_r["pobject_expiredate"] = '2099/12/31'
+		command_r["pobject_person_id_upd"] = @tblsfields["persons_id_upd"]
 		blk.proc_create_tbldata(command_c) ##
 		setParams = blk.proc_private_aud_rec({},command_c)
 		if command_r["sio_result_f"] ==   "9"
@@ -535,6 +552,7 @@ extend self
 	def add_screenfield_record screens_id,pobjects_id_sfd,field,aud,owner  ###aud:add,update,delete   owner:自分自身の	テーブル?
 		blk =  RorBlkCtl::BlkClass.new("r_screenfields")
 		command_r = blk.command_init
+		command_r["screenfield_person_id_upd"] = @tblsfields["persons_id_upd"]
 		command_r["sio_classname"] = case aud
 										when "add" 
 											"_add_screenfield record"
@@ -667,7 +685,8 @@ extend self
 												else
 													field["screenfield_crtfield"]	
 												end
-				
+		
+		command_c["id"] = ArelCtl.proc_get_nextval("screenfields_seq")		
 		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r["sio_result_f"] ==   "9"
@@ -675,7 +694,6 @@ extend self
 			 	@messages  << command_r["sio_errline"][0..200] 
 		 		@messages <<  "error  add screenfield record #{field["pobject_code_tbl"].chop}_#{field["pobject_code_fld"]}"
 		else  
-		  		@params[:addId] = command_r["id"]
 		end  
 	end	
 	
@@ -850,7 +868,7 @@ extend self
 
 	def proc_drop_index tblname
 		proc_blk_get_constrains(tblname,'U').each do |key|
-			@modifysql << " ALTER TABLE #{tblname} drop CONSTRAINT #{key}"
+			@modifysql << " ALTER TABLE #{tblname} drop CONSTRAINT #{key};"
 		end
 	end
 	
@@ -917,8 +935,6 @@ extend self
 	end
 
 	def proc_createUniqueIndex params
-		@messages = [] 
-		@sql = ""
 		ukey = {}
 		params["data"].each do |tmp|
 			val = JSON.parse(tmp)
@@ -1042,4 +1058,5 @@ extend self
 	 
 		&
 	end			 
+end ###class end
 end

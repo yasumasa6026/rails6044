@@ -1,6 +1,3 @@
-
-export const LOGINFORM_REQUEST = 'LOGINFORM_REQUEST'
-export const LOGINFORM_SUCCESS = 'LOGINFORM_SUCCESS'
 export const LOGIN_REQUEST = 'LOGIN_REQUEST'
 export const LOGIN_SUCCESS = 'LOGIN_SUCCESS'
 export const LOGIN_FAILURE = 'LOGIN_FAILURE'
@@ -103,16 +100,6 @@ export const SignUpFormSuccess =  ( isSignUp) => ({
   payload: { isSignUp }
 })
 
-export const LoginFormRequest =  ( isSignUp) => ({
-  type:LOGINFORM_REQUEST,
-  payload: { isSignUp }
-})
-
-export const LoginFormSuccess =  ( isSignUp) => ({
-  type:LOGINFORM_SUCCESS,
-  payload: { isSignUp }
-})
-
 export const SignUpRequest =  (email, password,password_confirmation) => ({
   type:SIGNUP_REQUEST,
   payload: { email, password ,password_confirmation}
@@ -197,9 +184,9 @@ export const DropDownValueSet = (dropDownValue) => ({
   payload: {dropDownValue}  //
 })
 
-export const ScreenFailure = (errors) => ({
+export const ScreenFailure = (message) => ({
   type: SCREEN_FAILURE,
-  errors: { errors }  //
+  payload: { message }  //
 })
 
 export const DownloadRequest = (params,auth) => ({

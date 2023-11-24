@@ -9,12 +9,12 @@ import GanttTask from './gantttask'
 import "react-tabs/style/react-tabs.css"
 import {Button} from '../styles/button'
 import "../index.css"
-import {ScreenRequest,DownloadRequest,GanttChartRequest,ButtonFlgRequest,ScreenSubForm,
+import {ScreenRequest,DownloadRequest,GanttChartRequest,ButtonFlgRequest,ScreenFailure,
         YupRequest,TblfieldRequest,ResetRequest, } from '../actions'
 
- const  ButtonList = ({auth,buttonListData,setButtonFlg,buttonflg,
+ const  ButtonList = ({auth,buttonListData,doButtonFlg,buttonflg,
                         screenCode,data,params,downloadloading,
-                        pareScreenCode,message,messages, //  editableflg,message
+                        pareScreenCode,message,messages, loading,//  editableflg,message
                       }) =>{
       let tmpbuttonlist = {}
       if(buttonListData){
@@ -35,7 +35,7 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,ButtonFlgRequest,ScreenS
                       <Button  
                       type={val[1]==='inlineedit7'||'inlineadd7'||'yup'||'ganttchart'||'import'?"submit":"button"}
                       onClick ={() =>{
-                                      setButtonFlg(val[1],params,data,pareScreenCode,auth)} // buttonflg
+                                      doButtonFlg(val[1],params,data,pareScreenCode,auth)} // buttonflg
                                      }>
                       {val[0]}       
                       </Button>             
@@ -61,6 +61,7 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,ButtonFlgRequest,ScreenS
         {messages&&messages.map((val,index) => 
                      <p key={index} > {val}</p>
       )}  
+        {loading?<p>doing...</p>:""}
         </div>    
       )
     }
@@ -70,7 +71,7 @@ const  mapStateToProps = (state,ownProps) =>{
     return{
       auth:state.auth,
       buttonListData:state.button.buttonListData ,    //ボタンはemailで一旦全て収集
-      buttonflg:state.second.buttonflg ,  
+      buttonflg:state.second.params.buttonflg ,  
       params:state.second.params ,  
       data:state.second.data ,  
       screenCode:state.second.params.screenCode ,  
@@ -79,13 +80,13 @@ const  mapStateToProps = (state,ownProps) =>{
       messages:state.button.messages,
       disabled:state.second.disabled?true:false,
       pareScreenCode:state.second.params.screenCode ,  
-      loading:state.second.loading,
+      loading:state.button.loading,
       }
     }else{
       return{
         auth:state.auth,
         buttonListData:state.button.buttonListData ,  
-        buttonflg:state.button.buttonflg ,  
+        buttonflg:state.screen.params.buttonflg ,  
         params:state.screen.params ,  
         data:state.screen.data ,  
         screenCode:state.screen.params.screenCode ,  
@@ -95,25 +96,49 @@ const  mapStateToProps = (state,ownProps) =>{
         downloadloading:state.button.downloadloading,
         disabled:state.button.disabled?true:false,
         pareScreenCode:null ,  
-        loading:state.screen.loading,  
+        loading:state.button.loading,  
       }
     }
- // originalreq:state.screen.originalreq,
+ // originalreq:state.screen.originalreq,map
 }
 
 const mapDispatchToProps = (dispatch,ownProps ) => ({
-  setButtonFlg : (buttonflg,    //
+  doButtonFlg : (buttonflg,    //
                     params,data,pareScreenCode,auth) =>{
         dispatch(ButtonFlgRequest(buttonflg,params)) // import export 画面用
         let screenData = []
         let newRow = {}
         switch (buttonflg) {  //buttonflg ==button_code
 
+          case "search":
+                params= { ...params,buttonflg:"viewtablereq7",disableFilters:false,screenFlg:ownProps.screenFlg,aud:"view"}
+                return dispatch(ScreenRequest(params,null)) //break
+        
+          case "inlineedit7":
+                params= { ...params,buttonflg:"inlineedit7",disableFilters:false,screenFlg:ownProps.screenFlg,aud:"edit",}
+                return dispatch(ScreenRequest(params,null)) //
+                
+          case "inlineadd7":
+                params= {...params, pages:1,buttonflg:"inlineadd7",disableFilters:true,screenFlg:ownProps.screenFlg,aud:"add"}
+                return  dispatch(ScreenRequest(params,null)) //
+
+          case "showdetail":
+                let clickcnt = 0
+                params["clickIndex"].map((click)=>{if(click.id){clickcnt = clickcnt + 1
+                                                                params["head"] = {id:click["id"],pareScreen:click["screenCode"]}}
+                                                  }
+                                        )
+                if(clickcnt === 1){
+                      params= { ...params,buttonflg:"showdetail",disableFilters:false,screenFlg:"second",aud:"view"}
+                      return dispatch(ScreenRequest(params,null))}
+                  else{return dispatch(ScreenFailure({message:"no select or duplicated select"}))}
+                  //break
+      
           case "confirmAll"://
               params= {...params,buttonflg:"confirmAll",disableFilters:true,screenFlg:ownProps.screenFlg}
               return  dispatch(ScreenRequest(params,null)) //
  
-              case "confirmShpacts"://第二画面専用
+          case "confirmShpacts"://第二画面専用
                     params= {...params,buttonflg:"confirmShpacts",disableFilters:true,screenFlg:ownProps.screenFlg}
                     return  dispatch(ScreenRequest(params,null)) //
     
@@ -139,21 +164,12 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                   else{alert("please select")}  
                   break
 
-            case "reversechart":
+          case "reversechart":
                     if(typeof(params.index)==="number"){
                               params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"reversechart",}
                               return  dispatch(GanttChartRequest(params,auth)) }//
                     else{alert("please select")}  
-                    break
-        
-          case "inlineedit7":
-              params= { ...params,buttonflg:"inlineedit7",disableFilters:false,screenFlg:ownProps.screenFlg,aud:"edit",}
-              return dispatch(ScreenRequest(params,null)) //
-          
-          case "inlineadd7":
-              params= {...params, pages:1,buttonflg:"inlineadd7",disableFilters:true,screenFlg:ownProps.screenFlg,aud:"add"}
-              return  dispatch(ScreenRequest(params,null)) //
-
+                    
           case "MkPackingListNo"://
               params= {...params,buttonflg:"MkPackingListNo",disableFilters:true,screenFlg:ownProps.screenFlg}
               return  dispatch(ScreenRequest(params,null)) //
@@ -187,11 +203,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
 
           case "refShpacts":  //第一画面で選択された親より第二画面表示
                 params= {...params,buttonflg:"refShpacts",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
-                return  dispatch(ScreenRequest(params,null)) //          
-
-          case "search":
-                params= { ...params,buttonflg:"viewtablereq7",disableFilters:false,screenFlg:ownProps.screenFlg,aud:"view"}
-                return dispatch(ScreenRequest(params,null)) //
+                return  dispatch(ScreenRequest(params,null)) // 
 
           case "unique_index":
               data.map((row,index)=>{Object.keys(row).map((field,idx)=>

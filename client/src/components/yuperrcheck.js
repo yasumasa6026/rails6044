@@ -1,29 +1,27 @@
 export  function yupErrCheck (schema,field,linedata) {
   let mfield 
+  mfield = field+"_gridmessage"
   try{
       if(field==="confirm"){schema.validateSync(linedata)
             linedata.confirm_gridmessage = "doing"}
       else{schema.validateSync({[field]:linedata[field]})
-            mfield = field+"_gridmessage"
             linedata[mfield] = "ok"
-            linedata.confirm_gridmessage = "ok"}      
+            linedata.confirm_gridmessage = "ok"}  
+      if(linedata.confirm_gridmessage === "ok"){
+                      dataCheck7(schema,field,linedata) 
+            }
+      if(linedata.confirm_gridmessage === "doing"){
+                      Object.keys(linedata).map((fd)=>{
+                        dataCheck7(schema,fd,{[fd]:linedata[fd]})             }
+                      ) 
+            }    
+      return linedata
   }      
   catch(err){
     linedata.confirm = false
-              mfield = field+"_gridmessage"
               linedata[mfield] = " error " + err.errors.join(",")
               linedata["confuem_gridmessage"] = " error " + err.errors.join(",")
               return linedata
-  }
-  if(linedata.confirm_gridmessage === "ok"){
-            dataCheck7(schema,field,linedata) 
-            return linedata
-  }
-  if(linedata.confirm_gridmessage === "doing"){
-            Object.keys(linedata).map((fd)=>{
-              dataCheck7(schema,fd,{[fd]:linedata[fd]})             }
-            ) 
-            return linedata
   }
 } 
 

@@ -5,7 +5,7 @@ import Toolbar from '@material-ui/core/Toolbar'
 import Typography from '@material-ui/core/Typography'
 import { withStyles } from '@material-ui/core/styles'
 import {Button} from './styles/button'
-import { LogoutRequest, SignUpFormRequest,LoginFormRequest,} from './actions'
+import { LogoutRequest, SignUpFormRequest,LoginRequest,} from './actions'
 
 class GlobalNav extends React.Component {
   render() {
@@ -43,7 +43,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => {
   return{
         LogoutClick: (token,client,uid) => dispatch(LogoutRequest(token,client,uid),
                           ),
-        LoginClick: ( isSignUp) => dispatch(LoginFormRequest( isSignUp),
+        LoginClick: ( isSignUp) => dispatch(LoginRequest( isSignUp),
                           ),
         SignUpClick: ( isSignUp) => dispatch(SignUpFormRequest( isSignUp),
                           ),

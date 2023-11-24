@@ -12,10 +12,10 @@ class CreateOtherTableRecordJob < ApplicationJob
             params = JSON.parse(processreq["reqparams"])   
             strsql = %Q% select * from persons where id = #{params["tbldata"]["persons_id_upd"]}
                     %
-            rec = ActiveRecord::Base.connection.select_one(strsql) ###
-            params[:email] = rec["email"]
-            params[:person_code_chrg] = rec["code"]
-            params[:person_id_upd] = rec["id"]
+            person = ActiveRecord::Base.connection.select_one(strsql) ###
+            params[:email] = person["email"]
+            params[:person_code_chrg] = person["code"]
+            params[:person_id_upd] = person["id"]
             ActiveRecord::Base.connection.begin_db_transaction()
             until processreq.nil? do
                     tbldata = params["tbldata"].dup
@@ -131,9 +131,10 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 child = nd.dup
                                 if nd["prdpur"]  ###opeitmdが登録されてないとprdords,purordsは作成されない。
                                     blk = RorBlkCtl::BlkClass.new("r_"+nd["prdpur"]+"schs")
-                                    command_c = blk.command_init
+                                    command_c = blk.command_initcommand_c
                                     command_c,qty_require = add_update_prdpur_table_from_nditm  nd,parent,tblname,command_c
-                                    blk.proc_create_tbldata(command_c)
+                                    command_c["id"] = ArelCtl.proc_get_nextval("#{tblname}_seq")
+                                    command_c = blk.proc_create_tbldata(command_c)
                                     trnganttkey += 1
                                     gantt["key"] = gantt_key + format('%05d', trnganttkey)
                                     gantt["tblname"] = nd["prdpur"] + "schs"
@@ -162,7 +163,8 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     child["consumminqty"]  = nd["consumminqty"]
                                     child["consumchgoverqty"] = nd["consumchgoverqty"]
                                     child["consumchgoverqty"] = (nd["consumauto"]||="")
-                                    setParams["child"] = child.dup
+                                    setParams["child"] = child.dupcommand_c
+                                    command_c["#{nd["prdpur"]}sch_person_id_upd"] = setParams[:person_id_upd]
                                     setParams = blk.proc_private_aud_rec(setParams,command_c) ###create pur,prdschs
                                     if gantt["consumtype"] =~ /CON/  ###出庫 消費と金型・設備の使用
                                         Shipment.proc_create_consume(setParams) do   
@@ -174,13 +176,15 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     command_c = blk.command_init
                                     nd["prdpur"] = "dym"
                                     nd["itms_id"] = nd["itms_id_nditm"]
+                                    gantt["tblname"] = "dymschs"
                                     command_c,qty_require = add_update_prdpur_table_from_nditm  nd,parent,tblname,command_c
+                                    command_c["#{gantt["tblname"].chop}_person_id_upd"] = setParams[:person_id_upd]
                                     command_c["dymsch_itm_id"] = nd["itms_id"]
                                     command_c["dymsch_loca_id"] = 0
+                                    command_c["id"] = ArelCtl.proc_get_nextval("#{gantt["tblname"]}_seq")
                                     blk.proc_create_tbldata(command_c)
                                     trnganttkey += 1
                                     gantt["key"] = gantt_key + format('%05d', trnganttkey)
-                                    gantt["tblname"] = "dymschs"
                                     gantt["tblid"] = command_c["id"]
                                     gantt["itms_id_trn"] = nd["itms_id_nditm"]
                                     gantt["processseq_trn"] = 999
@@ -264,6 +268,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 qty =  gantt["qty"].to_f
                                 ### free custschsへの引き当て
                                 get_free_custschs_sql = %Q&
+                                            --- free custschsへの引き当て
                                             select  t.id trngantts_id,link.qty_src,t.orgtblname tblname,t.orgtblid tblid,link.id link_id from trngantts t 
                                                             inner join linkcusts link on link.srctblid = t.tblid  and t.id = link.trngantts_id
                                                                                     and link.srctblname = link.tblname and link.srctblid = link.tblid
@@ -322,9 +327,11 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     "consumunitqty" => 1,"consumminqty" => 0,"consumchgoverqty" => 0}
                             child.merge!(setParams["opeitm"])
                             blk = RorBlkCtl::BlkClass.new("r_"+ setParams["opeitm"]["prdpur"]+"schs")
-                            command_c = blk.command_init
+                            command_c = blk.
+                            command_c["#{setParams["opeitm"]["prdpur"]}sch_person_id_upd"] = setParams[:person_id_upd]
                             command_c,qty_require = add_update_prdpur_table_from_nditm  child,tbldata,paretblname,command_c
-                            blk.proc_create_tbldata(command_c)
+                            command_c["id"] = ArelCtl.proc_get_nextval("#{setParams["opeitm"]["prdpur"]}schs_seq")
+                            command_c = blk.proc_create_tbldata(command_c)
                             setParams["gantt"] = gantt.dup
                             setParams = blk.proc_private_aud_rec(setParams,command_c) 
                     else  
@@ -393,7 +400,6 @@ class CreateOtherTableRecordJob < ApplicationJob
             parent.delete("qty") 
             parent.delete("amt") 
         end
-        command_init["id"] = ""
 		command_c,qty_require = CtlFields.proc_schs_fields_making(nd,parent,"r_"+ nd["prdpur"]+"schs",command_init)
 		return command_c,qty_require
     end

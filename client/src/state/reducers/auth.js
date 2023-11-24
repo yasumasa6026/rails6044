@@ -1,7 +1,6 @@
 //sigin_in(login) & sign_up
 
-import { LOGINFORM_REQUEST,LOGINFORM_SUCCESS,
-          SIGNUPFORM_REQUEST,SIGNUPFORM_SUCCESS,          
+import { SIGNUPFORM_REQUEST,SIGNUPFORM_SUCCESS,          
           SIGNUP_REQUEST,SIGNUP_SUCCESS,SIGNUP_FAILURE,
           LOGIN_REQUEST,LOGIN_SUCCESS,LOGIN_FAILURE,
           LOGOUT_REQUEST, LOGOUT_SUCCESS, } from '../../actions'
@@ -19,18 +18,6 @@ const initialValues = {
 
 const authreducer =  (state= initialValues , actions) =>{
   switch (actions.type) {
-
-    case LOGINFORM_REQUEST:
-      return {
-        isSubmitting:false,
-        isSignUp:false,
-      }
-
-    case LOGINFORM_SUCCESS:
-      return {...state,
-          isSubmitting:false,
-          isSignUp:false,
-        }
 
     case SIGNUPFORM_REQUEST:
       return {...state,
@@ -105,6 +92,8 @@ const authreducer =  (state= initialValues , actions) =>{
 
     case LOGOUT_SUCCESS:
       return {
+        isSignUp:false,
+        isAuthenticated:false,
       }
  
 

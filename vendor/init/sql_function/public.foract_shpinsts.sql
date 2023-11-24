@@ -40,7 +40,7 @@ shpinst.isudate  shpinst_isudate,
 shpinst.prjnos_id   shpinst_prjno_id,
 shpinst.persons_id_upd   shpinst_person_id_upd,
 shpinst.contents  shpinst_contents,
-shpinst.contract_price  shpinst_contract_price,
+shpinst.contractprice  shpinst_contractprice,
 shpinst.chrgs_id   shpinst_chrg_id,
 shpinst.crrs_id   shpinst_crr_id,
 shpinst.box  shpinst_box,
@@ -112,7 +112,7 @@ shpinst.qty_real  shpinst_qty_real
 ,shpinst_amt  numeric (18,4)
 ,prjno_name  varchar (100) 
 ,shpinst_isudate   timestamp(6) 
-,shpinst_contract_price  varchar (1) 
+,shpinst_contractprice  varchar (1) 
 ,shpinst_qty_case  numeric (22,0)
 ,shpinst_processseq  numeric (38,0)
 ,shpinst_starttime   timestamp(6) 

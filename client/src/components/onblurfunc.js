@@ -52,8 +52,8 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
                 }
             break
         case /_qty_sch|_qty$/.test(id):  //opeitmsのレコードは既に求めていること。
-            if(/cust|prd|pur|shp/.test(screenCode)&&/schs|ords/.test(screenCode)&&lineData[qty_case]===""){
-                qty_case = id.split("_")[0] + "_qty_case" 
+            qty_case = id.split("_")[0] + "_qty_case" 
+            if(/cust|prd|pur|shp/.test(screenCode)&&/schs|ords/.test(screenCode)&&lineData[qty_case]===0){
                     if(Number(lineData["opeitm_packqty"])===0){  //opeitm_packqtyは購入時・作成後の完成時の単位
                         lineData[qty_case] = lineData[id] 
                         autoAddFields[qty_case] = lineData[qty_case]
@@ -75,7 +75,7 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
             } 
             break
         case /^loca_code_cust$/.test(id):
-            if(screenCode.match(/custords|custschs/)){
+            if(screenCode.match(/custord|custsch/)){
                 if(lineData["loca_code_custrcvplc"]===""){
                     lineData["loca_code_custrcvplc"] = lineData[id]
                     autoAddFields["loca_code_custrcvplc"] = lineData["loca_code_custrcvplc"]
@@ -128,14 +128,11 @@ export function fetchCheck(lineData,id,fetch_check) {
         }else{}//未入力keyがある。  
     }
     //else{updateLineData(index,data,autoAddFields) } //onBlurFunc7でセットされた項目を画面に反映
-    
-    if(fetch_check.checkCode[id]){
-     let chkcondtion = fetch_check.checkCode[id].split(",")[1]
-     if (chkcondtion === undefined || (chkcondtion === "add" & lineData[id] === "") ||
-         (chkcondtion === "update" & lineData[id] !== "")) {
-     fetchCheckFlg = "check_request"
-     }else{fetchCheckFlg=""}
-    }
+    else{
+        if(fetch_check.checkCode[id]){
+            fetchCheckFlg = "check_request"
+            }else{fetchCheckFlg=""}
+        }
     return {fetchCheckFlg,idKeys}
 }
 
