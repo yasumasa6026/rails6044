@@ -2,7 +2,7 @@ import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
   LOGOUT_REQUEST,SCREEN_CONFIRM7,SCREEN_CONFIRM7_SUCCESS,SCREEN_FAILURE,
   FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,YUP_RESULT,
   INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
-  SECOND_SUCCESS7,
+  SECOND_SUCCESS7,SECOND_CONFIRM7_SUCCESS,
   MKSHPORDS_SUCCESS,SCREEN_DATASET,CHANGE_SHOW_SCREEN,
   YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_SUBFORM,LOGIN_SUCCESS} 
   from '../../actions'
@@ -84,6 +84,22 @@ case SCREEN_CONFIRM7_SUCCESS:
     hostError:actions.payload.params.err,
     message:`${date.toJSON()} confirmed line ${actions.payload.params.index}`,
   }
+
+
+case SECOND_CONFIRM7_SUCCESS:
+    if(/heads$/.test(actions.payload.params.head.pareScreenCode)){
+        let lineData  = actions.payload.params.lineData
+        data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...lineData}}
+                                          return row }) 
+        return {...state,
+            data:data,
+        } 
+    }
+    else{
+        return {...state,
+        } 
+    }
+
 
 case CONFIRMALL_SUCCESS:
   return {...state,

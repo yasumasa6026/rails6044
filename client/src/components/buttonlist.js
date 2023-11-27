@@ -61,7 +61,7 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,ButtonFlgRequest,ScreenF
         {messages&&messages.map((val,index) => 
                      <p key={index} > {val}</p>
       )}  
-        {loading?<p>doing...</p>:""}
+        {loading?<p>Loading...</p>:""}
         </div>    
       )
     }
@@ -76,7 +76,7 @@ const  mapStateToProps = (state,ownProps) =>{
       data:state.second.data ,  
       screenCode:state.second.params.screenCode ,  
       screenName:state.second.params.screenName ,  
-      message:state.second.loading?" second_screen Loading ...":"",
+      message:state.second.loading?" second_screen doing ...":"",
       messages:state.button.messages,
       disabled:state.second.disabled?true:false,
       pareScreenCode:state.second.params.screenCode ,  
@@ -125,7 +125,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           case "showdetail":
                 let clickcnt = 0
                 params["clickIndex"].map((click)=>{if(click.id){clickcnt = clickcnt + 1
-                                                                params["head"] = {id:click["id"],pareScreen:click["screenCode"]}}
+                                                                params["head"] = {lineId:click["lineId"],id:click["id"],pareScreenCode:click["screenCode"]}}
                                                   }
                                         )
                 if(clickcnt === 1){

@@ -67,13 +67,13 @@ module Api
                 reqparams[:pageSize] ||= 100
                 reqparams[:buttonflg] = 'viewtablereq7'
                 reqparams[:screenCode] = params[:screenCode].sub("head","")
-                reqparams[:screenName] = params[:screenCode]
                 str_func = %Q&select * from func_get_name('screen','#{reqparams[:screenCode]}','#{reqparams[:email]}')&
                 reqparams[:screenName] = ActiveRecord::Base.connection.select_value(str_func)
                 if reqparams[:screenName].nil?
                     reqparams[:screenName] = reqparams[:screenCode]
                 end
                 reqparams[:pareTblName] = params[:screenCode].split("_",2)[1]
+                reqparams[:head] = JSON.parse(params[:head])
                 secondScreen = ScreenLib::ScreenClass.new(reqparams)
                 grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
                 pagedata,reqparams = secondScreen.proc_showdetail reqparams,grid_columns_info  ###共通lib
@@ -103,6 +103,7 @@ module Api
                 screen = ScreenLib::ScreenClass.new(params)
                 reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
                 reqparams[:parse_linedata] = JSON.parse(params[:lineData])
+                reqparams[:head] = JSON.parse(params[:head]||="{}")
                 reqparams = screen.proc_confirm_screen(reqparams)
                 render json: {:params=>reqparams}
 
@@ -315,6 +316,7 @@ module Api
                         custactHeadCommand_c["custacthead_amt"] = totalAmt
                         custactHeadCommand_c["custacthead_tax"] = totaltax
                         custactHeadCommand_c["custacthead_taxjson"] = amtTaxRate.to_json 
+                        custactHeadCommand_c["custacthead_created_at"] = Time.now
                         custactHeadCommand_c = custactHead.proc_create_tbldata(custactHeadCommand_c)
                         custactHead.proc_private_aud_rec({},custactHeadCommand_c)
                     end

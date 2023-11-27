@@ -58,11 +58,11 @@ const secondreducer =  (state = initialValues , actions) =>{
         data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
                                               return row }) 
         return {...state,
-            data:actions.payload.data,
+            data:data,
             params:actions.payload.params,
             loading:false,
-            hostError:actions.payload.data[actions.payload.params.index].confirm_message,
-            message:`${date.toJSON()} confirmed line ${actions.payload.params.index}`,
+            hostError:data[actions.payload.index].confirm_message,
+            message:`${date.toJSON()} confirmed line ${actions.payload.index}`,
         } 
 
     case SECOND_FAILURE:
@@ -70,7 +70,7 @@ const secondreducer =  (state = initialValues , actions) =>{
                                               return row }) 
         return {...state,
             hostError: actions.payload.message,
-            data: actions.payload.data,
+            data: data,
             loading:false,
         }
 
@@ -82,7 +82,10 @@ const secondreducer =  (state = initialValues , actions) =>{
         }
         
     case SECONDFETCH_FAILURE:
+        data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
+                                              return row })
         return {...state,
+            data:data,
             params:actions.payload.params, 
             loading:false,
             hostError: actions.payload.params.err,  

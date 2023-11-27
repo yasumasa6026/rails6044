@@ -291,7 +291,8 @@ module CtlFields
 						case  fetchview
 						when /custs$/
 							if line_data[:crr_code].nil? or line_data[:crr_code] == ""
-								line_data[:crr_code] = rec["crr_code_bill"]
+								line_data[:crr_code] = rec["crr_code_bill_cust"]
+								line_data[:crr_name] = rec["crr_name_bill_cust"]
 								line_data[:custord_contractprice] = rec["cust_contractprice"]
 							end 
 						when  /itms$/ 
@@ -870,10 +871,13 @@ module CtlFields
 					case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
 					when "1"
 						line_data[:custord_amt] = line_data[:custord_amt].floor(decimal.to_i + 1)
+						line_data[:custord_tax] = (line_data[:custord_amt] * line_data[:custord_taxrate]).floor(decimal + 1)
 					when "2"
 						line_data[:custord_amt] = line_data[:custord_amt].round(decimal.to_i + 1)
+						line_data[:custord_tax] = (line_data[:custord_amt] * line_data[:custord_taxrate]).round(decimal + 1)
 					when "3"
 						line_data[:custord_amt] = line_data[:custord_amt].ceil(decimal.to_i + 1)
+						line_data[:custord_tax] = (line_data[:custord_amt] * line_data[:custord_taxrate]).ceil(decimal + 1)
 					end
 				else
 				end
@@ -898,10 +902,13 @@ module CtlFields
 				case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
 				when "1"
 					line_data[:custdlv_amt] = line_data[:custdlv_amt].floor(decimal + 1)
+					line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate]).floor(decimal + 1)
 				when "2"
 					line_data[:custdlv_amt] = line_data[:custdlv_amt].round(decimal + 1)
+					line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate]).round(decimal + 1)
 				when "3"
 					line_data[:custdlv_amt] = line_data[:custdlv_amt].ceil(decimal + 1)
+					line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate]).ceil(decimal + 1)
 				end
 			else
 				line_data[:custdlv_contractprice] = "C"  ###C:マスター単価無
@@ -922,10 +929,13 @@ module CtlFields
 			   	case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
 			   	when "1"
 					line_data[:custact_amt] = line_data[:custact_amt].floor(decimal + 1)
+					line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate]).floor(decimal + 1)
 			   	when "2"
 					line_data[:custact_amt] = line_data[:custact_amt].round(decimal + 1)
+					line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate]).round(decimal + 1)
 			   	when "3"
 					line_data[:custact_amt] = line_data[:custact_amt].ceil(decimal + 1)
+					line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate]).ceil(decimal + 1)
 			   end
 			else
 				line_data[:custact_contractprice] = "C"  ###C:マスター単価無

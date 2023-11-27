@@ -519,6 +519,7 @@ class TblClass
 		command_r["pobject_expiredate"] = '2099/12/31'
 		command_r["pobject_person_id_upd"] = @tblsfields["persons_id_upd"]
 		command_c["id"] = ArelCtl.proc_get_nextval("pobjects_seq")
+		command_c["pobject_created_at"] = Time.now
 		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r["sio_result_f"] ==   "9"
@@ -686,7 +687,8 @@ class TblClass
 													field["screenfield_crtfield"]	
 												end
 		
-		command_c["id"] = ArelCtl.proc_get_nextval("screenfields_seq")		
+		command_c["id"] = ArelCtl.proc_get_nextval("screenfields_seq")	
+		command_c["screenfield_created_at"] = Time.now	
 		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r["sio_result_f"] ==   "9"

@@ -210,6 +210,7 @@ module ArelCtl
 		command_c["sio_classname"] =
 			if params[:classname] =~ /_add_|_insert_/
 				"_add_proc_createtable_data"
+				command_c["#{totbl.chop}_created_at"] = Time.now
 			else
 				"_update_proc_createtable_data"
 			end
@@ -265,6 +266,7 @@ module ArelCtl
 		command_c["sio_classname"] =
 			if params[:classname] =~ /_add_|_insert_/
 				"_add_proc_createtable_data"
+				command_c["#{headTbl.chop}_created_at"] = Time.now
 			else
 				"_update_proc_createtable_data"
 			end

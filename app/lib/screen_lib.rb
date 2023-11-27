@@ -708,8 +708,11 @@ module ScreenLib
                             temp[cell[:accessor]] = params[:trngantt][cell[:accessor].to_sym] 
 						end
 					when /cust1_custords/   ###custordheadsからの引継ぎ
-						if cell[:accessor] =~ /custord_sno$|custord_cno$|custord_gno$|custord_amt$/  ###親からの引継ぎなし
+						case cell[:accessor]
+						when  /custord_sno$|custord_cno$|custord_amt$|custord_created_at|custord_updated_at/  ###親からの引継ぎなし
 							next
+						when /custord_gno/
+							temp[cell[:accessor]] = custhead["custordhead_cno"]
 						else
 							if custhead[cell[:accessor].sub("custord_","custordhead_")]
 								case cell[:accessor]   ###初期表示
@@ -986,6 +989,7 @@ module ScreenLib
 				if command_c["id"] == "" or  command_c["id"].nil?   ### add画面で同一lineで二度"enter"を押されたとき errorにしない
 					###  追加後エラーに気づいたときエラーしないほうが，操作性がよい
 				  command_c["sio_classname"] = "_add_grid_linedata"
+				  command_c["#{tblnamechop}_created_at"] = Time.now
 				  command_c["id"] = ArelCtl.proc_get_nextval("#{tblnamechop}s_seq")
 				else         
 				  command_c["sio_classname"] = "_edit_update_grid_linedata"

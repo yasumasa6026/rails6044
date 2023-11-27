@@ -479,8 +479,7 @@ module RorBlkCtl
 			when /cust1_custords/
 				case command_c["sio_classname"]
 				when /_add_|_insert_/
-					pare = JSON.parse(setParams["head"])
-					head = {"paretblname"=>pare["pareScreen"].split("_")[1],"paretblid"=>pare["id"]}
+					head = {"paretblname"=>params[:head][:pareScreenCode].split("_")[1],"paretblid"=>params[:head][:id]}
 					detail = {"tblname"=>@tblname,"tblid"=> @tbldata["id"],"persons_id_upd"=>setParams[:person_id_upd]}
 					ArelCtl.proc_insert_linkheads(head,detail)
 					###親
@@ -488,6 +487,8 @@ module RorBlkCtl
 					paretbldata["amt"] = paretbldata["amt"].to_f + @tbldata["amt"].to_f 
 					paretbldata["tax"] = paretbldata["tax"].to_f + @tbldata["tax"].to_f 
 					tbl_edit_arel(head["paretblname"],paretbldata," id = #{head["paretblid"]}")
+					setParams[:pareLineData] = ActiveRecord::Base.connection.select_one(%Q&
+										select * from r_#{head["paretblname"]}  where id = #{head["paretblid"]}	&)
 				when /_edit_|_update_/
 					tbl_edit_arel(tblname,tbldata," id = #{@tbldata["id"]}")
 				when  /_delete_|_purge_/
@@ -844,7 +845,7 @@ module RorBlkCtl
 					end	
 				end
 			end
-			ActiveRecord::Base.connection.update("update #{@tblname}  set #{strset.chop} where #{strwhere} ")
+			ActiveRecord::Base.connection.update("update #{tblname}  set #{strset.chop} where #{strwhere} ")
 		end
 
 		def tbl_delete_arel  strwhere ##

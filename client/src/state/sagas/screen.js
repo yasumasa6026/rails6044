@@ -57,9 +57,12 @@ export function* ScreenSaga({ payload: {params}  }) {
               params = {...params,screenFlg:response.data.params.screenFlg,
                           screenCode:response.data.params.screenCode,err:response.data.params.err,index:parseInt(params.index)}
               if(params.screenFlg==="second")
-                {return yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{lineData:lineData,index:parseInt(params.index),params:params} })}
+                {  params = {...params,lineData:response.data.params.pareLineData,head:response.data.params.head}
+                   yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{lineData:lineData,index:parseInt(params.index),params:params} })
+                }
               else
-                {return yield put({type:SCREEN_CONFIRM7_SUCCESS,payload:{lineData:lineData,index:parseInt(params.index),params:params} })} 
+                {yield put({type:SCREEN_CONFIRM7_SUCCESS,payload:{lineData:lineData,index:parseInt(params.index),params:params} })}
+              return   
             case "fetch_request":  //viewによる存在チェック内容表示
             case "check_request":   //項目毎のチェック帰りはfetchと同じ
                     lineData = response.data.params.parse_linedata

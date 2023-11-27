@@ -18,6 +18,7 @@ truncate table prdacts cascade;
 
 truncate table custschs cascade;
 truncate table custords cascade;
+truncate table custordheads cascade;
 truncate table custinsts cascade;
 truncate table custacts cascade;
 truncate table custdlvs cascade;
@@ -109,7 +110,6 @@ to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'));
 ;
 commit;
 
-truncate table sio.sio_custact_linkheads cascade;
 truncate table sio.sio_r_purschs cascade;
 truncate table sio.sio_r_purords cascade;
 truncate table sio.sio_r_purinsts cascade;
@@ -131,7 +131,7 @@ truncate table sio.sio_r_prdacts cascade;
 
 
 truncate table sio.sio_r_custschs cascade;
-truncate table sio.sio_r_custords cascade;
+truncate table sio.sio_r_custordheads cascade;
 truncate table sio.sio_r_custinsts cascade;
 truncate table sio.sio_r_custdlvs cascade;
 truncate table sio.sio_fmcustinst_custdlvs ;
