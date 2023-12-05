@@ -5,8 +5,8 @@ module Api
         end
         def create
             ###JSON.parseのエラー対応　要
-            params[:email] = current_api_user[:email]
-            strsql = "select code,id from persons where email = '#{params[:email]}'"
+            params["email"] = current_api_user[:email]
+            strsql = "select code,id from persons where email = '#{params["email"]}'"
             person = ActiveRecord::Base.connection.select_one(strsql)
             if person.nil?
                 params["status"] = 403
@@ -15,28 +15,28 @@ module Api
                 return   
                 
             end
-            params[:person_code_upd] = person["code"]
-            params[:person_id_upd] = person["id"]
+            params["person_code_upd"] = person["code"]
+            params["person_id_upd"] = person["id"]
 
             #####    
             case params[:buttonflg] 
             when 'menureq'   ###大項目
-                sgrp_menue = Rails.cache.fetch('sgrp_menue'+params[:email]) do
+                sgrp_menue = Rails.cache.fetch('sgrp_menue'+params["email"]) do
                     if Rails.env == "development" 
-                        strsql = "select * from func_get_screen_menu('#{params[:email]}')"
+                        strsql = "select * from func_get_screen_menu('#{params["email"]}')"
                     else
-                        strsql = "select * from func_get_screen_menu('#{params[:email]}') and pobject_code_sgrp <'S'"
+                        strsql = "select * from func_get_screen_menu('#{params["email"]}') and pobject_code_sgrp <'S'"
                     end      
                     sgrp_menue = ActiveRecord::Base.connection.select_all(strsql)
                 end
                 render json:  sgrp_menue , status: :ok 
 
             when 'bottunlistreq'  ###大項目内のメニュー
-                screenList = Rails.cache.fetch('screenList'+params[:email]) do
+                screenList = Rails.cache.fetch('screenList'+params["email"]) do
                     strsql = "select pobject_code_scr_ub screen_code,button_code,button_contents,button_title
                         from r_usebuttons u
                         inner join r_persons p on u.screen_scrlv_id_ub = p.person_scrlv_id
-                                   and p.person_email = '#{params[:email]}' 
+                                   and p.person_email = '#{params["email"]}' 
                         where usebutton_expiredate > current_date
                         order by pobject_code_scr_ub,button_seqno"
                     screenList = ActiveRecord::Base.connection.select_all(strsql)
@@ -67,7 +67,7 @@ module Api
                 reqparams[:pageSize] ||= 100
                 reqparams[:buttonflg] = 'viewtablereq7'
                 reqparams[:screenCode] = params[:screenCode].sub("head","")
-                str_func = %Q&select * from func_get_name('screen','#{reqparams[:screenCode]}','#{reqparams[:email]}')&
+                str_func = %Q&select * from func_get_name('screen','#{reqparams[:screenCode]}','#{reqparams["email"]}')&
                 reqparams[:screenName] = ActiveRecord::Base.connection.select_value(str_func)
                 if reqparams[:screenName].nil?
                     reqparams[:screenName] = reqparams[:screenCode]

@@ -169,7 +169,7 @@ module RorBlkCtl
 					gantt["starttime_trn"] =  @tbldata[:starttime_trn]   
 					gantt["duedate_trn"]   =  @tbldata[:duedate_trn]     
 					gantt["toduedate_trn"]   =  @tbldata[:toduedate_trn]
-					gantt["persons_id_upd"]   =  setParams[:person_id_upd]
+					gantt["persons_id_upd"]   =  setParams["person_id_upd"]
 					setParams["gantt"] = gantt.dup  	
 					ope = Operation::OpeClass.new(setParams) 	
 					ope.proc_link_lotstkhists_update()	
@@ -480,7 +480,7 @@ module RorBlkCtl
 				case command_c["sio_classname"]
 				when /_add_|_insert_/
 					head = {"paretblname"=>params[:head][:pareScreenCode].split("_")[1],"paretblid"=>params[:head][:id]}
-					detail = {"tblname"=>@tblname,"tblid"=> @tbldata["id"],"persons_id_upd"=>setParams[:person_id_upd]}
+					detail = {"tblname"=>@tblname,"tblid"=> @tbldata["id"],"persons_id_upd"=>setParams["person_id_upd"]}
 					ArelCtl.proc_insert_linkheads(head,detail)
 					###親
 					paretbldata = ActiveRecord::Base.connection.select_one("select * from #{head["paretblname"]} where id = #{head["paretblid"]} ")
@@ -652,10 +652,10 @@ module RorBlkCtl
 				gantt["consumchgoverqty"] = 0  ###段取り消費数
 				gantt["remark"] = " RorBlkCtl line:#{__LINE__} "
 				gantt["qty_require"] = 0
-				gantt["persons_id_upd"]   =  setParams[:person_id_upd]
+				gantt["persons_id_upd"]   =  setParams["person_id_upd"]
 		 	else
 				gantt = setParams["gantt"].dup
-				gantt["persons_id_upd"]   =  setParams[:person_id_upd]
+				gantt["persons_id_upd"]   =  setParams["person_id_upd"]
 				if  @tblname == "dymschs"
 					gantt["shuffle_flg"] = "0"
 				   ####

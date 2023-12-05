@@ -687,8 +687,8 @@ class TblClass
 													field["screenfield_crtfield"]	
 												end
 		
-		command_c["id"] = ArelCtl.proc_get_nextval("screenfields_seq")	
-		command_c["screenfield_created_at"] = Time.now	
+		command_r["id"] = ArelCtl.proc_get_nextval("screenfields_seq")	
+		command_r["screenfield_created_at"] = Time.now	
 		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r["sio_result_f"] ==   "9"

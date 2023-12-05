@@ -112,8 +112,8 @@ module Api
                     render json: {:tasks=>tasks}   
                 when "updateNditm"
                     reqparams = params.dup
-                    reqparams[:email] = current_api_user[:email]
-                    strsql = "select code,id from persons where email = '#{reqparams[:email]}'"
+                    reqparams["email"] = current_api_user[:email]
+                    strsql = "select code,id from persons where email = '#{reqparams["email"]}'"
                     person = ActiveRecord::Base.connection.select_one(strsql)
                     if person.nil?
 						reqparams["status"] = 403
@@ -122,8 +122,8 @@ module Api
                         render json: {:params => reqparams}
                         return   
                     end
-                    reqparams[:person_code_upd] = person["code"]
-                    reqparams[:person_id_upd] = person["id"]
+                    reqparams["person_code_upd"] = person["code"]
+                    reqparams["person_id_upd"] = person["id"]
                     gantt_name = JSON.parse(params[:task])["name"]
                     if params[:screenCode] =~ /itm/
                         itm,processseq,loca, qty,numberOfItems = gantt_name.split(",")
@@ -171,8 +171,8 @@ module Api
                     end   
                 when "updateTrngantt"
                     reqparams = params.dup
-                    reqparams[:email] = current_api_user[:email]
-                    strsql = "select code,id from persons  where email = '#{reqparams[:email]}'"
+                    reqparams["email"] = current_api_user[:email]
+                    strsql = "select code,id from persons  where email = '#{reqparams["email"]}'"
                     person = ActiveRecord::Base.connection.select_one(strsql)
                     if person.nil?
 						reqparams["status"] = 403
@@ -180,8 +180,8 @@ module Api
                         render json: {:params => reqparams}
                         return   
                     end
-                    reqparams[:person_code_upd] = person["code"]
-                    reqparams[:person_id_upd] = person["id"]
+                    reqparams["person_code_upd"] = person["code"]
+                    reqparams["person_id_upd"] = person["id"]
                     gantt_name = JSON.parse(params[:task])["name"]
                     tbl_sno,item,processseq,loca, qty,parent = gantt_name.split(",")
                     tblname,sno = tbl_sno.split(":")

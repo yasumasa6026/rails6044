@@ -49,9 +49,9 @@ export function* ScreenSaga({ payload: {params}  }) {
             case 'inlineadd7':  //追加画面要求
               params = {...response.data.params,err:null,parse_linedata:{},index:0,clickIndex:[]}
               if(params.screenFlg==="second")
-                  {return yield put({type:SECOND_SUCCESS7,payload:{data:response.data,params:params} })}
+                  {return yield put({type:SECOND_SUCCESS7,payload:{data:response.data,params:{...params,index:-1}} })}
               else
-                  {return yield put({ type:SCREEN_SUCCESS7, payload:{data:response.data,params:params}})}
+                  {return yield put({ type:SCREEN_SUCCESS7, payload:{data:response.data,params:{...params,index:-1}}})}
             case "confirm7":  //データ更新時のEnteのbuttonflgはinlineedit7やinlineadd7ではなくてconfirm7になる。更新実行
               lineData  = response.data.params.parse_linedata
               params = {...params,screenFlg:response.data.params.screenFlg,

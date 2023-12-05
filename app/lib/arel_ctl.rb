@@ -46,7 +46,7 @@ module ArelCtl
 		if reqparams["seqno"].nil?
 			reqparams["seqno"] = []
 		end	
-		strsql = %Q%select id from persons where email = '#{reqparams[:email]}'
+		strsql = %Q%select id from persons where email = '#{reqparams["email"]}'
 		%
 		person_id = ActiveRecord::Base.connection.select_value(strsql)
 		reqparams["seqno"] << processreqs_id  ###
@@ -71,7 +71,7 @@ module ArelCtl
 	end
 
 	def proc_createtable fmtbl,totbl,fmview,params  ### fmtbl:元のテーブル totbl:fmtblから自動作成するテーブル
-		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{params[:email]}','r_#{totbl}')
+		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{params["email"]}','r_#{totbl}')
 		%
 		toFields = ActiveRecord::Base.connection.select_values(strsql) 
 		blk = RorBlkCtl::RorClass.new("r_#{totbl}")
@@ -214,7 +214,7 @@ module ArelCtl
 			else
 				"_update_proc_createtable_data"
 			end
-		command_c["#{totbl.chop}_person_id_upd"] = params[:person_id_upd]
+		command_c["#{totbl.chop}_person_id_upd"] = params["person_id_upd"]
 		command_c["id"] = ArelCtl.proc_get_nextval("#{totbl}_seq")
 		blk.proc_create_tbldata(command_c)
 		blk.proc_private_aud_rec({},command_c)
@@ -222,7 +222,7 @@ module ArelCtl
 
 	def proc_createDetailTableFmHead  headTbl,baseTbl,headCommand,fmView,params
 		detailTbl = headTbl.sub(/heads$/,"s") 
-		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{params[:email]}','r_#{detailTbl}')
+		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{params["email"]}','r_#{detailTbl}')
 		%
 		toFields = ActiveRecord::Base.connection.select_values(strsql) 
 		blk = RorBlkCtl::RorClass.new("r_#{detailTbl}")
@@ -270,7 +270,7 @@ module ArelCtl
 			else
 				"_update_proc_createtable_data"
 			end
-		command_c["#{headTbl.chop}_person_id_upd"] = params[:person_id_upd]
+		command_c["#{headTbl.chop}_person_id_upd"] = params["person_id_upd"]
 		command_c["id"] = ArelCtl.proc_get_nextval("#{headTbl}_seq")
 		blk.proc_create_tbldata(command_c)
 		blk.proc_private_aud_rec({},command_c)

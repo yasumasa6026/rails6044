@@ -1,14 +1,9 @@
-import {  GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
+import {  GANTTCHART_SUCCESS,
           UPDATENDITM_REQUEST,UPDATEALLOC_REQUEST,LOGOUT_REQUEST,} from '../../actions'
 const initialValues = {tasks:[],loading:true,isChecked:true}
 
 const ganttreducer =  (state= initialValues , actions) =>{
   switch (actions.type) {
-    case GANTTCHART_REQUEST:
-       return {...state,
-        params:actions.payload.params,
-        loading:true,
-     }
 
     case GANTTCHART_SUCCESS:
      return {...state,

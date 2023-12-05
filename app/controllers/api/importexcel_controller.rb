@@ -19,7 +19,7 @@ class ImportexcelController < ApplicationController
         ###if @importexcel.save
         jparams = params.dup
         tblname = params[:screenCode].split("_")[1]
-        strsql = "select code,id from persons where email = '#{params[:email]}'"
+        strsql = "select code,id from persons where email = '#{params["email"]}'"
         person = ActiveRecord::Base.connection.select_one(strsql)
         if person.nil?
             reqparams["status"] = 403
@@ -27,8 +27,8 @@ class ImportexcelController < ApplicationController
             render json: {:params => reqparams}
             return   
         end
-        jparams[:person_code_upd] = person["code"]
-        jparams[:person_id_upd] = person["id"]
+        jparams["person_code_upd"] = person["code"]
+        jparams["person_id_upd"] = person["id"]
         jparams[:importData] = {}  ###jparamsではimportdataは使用しない。processreqへの保存対象外
         jparams[:buttonflg] = "import"
         command_c = {}

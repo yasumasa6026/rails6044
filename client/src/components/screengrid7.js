@@ -700,6 +700,7 @@ const GridTable = ({
               <tr {...row.getRowProps({
                   style: {
                       backgroundColor: row.isSelected ? 'lime' :
+                      params.index === row.index?'lime' :
                       row.index % 2 === 0 ? 'ivory' : 'lightgray',
                       },
                   onClick: e => {
@@ -721,18 +722,14 @@ const GridTable = ({
                             data.map((line,idx) => params["clickIndex"].push({lineId:idx,id:line["id"],
                                                     screenCode:params.screenCode,sNo:line[sNo]})
                             )  
-                            params["index"] = 0
+                            params["index"] = -1
                           }else{
                             toggleAllRowsSelected(false)
-                            // params["clickIndex"] = []  //変更内容は変化しない
-                            // params["index"] = null
-                            params = {...params,clickIndex:[],index:null}
+                            params = {...params,clickIndex:[],index:-1}
                           }
                       }else{
                         if(row.isSelected){
                           row.toggleRowSelected(false)
-                            // params.clickIndex[row.index] = {}
-                            // params["index"] = null
                             params["clickIndex"].map((click,idx)=>{if(click["lineId"]===row.index){return params["clickIndex"][idx]={}}})
                             params["clickIndex"].map((click,idx)=>{if(click["lineId"]){return params["index"]=click["lineId"]}}
                             )                       

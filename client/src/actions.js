@@ -74,6 +74,7 @@ export const GANTT_RESET = 'GANTT_RESET'
 export const GANTTCHART_REQUEST = 'GANTTCHART_REQUEST'
 export const GANTTCHART_FAILURE = 'GANTTCHART_FAILURE'
 export const GANTTCHART_SUCCESS = 'GANTTCHART_SUCCESS'
+
 export const UPDATENDITM_REQUEST = 'UPDATENDITM_REQUEST'
 export const UPDATENDITM_SUCCESS = 'UPDATENDITM_SUCCESS'
 export const UPDATENDITM_FAILURE = 'UPDATENDITM_FAILURE'
@@ -327,6 +328,7 @@ export const GanttChartSuccess = (params,auth) => ({
   type:  GANTTCHART_SUCCESS,
   payload: { params,auth}  //
 })
+
 
 export const GanttChartFailure = (params,auth) => ({
   type:  GANTTCHART_FAILURE,

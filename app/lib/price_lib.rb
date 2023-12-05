@@ -19,7 +19,7 @@ module PriceLib
 
 		###
 		### 作成中
-		return command_c  ### 完了後はcut
+		###return command_c  ### 完了後はcut
 		###
 
 		case tblnamechop

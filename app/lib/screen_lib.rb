@@ -9,7 +9,7 @@ module ScreenLib
 		
 		def initialize(params)
 			@screenCode = params[:screenCode]
-			@proc_grp_code =  ActiveRecord::Base.connection.select_value("select usrgrp_code from r_persons where person_email = '#{params[:email]}'")
+			@proc_grp_code =  ActiveRecord::Base.connection.select_value("select usrgrp_code from r_persons where person_email = '#{params["email"]}'")
 			if @proc_grp_code.nil?
 				p "add person to his or her email "
 				raise   ### 別画面に移動する　後で対応
@@ -37,7 +37,7 @@ module ScreenLib
 			@grid_columns_info = Rails.cache.fetch('screenfield'+@proc_grp_code+screenCode+buttonflg) do
 				@grid_columns_info = {}
 				###  ダブルコーティション　「"」は使用できない。 ####groupBy
-				strsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{screenCode}')"
+				strsql = "select * from  func_get_screenfield_grpname('#{params["email"]}','#{screenCode}')"
 				screenwidth = 0
 				select_fields = ""
 				select_row_fields = ""
@@ -239,7 +239,7 @@ module ScreenLib
 							next
 						end
 					end
-			strsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{screenCode}')
+			strsql = "select * from  func_get_screenfield_grpname('#{params["email"]}','#{screenCode}')
 							where pobject_code_sfd in(#{flds})"
 			ActiveRecord::Base.connection.select_all(strsql).each_with_index do |i,cnt|		
 						select_fields = 	select_fields + 
@@ -545,7 +545,7 @@ module ScreenLib
 
 		def proc_search_blk(params) 
 			setParams = create_filteredstr(params) 
-			str_func = %Q&select * from func_get_name('screen','#{params[:screenCode]}','#{params[:email]}')&
+			str_func = %Q&select * from func_get_name('screen','#{params[:screenCode]}','#{params["email"]}')&
 			setParams[:screenName] = ActiveRecord::Base.connection.select_value(str_func)
 			if setParams[:screenName].nil?
 				setParams[:screenName] = params[:screenCode]
@@ -660,7 +660,7 @@ module ScreenLib
 						when /mkprdpurord_priority|mkprdpurord_processseq/	
 							temp[cell[:accessor]] = "0"
 						when /person_code_chrg/	
-							temp[cell[:accessor]] = params[:person_code_upd]
+							temp[cell[:accessor]] = params["person_code_upd"]
 						when /prjno_code/	
 							temp[cell[:accessor]] = "0"
 						when /custinst_starttime/
@@ -709,7 +709,7 @@ module ScreenLib
 						end
 					when /cust1_custords/   ###custordheadsからの引継ぎ
 						case cell[:accessor]
-						when  /custord_sno$|custord_cno$|custord_amt$|custord_created_at|custord_updated_at/  ###親からの引継ぎなし
+						when  /custord_sno$|custord_cno$|custord_amt$|custord_tax$|custord_created_at|custord_updated_at/  ###親からの引継ぎなし
 							next
 						when /custord_gno/
 							temp[cell[:accessor]] = custhead["custordhead_cno"]
@@ -743,7 +743,7 @@ module ScreenLib
 			download_columns_info = {}
 			###download_columns_info = Rails.cache.fetch('download'+@proc_grp_code+screenCode) do
 				###  ダブルコーティション　「"」は使用できない。 
-				strsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{screenCode}')"
+				strsql = "select * from  func_get_screenfield_grpname('#{params["email"]}','#{screenCode}')"
 				ActiveRecord::Base.connection.select_all(strsql).each do |i|
 					contents = []
 					if i["screenfield_hideflg"] == "0"
@@ -813,7 +813,7 @@ module ScreenLib
 		def proc_create_upload_editable_columns_info params,buttonflg
 			upload_columns_info = Rails.cache.fetch('uploadscreenfield'+@proc_grp_code+screenCode) do
 				###  ダブルコーティション　「"」は使用できない。 
-				strsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{screenCode}')"
+				strsql = "select * from  func_get_screenfield_grpname('#{params["email"]}','#{screenCode}')"
 				columns_info = []
 				page_info = {}
 				init_where_info = {}
@@ -994,7 +994,7 @@ module ScreenLib
 				else         
 				  command_c["sio_classname"] = "_edit_update_grid_linedata"
 				end
-				command_c["#{tblnamechop}_person_id_upd"] = setParams[:person_id_upd]
+				command_c["#{tblnamechop}_person_id_upd"] = setParams["person_id_upd"]
 				command_c = blk.proc_create_tbldata(command_c) ##:
 				case screenCode 
 				when /tblfields/  ###前処理 　 　
@@ -1098,7 +1098,7 @@ module ScreenLib
 															end
 								gantt["qty_sch"] = CtlFields.proc_cal_qty_sch(gantt["qty_sch_pare"].to_f,gantt["chilnum"].to_f,gantt["parenum"].to_f,
 															gantt["consumunitqty"],gantt["consumminqty"].to_f,gantt["consumchgoverqty"].to_f)
-								gantt["persons_id_upd"] = params[:person_id_upd]
+								gantt["persons_id_upd"] = params["person_id_upd"]
 								ArelCtl.proc_insert_trngantts(gantt)   ###子。孫への展開はない
 							rescue
 								command_c[:confirm] = false

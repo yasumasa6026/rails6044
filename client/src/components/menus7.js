@@ -147,7 +147,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                         parse_linedata:{},
                         filtered:[],where_str:"",sortBy:[],screenFlg:"first",
                         screenCode:screenCode,pageIndex:0,pageSize:20,
-                        index:0,err:null,clickIndex:[],
+                        index:-1,err:null,clickIndex:[],
                         buttonflg:"inlineedit7",viewName:view_name} 
             break
           default:
@@ -156,7 +156,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                         filtered:[],where_str:"",
                         sortBy:[],groupBy:[],aggregated:[],
                         screenFlg:"first",screenCode:screenCode,pageIndex:0,pageSize:20,
-                        index:0,clickIndex:[],err:null,
+                        index:-1,clickIndex:[],err:null,
                         buttonflg:"viewtablereq7",viewName:view_name} 
         }
         dispatch(ScreenInitRequest(params,auth))}   //data:null

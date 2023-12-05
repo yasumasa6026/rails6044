@@ -1,9 +1,18 @@
 # -*- coding: utf-8 -*-
 module CtlFields
-	extend self		
-	def  proc_chk_fetch_rec params  
+	extend self
+	def proc_chk_fetch_rec params
+		fetchview = ""
+		params[:fetchview].split(",").each do |fetch|
+			fetchview,delm = fetch.split(":")   ## YupSchemaでparagrapfをもとに作成済　split(":")拡張子の確認
+			delm ||= ""
+			params = detail_chk_fetch_rec(params,fetchview,delm)	
+		end
+		return params
+	end
+	def  detail_chk_fetch_rec(params,fetchview,delm)
 		params[:err] = nil
-		line_data,keys,findstatus,mainviewflg,missing = get_fetch_rec(params)
+		line_data,keys,findstatus,mainviewflg,missing = get_fetch_rec(params,fetchview,delm)
 		params[:parse_linedata] = line_data.dup
 	  	if findstatus
 			if mainviewflg   ##mainviewflg = true 自分自身の登録
@@ -57,12 +66,11 @@ module CtlFields
 	  	return params 
 	end  
 
-	def get_fetch_rec(params)
+	def get_fetch_rec(params,fetchview,delm)
 			keys = ""
 			xno = ""
 			srctblnamechop = ""
 			screentblnamechop = params[:screenCode].split("_")[1].chop
-			fetchview = params[:fetchview].split(":")[0]  ## YupSchemaでparagrapfをもとに作成済　split(":")拡張子の確認
 			viewtblnamechop = fetchview.split("_")[1].chop
 			line_data = params[:parse_linedata].dup
 			mainviewflg = true  ##自分自身の登録か？
@@ -70,14 +78,14 @@ module CtlFields
 			if params[:screenCode].split("_")[1] != fetchview.split("_")[1] 
 					mainviewflg = false
 			else
-				if fetchview.split(":")[1]   ###自身のテーブルを参照しいるとき
+				if delm != ""   ###自身のテーブルを参照しいるとき
 					mainviewflg = false
 				end	
-			end	  
+			end
+			flgfetchview = fetchview + if delm == "" then "" else ":#{delm}" end	  
 			fetcfieldgetsql = "select pobject_code_sfd from r_screenfields
 								 where pobject_code_scr =  '#{params[:screenCode]}' 
-								 and screenfield_paragraph = '#{params[:fetchview]}'"
-			delm = ""
+								 and screenfield_paragraph  like '%#{flgfetchview}%'"
 			missing = false   ###missing:true パラメータが未だ未設定　　false:チェックok
 			where_strsql = ""
 			fetchs = ActiveRecord::Base.connection.select_all(fetcfieldgetsql)
@@ -104,7 +112,6 @@ module CtlFields
 						# when /linkhead_sno|linkhead_cno|linkhead_packingListNo/
 						# 	###何もしない
 						else
-							delm = (params[:fetchview].split(":")[1]||="")  ###/_sno_|_cno_|_gno_|_packinglistno_/の時はdelm意味なし
 							if delm == ""
 								where_strsql << "  #{fetch["pobject_code_sfd"]} = '#{params[:parse_linedata][fetch["pobject_code_sfd"].to_sym]}'        and"
 							else
@@ -117,7 +124,7 @@ module CtlFields
 					if cnt >= fetchs.to_a.size
 						case fetch["pobject_code_sfd"]
 						when  /_sno_|_cno_|_packinglistno_/ ###duedate,starttime,expiredateの引継ぎがあるとき
-							viewstrsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{fetchview}')"
+							viewstrsql = "select * from  func_get_screenfield_grpname('#{params["email"]}','#{fetchview}')"
 							select_fields = ""
 							ActiveRecord::Base.connection.select_all(viewstrsql).each_with_index do |i|			
 								select_fields = 	select_fields + 
@@ -294,6 +301,7 @@ module CtlFields
 								line_data[:crr_code] = rec["crr_code_bill_cust"]
 								line_data[:crr_name] = rec["crr_name_bill_cust"]
 								line_data[:custord_contractprice] = rec["cust_contractprice"]
+								line_data[:cust_amtround] = rec["cust_amtround"]
 							end 
 						when  /itms$/ 
 							if line_data[:shelfno_code_fm] == "" or line_data[:shelfno_code_fm].nil? 
@@ -376,7 +384,7 @@ module CtlFields
 		return params 
 	end	
 
-	def judge_check_opeitm_loca
+	def judge_check_opeitm_loca params,sfd
 		line_data = params[:parse_linedata]
 		case line_data[:opeitm_prdpur]
 		when "pur"
@@ -411,29 +419,30 @@ module CtlFields
 			end
 		else	
 			if line_data[:screenfield_paragraph]
-				screen,delm = line_data[:screenfield_paragraph].split(":",2)
-				if line_data[:pobject_code_sfd] =~ /_sno_|_cno_|_gno_|_packinglistno_/
-					case line_data[:pobject_code_sfd] 
-					when /_tblname/
-						field =  line_data[:pobject_code_sfd]
-					when /_sno_/
-						field = line_data[:pobject_code_sfd].split("_sno_")[1] + "_sno"
-					when /_cno_/
-						field = line_data[:pobject_code_sfd].split("_cno_")[1] + "_cno"
-					when /_gno_/
-						field = line_data[:pobject_code_sfd].split("_gno_")[1] + "_gno"
-					when /_packinglistno_/  ###invoiceに梱包と保守が含まれるときgnoは使用できない。
-						field = line_data[:pobject_code_sfd].split("_packinglistno_")[1] + "_packinglistno"
+				line_data[:screenfield_paragraph].split(",").each do |paragraph|
+					screen,delm = paragraph.split(":",2)
+					if line_data[:pobject_code_sfd] =~ /_sno_|_cno_|_gno_|_packinglistno_/
+						case line_data[:pobject_code_sfd] 
+						when /_tblname/
+							field =  line_data[:pobject_code_sfd]
+						when /_sno_/
+							field = line_data[:pobject_code_sfd].split("_sno_")[1] + "_sno"
+						when /_cno_/
+							field = line_data[:pobject_code_sfd].split("_cno_")[1] + "_cno"
+						when /_gno_/
+							field = line_data[:pobject_code_sfd].split("_gno_")[1] + "_gno"
+						when /_packinglistno_/  ###invoiceに梱包と保守が含まれるときgnoは使用できない。
+							field = line_data[:pobject_code_sfd].split("_packinglistno_")[1] + "_packinglistno"
+						else
+						end
 					else
+						if delm
+							field =  line_data[:pobject_code_sfd].gsub(delm,"")
+						else	
+							field =  line_data[:pobject_code_sfd]
+						end
 					end
-				else
-					if delm
-						field =  line_data[:pobject_code_sfd].gsub(delm,"")
-					else	
-						field =  line_data[:pobject_code_sfd]
-					end
-				end
-				strsql = %Q%
+					strsql = %Q%
 							SELECT	pg_views.viewname AS view_name,column_name
 		   						FROM   pg_views
 			   					inner join information_schema.columns on table_name = pg_views.viewname 
@@ -454,13 +463,13 @@ module CtlFields
 								and nsp.nspname =  current_schema()
 								and att.attname = '#{field}'			   				
 						%
-				rec = ActiveRecord::Base.connection.select_one(strsql)
-				if rec
-					params[:err] = nil
-				else
-					params[:err] =  "error 5 3   --->view or field  #{line_data[:screenfield_paragraph]}　not find line:#{params[:index]} "
+					rec = ActiveRecord::Base.connection.select_one(strsql)
+					if rec
+						params[:err] = nil
+					else
+						params[:err] =  "error 5 3   --->view or field  #{line_data[:screenfield_paragraph]}　not find line:#{params[:index]} "
+					end
 				end
-			else
 			end
 		end
 		return params
@@ -757,11 +766,14 @@ module CtlFields
 					decimal = ActiveRecord::Base.connection.select_value(strsql)
 					case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
 					when "1"
-						line_data[:purord_amt] = line_data[:purord_amt].floor(decimal.to_i + 1)
+						line_data[:purord_amt] = line_data[:purord_amt].floor(decimal.to_i )
+						line_data[:purtord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).floor(decimal.to_i )
 					when "2"
 						line_data[:purord_amt] = line_data[:purord_amt].round(decimal.to_i + 1)
+						line_data[:purtord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).round(decimal.to_i )
 					when "3"
-						line_data[:purord_amt] = line_data[:purord_amt].ceil(decimal.to_i + 1)
+						line_data[:purord_amt] = line_data[:purord_amt].ceil(decimal.to_i )
+						line_data[:purtord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).ceil(decimal.to_i )
 					end
 				else
 				end
@@ -790,11 +802,14 @@ module CtlFields
 				line_data[:purdlv_amt] = line_data[:purdlv_qty].to_f * price["price"].to_f
 				case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
 				when "1"
-					line_data[:purdlv_amt] = line_data[:purdlv_amt].floor(decimal + 1)
+					line_data[:purdlv_amt] = line_data[:purdlv_amt].floor(decimal )
+					line_data[:purtdlv_tax] = (line_data[:purdlv_amt] * line_data[:purdlv_taxrate].to_f / 100).floor(decimal.to_i )
 				when "2"
-					line_data[:purdlv_amt] = line_data[:purdlv_amt].round(decimal + 1)
+					line_data[:purdlv_amt] = line_data[:purdlv_amt].round(decimal )
+					line_data[:purtdlv_tax] = (line_data[:purdlv_amt] * line_data[:purdlv_taxrate].to_f / 100).round(decimal.to_i )
 				when "3"
 					line_data[:purdlv_amt] = line_data[:purdlv_amt].ceil(decimal + 1)
+					line_data[:purtdlv_tax] = (line_data[:purdlv_amt] * line_data[:purdlv_taxrate].to_f / 100).ceil(decimal.to_i )
 				end
 			else
 				line_data[:purdlv_contractprice] = "C"
@@ -819,11 +834,14 @@ module CtlFields
 			   line_data[:puract_amt] = line_data[:puract_qty].to_f * price["price"].to_f
 			   case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
 			   when "1"
-					line_data[:puract_amt] = line_data[:puract_amt].floor(decimal + 1)
+					line_data[:puract_amt] = line_data[:puract_amt].floor(decimal )
+					line_data[:purtact_tax] = (line_data[:puract_amt] * line_data[:actdlv_taxrate].to_f / 100).floor(decimal.to_i )
 			   when "2"
-					line_data[:puract_amt] = line_data[:puract_amt].round(decimal + 1)
+					line_data[:puract_amt] = line_data[:puract_amt].round(decimal )
+					line_data[:purtact_tax] = (line_data[:puract_amt] * line_data[:actdlv_taxrate].to_f / 100).round(decimal.to_i )
 			   when "3"
-					line_data[:puract_amt] = line_data[:puract_amt].ceil(decimal + 1)
+					line_data[:puract_amt] = line_data[:puract_amt].ceil(decimal )
+					line_data[:purtact_tax] = (line_data[:puract_amt] * line_data[:actdlv_taxrate].to_f / 100).ceil(decimal.to_i )
 			   end
 			else
 				line_data[:puract_contractprice] = "C"
@@ -870,14 +888,14 @@ module CtlFields
 					decimal = ActiveRecord::Base.connection.select_value(strsql)
 					case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
 					when "1"
-						line_data[:custord_amt] = line_data[:custord_amt].floor(decimal.to_i + 1)
-						line_data[:custord_tax] = (line_data[:custord_amt] * line_data[:custord_taxrate]).floor(decimal + 1)
+						line_data[:custord_amt] = line_data[:custord_amt].floor(decimal.to_i )
+						line_data[:custord_tax] = (line_data[:custord_amt] * line_data[:custord_taxrate].to_f / 100).floor(decimal.to_i )
 					when "2"
-						line_data[:custord_amt] = line_data[:custord_amt].round(decimal.to_i + 1)
-						line_data[:custord_tax] = (line_data[:custord_amt] * line_data[:custord_taxrate]).round(decimal + 1)
+						line_data[:custord_amt] = line_data[:custord_amt].round(decimal.to_i )
+						line_data[:custord_tax] = (line_data[:custord_amt] * line_data[:custord_taxrate].to_f / 100).round(decimal.to_i )
 					when "3"
-						line_data[:custord_amt] = line_data[:custord_amt].ceil(decimal.to_i + 1)
-						line_data[:custord_tax] = (line_data[:custord_amt] * line_data[:custord_taxrate]).ceil(decimal + 1)
+						line_data[:custord_amt] = line_data[:custord_amt].ceil(decimal.to_i )
+						line_data[:custord_tax] = (line_data[:custord_amt] * line_data[:custord_taxrate].to_f / 100).ceil(decimal.to_i )
 					end
 				else
 				end
@@ -902,13 +920,13 @@ module CtlFields
 				case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
 				when "1"
 					line_data[:custdlv_amt] = line_data[:custdlv_amt].floor(decimal + 1)
-					line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate]).floor(decimal + 1)
+					line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate].to_f  / 100).floor(decimal)
 				when "2"
 					line_data[:custdlv_amt] = line_data[:custdlv_amt].round(decimal + 1)
-					line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate]).round(decimal + 1)
+					line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate].to_f  / 100).round(decimal )
 				when "3"
 					line_data[:custdlv_amt] = line_data[:custdlv_amt].ceil(decimal + 1)
-					line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate]).ceil(decimal + 1)
+					line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate].to_f / 100).ceil(decimal )
 				end
 			else
 				line_data[:custdlv_contractprice] = "C"  ###C:マスター単価無
@@ -929,13 +947,13 @@ module CtlFields
 			   	case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
 			   	when "1"
 					line_data[:custact_amt] = line_data[:custact_amt].floor(decimal + 1)
-					line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate]).floor(decimal + 1)
+					line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate].to_f / 100).floor(decimal )
 			   	when "2"
 					line_data[:custact_amt] = line_data[:custact_amt].round(decimal + 1)
-					line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate]).round(decimal + 1)
+					line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate].to_f / 100).round(decimal )
 			   	when "3"
 					line_data[:custact_amt] = line_data[:custact_amt].ceil(decimal + 1)
-					line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate]).ceil(decimal + 1)
+					line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate].to_f / 100).ceil(decimal)
 			   end
 			else
 				line_data[:custact_contractprice] = "C"  ###C:マスター単価無
@@ -959,11 +977,11 @@ module CtlFields
 	 	line_data[symamt] = line_data[symqty].to_f * line_data[symprice].to_f
 		case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
 		when "1"
-		 line_data[symamt] = line_data[symamt].floor(decimal + 1)
+		 line_data[symamt] = line_data[symamt].floor(decimal.to_i )
 		when "2"
-		 line_data[symamt] = line_data[symamt].round(decimal + 1)
+		 line_data[symamt] = line_data[symamt].round(decimal.to_i )
 		when "3"
-		 line_data[symamt] = line_data[symamt].ceil(decimal + 1)
+		 line_data[symamt] = line_data[symamt].ceil(decimal.to_i )
 		end
 		params[:parse_linedata] = line_data.dup
 		return params

@@ -4,6 +4,7 @@ import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
   INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
   SECOND_SUCCESS7,SECOND_CONFIRM7_SUCCESS,
   MKSHPORDS_SUCCESS,SCREEN_DATASET,CHANGE_SHOW_SCREEN,
+  GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
   YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_SUBFORM,LOGIN_SUCCESS} 
   from '../../actions'
 
@@ -185,6 +186,23 @@ case MKSHPORDS_SUCCESS:
     toggleSubForm:false,
     hostError:null,
   }
+
+
+case GANTTCHART_REQUEST:
+    return {...state,
+     loading:true,
+  }  
+  
+case GANTTCHART_SUCCESS:
+  if(actions.payload.screenFlg==="first")
+      {return {...state,
+                params:{...state.params,buttonflg:actions.payload.buttonflg,},
+                loading:false,
+                  message:null,}
+      }else{return {...state,
+          loading:false,
+          message:null,}}
+
 
   case  LOGIN_SUCCESS:
   return {

@@ -239,7 +239,7 @@ module MkordinstLib
 					###
 					###  xxxords作成
 					###
-					command_c["#{tblord}_person_id_upd"] = setParams[:person_id_upd]
+					command_c["#{tblord}_person_id_upd"] = setParams["person_id_upd"]
 					command_c["id"] = ArelCtl.proc_get_nextval("#{tblord}_seq")
 					command_c["#{tblord.chop}_created_at"] = Time.now
 					blk.proc_create_tbldata(command_c)
@@ -249,7 +249,7 @@ module MkordinstLib
 							"itms_id"=>sumSchs["itms_id"],"processseq" => sumSchs["processseq"],
 							"prjnos_id" => sumSchs["prjnos_id"],"starttime" => command_c["#{tblord}_duedate"] ,
 							"shelfnos_id" => command_c["#{tblord}_shelfno_id_to"],
-							"persons_id_upd" => setParams[:person_id_upd],
+							"persons_id_upd" => setParams["person_id_upd"],
 							"qty_sch" => 0,"qty" => command_c["#{tblord}_qty"] ,"qty_stk" => 0,
 							"lotno" => "","packno" => "","qty_src" => command_c["#{tblord}_qty"] , "amt_src"=> 0}
 					stkinout = Shipment.proc_lotstkhists_in_out("in",base)  ###在庫の更新
@@ -323,7 +323,7 @@ module MkordinstLib
 							ActiveRecord::Base.connection.select_all(strsql).each do |sch|   ###trngantts.qty_schの変更
 								sch["new_qty_sch"] = CtlFields.proc_cal_qty_sch(pare["new_qty_sch"],pare["chilnum"],pare["parenum"],
 																		pare["consumunitqty"],pare["consumminqty"],pare["consumchgoverqty"])
-								sch["persons_id_upd"] = reqparams[:person_id_upd]
+								sch["persons_id_upd"] = reqparams["person_id_upd"]
 								ArelCtl.proc_update_linktbls_alloctbls_inoutlotstks(sch)
 								strsql = %Q&
 									update trngantts set qty_sch = #{sch["new_qty_sch"]} ,qty_require = #{sch["new_qty_sch"]} ,
@@ -420,7 +420,7 @@ module MkordinstLib
 			gantt["orgtblname"] = gantt["paretblname"] = gantt["tblname"] = "billinsts"
 			gantt["orgtblid"] = gantt["paretblid"] =  gantt["tblid"] = command_c["id"]
 			setParams["gantt"] = gantt.dup		
-			command_c["billinst_person_id_upd"] = setParams[:person_id_upd]
+			command_c["billinst_person_id_upd"] = setParams["person_id_upd"]
 			command_c["id"] = ArelCtl.proc_get_nextval("billinsts_seq")
 			command_c["billinst_created_at"] = Time.now
 			blk.proc_create_tbldata(command_c)

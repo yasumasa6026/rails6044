@@ -135,7 +135,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     command_c,qty_require = add_update_prdpur_table_from_nditm  nd,parent,tblname,command_c
                                     command_c["id"] = ArelCtl.proc_get_nextval("#{tblname}_seq")
                                     command_c["#{tblname.chop}_created_at"] = Time.now
-                                    command_c = blk.proc_create_tbldata(command_c)
                                     trnganttkey += 1
                                     gantt["key"] = gantt_key + format('%05d', trnganttkey)
                                     gantt["tblname"] = nd["prdpur"] + "schs"
@@ -166,6 +165,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     setParams["child"] = child.dup
                                     command_c["#{gantt["tblname"].chop}_person_id_upd"] = gantt["persons_id_upd"] = setParams["person_id_upd"]
                                     setParams["gantt"] = gantt.dup
+                                    command_c = blk.proc_create_tbldata(command_c)
                                     setParams = blk.proc_private_aud_rec(setParams,command_c) ###create pur,prdschs
                                     if gantt["consumtype"] =~ /CON/  ###出庫 消費と金型・設備の使用
                                         Shipment.proc_create_consume(setParams) do   
@@ -184,7 +184,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     command_c["dymsch_loca_id"] = 0
                                     command_c["id"] = ArelCtl.proc_get_nextval("#{gantt["tblname"]}_seq")
                                     command_c["dymsch_created_at"] = Time.now
-                                    blk.proc_create_tbldata(command_c)
                                     trnganttkey += 1
                                     gantt["key"] = gantt_key + format('%05d', trnganttkey)
                                     gantt["tblid"] = command_c["id"]
@@ -216,6 +215,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     setParams["child"] = child.dup
                                     command_c["dymsch_person_id_upd"] = gantt["persons_id_upd"] = setParams["person_id_upd"]
                                     setParams["gantt"] = gantt.dup
+                                    blk.proc_create_tbldata(command_c)
                                     setParams = blk.proc_private_aud_rec(setParams,command_c) ###create pur,prdschs
                                     if gantt["consumtype"] =~ /CON/  ###出庫 消費と金型・設備の使用
                                         Shipment.proc_create_consume(setParams) do   
@@ -400,13 +400,13 @@ class CreateOtherTableRecordJob < ApplicationJob
  
 	###schsの追加	paretblname =~ /schs$|ords$/の時呼ばれる 
 	def add_update_prdpur_table_from_nditm  nd,parent,paretblname,command_init ### id processreqsのid child-->nditms  parent ===> r_prd,pur XXXs
-        if paretblname =~ /ords/   ###ordsから _schを作成
-            parent["qty_sch"] = parent["qty"]
-            parent.delete("qty") 
-            parent.delete("amt") 
-        end
-		command_c,qty_require = CtlFields.proc_schs_fields_making(nd,parent,"r_"+ nd["prdpur"]+"schs",command_init)
-		return command_c,qty_require
+            if paretblname =~ /ords/   ###ordsから _schを作成
+                parent["qty_sch"] = parent["qty"]
+                parent.delete("qty") 
+                parent.delete("amt") 
+            end
+		    command_c,qty_require = CtlFields.proc_schs_fields_making(nd,parent,"r_"+ nd["prdpur"]+"schs",command_init)
+		    return command_c,qty_require
     end
         
     # def  custxxx_strsql tbldata

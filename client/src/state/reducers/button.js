@@ -85,8 +85,6 @@ message:null,
 }
 
 
-
-
 case  LOGOUT_REQUEST:
 return {}  
 

@@ -842,7 +842,7 @@ module GanttChart
 	###
 	def uploadgantt params  ### trnは別
 		ActiveRecord::Base.connection.begin_db_transaction()
-        params[:person_id_upd] =  ActiveRecord::Base.connection.select_value("select id from persons where email = '#{reqparams[:email]}'")   ###########   LOGIN USER
+        params["person_id_upd"] =  ActiveRecord::Base.connection.select_value("select id from persons where email = '#{reqparams["email"]}'")   ###########   LOGIN USER
 		@sio_session_counter = user_seq_nextval
 		@ganttdata = params[:tasks]
 		@err = false

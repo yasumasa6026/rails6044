@@ -3,6 +3,7 @@ import {LOGIN_REQUEST,LOGOUT_REQUEST,LOGIN_SUCCESS,  //SECONDSCREEN_REQUEST,
         SECOND_CONFIRMALL_SUCCESS,SECOND_SUCCESS7,SECOND_DATASET,
         SECOND_CONFIRM7,SECOND_CONFIRM7_SUCCESS,SECOND_FAILURE, SECONDFETCH_REQUEST,SECOND_SUBFORM,
         SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT, CHANGE_SHOW_SCREEN,
+        GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
         SCREENINIT_REQUEST, SCREEN_SUCCESS7,SCREEN_REQUEST,} from '../../actions'
 
         const initialValues = {data:[],
@@ -130,6 +131,26 @@ const secondreducer =  (state = initialValues , actions) =>{
                     hiddenColumns:[]},}
 
     
+    case GANTTCHART_REQUEST:
+        return {...state,
+        loading:true,
+    }  
+
+
+    case GANTTCHART_SUCCESS: 
+    if(actions.payload.screenFlg==="second")
+        {return {...state,
+                  params:{...state.params,buttonflg:actions.payload.buttonflg,},
+                  loading:false,
+                    message:null,}
+        }else{return {...state,
+            loading:false,
+            message:null,}}
+      
+    
+
+
+
   case  LOGIN_REQUEST:
   case  LOGIN_SUCCESS:
     return {

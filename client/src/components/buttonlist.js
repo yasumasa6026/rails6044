@@ -14,7 +14,7 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,ButtonFlgRequest,ScreenF
 
  const  ButtonList = ({auth,buttonListData,doButtonFlg,buttonflg,
                         screenCode,data,params,downloadloading,
-                        pareScreenCode,message,messages, loading,//  editableflg,message
+                        pareScreenCode,message,messages, loading,screenFlg//  editableflg,message
                       }) =>{
       let tmpbuttonlist = {}
       if(buttonListData){
@@ -50,7 +50,7 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,ButtonFlgRequest,ScreenF
             </Tabs>
         }
         
-        {(buttonflg==="ganttchart"||buttonflg==="reversechart")&&<GanttTask /> }
+        {(buttonflg==="ganttchart"||buttonflg==="reversechart")&&screenFlg===params.screenFlg&&<GanttTask /> }
         {buttonflg==='import'&&<ImportExcel/>}
         {buttonflg==="export"&&downloadloading==="done"?<Download/>:downloadloading==="doing"?<p>please wait </p>:""}
         {buttonflg==="createTblViewScreen"&&params.messages.map((msg,index) =>{
@@ -81,6 +81,7 @@ const  mapStateToProps = (state,ownProps) =>{
       disabled:state.second.disabled?true:false,
       pareScreenCode:state.second.params.screenCode ,  
       loading:state.button.loading,
+      screenFlg:ownProps.screenFlg,
       }
     }else{
       return{
@@ -96,7 +97,8 @@ const  mapStateToProps = (state,ownProps) =>{
         downloadloading:state.button.downloadloading,
         disabled:state.button.disabled?true:false,
         pareScreenCode:null ,  
-        loading:state.button.loading,  
+        loading:state.button.loading, 
+        screenFlg:ownProps.screenFlg,
       }
     }
  // originalreq:state.screen.originalreq,map
@@ -159,7 +161,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
 
           case "ganttchart":
                   if(typeof(params.index)==="number"){
-                      params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"ganttchart",}
+                      params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"ganttchart",screenFlg:ownProps.screenFlg}
                       return  dispatch(GanttChartRequest(params)) }//
                   else{alert("please select")}  
                   break
