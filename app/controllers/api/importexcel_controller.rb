@@ -161,8 +161,8 @@ class ImportexcelController < ApplicationController
                 when "add" 
                     command_c["sio_classname"] = "_add_grid_linedata"
                     command_c["id"] = ArelCtl.proc_get_nextval("#{tblname}_seq")
-                    command_c[@tblname.chop+"_id"] = command_c["id"] 
-                    command_c["#{@tblname.chop}_created_at"] = Time.now 
+                    command_c[tblname.chop+"_id"] = command_c["id"] 
+                    command_c["#{tblname.chop}_created_at"] = Time.now 
                 when "update"         
                     command_c["sio_classname"] = "_update_grid_linedata"
                 when "delete"       
@@ -177,6 +177,7 @@ class ImportexcelController < ApplicationController
                         performSeqNos << setParams["seqno"][0]
                     end
                 else
+                    ActiveRecord::Base.connection.rollback_db_transaction()
                 end
                 results[:rows] << parse_linedata 
             end

@@ -59,6 +59,32 @@ truncate table instks cascade;
 truncate table outstks cascade;
 truncate table mkordorgs cascade;
 
+
+ truncate table  dvsacts cascade;
+
+ truncate table  dvsinsts cascade;
+
+ truncate table  dvsords cascade;
+
+ truncate table  dvsschs cascade;
+
+ truncate table  ercacts cascade;
+
+ truncate table  ercinsts cascade;
+
+ truncate table  ercords cascade;
+
+ truncate table  ercschs cascade;
+
+ truncate table  mnfacts cascade;
+
+ truncate table  mnfinsts cascade;
+
+ truncate table  mnfords cascade;
+
+ truncate table  mnfschs cascade;
+
+
 --insert into lotstkhists(id,
 --									itms_id,shelfnos_id,
 --									prjnos_id,
@@ -163,11 +189,26 @@ truncate table sio.sio_r_mkordterms  cascade;
 truncate table sio.sio_r_mkordorgs cascade;
 
 
+ truncate table  sio.sio_r_dvsacts cascade;
+ truncate table  sio.sio_r_dvsinsts cascade;
+ truncate table  sio.sio_r_dvsords cascade;
+ truncate table  sio.sio_r_dvsschs cascade;
+ truncate table  sio.sio_r_ercacts cascade;
+ truncate table  sio.sio_r_ercinsts cascade;
+ truncate table  sio.sio_r_ercords cascade;
+ truncate table  sio.sio_r_ercschs cascade;
+ truncate table  sio.sio_r_mnfacts cascade;
+ truncate table  sio.sio_r_mnfinsts cascade;
+ truncate table  sio.sio_r_mnfords cascade;
+ truncate table  sio.sio_r_mnfschs cascade;
+
+
 REFRESH MATERIALIZED view  r_pobjects;
 REFRESH MATERIALIZED view  r_fieldcodes;
 REFRESH MATERIALIZED view r_blktbs ;
-REFRESH MATERIALIZED view r_tblfields; 
-REFRESH MATERIALIZED view r_screenfields; 
+REFRESH MATERIALIZED view r_tblfields;  
+REFRESH MATERIALIZED view r_screens; 
+REFRESH MATERIALIZED view r_screenfields;
 ---REFRESH MATERIALIZED view r_itms ;
 ---REFRESH MATERIALIZED view r_opeitms; 
 ---REFRESH MATERIALIZED view r_nditms; 

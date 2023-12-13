@@ -4,6 +4,7 @@ import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
   INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
   SECOND_SUCCESS7,SECOND_CONFIRM7_SUCCESS,
   MKSHPORDS_SUCCESS,SCREEN_DATASET,CHANGE_SHOW_SCREEN,
+  TBLFIELD_REQUEST,TBLFIELD_SUCCESS,
   GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
   YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_SUBFORM,LOGIN_SUCCESS} 
   from '../../actions'
@@ -189,7 +190,9 @@ case MKSHPORDS_SUCCESS:
 
 
 case GANTTCHART_REQUEST:
+case TBLFIELD_REQUEST:
     return {...state,
+     params:actions.payload.params, 
      loading:true,
   }  
   
@@ -202,6 +205,15 @@ case GANTTCHART_SUCCESS:
       }else{return {...state,
           loading:false,
           message:null,}}
+
+
+case TBLFIELD_SUCCESS:
+            return {...state,
+            params: {...state.params,messages:actions.payload.messages},
+            disabled:false,
+            loading:false,
+            }
+            
 
 
   case  LOGIN_SUCCESS:

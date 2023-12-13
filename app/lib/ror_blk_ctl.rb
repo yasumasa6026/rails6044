@@ -448,16 +448,14 @@ module RorBlkCtl
 
 			if @tblname =~ /^prd|^pur|^cust|dymschs/ 
 				setParams["tbldata"] = @tbldata.dup	###変更されているため再セット
+				ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
 				case  @tblname
-				when /prdschs$|purschs$|^custords/
-					# processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
-                    ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
+				when /^prdschs$|^purschs$|^custords$/
 					setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
 					setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
 					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
 					###schsの時はshpschs,conschsは作成しない
-				when /^prdords|^purords/
-                    ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
+				when /^prdords$|^purords$/
 					setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
 					if mkprdpurords_id == 0
 						setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
@@ -468,9 +466,7 @@ module RorBlkCtl
 					end
 					setParams["segment"]  = "mkShpschConord"  ### XXXXschs,ordsの時XXXschsを作成
 					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
-				when /dymschs$/
-					# processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
-                    ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
+				when /^dymschs$/
 					setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
 				end
 			end
@@ -720,15 +716,15 @@ module RorBlkCtl
 			rec["sio_add_time"] = Time.now
         	rec["sio_result_f"] =  "1"   ## 1 normal end
         	rec["sio_message_contents"] = nil
-          	command_init[(@tblname.chop + "_id")] =  command_c["id"] = @tbldata["id"]
+          	command_c[(@tblname.chop + "_id")] =  command_c["id"] = @tbldata["id"]
 			###画面専用項目は除く
 			command_c.each do |key,val|
-			next if key =~ /gridmessage/
-			next if key =~ /^_/
-			next if key == "confirm"
-			next if key == "aud"
-			next if key == "errPath"
-			rec[key] = val
+				next if key =~ /gridmessage/
+				next if key =~ /^_/
+				next if key == "confirm"
+				next if key == "aud"
+				next if key == "errPath"
+				rec[key] = val
 			end	
 			tbl_add_arel  "SIO_#{command_c["sio_viewname"]}",rec
 		end   ## 
@@ -758,6 +754,8 @@ module RorBlkCtl
 							case (val||="").class.to_s  ### ruby type
 							when  /Time|Date/
 								case key
+								when "created_at","updated_at"
+									%Q& to_timestamp('#{val.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),&
 								when "expiredate"  ###date type
 									%Q& to_date('#{val.strftime("%Y/%m/%d")}','yyyy/mm/dd'),&
 			 					else

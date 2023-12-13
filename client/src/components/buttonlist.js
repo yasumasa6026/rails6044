@@ -13,8 +13,8 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,ButtonFlgRequest,ScreenF
         YupRequest,TblfieldRequest,ResetRequest, } from '../actions'
 
  const  ButtonList = ({auth,buttonListData,doButtonFlg,buttonflg,
-                        screenCode,data,params,downloadloading,
-                        pareScreenCode,message,messages, loading,screenFlg//  editableflg,message
+                        screenCode,data,params,
+                        pareScreenCode, screenFlg//  editableflg,message
                       }) =>{
       let tmpbuttonlist = {}
       if(buttonListData){
@@ -52,16 +52,12 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,ButtonFlgRequest,ScreenF
         
         {(buttonflg==="ganttchart"||buttonflg==="reversechart")&&screenFlg===params.screenFlg&&<GanttTask /> }
         {buttonflg==='import'&&<ImportExcel/>}
-        {buttonflg==="export"&&downloadloading==="done"?<Download/>:downloadloading==="doing"?<p>please wait </p>:""}
+        {buttonflg==="export"&&<Download/>}
         {buttonflg==="createTblViewScreen"&&params.messages.map((msg,index) =>{
                                                 return  <p key ={index}>{msg}</p>
                                                   }
                                                )}
-      <p>{message}</p> 
-        {messages&&messages.map((val,index) => 
-                     <p key={index} > {val}</p>
-      )}  
-        {loading?<p>Loading...</p>:""}
+      
         </div>    
       )
     }
@@ -76,11 +72,8 @@ const  mapStateToProps = (state,ownProps) =>{
       data:state.second.data ,  
       screenCode:state.second.params.screenCode ,  
       screenName:state.second.params.screenName ,  
-      message:state.second.loading?" second_screen doing ...":"",
-      messages:state.button.messages,
       disabled:state.second.disabled?true:false,
-      pareScreenCode:state.second.params.screenCode ,  
-      loading:state.button.loading,
+      pareScreenCode:state.second.params.screenCode , 
       screenFlg:ownProps.screenFlg,
       }
     }else{
@@ -92,12 +85,8 @@ const  mapStateToProps = (state,ownProps) =>{
         data:state.screen.data ,  
         screenCode:state.screen.params.screenCode ,  
         screenName:state.screen.params.screenName ,  
-        message:state.screen.loading?" screen Loading ...":"",
-        messages:state.button.messages,
-        downloadloading:state.button.downloadloading,
         disabled:state.button.disabled?true:false,
-        pareScreenCode:null ,  
-        loading:state.button.loading, 
+        pareScreenCode:null ,   
         screenFlg:ownProps.screenFlg,
       }
     }
@@ -149,16 +138,6 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                   params= {...params,buttonflg:"confirmShpinsts",disableFilters:true,screenFlg:ownProps.screenFlg}
                   return  dispatch(ScreenRequest(params,null)) //
 
-          case "crt_tbl_view_screen":
-                data.map((row,index)=>{Object.keys(row).map((field,idx)=>
-                        {
-                          if(/_code|_expiredate/.test(field)){newRow = {...newRow,[field]:row[field]}                                                            }
-                        })
-                        screenData[index] = newRow
-                        newRow = {}})
-                params= {...params,buttonflg:"createTblViewScreen",data:screenData,screenFlg:ownProps.screenFlg}
-                    return  dispatch(TblfieldRequest(params,auth)) //
-
           case "ganttchart":
                   if(typeof(params.index)==="number"){
                       params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"ganttchart",screenFlg:ownProps.screenFlg}
@@ -206,6 +185,16 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           case "refShpacts":  //第一画面で選択された親より第二画面表示
                 params= {...params,buttonflg:"refShpacts",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
                 return  dispatch(ScreenRequest(params,null)) // 
+
+          case "crt_tbl_view_screen":
+                data.map((row,index)=>{Object.keys(row).map((field,idx)=>
+                        {
+                          if(/_code|_expiredate/.test(field)){newRow = {...newRow,[field]:row[field]}                                                            }
+                        })
+                        screenData[index] = newRow
+                        newRow = {}})
+                params= {...params,buttonflg:"createTblViewScreen",data:screenData,messages:[],screenFlg:ownProps.screenFlg}
+                    return  dispatch(TblfieldRequest(params,auth)) //
 
           case "unique_index":
               data.map((row,index)=>{Object.keys(row).map((field,idx)=>

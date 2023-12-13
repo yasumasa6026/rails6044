@@ -1365,7 +1365,7 @@ module Shipment
 		command_c["shpord_person_id_upd"] = shp["persons_id_upd"]
 
 		if shp["paretblname"] =~ /^pur/   ###tblname= 'feepayment'--->有償支給
-			command_c = PriceLib.proc_price_amt("shpord",command_c)
+			command_c = CtlFields.proc_judge_check_supplierprice(command_c,"",0,"r_shpords")
 		else
 			command_c["shpord_crr_id"] = 0
 			command_c["shpord_price"] = 0

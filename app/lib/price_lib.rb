@@ -63,9 +63,9 @@ module PriceLib
 		end
 		strsql = "select *
 				from r_#{pricetbl} 	/*同一品目内ではcontrac_price<pricemst_amtroundは有効日内で同一であること*/
-				where pricemst_tblname =  '#{pricetbl}' and pricemst_expiredate >= current_date and
-				itm_code = '#{command_c["itm_code"]}' AND loca_code = '#{loca_code}' 
-				processseq = '#{command_c["opeitm_opeprocessseq"]}' AND loca_code = '#{loca_code}' "
+				where pricemst_expiredate >= current_date and
+				itm_code = '#{command_c["itm_code"]}' AND loca_code = '#{loca_code}' and
+				processseq = '#{command_c["opeitm_processseq"]}' 
 		rec_contract = ActiveRecord::Base.connection.select_one(strsql)   ###画面のfield
 		command_c[("#{tblnamechop}_contractprice")]||=""
 		if command_c[("#{tblnamechop}_contractprice")]  != "" ###変更の時
@@ -173,9 +173,8 @@ module PriceLib
 		if expiredate.nil?
 			logger.debug "line #{__LINE__} proc_price_amt :master error ???"
 		end
-		strsql = %Q& select * from r_pricemsts
-					where pricemst_tblname =  '#{pricetbl}' and
-						itm_code = '#{command_c["itm_code"]}' AND loca_code = '#{loca_code}' and
+		strsql = %Q& select * from r_#{pricetbl}
+					where itm_code = '#{command_c["itm_code"]}' AND loca_code = '#{loca_code}' and
 						pricemst_maxqty >= #{qty} and
 						pricemst_expiredate >= to_date('#{expiredate}','yyyy/mm/dd') and
 						pricemst_contractprice = '#{contract}'

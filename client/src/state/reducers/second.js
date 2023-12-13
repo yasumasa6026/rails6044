@@ -4,6 +4,7 @@ import {LOGIN_REQUEST,LOGOUT_REQUEST,LOGIN_SUCCESS,  //SECONDSCREEN_REQUEST,
         SECOND_CONFIRM7,SECOND_CONFIRM7_SUCCESS,SECOND_FAILURE, SECONDFETCH_REQUEST,SECOND_SUBFORM,
         SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT, CHANGE_SHOW_SCREEN,
         GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
+        TBLFIELD_REQUEST,TBLFIELD_SUCCESS,
         SCREENINIT_REQUEST, SCREEN_SUCCESS7,SCREEN_REQUEST,} from '../../actions'
 
         const initialValues = {data:[],
@@ -132,8 +133,10 @@ const secondreducer =  (state = initialValues , actions) =>{
 
     
     case GANTTCHART_REQUEST:
+    case TBLFIELD_REQUEST:
         return {...state,
-        loading:true,
+            params:actions.payload.params, 
+            loading:true,
     }  
 
 
@@ -146,10 +149,14 @@ const secondreducer =  (state = initialValues , actions) =>{
         }else{return {...state,
             loading:false,
             message:null,}}
-      
-    
 
-
+    case TBLFIELD_SUCCESS:
+            return {...state,
+                params: {...state.params,messages:actions.payload.messages},
+                message:actions.payload.message,
+                disabled:false,
+                loading:false,
+                }
 
   case  LOGIN_REQUEST:
   case  LOGIN_SUCCESS:

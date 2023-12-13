@@ -67,6 +67,7 @@ export const YUP_REQUEST = 'YUP_REQUEST'
 export const YUP_ERR_SET = 'YUP_ERR_SET'
 export const TBLFIELD_REQUEST = 'TBLFIELD_REQUEST'
 export const TBLFIELD_SUCCESS = 'TBLFIELD_SUCCESS'
+export const SECONDTBLFIELD_SUCCESS = 'SECONDTBLFIELD_SUCCESS'
 export const TBLFIELD_FAILURE = 'TBLFIELD_FAILFURE'
 export const DROPDOWNVALUE_SET = 'DROPDOWNVALUE_SET'
 
@@ -276,10 +277,18 @@ export const TblfieldRequest = (params,auth) => ({
   payload: { params,auth}  //
 })
 
+
 export const TblfielSuccess = (messages) => ({
   type:  TBLFIELD_SUCCESS,
   payload: { messages}  //
 })
+
+
+export const SecondTblfielSuccess = (messages) => ({
+  type:  SECONDTBLFIELD_SUCCESS,
+  payload: { messages}  //
+})
+
 
 export const ImportExcelRequest = ({excelfile,nameToCode,params,auth}) => ({
   type: IMPORTEXCEL_REQUEST,  // 

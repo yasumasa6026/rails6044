@@ -96,7 +96,7 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
               <div> {showScreen&&screenFlg==="second"?<ScreenGrid7 screenFlg = "second" />:""}</div>
               {showScreen&&screenFlg==="second"&&!toggleSubFormSecond&&<div> <ButtonList screenFlg = "second" /></div>}
               {loading&&screenFlg==="second" && ( <div colSpan="10000">
-            	              Loading...
+            	              Loading.....
           	              </div>)}
               {showScreen&&screenFlg==="second"&&<p> {hostErrorSecond?hostErrorSecond:""} </p>}
           </div>
@@ -127,7 +127,6 @@ const  mapStateToProps = (state,ownProps) =>({
   menuListData:state.menu.menuListData ,
   params:state.screen.params,
   screenNameSecond:state.second.params.screenName,
-  message:state.menu.message,
   grid_columns_info:state.screen.grid_columns_info,
   hostError: state.screen.hostError,
   hostErrorSecond: state.second.hostError,

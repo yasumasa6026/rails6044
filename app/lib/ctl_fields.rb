@@ -376,16 +376,15 @@ module CtlFields
 	#  screenfields.selection  viewtblchop_tblname_id は必ず選択
 	#  nditms 子どものopeitmsへの存在チェック
 	### 
-	def proc_judge_check_code params,sfd,checkCode  ###item未使用
+	def proc_judge_check_code params,sfd,checkCode  ###
+		line_data = params[:parse_linedata]
 		checkCode.split(",").each do |chk|
-			params = __send__("judge_check_#{chk}",params,sfd)  ###[1]: nil all,add,updateは画面側で判断
-			
+			line_data,err = __send__("proc_judge_check_#{chk}",line_data,sfd,params[:index],params[:screenCode])  ###[1]: nil all,add,updateは画面側で判断
 		end
 		return params 
 	end	
 
-	def judge_check_opeitm_loca params,sfd
-		line_data = params[:parse_linedata]
+	def proc_judge_check_opeitm_loca line_data,sfd,index,screenCode
 		case line_data[:opeitm_prdpur]
 		when "pur"
 			strsql = %Q&
@@ -402,20 +401,19 @@ module CtlFields
 		end
 		rec = ActiveRecord::Base.connection.select_value(strsql)
 		if rec
-			params[:err] = nil
+			err = nil
 		else
-			params[:err] =  "error5 1   --->view or field  #{line_data[:loca_code_shelfno_opeitm]}　not find line:#{params[:index]} "
+			err =  "error5 1   --->view or field  #{line_data[:loca_code_shelfno_opeitm]}　not find line:#{index} "
 		end
-		return params
+		return line_data,err
 	end
 
-	def judge_check_paragraph params,item ### proc_judge_check_codeからcallされる。
-		line_data = params[:parse_linedata]
+	def proc_judge_check_paragraph line_data,item,index,screenCode ### proc_judge_check_codeからcallされる。
 		if line_data[:screenfield_paragraph] == ""
-			if line_data[:pobject_code_sfd] =~ /_code/ and params[:screenCode].split("_")[1].chop == line_data["pobject_code_sfd"].split("_")[0]
-				params[:err] =  "error 5 2   --->view or field  #{line_data["screenfield_paragraph"]}　not find line:#{params[:index]} "
+			if line_data[:pobject_code_sfd] =~ /_code/ and screenCode.split("_")[1].chop == line_data["pobject_code_sfd"].split("_")[0]
+				err =  "error 5 2   --->view or field  #{line_data["screenfield_paragraph"]}　not find line:#{index} "
 			else	
-				params[:err] =  nil
+				err =  nil
 			end
 		else	
 			if line_data[:screenfield_paragraph]
@@ -465,18 +463,17 @@ module CtlFields
 						%
 					rec = ActiveRecord::Base.connection.select_one(strsql)
 					if rec
-						params[:err] = nil
+						err = nil
 					else
-						params[:err] =  "error 5 3   --->view or field  #{line_data[:screenfield_paragraph]}　not find line:#{params[:index]} "
+						err =  "error 5 3   --->view or field  #{line_data[:screenfield_paragraph]}　not find line:#{index} "
 					end
 				end
 			end
 		end
-		return params
+		return line_data,err
 	end	
 
-	def judge_check_strorder params,item   ###　r_screens(screens)のみで有効
-		line_data = params[:parse_linedata]
+	def proc_judge_check_strorder params,item,index,screenCode   ###　r_screens(screens)のみで有効
 		if line_data[:screen_strorder] and line_data[:screen_strorder] != ""
 			ary_select_fields = line_data.keys
 			sort_info = {}
@@ -500,17 +497,16 @@ module CtlFields
 				end	
 			end	
 			if sort_info[:err] 
-				params[:err] =  sort_info[:err] + "line:#{params[:index]}" 
+				err =  sort_info[:err] + "line:#{index}" 
 			else
-				params[:err] =  nil
+				err =  nil
 			end
 		end
-		return params
+		return line_data,err
 	end
 
 	###社内用　loca_codeは社外で使用できない。
-	def judge_check_workplace_loca_code_not_used_suppliers_custwhs params,item
-		line_data = params[:parse_linedata]
+	def proc_judge_check_workplace_loca_code_not_used_suppliers_custwhs line_data,item,index,screenCode
 		if line_data[item.to_sym] 
 			case params[:screenCode]
 			when /workplaces/
@@ -527,48 +523,47 @@ module CtlFields
 											and workplace_expiredate > current_date%
 			end
 			if  ActiveRecord::Base.connection.select_value(strsql)
-				params[:err] =  " #{line_data[item.to_sym]}  cant not use  loca_code_workplace same time (suppliers or custwhs) "
+				err =  " #{line_data[item.to_sym]}  cant not use  loca_code_workplace same time (suppliers or custwhs) "
 			else
-				params[:err] =  nil
+				err =  nil
 			end
 		end
-		return params
+		return line_data,err
 	end
 
 	
-	def judge_check_workplaces params,item
-		line_data = params[:parse_linedata]
+	def proc_judge_check_workplaces line_data,item,index,screenCode
 		if line_data[item.to_sym] 
 			strsql = %Q%
 				select id from r_workplaces where loca_code_workplace = '#{line_data[item.to_sym]}'
 											and workplace_expiredate > current_date
 			%
 			if  ActiveRecord::Base.connection.select_value(strsql)
+				err = nil
 			else
-				params[:err] =  " #{line_data[item.to_sym]} not workplaces"
+				err =  " #{line_data[item.to_sym]} not workplaces"
 			end
 		end
-		return params
+		return line_data,err
 	end
 	
-	def judge_check_suppliers params,item
-		line_data = params[:parse_linedata]
+	def proc_judge_check_suppliers line_data,item,index,screenCode
 		if line_data[item.to_sym] 
 			strsql = %Q%
 				select id from r_suppliers where loca_code_supplier = '#{line_data[item.to_sym]}'
 											and supplier_expiredate > current_date
 			%
 			if  ActiveRecord::Base.connection.select_value(strsql)
+				err = nil
 			else
-				params[:err] =  " #{line_data[item.to_sym]} not suppliers"
+				err =  " #{line_data[item.to_sym]} not suppliers"
 			end
 		end
-		return params
+		return line_data,err
 	end
 
 	
-	def judge_check_workplaces_suppliers params,item
-		line_data = params[:parse_linedata]
+	def proc_judge_check_workplaces_suppliers line_data,item,index,screenCode
 		case line_data[:opeitm_prdpur]
 		when "pur"
 			if line_data[item.to_sym] 
@@ -577,8 +572,9 @@ module CtlFields
 											and supplier_expiredate > current_date
 				%
 				if  ActiveRecord::Base.connection.select_value(strsql)
+					err = nil
 				else
-					params[:err] =  " #{line_data[item.to_sym]} not suppliers"
+					err =  " #{line_data[item.to_sym]} not suppliers"
 				end
 			end
 		when "prd"
@@ -588,12 +584,13 @@ module CtlFields
 												and workplace_expiredate > current_date
 				%
 				if  ActiveRecord::Base.connection.select_value(strsql)
+					err = nil
 				else
-					params[:err] =  " #{line_data[item.to_sym]} not workplaces"
+					err =  " #{line_data[item.to_sym]} not workplaces"
 				end
 			end
 		end
-		return params
+		return line_data,err
 	end
 
 	# def  proc_detail_check_strorder sort_info,ary_select_fields
@@ -616,19 +613,18 @@ module CtlFields
 	# 	return sort_info
 	# end	
 
-	def judge_check_qty params,item
+	def proc_judge_check_qty line_data,item,index,screenCode
 		###　get_fetch_recで実施済
-	 	return params
+	 	return line_data,err
 	end	
 
-	 def judge_check_loca_code_to params,item
-	 	line_data = params[:parse_linedata]
-	 	tblname =  params[:screenCode].split("_")[1]
+	 def proc_judge_check_loca_code_to line_data,item,index,screenCode
+	 	tblname =  screenCode.split("_")[1]
 	 	id = line_data["#{tblname.chop}_id"]
 	 	if id != ""  ###更新の時のみ　ords-->insts  insts -->actsに既にどれだけ変化しているか？
 	 		sym = "loca_code_to"
 	 		if line_data[sym] == ""
-	 			params[:err] =  "error 7   --->#{sym} missing line:#{params[:index]} "
+	 			err =  "error 7   --->#{sym} missing line:#{index} "
 	 		else
 	 			strsql = %Q%select sum(qty) from trngantts where orgtblname ='#{tblname}' and orgtblid = #{id} 
 	 					 and  tblid = #{id} and tblname = '#{tblname}' group by orgtblname,orgtblid,tblname,tblid %
@@ -639,16 +635,16 @@ module CtlFields
 	 			if (chng_qty != rec["#{tblname.chop}_qty"] or rec["#{tblname.chop}_qty"]  != trn_qty) and 
 	 					line_data[sym] != rec["loca_code_to"]
 	 				checkstatus = false
-	 				params[:err] =  "error 8   ---> loca_code_to must be >= #{rec["loca_code_to"]} line:#{params[:index]} "
+	 				err =  "error 8   ---> loca_code_to must be >= #{rec["loca_code_to"]} line:#{index} "
 				 else
-					params[:err] =  nil
+					err =  nil
 	 			end 
 	 		end
 	 	end
-	 	return params
+	 	return line_data,err
 	 end	
 
-	def judge_check_already_used params,item  ###あるidで登録されたcodeが別のテーブルに既に登録されているとき、codeの変更は不可
+	def proc_judge_check_already_used line_data,item,index,screenCode  ###あるidで登録されたcodeが別のテーブルに既に登録されているとき、codeの変更は不可
 		###外部keyでチェックすべき???
 		# check_code,views = checkCode.split(",")
 		# strsql = %Q&select #{field} from #{view} where #{field} = '#{params[:parse_linedata][item]}'
@@ -667,9 +663,8 @@ module CtlFields
 		# else	
 		# 			params[:err] =  "error   ---> #{field} can not change because #{view} already used "
 		# end
-		line_data = params[:parse_linedata].dup
 		if line_data[:id] and line_data[:id] != ""  ###変更の時 
-			case params[:screenCode]
+			case screenCode
 			when /itms/
 			when /locas/
 			when /pobjects/
@@ -684,35 +679,35 @@ module CtlFields
 								%
 						value = ActiveRecord::Base.connection.select_value(strsql)
 						if value
-							params[:err] =  "error 9   ---> #{pobject_code} can not change because table:tblfields already used line:#{params[:index]} "
+							err =  "error 9   ---> #{pobject_code} can not change because table:tblfields already used line:#{index} "
 						else
-							params[:err] = nil
+							err = nil
 						end
 					end
 				end
 			end
 		end		
-		if params[:screenCode] =~ /pobjects/   ###将来　履歴専用のtblを作成しこのチェックはなくす。
+		if screenCode =~ /pobjects/   ###将来　履歴専用のtblを作成しこのチェックはなくす。
 			if line_data[:objecttype] == "view"
 				if line_data[:code] =~ /cust|prd|pur|shp/ and line_data[:code] =~ /schs$|ords$|oinsts$|replyinputs$|dlvs$|acts$|rets$/
 					if line_data[:code].split("_")[0]  == "r"
 					else
-						params[:err] =  "error A  ---> view:#{code}   must be r_xxxxxxx 参照 Operation.get_last_rec  "
+						err =  "error A  ---> view:#{code}   must be r_xxxxxxx 参照 Operation.get_last_rec  "
 					end
 				end
 			end
 		end
 
-		return params	
+		return line_data,err	
 	end
 
-	def judge_check_same_loca_code_bill params,item  ###MkInvoiveNoの時のみ
-		return params
+	def proc_judge_check_same_loca_code_bill line_data,item,index,screenCode  ###MkInvoiveNoの時のみ
+		err = nil
+		return line_data,err
 	end
 
-	def judge_check_duedate params,item  ###
-		line_data = params[:parse_linedata].dup
-		tblnamechop = params[:screenCode].split("_")[1].chop
+	def proc_judge_check_duedate line_data,item,index,screenCode  ###
+		tblnamechop = screenCode.split("_")[1].chop
 		duedate = line_data[(tblnamechop+"_duedate").to_sym]
 		nd = {"duration" => line_data["opeitm_duration".to_sym],"units_lttime" => line_data["opeitm_units_lttime"] }
 		case tblnamechop
@@ -721,18 +716,68 @@ module CtlFields
 		when /pursch|purord|prdsch/
 			line_data[(tblnamechop+"_starttime").to_sym] = proc_field_starttime duedate,nd,"gantt"
 		end
-		params[:parse_linedata] = line_data.dup
-		return params
+		err = nil
+		return line_data,err
 	end
 
 	
-	def judge_check_supplierprice params,item  ###M
-		line_data = params[:parse_linedata].dup
-		if line_data[:custord_contractprice] =~ /[A-Z]|[a-z]/  ###数字の時マスター単価
-			return params
+	def proc_judge_check_supplierprice line_data,item,index,screenCode  ###M
+		err = nil
+		if line_data[:purord_contractprice] =~ /[A-Z]|[a-z]/  ###数字の時マスター単価
+			return line_data,err
 		end
-		case params[:screenCode]
-		when /purords/
+		case screenCode
+		when /pursch/
+			strsql = %Q&
+						select * from suppliers where locas_id_supplier = #{line_data[:shelfno_loca_id_shelfno]}
+									and expiredate > current_date
+			&
+			supplier = ActiveRecord::Base.connection.select_one(strsql)
+			strsql = %Q&
+						select * from supplierprices 
+									where suppliers_id = #{supplier["id"]} and opeitms_id = #{line_data[:pursch_opeitm_id]}
+									and maxqty >= #{line_data[:pursch_qty]}
+									and minqty < #{line_data[:pursch_qty]}
+									and #{case supplier["contractprice"]
+											when "1"
+												"expiredate >= to_date('#{line_data[:pursch_isudate]}','yyyy/mm/dd')" 
+											when "2"
+												"expiredate >= to_date('#{line_data[:pursch_duedate]}','yyyy/mm/dd')"
+											when "3"
+												"expiredate >= to_date('#{line_data[:pursch_duedate]}','yyyy/mm/dd')"
+											end											
+											}
+									order by maxqty,expiredate limit 1
+			&
+			price = ActiveRecord::Base.connection.select_one(strsql)
+			if price
+				line_data[:pursch_price] = line_data[:pursch_masterprice] = price["price"].to_f
+				line_data[:pursch_contractprice] = supplier["contractprice"]
+				line_data[:pursch_amt] = line_data[:pursch_qty].to_f * price["price"].to_f
+				if line_data[:pursch_crr_id]
+					strsql = %Q&
+							select decimal from crrs where id = #{line_data[:pursch_crr_id]}
+					&
+					decimal = ActiveRecord::Base.connection.select_value(strsql)
+					case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
+					when "1"
+						line_data[:pursch_amt] = line_data[:pursch_amt].floor(decimal.to_i )
+						line_data[:pursch_tax] = (line_data[:pursch_amt] * line_data[:pursch_taxrate].to_f / 100).floor(decimal.to_i )
+					when "2"
+						line_data[:pursch_amt] = line_data[:pursch_amt].round(decimal.to_i + 1)
+						line_data[:pursch_tax] = (line_data[:pursch_amt] * line_data[:pursch_taxrate].to_f / 100).round(decimal.to_i )
+					when "3"
+						line_data[:pursch_amt] = line_data[:pursch_amt].ceil(decimal.to_i )
+						line_data[:pursch_tax] = (line_data[:pursch_amt] * line_data[:pursch_taxrate].to_f / 100).ceil(decimal.to_i )
+					end
+				else
+				end
+			else
+				line_data[:pursch_price] = line_data[:pursch_masterprice] = 0
+				line_data[:pursch_amt] = 0
+				line_data[:pursch_contractprice] = "C"
+			end
+		when /purord/
 			strsql = %Q&
 						select * from suppliers where locas_id_supplier = #{line_data[:shelfno_loca_id_shelfno]}
 									and expiredate > current_date
@@ -767,13 +812,13 @@ module CtlFields
 					case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
 					when "1"
 						line_data[:purord_amt] = line_data[:purord_amt].floor(decimal.to_i )
-						line_data[:purtord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).floor(decimal.to_i )
+						line_data[:purord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).floor(decimal.to_i )
 					when "2"
 						line_data[:purord_amt] = line_data[:purord_amt].round(decimal.to_i + 1)
-						line_data[:purtord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).round(decimal.to_i )
+						line_data[:purord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).round(decimal.to_i )
 					when "3"
 						line_data[:purord_amt] = line_data[:purord_amt].ceil(decimal.to_i )
-						line_data[:purtord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).ceil(decimal.to_i )
+						line_data[:purord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).ceil(decimal.to_i )
 					end
 				else
 				end
@@ -782,7 +827,7 @@ module CtlFields
 				line_data[:purord_amt] = 0
 				line_data[:purord_contractprice] = "C"
 			end
-		when "purdlvs"  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
+		when /purdlv/  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
 			 if line_data[:purdlv_contractprice]  == "2"
 				strsql = %Q&
 							select * from suppliers where locas_id_supplier = #{line_data[:shelfno_loca_id_shelfno]}
@@ -814,7 +859,7 @@ module CtlFields
 			else
 				line_data[:purdlv_contractprice] = "C"
 			end
-		when "puracts"  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
+		when /puract/  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
 			if line_data[:puract_contractprice]  == "3"
 				strsql = %Q&
 							select * from suppliers where locas_id_supplier = #{line_data[:shelfno_loca_id_shelfno]}
@@ -848,17 +893,16 @@ module CtlFields
 		   end
 		end
 		
-		params[:parse_linedata] = line_data.dup
-		return params
+		return line_data,err
 	end
 
-	def judge_check_custprice params,item  ###M
-		line_data = params[:parse_linedata].dup
+	def proc_judge_check_custprice line_data,item,index,screenCode  ###M
+		err = nil
 		if line_data[:custord_contractprice] =~ /[A-Z]|[a-z]/  ###数字の時マスター単価
-			return params
+			return line_data,err
 		end
-		case params[:screenCode]
-		when /custords/
+		case screenCode
+		when /custord/
 			strsql = %Q&
 						select * from custprices 
 									where custs_id = #{line_data[:custord_cust_id]} and opeitms_id = #{line_data[:custord_opeitm_id]}
@@ -883,7 +927,7 @@ module CtlFields
 				line_data[:custord_amt] = line_data[:custord_qty].to_f * price["price"].to_f
 				if line_data[:custord_crr_id]
 					strsql = %Q&
-							select decimal from crrs where id = #{params[:parse_linedata][:custord_crr_id]}
+							select decimal from crrs where id = #{line_data[:custord_crr_id]}
 					&
 					decimal = ActiveRecord::Base.connection.select_value(strsql)
 					case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
@@ -904,8 +948,8 @@ module CtlFields
 				line_data[:custord_amt] = 0
 				line_data[:custord_contractprice] = "C"  ###C:マスター単価無
 			end
-		when /custdlvs/  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
-			 if line_data = params[:custdlv_contractprice]  == "2"  ###出荷日ベース　
+		when /custdlv/  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
+			 if params[:custdlv_contractprice]  == "2"  ###出荷日ベース　
 				strsql = %Q&
 							select * from custprices 
 										where custs_id = #{line_data[:custdlv_cust_id]} and opeitms_id = #{line_data[:custdlv_opeitm_id]}
@@ -931,8 +975,8 @@ module CtlFields
 			else
 				line_data[:custdlv_contractprice] = "C"  ###C:マスター単価無
 			end
-		when /custacts/  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
-			if line_data = params[:custact_contractprice]  == "3"
+		when /custact/  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
+			if params[:custact_contractprice]  == "3"
 				strsql = %Q&
 					select * from custprices 
 							where custs_id = #{line_data[:custact_cust_id]} and opeitms_id = #{line_data[:custact_opeitm_id]}
@@ -959,15 +1003,14 @@ module CtlFields
 				line_data[:custact_contractprice] = "C"  ###C:マスター単価無
 		   end
 		end
-		params[:parse_linedata] = line_data.dup
-		return params
+		return line_data,err
 	end
 
-	def judge_check_amt params,item  ###M
-		line_data = params[:parse_linedata].dup
+	def proc_judge_check_amt line_data,item,index,screenCode  ###M
 		decimal = line_data[:crr_decimal].to_i
-		tblchop = params[:screenCode].split("_")[1].chop
-		if params[:screenCode] =~ /acts$|dlvs$/
+		tblchop = screenCode.split("_")[1].chop
+		err = nil
+		if screenCode =~ /acts$|dlvs$/
 			symqty = (tblchop + "_qty_stk").to_sym
 		else 
 			symqty = (tblchop + "_qty").to_sym
@@ -983,14 +1026,13 @@ module CtlFields
 		when "3"
 		 line_data[symamt] = line_data[symamt].ceil(decimal.to_i )
 		end
-		params[:parse_linedata] = line_data.dup
-		return params
+		return line_data,err
 	end
 
 
-	def judge_check_taxrate params,item  ###MkInvoiveNoの時のみ
-		line_data = params[:parse_linedata].dup
-		case params[:screenCode]
+	def proc_judge_check_taxrate line_data,item,index,screenCode  ###MkInvoiveNoの時のみ
+		err = nil
+		case screenCode
 		when /puracts/  ###再度求める
 			case line_data[:itm_taxflg]
 			when "A"
@@ -1087,12 +1129,12 @@ module CtlFields
 													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
 													order by expiredate limit 1
 			&
-			params[:parse_linedata][:puract_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+			line_data[:puract_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
 		when /purrets/
 			strsql = %Q&
 				select taxrate from puracts where sno_puract = #{line_data[:purret_sno_puract]}
 			&
-			params[:parse_linedata][:puract_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+			line_data[:puract_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
 		when /purords/
 			case line_data[:itm_taxflg]
 			when "0","1","9"
@@ -1105,7 +1147,7 @@ module CtlFields
 													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
 													order by expiredate limit 1
 			&
-			params[:parse_linedata][:purord_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+			line_data[:purord_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
 		when /purschs/
 			case line_data[:itm_taxflg]
 			when "0","1","9"
@@ -1118,7 +1160,7 @@ module CtlFields
 													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
 													order by expiredate limit 1
 			&
-			params[:parse_linedata][:pursch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+			line_data[:pursch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
 		when /pur/
 			### purinsts等の作成時に前の状態から引き継ぐ
 		when /shpschs/  ###shpacts以外は求めて表示するだけ
@@ -1128,7 +1170,7 @@ module CtlFields
 													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
 													order by expiredate limit 1
 			&
-			params[:parse_linedata][:shpsch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+			line_data[:shpsch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
 		when /shpacts/  ###shpacts以外は求めて表示するだけ
 			base_date =   line_data[:shpact_rcptdate]
 			strsql = %Q&
@@ -1136,7 +1178,7 @@ module CtlFields
 													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
 													order by expiredate limit 1
 			&
-			params[:parse_linedata][:shpsch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+			line_data[:shpsch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
 		when /custacts/ ###再度求める
 			case line_data[:itm_taxflg]
 			when "A"
@@ -1198,13 +1240,13 @@ module CtlFields
 													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
 													order by expiredate limit 1
 			&
-			params[:parse_linedata][:custact_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+			line_data[:custact_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
 		
 		when /custrets/
 			strsql = %Q&
 				select taxrate from custacts where sno_puract = #{line_data[:custret_sno_custact]}
 			&
-			params[:parse_linedata][:custact_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+			line_data[:custact_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
 		when /custords/
 			case line_data[:itm_taxflg]
 			when "A"
@@ -1217,7 +1259,7 @@ module CtlFields
 													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
 													order by expiredate limit 1
 			&
-			params[:parse_linedata][:custord_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+			line_data[:custord_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
 		when /custschs/
 			case line_data[:itm_taxflg]
 			when "A"
@@ -1230,9 +1272,9 @@ module CtlFields
 													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
 													order by expiredate limit 1
 			&
-			params[:parse_linedata][:custsch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+			line_data[:custsch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
 		end
-		return params
+		return line_data,err
 	end
 	### prd,pur ・・・schs,ords,insts,acts,retsのレコード作成　	
 	def proc_schs_fields_making nd,parent,screenCode ,command_c  ###xxxschsの作成のみ
@@ -1282,8 +1324,10 @@ module CtlFields
 				command_x = field_toduedate(tblnamechop,command_x,nd,parent)
 			when "qty_sch"   ### 
 				command_x,qty_require = field_qty_sch(tblnamechop,command_x,nd,parent)
+
+			### tblfield_seqnoは qty,duedateより大きいと	
 			when "price"  ###保留 amt tax  itm_code_client crrs_idを含む
-				command_x = field_price_amt_tax_contractprice(tblnamechop,command_x,nd,parent) 
+				command_x = field_price_amt_tax_contractprice(tblnamechop,command_x) 
 			# when "itm_code_client"  ###保留 amt tax  を含む
 			# 	command_x = field_itm_code_client(tblnamechop,command_x,nd,parent) 
 			when "gno" ###画面の時用にror_blkctl.create_src_tblでもsetしてる
@@ -1493,14 +1537,19 @@ module CtlFields
 		qty_require += consumchgoverqty.to_f   ###段取り時に余分に使用(消費)される数量
 	end
 
-	def field_price_amt_tax_contractprice tblnamechop,command_x ,nd,parent
-		command_x = PriceLib.proc_price_amt(tblnamechop,command_x)
-		return command_x
+	def field_price_amt_tax_contractprice tblnamechop,command_x
+		case tblnamechop
+		when /pur/  ###supplierprices
+			command_x,err = proc_judge_check_supplierprice command_x.symbolize_keys,"",0,"r_#{tblnamechop}s"
+		when  /shp/  ###custprices
+		end
+		###  command_x = PriceLib.proc_price_amt(tblnamechop,command_x)
+		return command_x.stringify_keys
 	end
 
 	def proc_field_sno(tblnamechop,isudate,id)  ###id=tbl.id
-		proc_snolist["#{tblnamechop}s"] + isudate.to_time.strftime("%y")[1] + 
-					["0","1","2","3","4","5","6","7","8","9","A","B","C"][isudate.to_time.strftime("%m").to_i]  + format('%04d', id) 
+		(proc_snolist["#{tblnamechop}s"]||="") + (isudate||=Time.now).to_time.strftime("%y")[1] + 
+					["0","1","2","3","4","5","6","7","8","9","A","B","C"][(isudate||=Time.now).to_time.strftime("%m").to_i]  + format('%04d', id) 
 	end
 
 	def proc_field_cno id 
@@ -1508,7 +1557,7 @@ module CtlFields
 	end
 
 	def proc_field_gno(tblnamechop,id)
-		proc_gnolist["#{tblnamechop}s"] + format('%07d', id) 
+		(proc_gnolist["#{tblnamechop}s"]||="") + format('%07d', id) 
 	end	
 
 	def field_prjnos_id tblnamechop,command_x,nd,parent

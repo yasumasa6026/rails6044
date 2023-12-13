@@ -131,10 +131,10 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 child = nd.dup
                                 if nd["prdpur"]  ###opeitmdが登録されてないとprdords,purordsは作成されない。
                                     blk = RorBlkCtl::BlkClass.new("r_"+nd["prdpur"]+"schs")
-                                    command_c = blk.command_init
+                                    command_c = blk.command_init   ###  tblname=paretblname
                                     command_c,qty_require = add_update_prdpur_table_from_nditm  nd,parent,tblname,command_c
-                                    command_c["id"] = ArelCtl.proc_get_nextval("#{tblname}_seq")
-                                    command_c["#{tblname.chop}_created_at"] = Time.now
+                                    command_c["id"] = ArelCtl.proc_get_nextval("#{nd["prdpur"]}schs_seq")
+                                    command_c["#{nd["prdpur"]}sch_created_at"] = Time.now
                                     trnganttkey += 1
                                     gantt["key"] = gantt_key + format('%05d', trnganttkey)
                                     gantt["tblname"] = nd["prdpur"] + "schs"

@@ -1,7 +1,8 @@
 import {MENU_REQUEST,MENU_SUCCESS,LOGOUT_REQUEST,MENU_FAILURE,
           SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,
-                    SCREEN_CONFIRM7,LOGIN_SUCCESS,CHANGE_SHOW_SCREEN,
+                    SCREEN_CONFIRM7,LOGIN_SUCCESS,CHANGE_SHOW_SCREEN,TBLFIELD_REQUEST,
            SECOND_CONFIRMALL_SUCCESS,SECOND_REQUEST,SECOND_SUCCESS7,SECOND_CONFIRM7,
+          TBLFIELD_SUCCESS,SECONDTBLFIELD_SUCCESS,
           SECOND_FAILURE, } from '../../actions'
 const initialValues = {
   isSubmitting:false,
@@ -96,6 +97,17 @@ const menureducer =  (state= initialValues , actions) =>{
             screenFlg:"second",
             loading:false,
           }   
+
+    case TBLFIELD_REQUEST:
+      return {...state,
+        loading:true,
+      }   
+
+    case SECONDTBLFIELD_SUCCESS:
+    case TBLFIELD_SUCCESS:
+      return {...state,
+        loading:false,
+      }   
 
     case  LOGOUT_REQUEST:
     return {}  

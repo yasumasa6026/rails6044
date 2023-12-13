@@ -1,5 +1,5 @@
-import { BUTTONLIST_SUCCESS, BUTTONFLG_REQUEST,SCREENINIT_REQUEST,
-  TBLFIELD_SUCCESS, DOWNLOAD_REQUEST, DOWNLOAD_SUCCESS,LOGOUT_REQUEST,RESET_REQUEST, DOWNLOAD_FAILURE,
+import { BUTTONLIST_SUCCESS, BUTTONFLG_REQUEST,SCREENINIT_REQUEST,  
+   DOWNLOAD_REQUEST, DOWNLOAD_SUCCESS,LOGOUT_REQUEST,RESET_REQUEST, DOWNLOAD_FAILURE,
     //MKSHPACTS_RESULT,
   IMPORTEXCEL_REQUEST,} //
    from '../../actions'
@@ -39,14 +39,6 @@ case BUTTONLIST_SUCCESS:
 return {...state,
 buttonListData:actions.payload,
 disabled:false,
-}
-
-case TBLFIELD_SUCCESS:
-return {...state,
-messages:actions.payload.messages,
-message:actions.payload.message,
-disabled:false,
-loading:false,
 }
 
 case IMPORTEXCEL_REQUEST:

@@ -124,6 +124,7 @@ class TblClass
 						###@modifysql <<  "\n drop sequence  if exists  #{tbl}_seq ;"
 						@modifysql <<  "\n create sequence #{tbl}_seq ;"
 					end
+					@messages << "\n create or update table sql : #{tbl} ;"
 				else
 					noerror = false
 				end
@@ -518,8 +519,8 @@ class TblClass
 		command_r["pobject_objecttype"] = "view_field"
 		command_r["pobject_expiredate"] = '2099/12/31'
 		command_r["pobject_person_id_upd"] = @tblsfields["persons_id_upd"]
-		command_c["id"] = ArelCtl.proc_get_nextval("pobjects_seq")
-		command_c["pobject_created_at"] = Time.now
+		command_r["id"] = ArelCtl.proc_get_nextval("pobjects_seq")
+		command_r["pobject_created_at"] = Time.now
 		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r["sio_result_f"] ==   "9"
