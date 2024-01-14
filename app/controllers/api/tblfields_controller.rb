@@ -19,8 +19,12 @@ module Api
             case params[:buttonflg] 
               when 'yup'
                 yup = YupSchema.proc_create_schema 	
-                foo = File.open("#{Rails.root}/vendor/yup/yupschema.js", "w:UTF-8") # 書き込みモード
+                foo = File.open("#{Rails.root}/vendor/yup/yupschema#{(Time.now).strftime("%Y%m")}.js", "w:UTF-8") # 書き込みモード
                 foo.puts yup[:yupschema]
+                foo.close
+                foo = File.open("#{Rails.root}/client/src/yupschema.js", "w:UTF-8") # 書き込みモード
+                foo.puts yup[:yupschema]
+                foo.close
                 params[:message] = " yup schema created " 
                 render json:{:params=>params} 
               when 'createTblViewScreen'  ### blktbs tblfields 
@@ -48,14 +52,16 @@ module Api
                 render json:{:params=>params}  
               when 'createUniqueIndex'  ### createUniqueIndex
                 tbl =  TblField::TblClass.new
-                messages,sql = tbl.proc_createUniqueIndex params   ###params[:data]に画面の表示内容を含む
+                messages,sql,status,errmsg = tbl.proc_createUniqueIndex params   ###params[:data]に画面の表示内容を含む
                 foo = File.open("#{Rails.root}/vendor/postgresql/tblviewupdate#{(Time.now).strftime("%Y%m%d%H%M%S")}.sql", "w:UTF-8") # 書き込みモード
                 foo.puts sql
                 foo.close
-                foo = File.open("#{Rails.root}/vendor/postgresql/messages#{(Time.now).strftime("%Y%m%d%H%M%S")}.txt", "w:UTF-8") # 書き込みモード
+                foo = File.open("#{Rails.root}/vendor/postgresql/messages#{(Time.now).strftime("%Y%m%d%H%M%S")}.sql", "w:UTF-8") # 書き込みモード
                 foo.puts messages
                 foo.close
                 params[:messages] = 	messages 
+                params[:status] = 	status  
+                params[:errmsg] = 	errmsg 
                 render json:{:params=>params}  
             end 
           end

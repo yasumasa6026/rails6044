@@ -1,48 +1,49 @@
-import {  IMPORTEXCEL_REQUEST,IMPORTEXCEL_FAILURE,IMPORTEXCEL_SUCCESS,LOGOUT_REQUEST} from '../../actions'
+import {  UPLOADEXCEL_REQUEST,UPLOADEXCEL_FAILURE,UPLOADEXCEL_SUCCESS,LOGOUT_REQUEST} from '../../actions'
         const initialValues = {
         isEditable:false,
         isUpload:false,
         isSubmitting:false,
         errors:[],
         message:null,
-        importError:false,
+        uploadError:false,
 }
 
 const uploadreducer =  (state= initialValues , actions) =>{
 switch (actions.type) {
    
 
-    case IMPORTEXCEL_REQUEST:
-        return {...state,
-            excelfile: actions.payload.excelfile,
-            params: actions.payload.params,
-            nameToCode: actions.payload.nameToCode,
-            errMessage:"",
-            formatError:null,
-            importErrorCheckMaster:false,
-            normalEnd:false,
-            loading : true,
-            idx:null,
-        }
-    case IMPORTEXCEL_SUCCESS:
+    case UPLOADEXCEL_REQUEST:
+            return {...state,
+                excelfile: actions.payload.excelfile,
+                params: actions.payload.params,
+                nameToCode: actions.payload.nameToCode,
+                errMessage:"",
+                formatError:null,
+                uploadErrorCheckMaster:false,
+                normalEnd:false,
+                loading : true,
+                idx:null,
+            }
+    
+    case UPLOADEXCEL_SUCCESS:
         return {...state,
                     params:{token:actions.params.token,
                             client:actions.params.client,
                             uid:actions.params.uid},
                             idx:actions.idx,
                             errHeader:null,
-                            importError:false,
+                            uploadError:false,
                             errMessage:"",
                             normalEnd:true,
             }                
 
-    case IMPORTEXCEL_FAILURE:
+    case UPLOADEXCEL_FAILURE:
         return {...state,
                 errHeader:actions.errHeader,
-                importError:true,
+                uploadError:true,
                 formatError:actions.formatError,
                 errMessage:actions.errMessage,
-                importErrorCheckMaster:true,
+                uploadErrorCheckMaster:true,
                 normalEnd:false
             }    
 
@@ -54,10 +55,10 @@ switch (actions.type) {
     default:
         return {...state,
             errHeader:"",
-            importError:null,
+            uploadError:null,
             formatError:null,
             errMessage:"",
-            importErrorCheckMaster:false,
+            uploadErrorCheckMaster:false,
             normalEnd:false
         }
     }

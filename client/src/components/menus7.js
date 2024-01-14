@@ -18,14 +18,14 @@ const titleNameSet = (screenName) =>{ return (
 )
 }
 
-const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,loadingOrg,
-          toggleSubForm,toggleSubFormSecond,showScreen,changeShowScreen,hostErrorSecond,screenNameSecond,
+const Menus7 = ({ isAuthenticated ,menuListData,getScreen, hostError,loadingOrg,loadingOrgSecond,
+          toggleSubForm,toggleSubFormSecond,showScreen,changeShowScreen,screenNameSecond,
             isSignUp,screenFlg,auth}) =>{
     const [tabIndex, setTabIndex] = useState(0)
     const [subTabIndex, setSubTabIndex] = useState(0)
     const loading = useMemo(()=>loadingOrg,[loadingOrg])
+    const loadingSecond = useMemo(()=>loadingOrgSecond,[loadingOrgSecond])
     //useEffect(()=>{   setLoading(loadingOrg)},[loadingOrg])
-    if(params){}else{params = {}}
     if (isAuthenticated) {
       if(menuListData)
         {
@@ -67,7 +67,7 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
                       <Button   type="submit"
                       onClick ={() => { 
                                         titleNameSet(val.scr_name)   // cromeのtab表示
-                                        getScreen(val.screen_code,val.scr_name,val.view_name,params,auth)
+                                        getScreen(val.screen_code,val.scr_name,val.view_name,auth)
                                       }
                       }>
                       {val.scr_name}       
@@ -85,8 +85,7 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
                   //  第一画面  
                }  
               {showScreen&&!toggleSubForm&&<div> <ButtonList screenFlg = "first" /></div>}
-              {showScreen&&screenFlg==="first"&&<p> {hostError?hostError:""} </p>}
-              {loading&&screenFlg==="first" && ( <div colSpan="10000">
+              {loading && ( <div colSpan="10000">
             	              Loading...
           	              </div>)}
               {  
@@ -95,16 +94,15 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
               {showScreen&&screenFlg==="second"&&<p> {screenNameSecond} </p>  }
               <div> {showScreen&&screenFlg==="second"?<ScreenGrid7 screenFlg = "second" />:""}</div>
               {showScreen&&screenFlg==="second"&&!toggleSubFormSecond&&<div> <ButtonList screenFlg = "second" /></div>}
-              {loading&&screenFlg==="second" && ( <div colSpan="10000">
+              {loadingSecond && ( <div colSpan="10000">
             	              Loading.....
           	              </div>)}
-              {showScreen&&screenFlg==="second"&&<p> {hostErrorSecond?hostErrorSecond:""} </p>}
           </div>
         )
         }else{
           return(
             <div>
-              <p> aa{hostError?hostError:""} </p>
+              <p> doing{hostError?hostError:""} </p>
             </div>)}
     }else{
       if(isSignUp){
@@ -113,7 +111,10 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, params,hostError,load
         )
       }else{  
         return (
+          <div>
+          <p> {hostError?hostError:""} </p>
           <Login/>
+          </div>
         )
         }  
     }  
@@ -125,24 +126,24 @@ const  mapStateToProps = (state,ownProps) =>({
   auth:state.auth ,
   showScreen:state.menu.showScreen,//screen bottunが押された時
   menuListData:state.menu.menuListData ,
-  params:state.screen.params,
   screenNameSecond:state.second.params.screenName,
   grid_columns_info:state.screen.grid_columns_info,
-  hostError: state.screen.hostError,
-  hostErrorSecond: state.second.hostError,
+  hostError: state.menu.hostError,
   second_columns_info:state.screen.second_columns_info,
   screenFlg:state.menu.screenFlg,
-  loadingOrg:state.menu.loading,
+  loadingOrg:state.screen.loading,
+  loadingOrgSecond:state.second.loading,
   toggleSubForm:state.screen.toggleSubForm,
   toggleSubFormSecond:state.second.toggleSubForm,
 })
 
 const mapDispatchToProps = (dispatch,ownProps ) => ({
-      getScreen : (screenCode, screenName,view_name, params,auth) =>{
+      getScreen : (screenCode, screenName,view_name, auth) =>{
+        let params
         switch(screenCode){
           case "fmcustord_custinsts":
           case "fmcustinst_custdlvs":
-            params = { ...params,screenName:  (screenName||""),disableFilters:false,
+            params = { screenName:  (screenName||""),disableFilters:false,
                         parse_linedata:{},
                         filtered:[],where_str:"",sortBy:[],screenFlg:"first",
                         screenCode:screenCode,pageIndex:0,pageSize:20,
@@ -150,7 +151,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                         buttonflg:"inlineedit7",viewName:view_name} 
             break
           default:
-            params = { ...params,screenName:  (screenName||""),disableFilters:false,
+            params = { screenName:  (screenName||""),disableFilters:false,
                         parse_linedata:{},aud:"view",
                         filtered:[],where_str:"",
                         sortBy:[],groupBy:[],aggregated:[],

@@ -455,7 +455,7 @@ module Shipment
 	
 	###shp用
 	def proc_create_shpxxxs(params)  ### shpordsは対象外
-		reqparams = params.dup
+		setParams = params.dup
 			###自分自身のshpschs を作成   
 		###
 		#  yield=shpsch --> create
@@ -463,8 +463,8 @@ module Shipment
 		#  yield=shpinst -->出の減
 		#  yield=shpact --> 入りの減
 		###
-		parent = reqparams["parent"]  ###親
-		child = reqparams["child"]  #
+		parent = setParams["parent"]  ###親
+		child = setParams["child"]  #
 		case yield
 		when "shpsch" 
 			tblnamechop = "shpsch"
@@ -539,7 +539,7 @@ module Shipment
 				command_c["id"] = ArelCtl.proc_get_nextval("#{stkinout["tblname"]}_seq")
 				command_c["#{stkinout["tblname"]}_created_at"] = Time.now
 				blk.proc_create_tbldata(command_c) ##
-				blk.proc_private_aud_rec(reqparams,command_c)
+				blk.proc_private_aud_rec(setParams,command_c)
 				
 				stkinout["wh"] = "lotstkhists"
 				stkinout["tblid"] = command_c["id"]
@@ -800,9 +800,9 @@ module Shipment
 	def proc_create_consume(params) ##
 		###prdschs,purschsの時は自分自身のconschs を作成   
 		command_c = {}
-		reqparams = params.dup
-		parent = reqparams["parent"] ###親
-		child = reqparams["child"]  ###対象
+		setParams = params.dup
+		parent = setParams["parent"] ###親
+		child = setParams["child"]  ###対象
 		tblnamechop = yield.chop  
 		###ActiveRecord::Base.connection.begin_db_transaction()
 		blk = RorBlkCtl::BlkClass.new("r_#{tblnamechop}s")
@@ -878,11 +878,11 @@ module Shipment
 										child["consumminqty"],child["consumchgoverqty"])
 		stkinout[str_con_qty] = command_c["#{tblnamechop}_#{str_con_qty}"] =  con_qty
 		stkinout["qty_real"] = stkinout["qty_stk"]
-		command_c["#{tblnamechop}_person_id_upd"] = reqparams["person_id_upd"]
+		command_c["#{tblnamechop}_person_id_upd"] = setParams["person_id_upd"]
 		command_c["#{tblnamechop}_created_at"] = Time.now
 		command_c["id"] = ArelCtl.proc_get_nextval("#{tblnamechop}s_seq")
 		blk.proc_create_tbldata(command_c) ##
-		blk.proc_private_aud_rec(reqparams,command_c)
+		blk.proc_private_aud_rec(setParams,command_c)
 			
 		stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_fm"]  
 		stkinout["tblname"] = yield
@@ -973,9 +973,9 @@ module Shipment
 	def update_shpschs_ords_by_parent params,last_pare_qty  
 		###自分自身のshpschs を作成   
 		command_c = {}
-		reqparams = params.dup
-		parent = reqparams["tbldata"]
-		shp = reqparams["shp"]  ###出庫対象
+		setParams = params.dup
+		parent = setParams["tbldata"]
+		shp = setParams["shp"]  ###出庫対象
 
 		tblnamechop = yield.chop
 		stkinout = {"wh" => "lotstkhists"}
@@ -1002,7 +1002,7 @@ module Shipment
 			stkinout["packno"] =  command_c["#{tblnamechop}_packno"] = shp["packno"]   
 			stkinout["lotno"] = command_c["#{tblnamechop}_lotno"] = shp["lotno"]
 			stkinout["prjnos_id"] = command_c[tblnamechop+"_prjno_id"] = shp["prjnos_id"]
-			stkinout["persons_id_upd"] = command_c[tblnamechop+"_person_id_upd"] 
+			stkinout["persons_id_upd"] = command_c[tblnamechop+"_person_id_upd"]  = setParams["person_id_upd"]
 			case tblnamechop
 			when /shpsch/
 				qty_sch = shp["qty_sch"].to_f / last_pare_qty * parent["qty"].to_f 
@@ -1016,10 +1016,9 @@ module Shipment
 				command_c["#{tblnamechop}_amt"] = shp["qty"].to_f * command_c["#{tblnamechop}_price"]
 			end
 			
-			command_c["#{tblnamechop}_person_id_upd"] = reqparams["person_id_upd"]
 			command_c["#{tblnamechop}_created_at"] = Time.now
 			blk.proc_create_tbldata(command_c) ##
-			setParams = blk.proc_private_aud_rec(reqparams,command_c)
+			setParams = blk.proc_private_aud_rec(setParams,command_c)
 
 			stkinout["tblname"] = yield
 			stkinout["tblid"] = command_c["id"]
@@ -1132,7 +1131,7 @@ module Shipment
 			new_stkinout["qty_real"] = stkinout["qty_real"].to_f * plusminus  +  lotstkhists["qty_real"].to_f
 			strsql = %Q& update lotstkhists set  
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-									persons_id_upd = #{new_stkinout["persons_id_upd"]},
+									persons_id_upd = #{new_stkinout["persons_id_upd"]||=0},
 									qty_stk = #{new_stkinout["qty_stk"]},
 									qty_real = #{new_stkinout["qty_real"]},
 									qty = #{new_stkinout["qty"]} ,
@@ -1157,7 +1156,7 @@ module Shipment
 		ActiveRecord::Base.connection.select_all(strsql).each do |futrec|
 			strsql = %Q& update lotstkhists set  
 									updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-									persons_id_upd = #{new_stkinout["persons_id_upd"]},
+									persons_id_upd = #{new_stkinout["persons_id_upd"]||=0},
 									qty_stk = #{stkinout["qty_stk"].to_f * plusminus + futrec["qty_stk"].to_f},
 									qty = #{stkinout["qty"].to_f * plusminus + futrec["qty"].to_f},
 									qty_sch = #{stkinout["qty_sch"].to_f  * plusminus + futrec["qty_sch"].to_f} 

@@ -9,7 +9,7 @@ Rails.application.routes.draw do
   namespace :api do
     resources :menus7 
     resources :ganttcharts 
-    resources :importexcel
+    resources :uploadexcel
     resources :tblfields  if Rails.env == "development" ##テスト環境の時のみ
   end  
 

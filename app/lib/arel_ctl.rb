@@ -41,16 +41,13 @@ module ArelCtl
 		end
 	end
 	
-	def proc_processreqs_add reqparams
+	def proc_processreqs_add params
 		processreqs_id = proc_get_nextval("processreqs_seq")
-		if reqparams["seqno"].nil?
-			reqparams["seqno"] = []
+		if params["seqno"].nil?
+			params["seqno"] = []
 		end	
-		strsql = %Q%select id from persons where email = '#{reqparams["email"]}'
-		%
-		person_id = ActiveRecord::Base.connection.select_value(strsql)
-		reqparams["seqno"] << processreqs_id  ###
-		setParams = reqparams.dup
+		params["seqno"] << processreqs_id  ###
+		setParams = params.dup
 		setParams.delete(:parse_linedata)  ###size 8192対策
 		setParams.delete(:lineData)
 		strsql = %Q&
@@ -60,14 +57,14 @@ module ArelCtl
 						update_ip,persons_id_upd,reqparams,
 						seqno,id,result_f)
 					values(
-						'','#{reqparams["remark"]}',
+						'','#{setParams["remark"]}',
 						to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 						to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-						'',#{person_id},'#{setParams.to_json}',
-						#{reqparams["seqno"][0]},#{processreqs_id},'0')
+						'',#{setParams["person_id_upd"]},'#{setParams.to_json}',
+						#{setParams["seqno"][0]},#{processreqs_id},'0')
 		&
 		ActiveRecord::Base.connection.insert(strsql) 
-		return processreqs_id,reqparams
+		return processreqs_id,params
 	end
 
 	def proc_createtable fmtbl,totbl,fmview,params  ### fmtbl:元のテーブル totbl:fmtblから自動作成するテーブル
@@ -193,18 +190,13 @@ module ArelCtl
 						 until qty_stk <= 0 do
 							fmview[sym_packno] = format('%03d', idx)
 							fmview[sym_qty_stk] = packqty
-						   proc_createtable fmtbl,totbl,fmview,reqparams["classname"] 
+						   proc_createtable fmtbl,totbl,fmview,params["classname"] 
 						   qty_stk -=  packqty 
 						   idx += 1
 						 end
 				else
 					fmview[sym_qty_stk] = qty_stk
-					proc_createtable fmtbl,totbl,fmview,reqparams["cassname"]
-				end
-			when /custords|custdlvs|custacts/
-				case totbl
-				when /bil/
-					###入金日の計算
+					proc_createtable fmtbl,totbl,fmview,params["cassname"]
 				end
 		end
 		command_c["sio_classname"] =
@@ -329,7 +321,7 @@ module ArelCtl
 					'#{base["tblname"]}',#{base["tblid"]},#{base["qty_src"]} ,#{base["amt_src"]} , 
 					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-					' ',#{base["persons_id_upd"]},'2099/12/31','#{base["remark"]}')
+					' ',0,'2099/12/31','#{base["remark"]}')  ---persons.id=0は必須
 				&
 		ActiveRecord::Base.connection.insert(strsql)
 		return linktbl_id
@@ -391,7 +383,7 @@ module ArelCtl
 							#{rec_alloc["qty_linkto_alloctbl"]},
 							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-							' ',#{rec_alloc["persons_id_upd"]},'2099/12/31','#{rec_alloc["remark"]}',
+							' ',0,'2099/12/31','#{rec_alloc["remark"]}',   --- persond_id_upd=0
 							'#{rec_alloc["allocfree"]}')
 		&
 		ActiveRecord::Base.connection.insert(strsql)
@@ -415,7 +407,7 @@ module ArelCtl
 						shelfnos_id_to_trn,shelfnos_id_to_pare,
 						itms_id_trn,processseq_trn,shelfnos_id_trn,
 						itms_id_pare,processseq_pare,shelfnos_id_pare,
-						itms_id_org,processseq_org,locas_id_org,
+						itms_id_org,processseq_org,shelfnos_id_org,
 						consumunitqty,
 						consumminqty,consumchgoverqty,
 						starttime_trn,
@@ -446,7 +438,7 @@ module ArelCtl
 					#{gantt["shelfnos_id_to_trn"]},#{gantt["shelfnos_id_to_pare"]},
 					#{gantt["itms_id_trn"]},#{gantt["processseq_trn"]},#{gantt["shelfnos_id_trn"]},
 					#{gantt["itms_id_pare"]},#{gantt["processseq_pare"]},#{gantt["shelfnos_id_pare"]},
-					#{gantt["itms_id_org"]},#{gantt["processseq_org"]},#{gantt["locas_id_org"]},
+					#{gantt["itms_id_org"]},#{gantt["processseq_org"]},#{gantt["shelfnos_id_org"]},
 					#{case gantt["consumunitqty"].to_i when 0 then 1 else gantt["consumunitqty"] end},
 					#{gantt["consumminqty"]},#{gantt["consumchgoverqty"]},
 					to_timestamp('#{gantt["starttime_trn"]}','yyyy/mm/dd hh24:mi:ss'),
@@ -504,38 +496,36 @@ module ArelCtl
 		return stkinout		
 	end
 	
-	def proc_add_linktbls_update_alloctbls(src,base,linktbl_ids,alloctbl_ids)  ###前の状態から現状への変更
+	def proc_add_linktbls_update_alloctbls(src,base)  ###前の状態から現状への変更
 		###
 		###  今の関係(linktbls)は変更しない。履歴として残している。
 		###
-		linktbl_ids << proc_insert_linktbls(src,base)
+		proc_insert_linktbls(src,base)
 		###
 		strsql = %Q&
 			update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
 						updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-						remark = '#{self} line:(#{__LINE__})'|| remark,
-						persons_id_upd = #{base["persons_id_upd"]}
-					where id = #{src["alloc_id"]} 
+						remark = '#{self} line:(#{__LINE__})'|| remark
+					where id = #{src["alloctbls_id"]} 
 			 &
 		 ActiveRecord::Base.connection.update(strsql)
 
 		strsql = %Q&
 		 	  update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{base["qty_src"]},
 			   				updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-		 					remark = '#{self} line:(#{__LINE__})'||remark,
-							persons_id_upd =  #{base["persons_id_upd"]}
-		 			where id = #{base["alloc_id"]} 
+		 					remark = '#{self} line:(#{__LINE__})'||remark
+		 			where id = #{base["alloctbls_id"]} 
 		 	  &
 		ActiveRecord::Base.connection.update(strsql)
 
 		alloc = {"trngantts_id" => src["trngantts_id"],"srctblname" => base["tblname"] ,
 			 "srctblid" => base["tblid"],"allocfree" => "alloc",
-			"qty_linkto_alloctbl" => base["qty_src"],"persons_id_upd" => base["persons_id_upd"],
+			"qty_linkto_alloctbl" => base["qty_src"],
 			 "remark" => "#{self} (line: #{__LINE__} #{Time.now})"}
-		alloctbl_ids << proc_insert_alloctbls(alloc)
+		proc_insert_alloctbls(alloc)
 
 		# ###在庫の修正はproc_src_base_trn_stk_update
-		return linktbl_ids ,alloctbl_ids
+		return 
 	end
 	
 	
@@ -773,6 +763,7 @@ module ArelCtl
 					"trngantts_id" => src["trngantts_id"],		
 					"tblname" => base["tblname"] ,"tblid" => base["tblid"],
 					"qty_sch" => alloc["qty_sch"],"qty" => alloc["qty"],"qty_stk" => alloc["qty_stk"],
+					"persons_id_upd" => 0,
 					"remark" => "ArelCtl.proc_src_base_link_alloc_update line:#{__LINE__}"}
 			Shipment.proc_insert_inoutlotstk_sql(1,stk)
 		end
@@ -787,12 +778,12 @@ module ArelCtl
                nditm.consumunitqty,nditm.consumminqty,nditm.consumchgoverqty,
                ope.id opeitms_id,ope.prdpur,ope.packno_proc,
                ope.packqty,ope.prdpur,ope.units_id_case_shp,itm.units_id,
-               ope.locas_id_opeitm,ope.shelfnos_id_opeitm,  ---子部品作業場所
-               ope.locas_id_to_opeitm,ope.shelfnos_id_to_opeitm,   ---子部品保管場所
+               ope.locas_id_shelfno locas_id_shelfno,ope.shelfnos_id_opeitm,  ---子部品作業場所
+               ope.locas_id_shelfno_to locas_id_shelfno_to,ope.shelfnos_id_to_opeitm,   ---子部品保管場所
 			   ope.consumauto,ope.duration,ope.units_lttime
            from nditms nditm 
                inner join itms itm on itm.id = nditm.itms_id_nditm 
-               left join (select o.*,s.locas_id_shelfno locas_id_opeitm,xto.locas_id_shelfno locas_id_to_opeitm
+               left join (select o.*,s.locas_id_shelfno locas_id_shelfno,xto.locas_id_shelfno locas_id_shelfno_to
                            from opeitms o 
                            inner join shelfnos s on o.shelfnos_id_opeitm = s.id
                            inner join shelfnos xto on o.shelfnos_id_to_opeitm = xto.id

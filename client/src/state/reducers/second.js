@@ -4,7 +4,8 @@ import {LOGIN_REQUEST,LOGOUT_REQUEST,LOGIN_SUCCESS,  //SECONDSCREEN_REQUEST,
         SECOND_CONFIRM7,SECOND_CONFIRM7_SUCCESS,SECOND_FAILURE, SECONDFETCH_REQUEST,SECOND_SUBFORM,
         SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT, CHANGE_SHOW_SCREEN,
         GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
-        TBLFIELD_REQUEST,TBLFIELD_SUCCESS,
+        TBLFIELD_REQUEST,TBLFIELD_SUCCESS, UPLOADEXCEL_INIT,
+        SECONDTBLFIELD_REQUEST,SECONDTBLFIELD_SUCCESS, 
         SCREENINIT_REQUEST, SCREEN_SUCCESS7,SCREEN_REQUEST,} from '../../actions'
 
         const initialValues = {data:[],
@@ -14,6 +15,7 @@ import {LOGIN_REQUEST,LOGOUT_REQUEST,LOGIN_SUCCESS,  //SECONDSCREEN_REQUEST,
                                creenwidth:0,
                                dropDownList:[],
                                hiddenColumns:[]},
+            loading : false,
 }
 
 const secondreducer =  (state = initialValues , actions) =>{
@@ -121,7 +123,7 @@ const secondreducer =  (state = initialValues , actions) =>{
     case CHANGE_SHOW_SCREEN:
         return {data:[],
             params:{screenCode:"",
-                    parse_linedata:{},
+                    parse_linedata:{},buttonflg:"viewtablereq7",
                     filtered:[],where_str:"",sortBy:[],screenFlg:"second",
                     screenCode:"",pageIndex:0,pageSize:20,totalCount:0,
                     index:0,clickIndex:[],err:null,},
@@ -133,12 +135,27 @@ const secondreducer =  (state = initialValues , actions) =>{
 
     
     case GANTTCHART_REQUEST:
-    case TBLFIELD_REQUEST:
+    case SECONDTBLFIELD_REQUEST:
         return {...state,
             params:actions.payload.params, 
             loading:true,
     }  
 
+    
+    case GANTTCHART_REQUEST:
+    case TBLFIELD_REQUEST:
+    case TBLFIELD_SUCCESS:
+        return {...state,
+         loading:false,
+      }  
+
+    
+    case UPLOADEXCEL_INIT:
+        return {...state,
+              params:actions.payload.params,
+              loading:false
+    }
+  
 
     case GANTTCHART_SUCCESS: 
     if(actions.payload.screenFlg==="second")
@@ -150,7 +167,7 @@ const secondreducer =  (state = initialValues , actions) =>{
             loading:false,
             message:null,}}
 
-    case TBLFIELD_SUCCESS:
+    case SECONDTBLFIELD_SUCCESS:
             return {...state,
                 params: {...state.params,messages:actions.payload.messages},
                 message:actions.payload.message,

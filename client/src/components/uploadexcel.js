@@ -1,8 +1,8 @@
 import React from 'react'
 import { connect } from 'react-redux'
-import {ImportExcelRequest, LOGIN_REQUEST} from '../actions'
+import {UploadExcelRequest,} from '../actions'
 
-const ImportExcel = ({exceltojson,excelfile,importError,formatError,errHeader,importErrorCheckMaster,errMessage,normalEnd,
+const UploadExcel = ({exceltojson,excelfile,uploadError,formatError,errHeader,uploadErrorCheckMaster,errMessage,normalEnd,
                       nameToCode,params,idx,auth}) =>{
   return (   
     <React.Fragment>
@@ -28,8 +28,8 @@ const ImportExcel = ({exceltojson,excelfile,importError,formatError,errHeader,im
     </div>
     <div>
           {formatError===true&&<p>error please check  file format</p>} 
-          {importErrorCheckMaster===true&&<p> error  </p> }
-          {importError===true&&<p> some records have errors (skiped  all data(rollback done))  </p>}
+          {uploadErrorCheckMaster===true&&<p> error  </p> }
+          {uploadError===true&&<p> some records have errors (skiped  all data(rollback done))  </p>}
           {normalEnd===true&&<p>  Add or Update records {idx} </p>}  
           {errHeader&&errHeader.map((err) => {if(err){return <p> Error:{err}  </p>}})}         
      </div>
@@ -40,7 +40,7 @@ const ImportExcel = ({exceltojson,excelfile,importError,formatError,errHeader,im
 
 const mapDispatchToProps = dispatch => ({
   exceltojson :(excelfile,nameToCode,params,auth)=>{
-    dispatch(ImportExcelRequest({excelfile,nameToCode,params,auth}))
+    dispatch(UploadExcelRequest({excelfile,nameToCode,params,auth}))
     },  
   })
   
@@ -50,14 +50,14 @@ const mapStateToProps = state =>({
     nameToCode:state.screen.grid_columns_info.nameToCode,
     params:state.screen.params,
     results:state.upload.results,
-    importError:state.upload.importError,
+    uploadError:state.upload.uploadError,
     formatError:state.upload.formatError,
     errHeader:state.upload.errHeader,
     idx:state.upload.idx,
-    importErrorCheckMaster:state.upload.importErrorCheckMaster,
+    uploadErrorCheckMaster:state.upload.uploadErrorCheckMaster,
     errMessage:state.upload.errMessage,
     normalEnd:state.upload.normalEnd,
     auth:state.auth,
   })
 
-export default  connect(mapStateToProps,mapDispatchToProps)(ImportExcel)
+export default  connect(mapStateToProps,mapDispatchToProps)(UploadExcel)

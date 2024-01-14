@@ -56,22 +56,21 @@ export const SECOND_CONFIRM7_SUCCESS = 'SECOND_CONFIRM7_SUCCESS'
 export const SECOND_SUBFORM = 'SECOND_SUBFORM'
 
 
-export const IMPORTEXCEL_REQUEST = 'IMPORTEXCEL_REQUEST'
-export const IMPORTEXCEL_SUCCESS = 'IMPORTEXCEL_SUCCESS'
-export const IMPORTEXCEL_FAILURE = 'IMPORTEXCEL_FAILURE'
+export const UPLOADEXCEL_INIT = 'UPLOADEXCEL_INIT'
+export const UPLOADEXCEL_REQUEST = 'UPLOADEXCEL_REQUEST'
+export const UPLOADEXCEL_SUCCESS = 'UPLOADEXCEL_SUCCESS'
+export const UPLOADEXCEL_FAILURE = 'UPLOADEXCEL_FAILURE'
 export const INPUTFIELDPROTECT_REQUEST = 'INPUTFIELDPROTECT_REQUEST'
 export const INPUTPROTECT_RESULT = 'INPUTPROTECT_RESULT'
 
-export const YUP_RESULT = 'YUP_RESULT'
 export const YUP_REQUEST = 'YUP_REQUEST'
-export const YUP_ERR_SET = 'YUP_ERR_SET'
 export const TBLFIELD_REQUEST = 'TBLFIELD_REQUEST'
 export const TBLFIELD_SUCCESS = 'TBLFIELD_SUCCESS'
+export const SECONDTBLFIELD_REQUEST = 'SECONDTBLFIELD_REQUEST'
 export const SECONDTBLFIELD_SUCCESS = 'SECONDTBLFIELD_SUCCESS'
 export const TBLFIELD_FAILURE = 'TBLFIELD_FAILFURE'
 export const DROPDOWNVALUE_SET = 'DROPDOWNVALUE_SET'
 
-export const GANTT_RESET = 'GANTT_RESET'
 export const GANTTCHART_REQUEST = 'GANTTCHART_REQUEST'
 export const GANTTCHART_FAILURE = 'GANTTCHART_FAILURE'
 export const GANTTCHART_SUCCESS = 'GANTTCHART_SUCCESS'
@@ -176,11 +175,6 @@ export const SecondConfirm = (params,data) => ({
 })
 
 
-export const YupErrSet = (data,error) => ({
-  type:  YUP_ERR_SET,
-  payload: {data,error}  //
-})
-
 export const DropDownValueSet = (dropDownValue) => ({
   type:  DROPDOWNVALUE_SET,
   payload: {dropDownValue}  //
@@ -284,27 +278,38 @@ export const TblfielSuccess = (messages) => ({
 })
 
 
+export const SecondTblfieldRequest = (params,auth) => ({
+  type:  SECONDTBLFIELD_REQUEST,
+  payload: { params,auth}  //
+})
+
 export const SecondTblfielSuccess = (messages) => ({
   type:  SECONDTBLFIELD_SUCCESS,
   payload: { messages}  //
 })
 
 
-export const ImportExcelRequest = ({excelfile,nameToCode,params,auth}) => ({
-  type: IMPORTEXCEL_REQUEST,  // 
+export const UploadExcelInit = (params) => ({
+  type: UPLOADEXCEL_INIT,  // 
+  payload:{params},
+})
+
+export const UploadExcelRequest = ({excelfile,nameToCode,params,auth}) => ({
+  type: UPLOADEXCEL_REQUEST,  // 
   payload: {excelfile,nameToCode,params,auth}
 })
 
 
-export const ImportExcelSuccess = (payload) => ({
-  type: IMPORTEXCEL_SUCCESS,  // 
+
+export const UploadExcelSuccess = (payload) => ({
+  type:UPLOADEXCEL_SUCCESS,  // 
   payload: {idx:payload.idx}
 })
 
 
-export const ImportExcelFailure = (payload) => ({
-  type: IMPORTEXCEL_FAILURE,  // 
-  payload: {importError:payload.importError}
+export const UploadExcelFailure = (payload) => ({
+  type: UPLOADEXCEL_FAILURE,  // 
+  payload: {uploadError:payload.uploadError}
 })
 
 
@@ -323,10 +328,6 @@ export const SecondDataSet = (data) => ({
   payload: {data:data}
 })
 
-
-export const GanttReset = () => ({
-  type:  GANTT_RESET,
-})
 
 export const GanttChartRequest = (params,auth) => ({
   type:  GANTTCHART_REQUEST,

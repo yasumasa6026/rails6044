@@ -3,7 +3,7 @@ module Api
   ###  rollbackの結果を画面に返せてない。エラー時はlogで確認
   ###　日付は文字タイプ(関数、日付は使用できない。)
   ###
-class ImportexcelController < ApplicationController
+class UploadexcelController < ApplicationController
 
     # GET /api/uploads
     def index
@@ -15,8 +15,6 @@ class ImportexcelController < ApplicationController
       
     def create   ###自動で作成されたファイル名は変更しないこと。
         ##skip_before_action :verify_authenticity_token
-        ###@importexcel = Importexcel.new(params[:importexcel])
-        ###if @importexcel.save
         jparams = params.dup
         tblname = params[:screenCode].split("_")[1]
         strsql = "select code,id from persons where email = '#{params["email"]}'"
@@ -29,7 +27,7 @@ class ImportexcelController < ApplicationController
         end
         jparams["person_code_upd"] = person["code"]
         jparams["person_id_upd"] = person["id"]
-        jparams[:importData] = {}  ###jparamsではimportdataは使用しない。processreqへの保存対象外
+        jparams[:uploadData] = {}  ###jparamsではuploaddataは使用しない。processreqへの保存対象外
         jparams[:buttonflg] = "import"
         command_c = {}
         screen = ScreenLib::ScreenClass.new(jparams)
@@ -55,13 +53,13 @@ class ImportexcelController < ApplicationController
         end
 
         rows = []
-        importError = false
+        uploadError = false
         idx = 0
 
   		fetchCode = YupSchema.proc_create_fetchCode screen.screenCode ##
         checkCode  = YupSchema.proc_create_checkCode screen.screenCode   
         tblid = screen.screenCode.split("_")[1].chop + "_id"
-        lines = params[:importData][:importexcel]
+        lines = params[:uploadData][:uploadexcel]
         lines.each do |linevalues|
             jparams[:parse_linedata] = linevalues.dup
             select_fields.split(",").each do |idkey|   ### select_fields.split(","):元keyidsから変更--->view項目
@@ -89,7 +87,7 @@ class ImportexcelController < ApplicationController
                     end
                 end
             else
-                importError = true  
+                uploadError = true  
                 jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
             end 
             if jparams[:parse_linedata]["confirm"]  == true 
@@ -99,7 +97,7 @@ class ImportexcelController < ApplicationController
                     end
                 end
             else
-                importError = true
+                proc_create_upload_editable_columns_infoError = true
                 jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
             end
             rows << jparams[:parse_linedata]
@@ -119,27 +117,27 @@ class ImportexcelController < ApplicationController
                                 parse_linedata[tblid] = parse_linedata["id"] = rec["id"]
                             else
                                 if command_c["id"] != rec["id"]
-                                    importError = true  
+                                    uploadError = true  
                                     parse_linedata["confirm"] = false 
                                     parse_linedata["#{tblname.chop}_confirm_gridmessage"] = "error key:#{key}"
                                 end
                             end  
                             if  parse_linedata["aud"] == "add" and  rec["id"] 
-                                importError = true
+                                uploadError = true
                                 parse_linedata["confirm"] = false 
                                 parse_linedata["#{tblname.chop}_confirm_gridmessage"] = "error already exist key:#{key}"
                             end 
                         end	
                         if recs.empty?
                             if  parse_linedata["aud"] == "update" or parse_linedata["aud"] == "delete"
-                                importError = true
+                                uploadError = true
                                 parse_linedata["confirm"] = false 
                                 parse_linedata["#{tblname.chop}_confirm_gridmessage"] = "error key not exist key:#{key}"
                             end
                         end  
                     end
                 else
-                    importError = true
+                    uploadError = true
                     parse_linedata["confirm"] = false 
                 end                
                 parse_linedata.each do |key,value|
@@ -169,7 +167,7 @@ class ImportexcelController < ApplicationController
                     command_c["sio_classname"] = "_delete_grid_linedata"
                 else
                 end
-                if importError == false and parse_linedata["confirm"] == true 
+                if uploadError == false and parse_linedata["confirm"] == true 
                     blk.proc_create_tbldata(command_c) ### @src_tbl作成
                     setParams = blk.proc_private_aud_rec(jparams,command_c)
                     idx += 1
@@ -202,14 +200,14 @@ class ImportexcelController < ApplicationController
             end
             ArelCtl.proc_materiallized tblname
         end
-        render json: {:results=>results,:importError=>importError,:idx=>idx}
+        render json: {:results=>results,:uploadError=>uploadError,:idx=>idx}
     end
 
     def show
     end
     private
-        def importexcel_params
-            params.require(:importexcel).permit(:title, :filename)
+        def uploadexcel_params
+            params.require(:uploadexcel).permit(:title, :filename)
         end 
 end   ###class
 end    ###module

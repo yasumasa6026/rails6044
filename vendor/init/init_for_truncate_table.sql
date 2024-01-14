@@ -4,8 +4,6 @@ truncate table purords cascade;
 truncate table purinsts cascade;
 truncate table purdlvs cascade;
 truncate table puracts cascade;
-truncate table inamts cascade;
-truncate table outamts cascade;
 
 truncate table alloctbls cascade;
 truncate table lotstkhists cascade;
@@ -85,6 +83,17 @@ truncate table mkordorgs cascade;
  truncate table  mnfschs cascade;
 
 
+truncate  table billschs cascade;
+truncate  table billords cascade;
+truncate  table billinsts cascade;
+truncate  table billacts cascade;
+
+
+truncate  table payschs cascade;
+truncate  table payords cascade;
+truncate  table payinsts cascade;
+truncate  table payacts cascade;
+
 --insert into lotstkhists(id,
 --									itms_id,shelfnos_id,
 --									prjnos_id,
@@ -116,24 +125,23 @@ cmpldate, result_f, runtime,
 isudate, orgtblname, confirm, manual, incnt, inqty, inamt, outcnt, outqty, outamt, skipcnt, skipqty, skipamt, expiredate,update_ip,
 created_at, remark, message_code, persons_id_upd, 
 updated_at, sno_org, sno_pare, tblname, paretblname, itm_code_pare, loca_code_org, 
-duedate_trn, 
-duedate_pare, 
+duedate_trn, duedate_pare, 
 duedate_org, processseq_org, processseq_pare, itm_code_trn, itm_code_org, itm_name_org, itm_name_trn, itm_name_pare, 
 person_code_chrg_org, person_code_chrg_pare, person_code_chrg_trn, person_name_chrg_org, person_name_chrg_pare, person_name_chrg_trn,
-loca_code_pare, loca_code_trn, loca_name_trn, loca_name_pare, processseq_trn, loca_name_org, loca_name_to_trn, 
+loca_code_pare, loca_code_trn, loca_name_trn, loca_name_pare, processseq_trn, loca_name_org, 
+shelfno_code_org,shelfno_code_pare, shelfno_code_trn,shelfno_name_org,shelfno_name_pare, shelfno_name_trn,  
 starttime_trn)
 VALUES(0, 
 to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'), 'r', 0, 
 to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'), 'org', 'c', 'm', 0, 0, 0, 0, 0, 0, 0, 0, 0, '2099/12/31', '',
 to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'), 'rem', 'mes', 0, 
 to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'), 'sno', 'sno', 'tbl', 'pare', 'itm', 'loca',
-to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'),
-to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'),
-to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'), 0, 0, 'itm', 'itm', 'itm_n_o', 'i_n_t', 'i_n_p', 
-'person', 'person', 'person', '', 'p_n', 'p_n', 'p_n', 
-'l_c_p', 'p_c_t', 'p_n_p', 0, 'l_n_o', 'l_n_t',
+to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'),to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'),
+to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'), 999, 999, 'itm_code_trn', 'itm_code_org', 'itm_name_org', 'itm_name_trn', 'itm_name_pare',
+'person_code_chrg_org', 'person_code_chrg_pare', 'person_code_chrg_trn', 'person_name_chrg_org', 'person_name_chrg_pare', 'person_name_chrg_trn',
+'loca_code_pare', 'loca_code_trn', 'loca_name_trn', 'loca_name_pare', 999, 'loca_name_org', 
+'shelfno_code_org','shelfno_code_pare', 'shelfno_code_trn','shelfno_name_org','shelfno_name_pare', 'shelfno_name_trn',  
 to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'));
-;
 commit;
 
 truncate table sio.sio_r_purschs cascade;
@@ -188,6 +196,17 @@ truncate table mkordterms  cascade;
 truncate table sio.sio_r_mkordterms  cascade;
 truncate table sio.sio_r_mkordorgs cascade;
 
+
+truncate  table sio.sio_r_billschs cascade;
+truncate  table sio.sio_r_billords cascade;
+truncate  table sio.sio_r_billinsts cascade;
+truncate  table sio.sio_r_billacts cascade;
+
+
+truncate  table sio.sio_r_payschs cascade;
+truncate  table sio.sio_r_payords cascade;
+truncate  table sio.sio_r_payinsts cascade;
+truncate  table sio.sio_r_payacts cascade;
 
  truncate table  sio.sio_r_dvsacts cascade;
  truncate table  sio.sio_r_dvsinsts cascade;

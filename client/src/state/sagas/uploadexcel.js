@@ -1,5 +1,5 @@
 import { call, put,  } from 'redux-saga/effects'
-import { IMPORTEXCEL_FAILURE, IMPORTEXCEL_SUCCESS,} from '../../actions'
+import { UPLOADEXCEL_FAILURE, UPLOADEXCEL_SUCCESS,} from '../../actions'
 import ExcelJS from 'exceljs'  //readはうまくいかない。
 import {saveAs} from "file-saver"
 import readXlsxFile from 'read-excel-file'
@@ -55,20 +55,20 @@ function batchcheck(sheet,nameToCode,screenCode) {
         }
         lineData = {}
     })
-    return {importdata:lines,formatError:formatError,errHeader:errHeader}
+    return {uploaddata:lines,formatError:formatError,errHeader:errHeader}
   }
 
-function sendExcelData({params,importexcel,auth}){      // ポイント2！
-    const url = 'http://localhost:3001/api/importexcel'
+function sendExcelData({params,uploadexcel,auth}){      // ポイント2！
+    const url = 'http://localhost:3001/api/uploadexcel'
     const token = auth.token       
     const client = auth.client         
     const uid = auth.uid 
-    let importData = {}
-    importData["importexcel"] = importexcel
+    let uploadData = {}
+    uploadData["uploadexcel"] = uploadexcel
     let dayoptions = { year: 'numeric', month: 'long', day: 'numeric' ,hour:'numeric',minute:'numeric',second:'numeric'}
-    importData["title"] = (new Date()).toLocaleDateString('ja-JA', dayoptions).replace(/:/g,"-") + " imported"
-    importData["filename"] = importexcel.name
-    let xparams = {importData,email:auth.uid,screenCode:params.screenCode}
+    uploadData["title"] = (new Date()).toLocaleDateString('ja-JA', dayoptions).replace(/:/g,"-") + " uploaded"
+    uploadData["filename"] = uploadexcel.name
+    let xparams = {uploadData,email:auth.uid,screenCode:params.screenCode}
     const config = {
         headers: {
           'content-type': 'application/json',
@@ -84,29 +84,29 @@ function writeBuffer(workbook){
     return buffer
   }
 
-export function* ImportExcelSaga({ payload: {excelfile,nameToCode,params,auth} }) {
+export function* UploadExcelSaga({ payload: {excelfile,nameToCode,params,auth} }) {
     let errMessage = "" 
     let screenCode = params.screenCode
         try{
             let sheetFirst = yield call(readExcel,{excelfile})
-                let {importdata,formatError,errHeader} = batchcheck(sheetFirst,nameToCode,screenCode)
+                let {uploaddata,formatError,errHeader} = batchcheck(sheetFirst,nameToCode,screenCode)
                 if(formatError){
                     errHeader.push(`excel field error ${excelfile.name} Screen Code :${screenCode} `)
-                    yield put({ type: IMPORTEXCEL_FAILURE, errHeader: errHeader,formatError:true,importErrorCheckMaster:false,errMessage:errMessage })
+                    yield put({ type: UPLOADEXCEL_FAILURE, errHeader: errHeader,formatError:true,uploadErrorCheckMaster:false,errMessage:errMessage })
                 }else{
-                    let {importexcel,importErrorCheckMaster} = yupErrCheckBatch(importdata,screenCode)
-                    if(importErrorCheckMaster){
+                    let {uploadexcel,uploadErrorCheckMaster} = yupErrCheckBatch(uploaddata,screenCode)
+                    if(uploadErrorCheckMaster){
                             errHeader.push(`check_master write error ${excelfile.name} Screen Code :${screenCode} `)
                             errMessage = "error => "
-                            importexcel.map((line) =>{if(line['confirm']===false){errMessage = errMessage +  JSON.stringify(line)}})
-                           yield put({ type: IMPORTEXCEL_FAILURE, errHeader: errHeader ,errMessage:errMessage })
+                            uploadexcel.map((line) =>{if(line['confirm']===false){errMessage = errMessage +  JSON.stringify(line)}})
+                           yield put({ type: UPLOADEXCEL_FAILURE, errHeader: errHeader ,errMessage:errMessage })
                     }else{
                             try{
-                                let res = yield call(sendExcelData,{params,importexcel,auth})
-                                let importError = res.data.importError
+                                let res = yield call(sendExcelData,{params,uploadexcel,auth})
+                                let uploadError = res.data.uploadError
                                 let results = res.data.results
                                 let sheetName
-                                if(importError||importErrorCheckMaster){     
+                                if(uploadError||uploadErrorCheckMaster){     
                                     sheetName = params.screenName + "_" + "_Import_Ng"
                                 }
                                 else{
@@ -132,7 +132,7 @@ export function* ImportExcelSaga({ payload: {excelfile,nameToCode,params,auth} }
                                     const sheet = workbook.addWorksheet(sheetName)
                                     sheet.columns = columns
                                    // sheet.addRows(dataset.data)
-                                    if(importError){
+                                    if(uploadError){
                                         let errData = []
                                         dataset.data.map((line) =>{
                                             if(line.confirm){
@@ -152,22 +152,22 @@ export function* ImportExcelSaga({ payload: {excelfile,nameToCode,params,auth} }
                                 const fileExtension = '.xlsx'
                                 const blob = new Blob([buffer], {type: fileType})
                                 saveAs(blob, fileName + fileExtension)
-                                if(importError){ 
-                                        yield put({ type: IMPORTEXCEL_FAILURE, errHeader: errHeader ,errMessage:errMessage})
+                                if(uploadError){ 
+                                        yield put({ type: UPLOADEXCEL_FAILURE, errHeader: errHeader ,errMessage:errMessage})
                                         }
                                 else{
-                                    yield put({ type: IMPORTEXCEL_SUCCESS, idx:res.data.idx,params:params})
+                                    yield put({ type: UPLOADEXCEL_SUCCESS, idx:res.data.idx,params:params})
                                 }
                             }  
                             catch(e){
                                 errHeader.push(`err:${e}, ${excelfile.name}, Screen Code :${screenCode}`)
-                                yield put({ type: IMPORTEXCEL_FAILURE, errHeader: errHeader ,errMessage:errMessage})
+                                yield put({ type: UPLOADEXCEL_FAILURE, errHeader: errHeader ,errMessage:errMessage})
                             }
                     }
                 }
         }catch(e){
                     errMessage = `err:${e}, excel read error ${excelfile.name} Screen Code :${screenCode}`
-                    yield put({ type: IMPORTEXCEL_FAILURE, errMessage: errMessage })
+                    yield put({ type: UPLOADEXCEL_FAILURE, errMessage: errMessage })
                 }
     }
  

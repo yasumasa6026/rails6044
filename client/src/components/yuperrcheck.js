@@ -19,7 +19,7 @@ export  function yupErrCheck (schema,field,linedata) {
   }      
   catch(err){
     linedata.confirm = false
-              linedata[mfield] = " error " + err.errors.join(",")
+              linedata[mfield] = " yup check error " + err.errors.join(",")
               linedata["confuem_gridmessage"] = " error " + err.errors.join(",")
               return linedata
   }
@@ -36,7 +36,7 @@ export function dataCheck7(schema,field,linedata){
           let stryyyymmdd = linedata[field]
           try{yyyymmdd = stryyyymmdd?.split(/\/|-|\s|T|:|\./)
           }catch(e) //tryを使用しないとTypeError: Cannot read properties of undefined (reading 'map')が発生する。
-            {console.log(e)}
+            {console.log(" dataCheck7 " &&e)}
           [3,4,5].map((val,idx)=>{if(yyyymmdd[val]===undefined){yyyymmdd[val] = "0"}})  //[3,4,5] 時間:分:秒
           if(checkDate(Number(yyyymmdd[0]), Number(yyyymmdd[1]), Number(yyyymmdd[2]))){
             if(Number(yyyymmdd[3])>=0&&Number(yyyymmdd[3])<=24){

@@ -19,7 +19,7 @@ class TblClass
 		else
 			@messages << " no data"
 			@modifysql = ""
-			return @messages,@modifysql
+			return @messages,@modifysql,500," no data"
 		end	
 		noerror = true
 		begin
@@ -150,7 +150,7 @@ class TblClass
 	def delete_tblfields fields,columns  ###{ fields={field =>tblrecOfField}}  tblrecOfField ={fieldcode_ftype=>xx,fieldcode_dataprecision..}
 		del_columns = columns.dup
 		fields.each do |pobject_code_fld,field|
-			del_columns.delete(pobject_code_fld)   ###未使用のfieldを残す
+			del_columns.delete(pobject_code_fld)   ###使用しているfieldを削除し未使用のfieldを残す
 		end	
 
 		del_columns.each do |del_column,col|
@@ -247,17 +247,34 @@ class TblClass
 	end		
 
 	def create_drop_field_sql table_name,column_name
-		@modifysql << "\n alter table #{ table_name} DROP COLUMN #{column_name} CASCADE;\n"
+		@modifysql << "\n --- ----------------------------------------------"
+		@modifysql << "\n --- please do the below sql"
+		@modifysql << "\n --- and rerun 'Create table,view,screen'" 
+		@modifysql << "\n --- ----------------------------------------------"	
+		@modifysql << "\n --- alter table #{ table_name} DROP COLUMN #{column_name} CASCADE;\n"
 		@modifysql << "\n --- 使用しているview "
-		@modifysql << "\n --- select * from pobject_code_scr,pobject_code_sfd,
-							---   case screenfield_selection when 1 then '選択有' else '' end select,
+		@modifysql << "\n --- select pobject_code_scr,pobject_code_sfd,
+							---   case screenfield_selection when 1 then '選択有' else '' end selection,
 							---	case screenfield_hideflg when 1 then '' else '表示有' end display,
 							---   case screenfield_indisp when 1 then '必須' else '' end inquire from r_screenfields "
-		@modifysql << "\n ---- where  pobject_code_sfd = '#{column_name}'"
-		@modifysql << "\n  update screenfields set expiredate = '2000/1/1',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
-		@modifysql << "\n         ,updated_at = current_date " 
-		@modifysql << "\n         where id in  (select id from r_screenfields where  pobject_code_sfd = '#{table_name.chop}_#{column_name}' "
-		@modifysql << "\n         											and  pobject_code_scr like '%_#{table_name}' );"
+		if column_name =~ /s_id/
+			@modifysql << "\n ---- where  pobject_code_sfd = '#{table_name.chop}_#{column_name.sub("s_id","_id")}'"
+			@modifysql << "\n --- update screenfields set expiredate = '2000/1/1',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
+			@modifysql << "\n ---        ,updated_at = current_date  ,selection = '0'"
+			@modifysql << "\n ---        where id in  (select id from r_screenfields where  (pobject_code_sfd like '#{table_name.chop}_#{column_name.sub("s_id","_id")}%' "
+			@modifysql << "\n ---        						  or screenfield_crtfield = '#{column_name.sub("s_id","")}' "
+			@modifysql << "\n ---        						  or pobject_code_sfd like '#{column_name.sub("s_id","")}%') "
+			if column_name.split("s_id")[1]
+				@modifysql << "\n --- and pobject_code_sfd like '%#{column_name.split("s_id")[1]}'"
+			end
+			@modifysql << "\n ---  		and  pobject_code_scr like '%_#{table_name}' and screenfield_selection = '1');"
+		else
+			@modifysql << "\n ---- where  pobject_code_sfd = '#{table_name.chop}_#{column_name}'"
+			@modifysql << "\n --- update screenfields set expiredate = '2000/1/1',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
+			@modifysql << "\n ---        ,updated_at = current_date  ,selection = '0'"
+			@modifysql << "\n ---        where id in  (select id from r_screenfields where  pobject_code_sfd = '#{table_name.chop}_#{column_name}' "
+			@modifysql << "\n ---        and  pobject_code_scr like '%_#{table_name}'  and screenfield_selection = '1');"
+		end
 	end	
 
 	def create_modify_field_sql rec
@@ -702,7 +719,7 @@ class TblClass
 	
 	
 	def create_viewfield screen   ##view
-		strsql = "select sfd.code pobject_code_sfd,screenfield.crtfield screenfield_crtfield 
+		strsql = "select sfd.code pobject_code_sfd,screenfield.crtfield screenfield_crtfield
 						from screenfields screenfield
 						inner join pobjects sfd on screenfield.pobjects_id_sfd = sfd.id 
 						inner join (select s.id,px.code pobject_code_scr from screens s inner join pobjects px on s.pobjects_id_scr = px.id
@@ -965,7 +982,7 @@ class TblClass
 				create_uniq_constraint tblname,grpname,codes
 			end	
 		end	
-		return @messages,@sql
+		return @messages,@sql,200,""
 	end
 
 	def chk_constraint tblname,grpname

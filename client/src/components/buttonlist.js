@@ -2,17 +2,17 @@ import React from 'react'
 import { connect } from 'react-redux'
 import { Tab, Tabs, TabList,TabPanel , } from 'react-tabs'
 //import ScreenGrid7 from './screengrid7.js'
-import ImportExcel from './importexcel.js'
+import UploadExcel from './uploadexcel.js'
 import Download from './download'
 import GanttTask from './gantttask'
 //import ToSubForm from './tosubform'
 import "react-tabs/style/react-tabs.css"
 import {Button} from '../styles/button'
 import "../index.css"
-import {ScreenRequest,DownloadRequest,GanttChartRequest,ButtonFlgRequest,ScreenFailure,
+import {ScreenRequest,DownloadRequest,UploadExcelInit,GanttChartRequest,ButtonFlgRequest,ScreenFailure,
         YupRequest,TblfieldRequest,ResetRequest, } from '../actions'
 
- const  ButtonList = ({auth,buttonListData,doButtonFlg,buttonflg,
+ const  ButtonList = ({auth,buttonListData,doButtonFlg,buttonflg,loading,
                         screenCode,data,params,
                         pareScreenCode, screenFlg//  editableflg,message
                       }) =>{
@@ -51,12 +51,13 @@ import {ScreenRequest,DownloadRequest,GanttChartRequest,ButtonFlgRequest,ScreenF
         }
         
         {(buttonflg==="ganttchart"||buttonflg==="reversechart")&&screenFlg===params.screenFlg&&<GanttTask /> }
-        {buttonflg==='import'&&<ImportExcel/>}
-        {buttonflg==="export"&&<Download/>}
-        {buttonflg==="createTblViewScreen"&&params.messages.map((msg,index) =>{
+        {buttonflg==='upload'&&<UploadExcel/>}
+        {buttonflg==="download"&&<Download/>}
+        {(buttonflg==="createTblViewScreen"||buttonflg==="createUniqueIndex")&&params.messages.map((msg,index) =>{
                                                 return  <p key ={index}>{msg}</p>
                                                   }
                                                )}
+        {loading&&<p>loading</p>}
       
         </div>    
       )
@@ -67,6 +68,7 @@ const  mapStateToProps = (state,ownProps) =>{
     return{
       auth:state.auth,
       buttonListData:state.button.buttonListData ,    //ボタンはemailで一旦全て収集
+      loading:state.button.loading , 
       buttonflg:state.second.params.buttonflg ,  
       params:state.second.params ,  
       data:state.second.data ,  
@@ -80,6 +82,7 @@ const  mapStateToProps = (state,ownProps) =>{
       return{
         auth:state.auth,
         buttonListData:state.button.buttonListData ,  
+        loading:state.button.loading , 
         buttonflg:state.screen.params.buttonflg ,  
         params:state.screen.params ,  
         data:state.screen.data ,  
@@ -96,7 +99,7 @@ const  mapStateToProps = (state,ownProps) =>{
 const mapDispatchToProps = (dispatch,ownProps ) => ({
   doButtonFlg : (buttonflg,    //
                     params,data,pareScreenCode,auth) =>{
-        dispatch(ButtonFlgRequest(buttonflg,params)) // import export 画面用
+        dispatch(ButtonFlgRequest(buttonflg,params)) // upload download 画面用
         let screenData = []
         let newRow = {}
         switch (buttonflg) {  //buttonflg ==button_code
@@ -141,14 +144,18 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           case "ganttchart":
                   if(typeof(params.index)==="number"){
                       params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"ganttchart",screenFlg:ownProps.screenFlg}
-                      return  dispatch(GanttChartRequest(params)) }//
+                      if(ownProps.screenFlg==="first"){return  dispatch(GanttChartRequest(params))}
+                        else{alert("GanttChart not support second screen  ")}
+                     }//
                   else{alert("please select")}  
                   break
 
           case "reversechart":
                     if(typeof(params.index)==="number"){
                               params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"reversechart",}
-                              return  dispatch(GanttChartRequest(params,auth)) }//
+                              if(ownProps.screenFlg==="first"){return  dispatch(GanttChartRequest(params,auth))}
+                              else{alert("GanttChart not support second screen  ")} 
+                            }//
                     else{alert("please select")}  
                     
           case "MkPackingListNo"://
@@ -159,11 +166,13 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
               params= {...params,buttonflg:"MkInvoiceNo",disableFilters:true,screenFlg:ownProps.screenFlg}
               return  dispatch(ScreenRequest(params,null)) //
           
-          case "export":
-              params= {...params,buttonflg:"download7",disableFilters:false,screenFlg:ownProps.screenFlg}
+          case "download":
+              params= {...params,buttonflg:"download",disableFilters:false,screenFlg:ownProps.screenFlg}
               return  dispatch(DownloadRequest(params,auth)) //
          
-          case "import":
+          case "upload":
+            params = {...params,buttonflg:"upload",disableFilters:false,screenFlg:ownProps.screenFlg}
+            return  dispatch(UploadExcelInit(params)) //
               return  //画面表示のみ
 
           case "mkShpords":
@@ -203,7 +212,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                           screenData[index] = newRow
                           newRow = {}
                         })
-              params= {...params,buttonflg:"createUniqueIndex",data:screenData,screenFlg:ownProps.screenFlg}
+              params= {...params,buttonflg:"createUniqueIndex",messages:[],data:screenData,screenFlg:ownProps.screenFlg}
               return  dispatch(TblfieldRequest(params,auth)) 
 
           case "yup":

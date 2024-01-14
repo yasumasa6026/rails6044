@@ -1,12 +1,13 @@
 import { call, put, select } from 'redux-saga/effects'
 import axios         from 'axios'
 import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_CONFIRM7_SUCCESS, FETCH_RESULT, FETCH_FAILURE,
-        SECOND_SUCCESS7,SECOND_FAILURE,SECOND_CONFIRM7_SUCCESS, SECONDFETCH_RESULT,
+        SECOND_SUCCESS7,SECOND_FAILURE,SECOND_CONFIRM7_SUCCESS, SECONDFETCH_RESULT,LOGIN_FAILURE,
         SECONDFETCH_FAILURE,MKSHPORDS_SUCCESS,CONFIRMALL_SUCCESS,SECOND_CONFIRMALL_SUCCESS,
         //MKSHPACTS_RESULT,
         }
          from '../../actions'
 import {getAuthState} from '../reducers/auth'
+import history from '../../histrory'
 
 function screenApi({params ,url,headers} ) {
   
@@ -140,7 +141,8 @@ export function* ScreenSaga({ payload: {params}  }) {
             case /code.*500/.test(e): message = `${e}: Internal Server Error `
                   return  yield put({type:SCREEN_FAILURE, payload:{message:message,params}})   
             case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
-                    return  yield put({type:SCREEN_FAILURE, payload:{message:message,params}})   
+                    yield call(history.push,'/login')
+                    return  yield put({type:LOGIN_FAILURE, payload:{message:message,params}})   
             default:
                 message = `catch  Screen Something went wrong ${e} `
                       return  yield put({type:SCREEN_FAILURE, payload:{message:message,params}})   

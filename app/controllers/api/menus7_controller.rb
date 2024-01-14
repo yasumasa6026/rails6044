@@ -107,7 +107,7 @@ module Api
                 reqparams = screen.proc_confirm_screen(reqparams)
                 render json: {:params=>reqparams}
 
-            when 'download7'
+            when 'download'
                 screen = ScreenLib::ScreenClass.new(params)
                 download_columns_info,totalCount,pagedata = screen.proc_download_data_blk(params)   ### nil filtered sorting
                 render json:{:excelData=>{:columns=>download_columns_info.to_json,:data=>pagedata.to_json},
@@ -412,7 +412,9 @@ module Api
                 reqparams[:buttonflg] = 'confirmSecond'
                 render json:{:outcnt => outcnt,:err => err,:params => reqparams}    
             else
-                Rails.logger.debug"#{Time.now} : buttonflg-->#{params.buttonflg} not support "    
+                Rails.logger.debug"#{Time.now} : buttonflg-->#{params[:buttonflg]} not support "
+                Rails.logger.debug"#{Time.now} : buttonflg-->#{params[:buttonflg]} not support "
+                Rails.logger.debug"#{Time.now} : buttonflg-->#{params[:buttonflg]} not support "    
             end
         end
         def show

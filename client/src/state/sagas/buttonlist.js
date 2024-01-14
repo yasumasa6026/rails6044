@@ -1,7 +1,8 @@
 import { call, put} from 'redux-saga/effects'
 import axios         from 'axios'
 
-import { BUTTONLIST_SUCCESS, MENU_FAILURE} from '../../actions'
+import { BUTTONLIST_SUCCESS, MENU_FAILURE, LOGIN_FAILURE} from '../../actions'
+import history from '../../histrory'
 
 function ButtonListGetApi({auth}) {
   let url = 'http://localhost:3001/api/menus7'
@@ -31,11 +32,14 @@ export function* ButtonListSaga({ payload: {auth} }) {
     let message
      switch (true) {
          case /code.*500/.test(error): message = 'Internal Server Error'
+         yield put({ type: MENU_FAILURE, errors: message })
           break
          case /code.*401/.test(error): message = 'Invalid credentials or Login TimeOut'
+              yield put({ type: LOGIN_FAILURE, errors: message })
+              yield call(history.push,'/login')
           break
          default: message = `buttonList Something went wrong ${error}`}
-      yield put({ type: MENU_FAILURE, errors: message })
+         yield put({ type: MENU_FAILURE, errors: message })
       }  
 }
       

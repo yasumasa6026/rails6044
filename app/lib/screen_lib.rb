@@ -619,7 +619,7 @@ module ScreenLib
 			setParams[:pageCount] = (totalCount.to_f/setParams[:pageSize]).ceil
 			setParams[:totalCount] = totalCount.to_f
 			if params[:parse_linedata]
-				setParams[:parse_linedata] = params[:parse_linedata]
+				setParams[:parse_linedata] = params[:parse_linedata].dup
 			end
 			return pagedata,setParams 
 		end	
@@ -673,7 +673,7 @@ module ScreenLib
 					case screenCode
 					when "r_mkprdpurords"  ###オーダー作成時の抽出条件初期値
 						case cell[:accessor]
-						when /loca_code_|itm_code_|person_code_chrg/	
+						when /loca_code_|shelfno_code_|itm_code_|person_code_chrg/	
 							temp[cell[:accessor]] = "dummy"
 						when /mkprdpurord_duedate_/
 							temp[cell[:accessor]] = "2099/12/31"  
@@ -914,7 +914,6 @@ module ScreenLib
 			tblnamechop = screenCode.split("_")[1].chop
 			yup_fetch_code = grid_columns_info[:fetch_check][:fetchCode]
 			yup_check_code = grid_columns_info[:fetch_check][:checkCode]
-			###parse_linedata = params[:parse_linedata].dup
 			addfield = {}
 			setParams = params.dup
 			setParams[:err] = nil
@@ -1028,7 +1027,7 @@ module ScreenLib
 					else
 			  		end 
 				when /trngantts|alloctbls/  ### blk.proc_private_aud_rec　使用せず
-						base["wh"] = "lotstkhists"
+						base = {"wh" => "lotstkhists"}
 						case screenCode
 						when /update_trngantts/
 							command_c["sio_classname"] = "_edit_update_grid_linedata"
@@ -1045,14 +1044,15 @@ module ScreenLib
 								src["wh"] = "lotstkhists"
 								src["tblname"] = parse_linedata[:alloctbl_srctblname_src]
 								src["tblid"]  = parse_linedata[:alloctbl_srctblid_src]
-								src["alloc_id"]  = parse_linedata[:alloctbl_id_src]
+								src["alloctbls_id"]  = parse_linedata[:alloctbl_id_src]
 								base["trngantts_id"] = parse_linedata[:alloctbl_trngantt_id_free]
 								base["wh"] = "lotstkhists"
 								base["tblname"] = parse_linedata[:alloctbl_srctblname_free]
 								base["tblid"] = parse_linedata[:alloctbl_srctblid_free]
 								base["qty_src"] = parse_linedata[:dummy_qty_alloc]
 								base["amt_src"] = 0
-								ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base,[],[])
+								base["alloctbls_id"]  = parse_linedata[:alloctbl_id_free]
+								ArelCtl.proc_add_linktbls_update_alloctbls(src,base)
 								ArelCtl.proc_src_trn_stk_update(sch_trn,base)
 								ArelCtl.proc_base_trn_stk_update(sch_trn,base)
 							rescue
@@ -1200,10 +1200,10 @@ module ScreenLib
 				end
 			else
 				command_c[:confirm] = false
-				params["status"] = 500
+				setParams["status"] = 500
             	command_c["sio_result_f"] = "9"  ##9:error
-				params[:err] = "state 500"
-				params[:parse_linedata][:confirm] = false  
+				setParams[:err] = "state 500"
+				setParams[:parse_linedata][:confirm] = false  
 			end
 			return setParams
 		end
@@ -1268,6 +1268,7 @@ module ScreenLib
 		end	
 		
 		def proc_showdetail params,grid_columns_info
+			setParams = params.dup
 			mainTblName = screenCode.split("_",2)[1]   ###detail table name
 			innerjoinPareTbl = paretblid = ""
 			params["clickIndex"].each do |selectLine|  ###画面で一行のみselectされている。
@@ -1286,7 +1287,7 @@ module ScreenLib
 									) link on detail.id = link.tblid
 					& 
 			str_orderby = %Q&order by id desc &
-			params[:sortBy] = params[:groupBy] = params[:aggregated] = []
+			setParams[:sortBy] = setParams[:groupBy] = setParams[:aggregated] = []
 			
 			strsql = %Q&select   #{grid_columns_info[:select_fields]} 
 						from (SELECT ROW_NUMBER() OVER (#{str_orderby}) ,#{grid_columns_info[:select_row_fields]} 
@@ -1302,10 +1303,10 @@ module ScreenLib
 				&
 		 	###fillterがあるので、table名は抽出条件に合わず使用できない。
 			totalCount = ActiveRecord::Base.connection.select_value(strsql)
-			params[:pageCount] = (totalCount.to_f/params[:pageSize].to_f).ceil
-			params[:totalCount] = totalCount.to_f
-			params[:parse_linedata] = {}
-			return pagedata,params 
+			setParams[:pageCount] = (totalCount.to_f/params[:pageSize].to_f).ceil
+			setParams[:totalCount] = totalCount.to_f
+			setParams[:parse_linedata] = {}
+			return pagedata,setParams 
 		end	
   
 		def undefined

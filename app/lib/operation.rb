@@ -7,6 +7,7 @@ class OpeClass
 	def initialize(params)
 		@reqparams = params.dup
 		@gantt = params["gantt"].dup ###reqparamsのtblの情報もここでセットしている。
+		Rails.logger.debug"  params: #{params} " if @gantt.nil?
 		@tblname = @gantt["tblname"] ###
 		@tblid = @gantt["tblid"]
 		@paretblname = @gantt["paretblname"]
@@ -69,7 +70,6 @@ class OpeClass
 				child_trngantts()  
 			end	
 		else ###変更　(削除 qty_sch=qty=qty_stk=0 　を含む) purschs,purords,prdschs,prdords
-			###return if @last_rec.empty?   ###@last_rec initでset
 			return if @gantt.nil?
 			chng_flg = check_shelfnos_duedate_qty()  ###
 			return if chng_flg == ""
@@ -468,30 +468,6 @@ class OpeClass
 					stkinout = Shipment.proc_mk_custwhs_rec("in",stkinout)
 					proc_update_inoutlot_and_src_stk("in","custwhs",stkinout)
 				end
-			# when /^prdrets/
-			# 	stkinout = Shipment.proc_lotstkhists_in_out("in",lastStkinout)  ###在庫の更新
-			# 	proc_update_inoutlot_and_src_stk("in","lotstkhists",lastStkinout)
-			# 	if stkinout[@str_qty].to_f > 0
-			# 		stkinout = Shipment.proc_lotstkhists_in_out("out",stkinout)  ###在庫の更新
-			# 		proc_update_inoutlot_and_src_stk("out","lotstkhists",stkinout)
-			# 	end
-			# when /^purrets/   
-			# 	stkinout = Shipment.proc_lotstkhists_in_out("in",lastStkinout)  ###在庫の更新
-			# 	proc_update_inoutlot_and_src_stk("in","lotstkhists",lastStkinout)
-			# 	lastStkinout["shelfnos_id"] =  @last_rec["shelfnos_id_fm"]
-			# 	lastStkinout["starttime"] = (@last_rec["retdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 	lastStkinout["suppliers_id"] = @last_rec["supplers_id"]
-			# 	lastStkinout = Shipment.proc_mk_supplierwhs_rec("out",lastStkinout)
-			# 	proc_update_inoutlot_and_src_stk("out","suppliers",lastStkinout)
-			# 	if stkinout[@str_qty].to_f > 0
-			# 		stkinout = Shipment.proc_lotstkhists_in_out("out",stkinout)  ###在庫の更新
-			# 		proc_update_inoutlot_and_src_stk("out","lotstkhists",stkinout)
-			# 		stkinout["shelfnos_id"] =  @tbldata["shelfnos_id_fm"]
-			# 		stkinout["starttime"] = (@tbldata["retdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		stkinout["suppliers_id"] = @tbldata["supplers_id"]
-			# 		stkinout = Shipment.proc_mk_supplierwhs_rec("out",stkinout)
-			# 		proc_update_inoutlot_and_src_stk("out","suppliers",stkinout)
-			# 	end
 			when /^purdlvs/  ###packnoはない
 				lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_depdate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
 				lastStkinout = Shipment.proc_lotstkhists_in_out("out",lastStkinout)  ###在庫の更新
@@ -603,8 +579,13 @@ class OpeClass
 					order by sio_id desc limit 1
 		&
 		@last_rec = ActiveRecord::Base.connection.select_one(strsql)
+		@last_rec ||= {}
 		@last_rec["tblname"] = @tblname
 		@last_rec["tblid"] = @tblid
+	end
+
+	def last_rec
+		@last_rec
 	end
 	
 	def check_shelfnos_duedate_qty
@@ -631,7 +612,7 @@ class OpeClass
 		### alloctblsのqty_schの変更はror_blkctlで実施済
 		if @tbldata["qty_sch"].to_f < base_alloc["qty_linkto_alloctbl"].to_f
 			link_strsql = %Q&
-				select link.*,alloc.qty_linkto_alloctbl qty_linkto_alloctbl,alloc.id alloc_id
+				select link.*,alloc.qty_linkto_alloctbl qty_linkto_alloctbl,alloc.id alloctbls_id
 					from linktbls link   ---srctblname :xxxxschs
 				inner join alloctbls alloc on link.trngantts_id = alloc.trngantts_id
 					where trngantts_id = #{@trngantts_id}  ---既にordsからacts等になったtbl　を含む
@@ -644,7 +625,7 @@ class OpeClass
 						update alloctbls set  qty_linkto_alloctbl = #{qty_sch},
 								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss') ,
 								remark = '#{self} line:(#{__LINE__})'|| remark
-								where id = #{src_link["alloc_id"]}
+								where id = #{src_link["alloctbls_id"]}
 						&
 				ActiveRecord::Base.connection.update(sql_alloctbls_update)
 			end
@@ -696,9 +677,9 @@ class OpeClass
 		@trngantts_id = @gantt["id"] = @gantt["trngantts_id"] = ArelCtl.proc_get_nextval("trngantts_seq")
 		
 		###insts,replyinputs,dlvs,replyinputs,acts,retsはtrnganttsは作成しない。
-		linktbl_id,alloc_id = ArelCtl.proc_insert_trngantts(@gantt)  ###@ganttの内容をセット
+		linktbl_id,alloctbls_id = ArelCtl.proc_insert_trngantts(@gantt)  ###@ganttの内容をセット
 		@reqparams["linktbl_ids"] = [linktbl_id]
-		@reqparams["alloctbl_ids"] = [alloc_id]
+		@reqparams["alloctbl_ids"] = [alloctbls_id]
 		@reqparams["gantt"] = @gantt.dup
 		case @tblname	
 		when /^purords|^prdords/  ### 単独でxxxordsを画面又はexcelで登録-->mkordinstsを利用してないとき
@@ -806,6 +787,7 @@ class OpeClass
 				tmp["srctblid"] = lotstk["#{wh}_id"]
 				tmp["srctblname"] = wh
 				tmp[@str_qty] = new_src_qty
+				tmp["persons_id_upd"] = stkinout["persons_id_upd"]
 				tmp["remark"] = "Operation line #{__LINE__}"
 				Shipment.proc_check_inoutlotstk(inout,tmp)
 			else

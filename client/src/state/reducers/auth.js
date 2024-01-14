@@ -81,7 +81,7 @@ const authreducer =  (state= initialValues , actions) =>{
       return {...state,
         isAuthenticated:false,
         isSubmitting:false,
-        error:actions.payload,
+        error:actions.payload.message,
     }
 
     case LOGOUT_REQUEST:

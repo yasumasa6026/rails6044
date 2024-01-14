@@ -211,14 +211,14 @@ module Api
                             strsql = %Q&                                        
                                         select 	t.key,t.mlevel,
                                                 orgitm.code itm_code_org,orgitm.name itm_name_org,t.processseq_org trngantt_processseq_org,
-                                                orgloca.code loca_code_org,orgloca.name loca_name_org,
+                                                orgshelfno.loca_code loca_code_org,orgshelfno.loca_name loca_name_org,
                                                 t.duedate_org trngantt_duedate_org,
                                                 t.duedate_trn trngantt_duedate_trn,t.toduedate_trn trngantt_toduedate_pare,t.starttime_trn trngantt_starttime_pare,
                                                 trnitm.code itm_code_pare,trnitm.name itm_name_pare,t.processseq_trn trngantt_processseq_pare,
                                                 trnshelfno.code shelfno_code_pare,trnshelfno.name shelfno_name_pare,
-                                                trnshelfno.loca_code loca_code_shelfno_pare,trnshelfno.loca_name loca_name_shelfno_pare,
+                                                trnshelfno.loca_code loca_code_pare,trnshelfno.loca_name loca_name_pare,
                                                 t.qty_sch trngantt_qty_sch_pare,prjno.code prjno_code,prjno.name prjno_name,
-                                                t.itms_id_org trngantt_itm_id_org,t.locas_id_org trngantt_loca_id_org,
+                                                t.itms_id_org trngantt_itm_id_org,
                                                 t.itms_id_trn trngantt_itm_id_pare,
                                                 t.shelfnos_id_trn trngantt_shelfno_id_pare,t.shelfnos_id_to_trn trngantt_shelfno_id_to_pare,
                                                 t.prjnos_id trngantt_prjno_id
@@ -226,7 +226,11 @@ module Api
                                             inner join #{tblname} p on p.id = t.tblid
                                             inner join itms orgitm on orgitm.id = t.itms_id_org
                                             inner join itms trnitm on trnitm.id = t.itms_id_trn
-                                            inner join locas orgloca on orgloca.id = t.locas_id_org
+                                            inner join (select s.id,s.code,s.name,l.code loca_code,l.name loca_name,
+                                                                                    l.id locas_id
+                                                                from shelfnos s 
+                                                                inner join locas l on s.locas_id_shelfno = l.id) 
+                                                        orgshelfno on orgshelfno.id = t.shelfnos_id_org
                                             inner join (select s.id,s.code,s.name,l.code loca_code,l.name loca_name,
                                                                                     l.id locas_id
                                                                 from shelfnos s 

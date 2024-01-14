@@ -1,7 +1,7 @@
 import { BUTTONLIST_SUCCESS, BUTTONFLG_REQUEST,SCREENINIT_REQUEST,  
    DOWNLOAD_REQUEST, DOWNLOAD_SUCCESS,LOGOUT_REQUEST,RESET_REQUEST, DOWNLOAD_FAILURE,
     //MKSHPACTS_RESULT,
-  IMPORTEXCEL_REQUEST,} //
+  UPLOADEXCEL_REQUEST,} //
    from '../../actions'
 
 const initialValues = {
@@ -22,7 +22,7 @@ screenName:actions.payload.params.screenName,
 disabled:true,  
 messages:null,
 message:null, 
-downloadloading:"",
+loading:true,
 }
 
 
@@ -39,11 +39,12 @@ case BUTTONLIST_SUCCESS:
 return {...state,
 buttonListData:actions.payload,
 disabled:false,
+loading:false,
 }
 
-case IMPORTEXCEL_REQUEST:
+case UPLOADEXCEL_REQUEST:
   return {...state,
-    buttonflg:"import", 
+    buttonflg:"upload", 
     complete:false,
           // editableflg:action.payload.editableflg
 }
@@ -53,7 +54,7 @@ return {...state,
 excelData:null,
 totalCount:null,
 params:actions.payload.params,
-downloadloading:"doing",
+loading:true,
 messages:null,
 message:null,
 errors:null,
@@ -64,7 +65,7 @@ return {...state,
 excelData:actions.payload.data.excelData,
 totalCount:actions.payload.data.totalCount,
 fillered:actions.payload.data.fillered,
-downloadloading:"done",
+loading:false,
 errors:null,
 }
 
@@ -85,13 +86,16 @@ return {...state,
   excelData:null,
   totalCount:null,
   buttonflg:null,
-  downloadloading:"",
+  loading:false,
   disabled:false,
 }
 
 
 default:
-return state
+return {...state,
+disabled:false,
+loading:false,
+}
 }
 }
 

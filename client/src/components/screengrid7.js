@@ -370,7 +370,7 @@ const ScreenGrid7 = ({
   
     return (
      <div>
-        <TableGridStyles height={buttonflg ? "840px" : buttonflg === "export" ? "500px" : buttonflg === "import" ? "300px" : "840px"}
+        <TableGridStyles height={buttonflg ? "840px" : buttonflg === "download" ? "500px" : buttonflg === "import" ? "300px" : "840px"}
           screenwidth={screenwidth} >
           <GridTable  columns={columns}  screenCode={screenCode}
             data={data} dropDownList={dropDownList}
@@ -663,7 +663,8 @@ const GridTable = ({
                       {  // filter sortでの検索しなおし
                        if (e.key === "Enter" &&!params.disableFilters&&!toggleSubForm)
                            { 
-                             params = {...params,filtered:filters,sortBy:sortBy,groupBy:groupBy,aggregated:aggregated,} // Apply the header cell props
+                             params = {...params,aud:"view",buttonflg:"viewtablereq7",filtered:filters,sortBy:sortBy,groupBy:groupBy,aggregated:aggregated,} 
+                             // Apply the header cell props
                              handleScreenRequest(params,data)
                            }else{e.key==="Enter"&&toggleSubForm&&alert("can not use filer or sortBy or groupBy when subForm using")}
                        },

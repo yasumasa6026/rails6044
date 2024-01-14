@@ -3,7 +3,7 @@ import {takeEvery} from 'redux-saga/effects'
 
 import {LOGIN_REQUEST,SIGNUP_REQUEST,LOGOUT_REQUEST,
         MENU_REQUEST,FETCH_REQUEST,SECONDFETCH_REQUEST,
-        SCREENINIT_REQUEST,SCREEN_REQUEST,IMPORTEXCEL_REQUEST,
+        SCREENINIT_REQUEST,SCREEN_REQUEST,UPLOADEXCEL_REQUEST,
         SCREEN_CONFIRM7,SECOND_CONFIRM7,SECOND_REQUEST,
         GANTTCHART_REQUEST,BUTTONLIST_REQUEST,
         DOWNLOAD_REQUEST, YUP_REQUEST,TBLFIELD_REQUEST,
@@ -20,7 +20,7 @@ import {ScreenSaga} from './screen'//
 import {ButtonListSaga} from './buttonlist'
 import {GanttChartSaga} from './ganttchart'
 import {TblfieldSaga} from './tblfield'
-import {ImportExcelSaga} from './importexcel'
+import {UploadExcelSaga} from './uploadexcel'
 import {ProtectSaga} from './protect'
 
 export function * sagas () {
@@ -42,6 +42,6 @@ export function * sagas () {
   yield takeEvery(GANTTCHART_REQUEST,GanttChartSaga)
   yield takeEvery(UPDATENDITM_REQUEST,GanttChartSaga)
   yield takeEvery(UPDATEALLOC_REQUEST,GanttChartSaga)
-  yield takeEvery(IMPORTEXCEL_REQUEST,ImportExcelSaga)
+  yield takeEvery(UPLOADEXCEL_REQUEST,UploadExcelSaga)
   yield takeEvery(INPUTFIELDPROTECT_REQUEST,ProtectSaga)
 }

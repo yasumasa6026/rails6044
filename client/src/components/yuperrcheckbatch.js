@@ -7,8 +7,8 @@ export  function yupErrCheckBatch(lines,screenCode)
 {
     let Yup = require('yup')
     let screenSchema = Yup.object().shape(yupschema[screenCode])
-    let importexcel = []
-    let importErrorCheckMaster = false
+    let uploadexcel = []
+    let uploadErrorCheckMaster = false
     let tblnamechop = screenCode.split("_")[1].slice(0, -1)
     let batchField = ""
     let autoAddFields = {}
@@ -33,7 +33,7 @@ export  function yupErrCheckBatch(lines,screenCode)
                     if(row[`${fd}_gridmessage`] !== "ok"){
                           line[`${fd}_gridmessage`] = row[`${fd}_gridmessage`]
                           line[`${tblnamechop}_confirm_gridmessage`] = `error x ${fd} field:${fd} ` + row[`${fd}_gridmessage`]
-                          importErrorCheckMaster = true
+                          uploadErrorCheckMaster = true
                           line[`confirm`] = false
                           line = {...line,[fd]:row[fd]}
                         }else{
@@ -46,20 +46,20 @@ export  function yupErrCheckBatch(lines,screenCode)
             catch(err){  //jsonにはxxxx_gridmessageはない。
                 line[`${tblnamechop}_confirm_gridmessage`] = `error y ${err} field:${batchField} ` + line[`${tblnamechop}_confirm_gridmessage`]
                 line[`confirm`] = false
-                importErrorCheckMaster = true
+                uploadErrorCheckMaster = true
             }
         }else{
             if(line["aud"]==="aud"){
                 }else{
                     line[`${tblnamechop}_confirm_gridmessage`] = "error z missing aud--> add OR update OR delete "
                     line[`confirm`] = false
-                    importErrorCheckMaster = true
+                    uploadErrorCheckMaster = true
             }   
         }  
-        importexcel.push(line) 
-        return {importexcel,importErrorCheckMaster}
+        uploadexcel.push(line) 
+        return {uploadexcel,uploadErrorCheckMaster}
     })
-    return {importexcel,importErrorCheckMaster}
+    return {uploadexcel,uploadErrorCheckMaster}
 }  
 
 

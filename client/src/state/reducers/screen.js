@@ -1,17 +1,17 @@
 import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
   LOGOUT_REQUEST,SCREEN_CONFIRM7,SCREEN_CONFIRM7_SUCCESS,SCREEN_FAILURE,
-  FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,YUP_RESULT,
+  FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,
   INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
   SECOND_SUCCESS7,SECOND_CONFIRM7_SUCCESS,
   MKSHPORDS_SUCCESS,SCREEN_DATASET,CHANGE_SHOW_SCREEN,
   TBLFIELD_REQUEST,TBLFIELD_SUCCESS,
-  GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
-  YUP_ERR_SET,DROPDOWNVALUE_SET,SCREEN_SUBFORM,LOGIN_SUCCESS} 
+  GANTTCHART_REQUEST,GANTTCHART_SUCCESS, UPLOADEXCEL_INIT,
+  DROPDOWNVALUE_SET,SCREEN_SUBFORM,LOGIN_SUCCESS,LOGOUT_SUCCESS} 
   from '../../actions'
 
 export let getScreenState = state => state.screen
 
-const initialValues = {second_columns_info:{columns_info:null,},}
+const initialValues = {loading : false,second_columns_info:{columns_info:null,},}
 
 const screenreducer =  ( state = initialValues , actions) =>{
 let data
@@ -37,12 +37,6 @@ return {...state,
   params:actions.payload.params,
 }
 
-case YUP_ERR_SET:
-  return {...state,
-    data:actions.payload.data,
-    loading : false,
-    error : actions.payload.error,
-}
   
 case SCREEN_REQUEST:
 return {...state,
@@ -114,7 +108,6 @@ case CONFIRMALL_SUCCESS:
 
 case SCREEN_FAILURE:
   return {...state,
-    hostError: actions.payload.message.message,
     loading:false,
   }
 
@@ -126,6 +119,15 @@ case  DROPDOWNVALUE_SET:
     return {...state,
       data:state.data
   }  
+
+  
+
+case UPLOADEXCEL_INIT:
+  return {...state,
+            params:actions.payload.params,
+            loading:false
+  }
+
 
 // Append the error returned from our api
 // set the success and requesting flags to false
@@ -162,12 +164,6 @@ case INPUTFIELDPROTECT_REQUEST:
 case INPUTPROTECT_RESULT:
   return {...state,
           }
-
-case YUP_RESULT:
-    return {...state,
-      message: actions.payload.message,
-    }
-  
 
 case SCREEN_DATASET:
       return {...state,
@@ -226,11 +222,18 @@ case TBLFIELD_SUCCESS:
 
   case  LOGOUT_REQUEST:
     return {
+        ...state,
         loading:false,
         hostError: null,
         disabled:false,
         message:null,
     }
+
+  
+    case  LOGOUT_SUCCESS:
+      return {
+      }
+      
 
   case CHANGE_SHOW_SCREEN:
       return {}

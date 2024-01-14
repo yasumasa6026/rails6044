@@ -138,15 +138,14 @@ module RorBlkCtl
 
 			
 			setParams["seqno"] ||= []
-			setParams["child"] ||= {}
 			setParams["opeitm"] = {}
-			if @tblname =~ /schs$|ords$|insts|inputs$|dlvs|acts$|rets$/
+			if  (@tblname =~ /^prd|^pur|^cust/ and @tblname =~ /schs$|ords$|insts|inputs$|dlvs|acts$|rets$/) or @tblname == "dymschs" 
 				if @tbldata["opeitms_id"]
 					opeitm = ActiveRecord::Base.connection.select_one("select * from opeitms where id = #{@tbldata["opeitms_id"]}")
-					opeitm["locas_id_opeitm"] = ActiveRecord::Base.connection.select_value(%Q%
+					opeitm["locas_id_shelfno"] = ActiveRecord::Base.connection.select_value(%Q%
 														select locas_id_shelfno from shelfnos where id = #{opeitm["shelfnos_id_opeitm"]} %)
-					opeitm["locas_id_to_opeitm"] = ActiveRecord::Base.connection.select_value(%Q%
-														select locas_id_shelfno from shelfnos where id = #{opeitm["shelfnos_id_to_opeitm"]} %)
+					opeitm["locas_id_shelfno_to"] = ActiveRecord::Base.connection.select_value(%Q%
+					 									select locas_id_shelfno from shelfnos where id = #{opeitm["shelfnos_id_to_opeitm"]} %)
 				else
 					opeitm = {}
 				end
@@ -157,73 +156,76 @@ module RorBlkCtl
 			else
 				if @tblname == "trngantts" and	@screenCode == "update_trngantts"
 					gantt = {}
-					gantt["tblname"] = @tbldata[:tblname]
-					gantt["tblid"] = @tbldata[:tblid]
-					gantt["paretblname"] = @tbldata[:paretblname]
-					gantt["paretblid"] = @tbldata[:paretblid]
-					gantt["orgtblname"] = @tbldata[:orgtblname]
-					gantt["orgtblid"] = @tbldata[:orgtblid]
-					gantt["trngantts_id"] = @tbldata[:id]
-					gantt["itms_id"]  =  gantt["itms_id_trn"] = @tbldata[:itms_id_trn] 
-					gantt["processseq_trn"]  =   @tbldata[:processseq_trn]
-					gantt["starttime_trn"] =  @tbldata[:starttime_trn]   
-					gantt["duedate_trn"]   =  @tbldata[:duedate_trn]     
-					gantt["toduedate_trn"]   =  @tbldata[:toduedate_trn]
+					gantt["tblname"] = @tblname
+					gantt["tblid"] = @tbldata["id"]
+					gantt["paretblname"] = @tbldata["paretblname"]
+					gantt["paretblid"] = @tbldata["paretblid"]
+					gantt["orgtblname"] = @tbldata["orgtblname"]
+					gantt["orgtblid"] = @tbldata["orgtblid"]
+					gantt["trngantts_id"] = @tbldata["id"]
+					gantt["itms_id"]  =  gantt["itms_id_trn"] = @tbldata["itms_id_trn"] 
+					gantt["processseq_trn"]  =   @tbldata["processseq_trn"]
+					gantt["starttime_trn"] =  @tbldata["starttime_trn"]   
+					gantt["duedate_trn"]   =  @tbldata["duedate_trn"]     
+					gantt["toduedate_trn"]   =  @tbldata["toduedate_trn"]
 					gantt["persons_id_upd"]   =  setParams["person_id_upd"]
 					setParams["gantt"] = gantt.dup  	
 					ope = Operation::OpeClass.new(setParams) 	
 					ope.proc_link_lotstkhists_update()	
 					update_strsql = %Q&
-							update #{@tbldata[:tblname]}
-									set shelfnos_id = #{@tbldata[:shelfnos_id_trn]},shelfnos_id_to = #{@tbldata[:shelfnos_id_to_trn]},
-										duedate = #{@tbldata[:duedate_trn]},starttime = #{@tbldata[:stsrttime_trn]},
-										qty_sch = #{@tbldata[:qty_sch]},expiredate = #{@tbldata[:expiredate]},
+							update #{@tblname}
+									set shelfnos_id = #{@tbldata["shelfnos_id_trn"]},shelfnos_id_to = #{@tbldata["shelfnos_id_to_trn"]},
+										duedate = #{@tbldata["duedate_trn"]},starttime = #{@tbldata["stsrttime_trn"]},
+										qty_sch = #{@tbldata["qty_sch"]},expiredate = #{@tbldata["expiredate"]},
 										remark = '#{self} line:(#{__LINE__})'||remark,
 										updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
-								where id = #{@tbldata[:tblid]}
+								where id = #{@tbldata["id"]}
 					&
 					ActiveRecord::Base.connection.update(update_strsql)	
 					update_strsql = %Q&
 							update alloctbls
-									set qty_linkto_alloctbl = #{@tbldata[:qty_sch]},remark = '#{self} line:(#{__LINE__})'||remark,
+									set qty_linkto_alloctbl = #{@tbldata["qty_sch"]},remark = '#{self} line:(#{__LINE__})'||remark,
 										updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
-								where trngantts_id = #{@tbldata[:id]} and srctblname = '#{@tbldata[:tblname]}' and srctblid = #{@tbldata[:tblid]} 
+								where trngantts_id = #{@tbldata["id"]} and srctblname = '#{@tblname}' and srctblid = #{@tbldata["id"]} 
 					&
 					ActiveRecord::Base.connection.update(update_strsql)		
+					return setParams
 				else
 				end	
-				return setParams
 			end
+
 			case  @tblname
-			when /^bill|^pay/
-				account = setAccount(setParams)
-				setParams["account"] = account
-				return setParams
-			when /mkprdpurords/
+			when /mkprdpurords$/
 				setParams["segment"] = "mkprdpurords"
+				gantt = {}
+				gantt["tblname"] = @tblname
+				gantt["tblid"] = @tbldata["id"]
+				gantt["paretblname"] = "dummy"
+				gantt["paretblid"]  = "0"
 				setParams["gantt"] = gantt.dup
+				@tbldata["persons_id_upd"] = setParams["person_id_upd"]
+				setParams["tbldata"] = @tbldata.dup
 				setParams["mkprdpurords_id"] = @tbldata["id"]
 				setParams["remark"] = " RorBlkCtl.lib.proc_private_aud_rec"
 				processreqs_id ,setParams = ArelCtl.proc_processreqs_add(setParams)		
 				return setParams
-			when /mkbillinsts/
+			when /mkbillinsts$/
 				setParams["segment"] = "mkbillinsts"
 				setParams["mkbillinsts_id"] = @tbldata["id"]
 				setParams["remark"] = " RorBlkCtl.lib.proc_private_aud_rec"
 				processreqs_id ,setParams = ArelCtl.proc_processreqs_add(setParams)	
 				return setParams
-			when /^prdschs|^purschs/
+			when /^prdschs$|^purschs$/
 				if setParams["gantt"]
 				else
 					gantt["qty_sch"] = @tbldata["qty_sch"]
 					gantt["qty_handover"] = @tbldata["qty_sch"] 
 					gantt["starttime_trn"] = (@tbldata["duedate"].to_time - opeitm["duration"].to_f*60*60*24).strftime("%Y-%m-%d %H:%M:%S") 
 					###作業場所の稼働日考慮要
-					gantt["locas_id_org"]  = command_c["shelfno_loca_id_shelfno"]
-					gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
+					gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = gantt["shelfnos_id_org"] = @tbldata["shelfnos_id"]
 					gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
 				end
-			when /^prdords/	
+			when /^prdords$/	
 				if command_c["sio_classname"] =~ /_add_|_insert_/
 				 	gantt["trngantts_id"] = ArelCtl.proc_get_nextval("trngantts_seq")
 				else
@@ -236,12 +238,11 @@ module RorBlkCtl
 				gantt["qty_require"] = 0
 				gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
 				gantt["starttime_trn"] = @tbldata["starttime"] 
-				gantt["locas_id_org"] = command_c["shelfno_loca_id_shelfno"]
-				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
+				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] =  gantt["shelfnos_id_org"] = @tbldata["shelfnos_id"]
 				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
-			when /^prdinsts/  ###insts,actsでは trnganttsは作成しない。
-			when /^prdacts/
-			when /^purords/
+			when /^prdinsts$/  ###insts,actsでは trnganttsは作成しない。
+			when /^prdacts$/
+			when /^purords$/
 				if command_c["sio_classname"] =~ /_add_|_insert_/
 				 	gantt["trngantts_id"] = ArelCtl.proc_get_nextval("trngantts_seq")
 				else
@@ -254,29 +255,26 @@ module RorBlkCtl
 				gantt["qty_require"] = 0
 				gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
 				gantt["starttime_trn"] = @tbldata["starttime"] 
-				gantt["locas_id_org"] =  command_c["shelfno_loca_id_shelfno"]
-				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = @tbldata["shelfnos_id"]
+				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] =  gantt["shelfnos_id_org"] = @tbldata["shelfnos_id"]
 				gantt["shelfnos_id_to_trn"] = gantt["shelfnos_id_to_pare"] = @tbldata["shelfnos_id_to"]
-			when /^replyinputs/ ###trnganttsは作成しない。
-			when /^purinsts/  ###trnganttsは作成しない。
-			when /^purdlvs/###trnganttsは作成しない。
-			when /^puracts/ ###trnganttsは作成しない。
-			when /^custschs/  ### setParams["gantt"].nil?==trueのはず
+			when /^replyinputs$/ ###trnganttsは作成しない。
+			when /^purinsts$/  ###trnganttsは作成しない。
+			when /^purdlvs$/###trnganttsは作成しない。
+			when /^puracts$/ ###trnganttsは作成しない。
+			when /^custschs$/  ### setParams["gantt"].nil?==trueのはず
 				gantt["qty_sch"] = @tbldata["qty_sch"]
 				gantt["qty_handover"] = @tbldata["qty_sch"] ###下位部品所要量計算用
 				gantt["qty"] = 0
 				gantt["starttime_trn"] = @tbldata["starttime"] = (@tbldata["duedate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S") 
-				gantt["locas_id_org"] = command_c["cust_loca_id_cust"]
-				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = 0 ###custschs,custords用dummy id
+				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] =  gantt["shelfnos_id_org"] = 0 ###custschs,custords用dummy id
 				gantt["shelfnos_id_to_trn"] =  gantt["shelfnos_id_to_pare"] = 0 
-			when /^custords/  ### setParams["gantt"].nil?==trueのはず
+			when /^custords$/  ### setParams["gantt"].nil?==trueのはず
 				###下位部品所要量計算用
 				###自身のschsからordsへの変換用
 				gantt["qty"] =  gantt["qty_handover"] = gantt["qty_require"] = @tbldata["qty"]
 				gantt["qty_sch"] = 0
 				gantt["starttime_trn"] = @tbldata["starttime"] = (@tbldata["duedate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")
-				gantt["locas_id_org"] =  command_c["cust_loca_id_cust"] ###
-				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = 0 ###custschs,custords用dummy id
+				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] =  gantt["shelfnos_id_org"] = 0 ###custschs,custords用dummy id
 				gantt["shelfnos_id_to_trn"] =  gantt["shelfnos_id_to_pare"] = 0 
 			when /acts$/ ###trnganttsは作成しない。
 			when /^cust/ ###custschs,custords以外
@@ -322,7 +320,7 @@ module RorBlkCtl
 								update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl - #{alloc_qty},
 								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 								remark = '#{self} line:(#{__LINE__})'|| remark
-									where id = #{src["alloc_id"]} 
+									where id = #{src["alloctbls_id"]} 
 								&
 							ActiveRecord::Base.connection.update(strsql)
 
@@ -446,17 +444,69 @@ module RorBlkCtl
 				end
 			end
 
-			if @tblname =~ /^prd|^pur|^cust|dymschs/ 
+			if (@tblname =~ /^prd|^pur|^cust/  and @tblname =~ /schs$|ords$/)  
 				setParams["tbldata"] = @tbldata.dup	###変更されているため再セット
 				ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
+				setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
 				case  @tblname
-				when /^prdschs$|^purschs$|^custords$/
-					setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
+				when /^prdschs$|^purschs$/
 					setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
 					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
 					###schsの時はshpschs,conschsは作成しない
+				when /^custsch$/
+					setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
+					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+					###schsの時はshpschs,conschsは作成しない
+					billParams = {"segment" => "mkbillests",  ###必須項目
+									"srctblname" => "custschs","srctblid" => @tbldata["id"],
+									"amt_src" =>  @tbldata["amt_sch"],
+									"custs_id" => @tbldata["custs_id"],"duedate" => @tbldata["duedate"],
+									"last_amt" => ope.last_rec["custsch_amt"],
+									"last_duedate" => ope.last_rec["custsch_duedate"],
+									"remark" => " RorBlkCtl.lib.proc_private_aud_rec",
+									"seqno" => setParams["seqno"],###link_lotstkhists_update　と同時
+									"trngantts_id" => setParams["gantt"]["trngantts_id"],
+									"gantt" => {},"tbldata" => {},###必須項目
+									"person_id_upd" => setParams["person_id_upd"]}
+					processreqs_id ,billParams = ArelCtl.proc_processreqs_add(billParams)	
+					###billparamsは親には引き継がない
+				when /^custords$/
+					setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
+					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+					###schsの時はshpschs,conschsは作成しない
+					billParams = {"segment" => "mkbillschs",  ###必須項目
+									"srctblname" => "custords","srctblid" => @tbldata["id"],
+									"amt_src" =>  @tbldata["amt"],
+									"custs_id" => @tbldata["custs_id"],"duedate" => @tbldata["duedate"],
+									"last_amt" => ope.last_rec["custord_amt"],
+									"last_duedate" => ope.last_rec["custord_duedate"],
+									"remark" => " RorBlkCtl.lib.proc_private_aud_rec",
+									"seqno" => setParams["seqno"],###link_lotstkhists_update　と同時
+									"trngantts_id" => setParams["gantt"]["trngantts_id"],
+									"gantt" => {},"tbldata" => {},###必須項目
+									"person_id_upd" => setParams["person_id_upd"]}
+					processreqs_id ,billParams = ArelCtl.proc_processreqs_add(billParams)	
+					###billparamsは親には引き継がない
+					case @screenCode
+					when /cust1_custords/
+						case command_c["sio_classname"]
+						when /_add_|_insert_/
+							head = {"paretblname"=>params[:head][:pareScreenCode].split("_")[1],"paretblid"=>params[:head][:id]}
+							detail = {"tblname"=>@tblname,"tblid"=> @tbldata["id"],"persons_id_upd"=>setParams["person_id_upd"]}
+							ArelCtl.proc_insert_linkheads(head,detail)
+							###親
+							paretbldata = ActiveRecord::Base.connection.select_one("select * from #{head["paretblname"]} where id = #{head["paretblid"]} ")
+							paretbldata["amt"] = paretbldata["amt"].to_f + @tbldata["amt"].to_f 
+							paretbldata["tax"] = paretbldata["tax"].to_f + @tbldata["tax"].to_f 
+							tbl_edit_arel(head["paretblname"],paretbldata," id = #{head["paretblid"]}")
+							setParams[:pareLineData] = ActiveRecord::Base.connection.select_one(%Q&
+										select * from r_#{head["paretblname"]}  where id = #{head["paretblid"]}	&)
+						when /_edit_|_update_/
+							tbl_edit_arel(tblname,tbldata," id = #{@tbldata["id"]}")
+						when  /_delete_|_purge_/
+						end
+					end
 				when /^prdords$|^purords$/
-					setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
 					if mkprdpurords_id == 0
 						setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
 						processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
@@ -466,34 +516,22 @@ module RorBlkCtl
 					end
 					setParams["segment"]  = "mkShpschConord"  ### XXXXschs,ordsの時XXXschsを作成
 					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
-				when /^dymschs$/
-					setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
+					if @tblname == "purords"
+						payParams = {"segment" => "mkpayschs",  ###必須項目
+										"srctblname" => "purords","srctblid" => @tbldata["id"],
+										"amt_src" =>  @tbldata["amt"],
+										"suppliers_id" => @tbldata["suppliers_id"],"duedate" => @tbldata["duedate"],
+										"last_amt" => ope.last_rec["purord_amt"],
+										"last_duedate" => ope.last_rec["purrord_duedate"],
+										"remark" => " RorBlkCtl.lib.proc_private_aud_rec",
+										"seqno" => setParams["seqno"],###link_lotstkhists_update　と同時
+										"trngantts_id" => setParams["gantt"]["trngantts_id"],
+										"gantt" => {},"tbldata" => {},###必須項目
+										"person_id_upd" => setParams["person_id_upd"]}
+						processreqs_id ,payParams = ArelCtl.proc_processreqs_add(payParams)	
+					end
 				end
 			end
-
-			case @screenCode
-			when /cust1_custords/
-				case command_c["sio_classname"]
-				when /_add_|_insert_/
-					head = {"paretblname"=>params[:head][:pareScreenCode].split("_")[1],"paretblid"=>params[:head][:id]}
-					detail = {"tblname"=>@tblname,"tblid"=> @tbldata["id"],"persons_id_upd"=>setParams["person_id_upd"]}
-					ArelCtl.proc_insert_linkheads(head,detail)
-					###親
-					paretbldata = ActiveRecord::Base.connection.select_one("select * from #{head["paretblname"]} where id = #{head["paretblid"]} ")
-					paretbldata["amt"] = paretbldata["amt"].to_f + @tbldata["amt"].to_f 
-					paretbldata["tax"] = paretbldata["tax"].to_f + @tbldata["tax"].to_f 
-					tbl_edit_arel(head["paretblname"],paretbldata," id = #{head["paretblid"]}")
-					setParams[:pareLineData] = ActiveRecord::Base.connection.select_one(%Q&
-										select * from r_#{head["paretblname"]}  where id = #{head["paretblid"]}	&)
-				when /_edit_|_update_/
-					tbl_edit_arel(tblname,tbldata," id = #{@tbldata["id"]}")
-				when  /_delete_|_purge_/
-				end
-			end
-			return setParams
-		end
-
-		def  setAccount(setParams)
 			return setParams
 		end
 
@@ -516,7 +554,7 @@ module RorBlkCtl
 									&
 								sql_get_src_alloc = %Q&
 										select src.*,alloc.qty_linkto_alloctbl,alloc.trngantts_id,alloc.srctblname tblname,alloc.srctblid tblid,
-											alloc.id alloc_id	from #{srctblname} src 
+											alloc.id alloctbls_id	from #{srctblname} src 
 												inner join alloctbls alloc on alloc.srctblid = src.id 
 											where src.sno = '#{val}' and  alloc.qty_linkto_alloctbl > 0
 											order by alloc.allocfree,alloc.id  ---引き当て済分から次の状態に移行する。

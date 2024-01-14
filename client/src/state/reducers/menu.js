@@ -1,15 +1,14 @@
-import {MENU_REQUEST,MENU_SUCCESS,LOGOUT_REQUEST,MENU_FAILURE,
-          SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,
-                    SCREEN_CONFIRM7,LOGIN_SUCCESS,CHANGE_SHOW_SCREEN,TBLFIELD_REQUEST,
+import {MENU_REQUEST,MENU_SUCCESS,LOGOUT_REQUEST,MENU_FAILURE,LOGIN_FAILURE,
+          SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,SCREEN_FAILURE,
+                    SCREEN_CONFIRM7,LOGIN_SUCCESS,CHANGE_SHOW_SCREEN,
            SECOND_CONFIRMALL_SUCCESS,SECOND_REQUEST,SECOND_SUCCESS7,SECOND_CONFIRM7,
-          TBLFIELD_SUCCESS,SECONDTBLFIELD_SUCCESS,
           SECOND_FAILURE, } from '../../actions'
 const initialValues = {
   isSubmitting:false,
   isSignUp:false,
   errors:[],
   screenFlg:"first",
-  params:{screenCode:null,screenName:null},
+  params:{screenCode:null,screenName:null,buttonflg:"viewtablereq7"},
 }
 
 const menureducer =  (state= initialValues , actions) =>{
@@ -32,6 +31,13 @@ const menureducer =  (state= initialValues , actions) =>{
       return {...state,
         message:actions.errors,
     }    
+
+    
+    case SCREEN_FAILURE:
+      return {...state,
+        hostError: actions.payload.message.message,
+      loading:false,
+    }
 
 
     case CHANGE_SHOW_SCREEN:
@@ -98,22 +104,21 @@ const menureducer =  (state= initialValues , actions) =>{
             loading:false,
           }   
 
-    case TBLFIELD_REQUEST:
-      return {...state,
-        loading:true,
-      }   
-
-    case SECONDTBLFIELD_SUCCESS:
-    case TBLFIELD_SUCCESS:
-      return {...state,
-        loading:false,
-      }   
 
     case  LOGOUT_REQUEST:
     return {}  
 
+      
+    case  LOGIN_FAILURE:
+      return {
+        showScreen:false,
+        hostError:actions.payload.message
+}
+
     default:
-      return state
+      return  {...state,
+        showScreen:true,
+      }   
   }
 }
 
