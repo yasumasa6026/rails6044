@@ -51,7 +51,7 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
                         autoAddFields[toduedate] = lineData[toduedate]
                 }
             break
-        case /_qty_sch|_qty$/.test(id):  //opeitmsのレコードは既に求めていること。
+        case /_qty_sch$|_qty$|qty_stk$/.test(id):  //opeitmsのレコードは既に求めていること。
             qty_case = id.split("_")[0] + "_qty_case" 
             if(/cust|prd|pur|shp/.test(screenCode)&&/schs|ords/.test(screenCode)&&lineData[qty_case]===0){
                     if(Number(lineData["opeitm_packqty"])===0){  //opeitm_packqtyは購入時・作成後の完成時の単位

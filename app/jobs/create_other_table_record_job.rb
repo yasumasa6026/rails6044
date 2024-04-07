@@ -3,12 +3,14 @@ class CreateOtherTableRecordJob < ApplicationJob
     def perform(pid)
         # 後で実行したい作業をここに書く
         begin
+            ActiveRecord::Base.connection.begin_db_transaction()
             perform_strsql = "select * from  processreqs t 
                             where t.result_f = '0'  and t.seqno = #{pid} 
                             and not exists(select 1 from processreqs c where t.seqno = c.seqno and t.id > c.id
                                         and c.result_f != '1')
                             order by t.id limit 1 for update"
-            processreq = ActiveRecord::Base.connection.select_one(perform_strsql)            
+            processreq = ActiveRecord::Base.connection.select_one(perform_strsql)
+            return if processreq.nil?            
             params = JSON.parse(processreq["reqparams"])   
             strsql = %Q% select * from persons where id = #{params["tbldata"]["persons_id_upd"]}
                     %
@@ -16,7 +18,6 @@ class CreateOtherTableRecordJob < ApplicationJob
             params["email"] = person["email"]
             params["person_code_chrg"] = person["code"]
             params["person_id_upd"] = person["id"]
-            ActiveRecord::Base.connection.begin_db_transaction()
             until processreq.nil? do
                     tbldata = params["tbldata"].dup
                     setParams = params.dup
@@ -77,15 +78,77 @@ class CreateOtherTableRecordJob < ApplicationJob
                             mkordparams[:outamt] = 0
                             mkordparams = MkordinstLib.proc_mkprdpurords params,mkordparams
                             mkordparams[:message_code] = ""
-                            mkordparams[:remark] = "  CreateOtherTableRecordJob mkprdpurords line:#{__LINE__}"
+                            mkordparams[:remark] = "  #{self} line:#{__LINE__} "
                             strsql = %Q%update mkprdpurords set incnt = #{mkordparams[:incnt]},inqty = #{mkordparams[:inqty]},
                                                 inamt = #{mkordparams[:inamt]},outcnt = #{mkordparams[:outcnt]},
                                                 outqty = #{mkordparams[:outqty]},outamt = #{mkordparams[:outamt]} ,
-                                                message_code = '#{mkordparams[:message_code]}',remark = '#{mkordparams[:remark]}'
+                                                message_code = '#{mkordparams[:message_code]}',remark = ' #{mkordparams[:remark]} '
                                                 where id = #{params["mkprdpurords_id"]}
                                 %
                             ActiveRecord::Base.connection.update(strsql)
-                        when "mkbillords"
+                        when "mkpayords"
+                            ###ArelCtl.proc_createtable は使用しない
+                            ###bill_loca_id_bill_cust
+                            amt_src = 0
+                            isudate = Time.now
+                            duedate = Time.now
+                            strsql = %Q%select b.* from payments b
+                                            inner join suppliers c on c.payments_id_supplier = b.id   
+                                            where c.id = #{params["suppliers_id"]}
+                                    %
+                            payment = ActiveRecord::Base.connection.select_one(strsql)
+                            src = {"tblname" => params["srctblname"],"tblid" => params["srctblid"]}
+                            case payment["period"]
+                            when "-30" ###前月を対象
+                                isudate = tbldata["rcptdate"].to_date.since(1.month)  ###params["duedate"]受入日
+                                newdd = payment["termof"].split(",")[0]  ###翌月一回のみ
+                                isudate = (isudate.strftime("%Y") + "-" +isudate.strftime("%m") + "-" + newdd).to_date
+                                JSON.parse(payment["ratejson"]).each do |rate|
+                                    rate.each do |k,val|
+                                        case k
+                                        when "rate"
+                                            amt_src = params["amt_src"].to_f * val.to_i / 100 
+                                        when "duration"
+                                            duedate =  isudate.since(val.to_i.day)  ###支払日
+                                        end
+                                    end      
+                                    payord = {"amt_src" =>amt_src,"isudate"=>isudate,"duedate" =>duedate,
+                                                "last_amt" => params["last_amt"],
+                                                "tax" => tbldata["tax"],"taxrate" =>tbldata["taxrate"],
+                                                "payments_id" =>payment["id"],"persons_id_upd" => person["id"] ,"trngantts_id" => params["trngantts_id"],
+                                                "last_duedate" => params["last_duedate"], "chrgs_id" => payment["chrgs_id_payment"],
+                                                "tblname" => params["srctblname"],"tblid" => params["srctblid"]}
+                                    create_payords(src,payord,payment)
+                                end
+                            when /-1|0/
+                                isudate = tbldata["rcptdate"].to_date.since(payment["period"].to_i*-1.day)###
+                                payment["termof"].split(",").each do |newdd|
+                                   if duedate < (isudate.strftime("%Y") + "-" +isudate.strftime("%m") + "-" + newdd).to_date
+                                       if isudate > (isudate.strftime("%Y") + "-" +isudate.strftime("%m") + "-" + newdd).to_date
+                                            isudate = (isudate.strftime("%Y") + "-" +isudate.strftime("%m") + "-" + newdd).to_date
+                                       end
+                                    end
+                                end
+                                JSON.parse(payment["ratejson"]).each do |rate|
+                                    rate.each do |k,val|
+                                        case k
+                                        when "rate"
+                                            amt_src = params["amt_src"].to_f * val.to_i / 100 
+                                        when "duration"
+                                            duedate =  isudate.since(val.to_i.day)  ###支払日
+                                        end
+                                    end
+                                end      
+                                payord = {"amt_src" =>amt_src,"isudate"=>isudate,"duedate" =>duedate,
+                                            "amt_src" => params["amt_src"],"last_amt" => params["last_amt"],
+                                            "tax" => tbldata["tax"],"taxrate" => tbldata["taxrate"],
+                                            "payments_id" =>payment["id"],"persons_id_upd" => person["id"] ,"trngantts_id" => params["trngantts_id"],
+                                            "last_duedate" => params["last_duedate"], "chrgs_id" => payment["chrgs_id_payment"],
+                                            "tblname" => params["srctblname"],"tblid" => params["srctblid"]}
+                                create_payords(src,payord,payment)
+                            end 
+
+                        when "mkpayinsts"
                         when "mkbillinsts"
                             mkbillinstparams = {}
                             mkbillinst = tbldata.dup
@@ -95,28 +158,29 @@ class CreateOtherTableRecordJob < ApplicationJob
                             mkbillinstparams[:outamt] = mkbillinst["outamt"].to_f
                             mkbillinstparams = MkordinstLib.proc_mkbillinsts params,mkbillinstparams
                             mkbillinstparams[:message_code] = ""
-                            mkbillinstparams[:remark] = "  CreateOtherTableRecordJob mkbillinsts line:#{__LINE__}"
+                            mkbillinstparams[:remark] = " #{self} line:#{__LINE__}"
                             strsql = %Q%update mkbillinsts set incnt = #{mkbillinstparams[:incnt]},
                                                 inamt = #{mkbillinstparams[:inamt]},outcnt = #{mkbillinstparams[:outcnt]},
                                                 outamt = #{mkbillinstparams[:outamt]} ,
-                                                message_code = '#{mkordparams[:message_code]}',remark = '#{mkbillinstparams[:remark]}'
+                                                message_code = '#{mkordparams[:message_code]}',remark = ' #{mkbillinstparams[:remark]} '
                                                 where id = #{params["mkbillinsts_id"]}
                                 %
                             ActiveRecord::Base.connection.update(strsql)
 
-                        when /mkpayschs|mkbillschs/
+                        when /mkpayschs|mkbillschs|mkbillests/   ###payestsは作成されない。在庫に引き当っていることがある為。
                             ###ArelCtl.proc_createtable は使用しない
                             ###bill_loca_id_bill_cust
                             amt_src = 0
                             isudate = Time.now
                             duedate = Time.now
+                            src = {"tblname" => params["srctblname"],"tblid" => params["srctblid"],"trngantts_id" => 0}
                             case params["segment"]
                             when "mkpayschs"
                                 strsql = %Q%select b.* from payments b
                                             inner join suppliers c on c.payments_id_supplier = b.id   
                                             where c.id = #{params["suppliers_id"]}
                                     %
-                            when "mkbillschs"
+                            when "mkbillschs","mkbillests"
                                 strsql = %Q%select b.* from bills b
                                                 inner join custs c on c.bills_id_cust = b.id   
                                             where c.id = #{params["custs_id"]}
@@ -128,7 +192,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 isudate = params["duedate"].to_date.since(1.month)  ###params["duedate"]受入日
                                 newdd = paybill["termof"].split(",")[0]  ###翌月一回のみ
                                 isudate = (isudate.strftime("%Y") + "-" +isudate.strftime("%m") + "-" + newdd).to_date
-                                JSON.parse(paybill["ratejson"]).each do |rate|
+                                JSON.parse(paybill["ratejson"]).each do |rate|   ###例：[{rate:60,duration:30,payment:deposit},{rate:40,duration:60,payment:"draf"t}]
                                     rate.each do |k,val|
                                         case k
                                         when "rate"
@@ -136,7 +200,20 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         when "duration"
                                             duedate =  isudate.since(val.to_i.day)  ###支払日
                                         end
+                                    end   
+                                    case params["segment"]
+                                    when "mkpayschs"           
+                                        paybillschs = {"amt_src" =>amt_src,"isudate"=>isudate,"duedate" =>duedate,"tax" =>0,"taxrate" =>0,
+                                                "payments_id" =>paybill["id"],"persons_id_upd" => person["id"] ,"trngantts_id" => params["trngantts_id"],
+                                                "last_duedate" => params["last_duedate"], "chrgs_id" => paybill["chrgs_id_payment"],
+                                                "tblname" => params["srctblname"],"tblid" => params["srctblid"]}
+                                    when "mkbillschs","mkbillests"
+                                        paybillschs = {"amt_src" =>amt_src,"isudate"=>isudate,"duedate" =>duedate,"tax" =>0,"taxrate" =>0,
+                                                "bills_id" =>paybill["id"],"persons_id_upd" => person["id"] ,"trngantts_id" => params["trngantts_id"],
+                                                "last_duedate" => params["last_duedate"],"chrgs_id" => paybill["chrgs_id_bill"],
+                                                "tblname" => params["srctblname"],"tblid" => params["srctblid"]}
                                     end
+                                    create_paybillschs(src,paybillschs,paybill)        
                                 end
                             when /-1|0/
                                 isudate = params["duedate"].to_date.since(paybill["period"].to_i*-1.day)###params["duedate"]受入日
@@ -155,23 +232,79 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         when "duration"
                                             duedate =  isudate.since(val.to_i.day)  ###支払日
                                         end
+                                    end   
+                                    case params["segment"]
+                                    when "mkpayschs"           
+                                        paybillschs = {"amt_src" =>amt_src,"isudate"=>isudate,"duedate" =>duedate,"tax" =>0,"taxrate" =>0,
+                                                "payments_id" =>paybill["id"],"persons_id_upd" => person["id"] ,"trngantts_id" => params["trngantts_id"],
+                                                "last_duedate" => params["last_duedate"], "chrgs_id" => paybill["chrgs_id_payment"],
+                                                "tblname" => params["srctblname"],"tblid" => params["srctblid"]}
+                                    when "mkbillschs","mkbillests"
+                                        paybillschs = {"amt_src" =>amt_src,"isudate"=>isudate,"duedate" =>duedate,"tax" =>0,"taxrate" =>0,
+                                                "bills_id" =>paybill["id"],"persons_id_upd" => person["id"] ,"trngantts_id" => params["trngantts_id"],
+                                                "last_duedate" => params["last_duedate"],"chrgs_id" => paybill["chrgs_id_bill"],
+                                                "tblname" => params["srctblname"],"tblid" => params["srctblid"]}
+                                    end
+                                    create_paybillschs(src,paybillschs,paybill)
+                                end
+                            end 
+
+                        when /mkbillords/
+                            ###ArelCtl.proc_createtable は使用しない
+                            ###bill_loca_id_bill_cust
+                            amt_src = 0
+                            isudate = Time.now
+                            duedate = Time.
+                            src = {"tblname" => params["srctblname"],"tblid" => params["srctblid"],"trngantts_id" => 0}
+                            strsql = %Q%select b.* from bills b   
+                                            where b.id = #{tbldata["bills_id"]}
+                                    %
+                            billmst = ActiveRecord::Base.connection.select_one(strsql)
+                            case billmst["period"]
+                            when "-30" ###前月を対象
+                                isudate = tbldata["duedate"].to_date.since(1.month)  ###params["duedate"]受入日
+                                newdd = billmst["termof"].split(",")[0]  ###翌月一回のみ
+                                isudate = (isudate.strftime("%Y") + "-" +isudate.strftime("%m") + "-" + newdd).to_date
+                                JSON.parse(billmst["ratejson"]).each do |rate|
+                                    rate.each do |k,val|
+                                        case k
+                                        when "rate"
+                                            amt_src = tbldata["amt"].to_f * val.to_i / 100 
+                                        when "duration"
+                                            duedate =  isudate.since(val.to_i.day)  ###支払日
+                                        end
+                                    end
+                                    billords = {"amt_src" =>amt_src,"isudate"=>isudate,"duedate" =>duedate,"tax" =>tbldata["tax"],"taxrate" => tbldata["taxrate"],
+                                                "bills_id" =>billmst["id"],"persons_id_upd" => person["id"] ,"trngantts_id" => params["trngantts_id"],
+                                                "last_duedate" => tbldata["last_duedate"],"chrgs_id" => billmst["chrgs_id_bill"],
+                                                "tblname" => params["srctblname"],"tblid" => params["srctblid"]}
+                                    create_billords(src,billords,billmst)        
+                                end
+                            when /-1|0/
+                                isudate = tbldata["duedate"].to_date.since(paybill["period"].to_i*-1.day)###params["duedate"]受入日
+                                billmst["termof"].split(",").each do |newdd|
+                                   if duedate < (isudate.strftime("%Y") + "-" +isudate.strftime("%m") + "-" + newdd).to_date
+                                       if isudate > (isudate.strftime("%Y") + "-" +isudate.strftime("%m") + "-" + newdd).to_date
+                                            isudate = (isudate.strftime("%Y") + "-" +isudate.strftime("%m") + "-" + newdd).to_date
+                                       end
                                     end
                                 end
-                            end    
-                            case params["segment"]
-                            when "mkpayschs"           
-                                paybillschs = {"amt_src" =>amt_src,"isudate"=>isudate,"duedate" =>duedate,"tax" =>0,"taxrate" =>0,
-                                        "payments_id" =>paybill["id"],"persons_id_upd" => person["id"] ,"trngantts_id" => params["trngantts_id"],
-                                        "last_duedate" => params["last_duedate"], "chrgs_id" => paybill["chrgs_id_payment"],
-                                        "tblname" => params["srctblname"],"tblid" => params["srctblid"]}
-                            when "mkbillschs"
-                                paybillschs = {"amt_src" =>amt_src,"isudate"=>isudate,"duedate" =>duedate,"tax" =>0,"taxrate" =>0,
-                                        "bills_id" =>paybill["id"],"persons_id_upd" => person["id"] ,"trngantts_id" => params["trngantts_id"],
-                                        "last_duedate" => params["last_duedate"],"chrgs_id" => paybill["chrgs_id_bill"],
-                                        "tblname" => params["srctblname"],"tblid" => params["srctblid"]}
-                            end
-                            create_paybillschs(paybillschs,paybill)
-
+                                JSON.parse(billmst["ratejson"]).each do |rate|
+                                    rate.each do |k,val|
+                                        case k
+                                        when "rate"
+                                            amt_src = tbldata["amt"].to_f * val.to_i / 100 
+                                        when "duration"
+                                            duedate =  isudate.since(val.to_i.day)  ###支払日
+                                        end
+                                    end   
+                                    billords = {"amt_src" =>amt_src,"isudate"=>isudate,"duedate" =>duedate,"tax" => tbldata["tax"],"taxrate" => tbldata["taxrate"],
+                                            "bills_id" =>billmst["id"],"persons_id_upd" => person["id"] ,"trngantts_id" => params["trngantts_id"],
+                                            "last_duedate" => tbldata["last_duedate"],"chrgs_id" => billmst["chrgs_id_bill"],
+                                            "tblname" => params["srctblname"],"tblid" => params["srctblid"]}
+                                    create_billords(src,billords,billmst)
+                                end
+                            end 
                         
                         when "mkschs"  ### XXXXschs,ordsの時prdschs,purschsを作成
                             parent = tbldata.dup
@@ -186,19 +319,19 @@ class CreateOtherTableRecordJob < ApplicationJob
                             gantt["toduedate_pare"] = gantt["toduedate_trn"]
                             gantt["starttime_pare"] = gantt["starttime_trn"]
                             gantt["processseq_pare"] = gantt["processseq_trn"]
-                            gantt["qty_sch_pare"] = parent["qty_sch"] 
+                            gantt["qty_sch_pare"] = gantt["qty_sch"] 
                             gantt["shelfnos_id_pare"] = gantt["shelfnos_id_trn"]
                             gantt["shelfnos_id_to_pare"] = gantt["shelfnos_id_to_trn"]
-                            gantt["qty_pare"] = gantt["qty"].to_f + gantt["qty_sch"].to_f 
+                            gantt["qty_pare"] = gantt["qty"].to_f  
                             parent["qty_handover"] =  gantt["qty_handover"]
                             parent["shelfnos_id_trn"] = gantt["shelfnos_id_trn"]
+                            parent["trngantts_id"] = gantt["trngantts_id"]   ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
                             setParams["parent"] = parent.dup
                             ActiveRecord::Base.connection.select_all(ArelCtl.proc_nditmSql(tbldata["opeitms_id"])).each do |nd|
                                 if nd["prdpur"]  ###opeitmdが登録されてないとprdords,purordsは作成されない。
                                     blk = RorBlkCtl::BlkClass.new("r_"+nd["prdpur"]+"schs")
                                     command_c = blk.command_init   ###  tblname=paretblname
-                                    command_c,qty_require = add_update_prdpur_table_from_nditm  nd,parent,tblname,command_c
-                                    command_c["id"] = ArelCtl.proc_get_nextval("#{nd["prdpur"]}schs_seq")
+                                    command_c,qty_require = add_update_prdpur_table_from_nditm(nd,parent,tblname,command_c)
                                     command_c["#{nd["prdpur"]}sch_created_at"] = Time.now
                                     trnganttkey += 1
                                     gantt["key"] = gantt_key + format('%05d', trnganttkey)
@@ -240,7 +373,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     nd["prdpur"] = "dym"
                                     nd["itms_id"] = nd["itms_id_nditm"]
                                     gantt["tblname"] = "dymschs"
-                                    command_c,qty_require = add_update_prdpur_table_from_nditm  nd,parent,tblname,command_c
+                                    command_c,qty_require = add_update_prdpur_table_from_nditm(nd,parent,tblname,command_c)
                                     command_c["dymsch_person_id_upd"] = setParams["person_id_upd"]
                                     command_c["dymsch_itm_id"] = nd["itms_id"]
                                     command_c["dymsch_loca_id"] = 0
@@ -286,6 +419,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             parent["starttime"] = parent["starttime"].to_time
                             parent["tblname"] = gantt["tblname"]
                             parent["tblid"] = gantt["tblid"]
+                            parent["trngantts_id"] = gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
                             child = {}
                             ActiveRecord::Base.connection.select_all(ArelCtl.proc_pareChildTrnsSqlGroupByChildItem(parent)).each do |nd|
                                 setParams["mkprdpurords_id"] = 0
@@ -327,8 +461,8 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 qty =  gantt["qty"].to_f
                                 ### free custschsへの引き当て
                                 get_free_custschs_sql = %Q&
-                                            --- free custschsへの引き当て
-                                            select  t.id trngantts_id,link.qty_src,t.orgtblname tblname,t.orgtblid tblid,link.id link_id from trngantts t 
+                                     --- free custschsへの引き当て
+                                        select  t.id trngantts_id,link.qty_src,t.orgtblname tblname,t.orgtblid tblid,link.id link_id,link.srctblid from trngantts t 
                                                             inner join linkcusts link on link.srctblid = t.tblid  and t.id = link.trngantts_id
                                                                                     and link.srctblname = link.tblname and link.srctblid = link.tblid
                                                                                     and link.srctblname = 'custschs' and link.qty_src > 0 
@@ -341,6 +475,12 @@ class CreateOtherTableRecordJob < ApplicationJob
 
                                 &
                                 ActiveRecord::Base.connection.select_all(get_free_custschs_sql).each do |sch|
+                                    custsch_blk = RorBlkCtl::BlkClass.new("r_custschs")
+                                    command_c = custsch_blk.command_init
+                                    rec = ActiveRecord::Base.connection.select_one(%Q&  select * from r_custschs where id = #{sch["srctblid"]}  &)
+                                    command_c = command_c.merge(rec)
+                                    command_c["sio_classname"] = %Q&_update_from_custschs &
+                                    command_c["id"] = command_c["custsch_id"] = sch["tblid"]
                                     if qty >= sch["qty_src"].to_f
                                             qty_src = sch["qty_src"].to_f
                                             qty -= qty_src
@@ -350,21 +490,22 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         sch["qty_src"] = sch["qty_src"].to_f - qty
                                         qty = 0
                                     end
-                                    src = {"trngantts_id" => sch["trngantts_id"],"tblname"=> sch["tblname"],"tblid"=> sch["tblid"]}
-                                    base = {"tblname" => gantt["tblname"],"tblid" => gantt["tblid"],"qty_src" => qty_src,"amt_src" => 0,
-                                            "persons_id_upd" => gantt["persons_id_upd"],    
-                                            "remark" => "#{self} line:#{__LINE__}"}
-                                    ArelCtl.proc_insert_linkcusts(src,base)
                                     update_sql = %Q&
                                             update linkcusts set qty_src = #{sch["qty_src"]},remark = '#{self} line:#{__LINE__}'||remark,
                                                     updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
                                                     where id = #{sch["link_id"]}
                                             &
-                                    ActiveRecord::Base.connection.update(update_sql) ###引き当ったcustschsの減
+                                    ActiveRecord::Base.connection.update(update_sql) ###引き当ったcustschsの減gantt = setParams["gantt"].dup
+                                    command_c["custsch_qty_sch"] = sch["qty_src"].to_f
+                                    command_c = custsch_blk.proc_create_tbldata(command_c)
+                                    setParams = custsch_blk.proc_private_aud_rec(setParams,command_c)
+                                    src = {"tblname" => "custschs","tblid" => sch["srctblid"],"trngantts_id" => sch["trngantts_id"]}
+                                    base = {"tblname" => "custords","tblid" => gantt["orgtblid"],"qty_src" => qty_src,"amt_src" => 0,"persons_id_upd" => setParams["person_id_upd"]}
+                                    ArelCtl.proc_insert_linkcusts(src,base)
                                 end
                                 gantt["qty_handover"] = tbldata["qty_handover"] =  gantt["qty_sch"] = qty
                                 update_sql = %Q&
-                                        update linkcusts set qty_src = #{qty},remark = '#{self} line:#{__LINE__}'||remark,
+                                        update linkcusts set qty_src = #{qty},remark = ' #{self} line:#{__LINE__} '||remark,
                                                 updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss')
                                                 where tblid = #{gantt["tblid"]} and srctblid = #{gantt["tblid"]}
                                         &
@@ -375,6 +516,14 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 3.times{Rails.logger.debug" orgtblname:#{gantt["orgtblname"]} error "}
                                 raise
                             end
+                            ###
+                            #
+                            ###
+                            setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
+                            processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+                            ###
+                            #
+                            ###
                             qty_sch = gantt["qty_sch"]
                             gantt["qty"] = 0
                             gantt["qty_require"] = tbldata["qty_require"] = gantt["qty_handover"] 
@@ -388,15 +537,15 @@ class CreateOtherTableRecordJob < ApplicationJob
                             blk = RorBlkCtl::BlkClass.new("r_"+ setParams["opeitm"]["prdpur"]+"schs")
                             command_c = blk.command_init
                             command_c["#{setParams["opeitm"]["prdpur"]}sch_person_id_upd"] = setParams["person_id_upd"]
-                            command_c,qty_require = add_update_prdpur_table_from_nditm  child,tbldata,paretblname,command_c
-                            command_c["id"] = ArelCtl.proc_get_nextval("#{setParams["opeitm"]["prdpur"]}schs_seq")
+                            command_c,qty_require = add_update_prdpur_table_from_nditm(child,tbldata,paretblname,command_c)
                             command_c["#{setParams["opeitm"]["prdpur"]}sch_created_at"] = Time.now
                             command_c = blk.proc_create_tbldata(command_c)
                             setParams["gantt"] = gantt.dup
-                            setParams = blk.proc_private_aud_rec(setParams,command_c) 
+                            setParams = blk.proc_private_aud_rec(setParams,command_c)   
+                            result_f = '1'
                     else  
                         result_f = '6'
-                        remark = "  CreateOtherTableRecordJob line:#{__LINE__}  program nothing for #{setParams["segment"]} "  
+                        remark = "    #{self} line:#{__LINE__}  program nothing for #{setParams["segment"]} "  
                     end ## process   
                     strsql = %Q%update processreqs set result_f = '#{result_f}',remark = '#{remark}' where id = #{processreq["id"]}
                     %
@@ -454,9 +603,9 @@ class CreateOtherTableRecordJob < ApplicationJob
     end
  
 	###schsの追加	paretblname =~ /schs$|ords$/の時呼ばれる 
-	def add_update_prdpur_table_from_nditm  nd,parent,paretblname,command_init ### id processreqsのid child-->nditms  parent ===> r_prd,pur XXXs
+	def add_update_prdpur_table_from_nditm(nd,parent,paretblname,command_init) ### id processreqsのid child-->nditms  parent ===> r_prd,pur XXXs
+            parent["qty_sch"] = parent["qty_sch"].to_f + parent["qty"].to_f 
             if paretblname =~ /ords/   ###ordsから _schを作成
-                parent["qty_sch"] = parent["qty"]
                 parent.delete("qty") 
                 parent.delete("amt") 
             end
@@ -464,11 +613,13 @@ class CreateOtherTableRecordJob < ApplicationJob
 		    return command_c,qty_require
     end
 
-    def  create_paybillschs(sch,billpay)
+    def create_paybillschs(src,sch,billpay)
         ###check billscks exists or not
         paybillsch = case sch["tblname"]
                         when "custords"
                             "billsch"
+                        when "custschs"
+                            "billest"
                         when "purords"
                             "paysch"
                         end 
@@ -477,6 +628,12 @@ class CreateOtherTableRecordJob < ApplicationJob
                      "payment"
                 when /^bill/
                     "bill"
+                end
+        str_amt =  case sch["tblname"]  
+                when /ords$/ 
+                     "amt_sch"
+                when /schs$/
+                    "amt_est"
                 end
 
         blk = RorBlkCtl::BlkClass.new("r_#{paybillsch}s")
@@ -495,32 +652,27 @@ class CreateOtherTableRecordJob < ApplicationJob
         &
         rec = ActiveRecord::Base.connection.select_one(strsql)
         if rec
-		    command_c["sio_classname"] = %Q&_update_from_#{case mst
-                                                        when "bill"
-                                                            "custords"
-                                                        when "payment"
-                                                            "purords"
-                                                        end } &
+		    command_c["sio_classname"] = %Q&_update_from_#{paybillsch}s &
 		    command_c["#{paybillsch}_remark"] = "auto update "
 		    command_c["id"] = command_c["#{paybillsch}_id"] = rec["id"]
             strsql = %Q&
-                        select * from linktbls where srctblname = 'custords' and srctblid = #{sch["tblid"]}  
+                        select * from srctbllinks where srctblname = '#{sch["tblname"]}' and srctblid = #{sch["tblid"]}  
                                 and tblname = '#{paybillsch}s' and tblid = #{rec["id"]}
                     &
             link = ActiveRecord::Base.connection.select_one(strsql)
             if link 
-                command_c["#{paybillsch}_amt_sch"] = rec["amt_sch"].to_f + (sch["amt_src"].to_f - sch["last_amt"].to_f )
+                command_c["#{paybillsch}_#{str_amt}"] = rec[str_amt].to_f + (sch[str_amt].to_f - sch[str_amt].to_f )
                 strsql = %Q&
-                            update linktbls set amt_src = #{sch["amt_src"]} ,
+                            update srctbllinks set amt_src = #{sch["amt_src"]} ,
                                 updated_at = #{Time.now}
                                 where id = #{link["id"]}
                 &
                 ActiveRecord::Base.connection.update(strsql)
             else
-                command_c["#{paybillsch}_amt_sch"] = rec["amt_sch"].to_f + sch["amt_src"].to_f 
-                base = {"tblname" => "#{paybillsch}s","tblid" => command_c["id"],"qty_src" => 0,"amt_src" => sch["amt_src"],
+                command_c["#{paybillsch}_#{str_amt}"] = rec["amt_sch"].to_f + sch["amt_src"].to_f 
+                base = {"tblname" => "#{paybillsch}s","tblid" => command_c["id"],"amt_src" => sch["amt_src"],
                          "persons_id_upd" => sch["persons_id_upd"]} 
-                ArelCtl.proc_insert_linktbls(sch,base)
+                ArelCtl.proc_insert_srctbllinks(sch,base)
             end
         else
 		    command_c["sio_classname"] = %Q&_add_from_#{case mst
@@ -532,10 +684,10 @@ class CreateOtherTableRecordJob < ApplicationJob
 		    command_c["#{paybillsch}_remark"] = "auto add "
 		    command_c["id"] = command_c["#{paybillsch}_id"] = ArelCtl.proc_get_nextval("#{paybillsch}s_seq")
 		    command_c["#{paybillsch}_created_at"] = Time.now
-		    command_c["#{paybillsch}_amt_sch"] = sch["amt_src"]
+		    command_c["#{paybillsch}_#{str_amt}"] = sch["amt_src"]
             base = {"tblname" => "#{paybillsch}s","tblid" => command_c["id"],"qty_src" => 0,"amt_src" => sch["amt_src"],
                      "persons_id_upd" => sch["persons_id_upd"]} 
-            ArelCtl.proc_insert_linktbls(sch,base)
+            ArelCtl.proc_insert_srctbllinks(src,base)
         end
         strsql = %Q&
                     select * from r_chrgs where id = #{billpay["chrgs_id_#{mst}"]} 
@@ -546,35 +698,269 @@ class CreateOtherTableRecordJob < ApplicationJob
         command_c = blk.proc_create_tbldata(command_c) ##
         billParams = blk.proc_private_aud_rec({},command_c)
 
-        ###old_custords check
-        if sch["last_duedate"]
-            strsql = %Q&
-                        select b.*,l.id linktbl_id from #{paybillsch}s b
-                            inner join linktbls l on b.id = l.tblid
-                            where srctblname = '#{case mst
-                                                    when "bill"
-                                                        'custords'
-                                                    when "payment"
-                                                        'purords'
-                                                    end}' 
-                                    and srctblid = #{sch["tblid"]}
-                                    and tblname = '#{paybillsch}s' and tblid != #{command_c["id"]}
+        # ###old_custords check
+        # if sch["last_duedate"]
+        #     strsql = %Q&
+        #                 select b.*,l.id linktbl_id from #{paybillsch}s b
+        #                     inner join srctbllinks l on b.id = l.tblid
+        #                     where srctblname = '#{paybillsch}s' 
+        #                             and srctblid = #{sch["tblid"]}
+        #                             and tblname = '#{paybillsch}s' and tblid != #{command_c["id"]}
+        #     &
+        #     last_rec = ActiveRecord::Base.connection.select_one(strsql)
+        #     if last_rec
+        #         strsql = %Q&
+        #                     update #{paybillsch}s set amt_sch = amt_sch + (#{sch["amt_src"].to_f - sch["last_amt"].to_f}),
+        #                         updated_at = #{Time.now}
+        #                         where id = #{last_rec["id"]}
+        #         &
+        #         ActiveRecord::Base.connection.update(strsql)
+        #         strsql = %Q&
+        #                     update srctbllinks set amt_src = #{sch["amt_src"].to_f} ,
+        #                         updated_at = #{Time.now}
+        #                         where id = #{last_rec["linktbl_id"]}
+        #         &
+        #         ActiveRecord::Base.connection.update(strsql)
+        #     end
+        # end
+    end
+
+    def  create_payords(src,payord,payment)
+        blk = RorBlkCtl::BlkClass.new("r_payords")
+        command_c = blk.command_init
+        command_c["payord_person_id_upd"] = payord["persons_id_upd"]
+        command_c["payord_duedate"] = payord["duedate"]
+        command_c["payord_isudate"] = payord["isudate"]
+        command_c["payord_expiredate"] = "2099/12/31"
+        command_c["payord_chrg_id"] = payord["chrgs_id"]
+        command_c["payord_tax"] = payord["tax"] 
+        command_c["payord_taxrate"] = payord["taxrate"] 
+        command_c["payord_updated_at"] = Time.now
+        command_c["payord_payment_id"] = payment["id"]
+        strsql = %Q&
+                        select * from payords where payments_id = #{payment["id"]} 
+                                                and to_char(duedate,'yyyy-mm-dd') = '#{payord["duedate"].strftime("%Y-%m-%d")}'
+                                                and taxrate = #{payord["taxrate"]}
             &
-            last_rec = ActiveRecord::Base.connection.select_one(strsql)
-            if last_rec
+        chk_payord = ActiveRecord::Base.connection.select_one(strsql)
+        if chk_payord
+            command_c["sio_classname"] = "_update_from_puracts "
+            command_c["payord_remark"] = "auto update "
+            command_c["id"] = command_c["payord_id"] = chk_payord["id"]
+            strsql = %Q&
+                            select * from srctbllinks where srctblname = 'puracts' and srctblid = #{payord["tblid"]} ---tblid = puracts.id  
+                                    and tblname = 'payords' and tblid = #{chk_payord["id"]}
+                        &
+            link = ActiveRecord::Base.connection.select_one(strsql)
+            if link 
+                link["amt_src"] = link["amt_src"].to_f + (payord["amt_src"].to_f - payord["last_amt"].to_f )
+                 strsql = %Q&
+                                update srctbllinks set amt_src = #{link["amt_src"]} ,
+                                    updated_at = #{Time.now}
+                                    where id = #{link["id"]}
+                    &
+                    ActiveRecord::Base.connection.update(strsql)
+            else
+                command_c["payord_amt"] = chk_payord["amt"].to_f + payord["amt_src"].to_f 
+                base = {"tblname" => "payords","tblid" => command_c["id"],"qty_src" => 0,"amt_src" => payord["amt_src"],
+                             "persons_id_upd" => payord["persons_id_upd"]} 
+                    ArelCtl.proc_insert_srctbllinks(src,base)
+            end
+        else
+            command_c["sio_classname"] = "_add_from_puracts"
+            command_c["payord_remark"] = "auto add "
+            command_c["id"] = command_c["payord_id"] = ArelCtl.proc_get_nextval("payords_seq")
+            command_c["payord_created_at"] = Time.now
+            command_c["payord_amt"] = payord["amt_src"]
+            base = {"tblname" => "payords","tblid" => command_c["id"],"amt_src" => payord["amt_src"],
+                    "persons_id_upd" => payord["persons_id_upd"]} 
+            ArelCtl.proc_insert_srctbllinks(src,base)
+        end
+        strsql = %Q&
+                        select * from r_chrgs where id = #{payment["chrgs_id_payment"]} 
+            &
+        chrg = ActiveRecord::Base.connection.select_one(strsql)
+        command_c["chrg_person_id_chrg_payment"] = chrg["chrg_person_id_chrg"] 
+        command_c["person_sect_id_chrg_payment"] =  chrg["person_sect_id_chrg"]
+        command_c = blk.proc_create_tbldata(command_c) ##
+        blk.proc_private_aud_rec({},command_c)
+    
+            ###old_custords check
+        if payord["last_duedate"]
                 strsql = %Q&
-                            update #{paybillsch}s set amt_sch = amt_sch + (#{sch["amt_src"].to_f - sch["last_amt"].to_f}),
-                                updated_at = #{Time.now}
-                                where id = #{last_rec["id"]}
+                            select b.*,l.id linktbl_id from payords b
+                                inner join srctbllinks l on b.id = l.tblid
+                                where srctblname = 'puracts' 
+                                        and srctblid = #{payord["tblid"]}
+                                        and tblname = 'payords' and tblid != #{command_c["id"]}
                 &
-                ActiveRecord::Base.connection.update(strsql)
-                strsql = %Q&
-                            update linktbls set amt_src = #{sch["amt_src"].to_f} ,
-                                updated_at = #{Time.now}
-                                where id = #{last_rec["linktbl_id"]}
-                &
-                ActiveRecord::Base.connection.update(strsql)
+                last_rec = ActiveRecord::Base.connection.select_one(strsql)
+                if last_rec
+                    strsql = %Q&
+                                update payords set amt_sch = amt_sch + (#{payord["amt_src"].to_f - payord["last_amt"].to_f}),
+                                    updated_at = #{Time.now}
+                                    where id = #{last_rec["id"]}
+                    &
+                    ActiveRecord::Base.connection.update(strsql)
+                    strsql = %Q&
+                                update srctbllinks set amt_src = #{payord["amt_src"].to_f} ,
+                                    updated_at = #{Time.now}
+                                    where id = #{last_rec["linktbl_id"]}
+                    &
+                    ActiveRecord::Base.connection.update(strsql)
+                end
+        end
+        ###
+        #  payschsの減
+        ###
+        ### purordsを求める
+        notords = [src]
+        until notords == [] do
+            notords.each do |notord|
+                ords,notords = getprdpurord_from_linktbls(notord["tblname"],notord["tblid"],"pur")  ###ords-->acts
+                ords.each do |ord|
+                    updatepaybillschs(ord["srctblid"],"pay",payord["amt_src"])
+                end
             end
         end
-    end        
+    end
+
+    
+    def  create_billords(src,billord,billmst)
+        blk = RorBlkCtl::BlkClass.new("r_billords")
+        command_c = blk.command_init
+        command_c["billord_person_id_upd"] = billord["persons_id_upd"]
+        command_c["billord_duedate"] = billord["duedate"]
+        command_c["billord_isudate"] = billord["isudate"]
+        command_c["billord_expiredate"] = "2099/12/31"
+        command_c["billord_chrg_id"] = billord["chrgs_id"]
+        command_c["billord_tax"] = billord["tax"] 
+        command_c["billord_taxrate"] = billord["taxrate"] 
+        command_c["billord_updated_at"] = Time.now
+        command_c["billord_bill_id"] = billmst["id"]
+        strsql = %Q&
+                        select * from billords where bills_id = #{billmst["id"]} 
+                                                and to_char(duedate,'yyyy-mm-dd') = '#{billord["duedate"].strftime("%Y-%m-%d")}'
+                                                and taxjson = '#{billord["taxrate"].to_s}'
+            &
+        chk_billord = ActiveRecord::Base.connection.select_one(strsql)
+        if chk_billord
+            command_c["sio_classname"] = "_update_from_custacts "
+            command_c["custord_remark"] = "auto update "
+            command_c["id"] = command_c["billord_id"] = chk_billord["id"]
+            strsql = %Q&
+                            select * from srctbllinks where srctblname = 'custacts' and srctblid = #{custord["tblid"]} ---tblid = puracts.id  
+                                    and tblname = 'custords' and tblid = #{chk_custord["id"]}
+                        &
+            link = ActiveRecord::Base.connection.select_one(strsql)
+            if link 
+                link["amt_src"] = link["amt_src"].to_f + (billord["amt_src"].to_f - billord["last_amt"].to_f )
+                 strsql = %Q&
+                                update srctbllinks set amt_src = #{link["amt_src"]} ,
+                                    updated_at = #{Time.now}
+                                    where id = #{link["id"]}
+                    &
+                    ActiveRecord::Base.connection.update(strsql)
+            else
+                command_c["billord_amt"] = chk_billord["amt"].to_f + billord["amt_src"].to_f 
+                base = {"tblname" => "billords","tblid" => command_c["id"],"qty_src" => 0,"amt_src" => billord["amt_src"],
+                             "persons_id_upd" => billord["persons_id_upd"]} 
+                    ArelCtl.proc_insert_srctbllinks(src,base)
+            end
+        else
+            command_c["sio_classname"] = "_add_from_custacts"
+            command_c["billord_remark"] = "auto add "
+            command_c["id"] = command_c["billord_id"] = ArelCtl.proc_get_nextval("billords_seq")
+            command_c["billord_created_at"] = Time.now
+            command_c["billord_amt"] = billord["amt_src"]
+            base = {"tblname" => "billords","tblid" => command_c["id"],"amt_src" => billord["amt_src"],
+                    "persons_id_upd" => billord["persons_id_upd"]} 
+            ArelCtl.proc_insert_srctbllinks(src,base)
+        end
+        strsql = %Q&
+                        select * from r_chrgs where id = #{billmst["chrgs_id_bill"]} 
+            &
+        chrg = ActiveRecord::Base.connection.select_one(strsql)
+        command_c["chrg_person_id_chrg_bill"] = chrg["chrg_person_id_chrg"] 
+        command_c["person_sect_id_chrg_bill"] =  chrg["person_sect_id_chrg"]
+        command_c = blk.proc_create_tbldata(command_c) ##
+        blk.proc_private_aud_rec({},command_c)
+    
+            ###old_custords check
+        if billord["last_duedate"]
+                strsql = %Q&
+                            select b.*,l.id linktbl_id from billords b
+                                inner join srctbllinks l on b.id = l.tblid
+                                where srctblname = 'custacts' 
+                                        and srctblid = #{billord["tblid"]}
+                                        and tblname = 'billords' and tblid != #{command_c["id"]}
+                &
+                last_rec = ActiveRecord::Base.connection.select_one(strsql)
+                if last_rec
+                    strsql = %Q&
+                                update billords set am = amt + (#{billord["amt_src"].to_f - billord["last_amt"].to_f}),
+                                    updated_at = #{Time.now}
+                                    where id = #{last_rec["id"]}
+                    &
+                    ActiveRecord::Base.connection.update(strsql)
+                    strsql = %Q&
+                                update srctbllinks set amt_src = #{billord["amt_src"].to_f} ,
+                                    updated_at = #{Time.now}
+                                    where id = #{last_rec["linktbl_id"]}
+                    &
+                    ActiveRecord::Base.connection.update(strsql)
+                end
+        end
+        ###
+    end    
+    ###  
+    #
+    ###
+    def getprdpurord_from_linktbls(tblname,tblid,prdpur)  ### xxxactsからxxxordsを求める
+        ords = []
+        notords = []
+        strsql = %Q&
+                    select * from linktbls where tblname = '#{tblname}' and tblid = #{tblid}
+                                            and srctblname like '#{prdpur}%' and srctblname != tblname
+        &
+        ActiveRecord::Base.connection.select_all(strsql).each do |rec|
+            if rec["srctblname"] == "#{prdpur}ords"
+                ords << rec
+            else
+                notords << rec
+            end
+        end
+        return ords,notords
+    end    
+    ###  
+    #
+    ###
+    def updatepaybillschs(tblid,paybill,amt)
+        purcust = case paybill
+                    when "pay"
+                        "pur"
+                    when "bill"
+                        "cust"
+                    end 
+        strsql = %Q&
+                    select * from srctbllinks where tblname = '#{paybill}schs' 
+                                            and srctblname = '#{purcust}ords' and srctblid = #{tblid}
+        &
+        rec = ActiveRecord::Base.connection.select_one(strsql)
+        updatelinktblsql = %Q& 
+                            update srctbllinks set amt_src = amt_src - #{amt},
+                                updated_at = current_timestamp,remark = '#{self} line:#{__LINE__}'||remark
+                                where id = #{rec["id"]}
+        &
+        ActiveRecord::Base.connection.update(updatelinktblsql)
+        updatepaybilllsql = %Q& 
+                            update #{paybill}schs set amt_sch = amt_sch - #{amt},
+                                updated_at = current_timestamp,remark = '#{self} line:#{__LINE__}'||remark
+                                where id = #{rec["tblid"]}
+        &
+        ActiveRecord::Base.connection.update(updatepaybilllsql)
+    end
+    ###
+    #
+    ###     
 end

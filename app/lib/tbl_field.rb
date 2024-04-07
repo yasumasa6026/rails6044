@@ -56,6 +56,7 @@ class TblClass
 
 					strsql = "select 	* from 	information_schema.columns 
 									where 	table_catalog='#{ActiveRecord::Base.configurations["development"]["database"]}' 
+									and  table_schema = '#{ActiveRecord::Base.configurations["development"]["schema_search_path"]}'
 									and table_name='#{linedata["pobject_code_tbl"]}' "
 					columns = {}
 					ActiveRecord::Base.connection.select_all(strsql).each do |column|  ###postgresqlに登録分
@@ -195,10 +196,10 @@ class TblClass
 						end
 					end
 				when "numeric"
-						if  (field["numeric_precision"]||=22)  <= rec["fieldcode_dataprecision"].to_i  and 
-							(field["numeric_scale"]||=0)  <= rec["fieldcode_datascale"].to_i 
-							if  field["numeric_precision"] == rec["fieldcode_dataprecision"].to_i  and 
-								field["numeric_scale"]  == rec["fieldcode_datascale"].to_i 
+						if  (field["numeric_precision"].to_i||=22)  <= rec["fieldcode_dataprecision"].to_i  and 
+							(field["numeric_scale"].to_i||=0)  <= rec["fieldcode_datascale"].to_i 
+							if  field["numeric_precision"].to_i == rec["fieldcode_dataprecision"].to_i  and 
+								field["numeric_scale"].to_i  == rec["fieldcode_datascale"].to_i 
 								###修正なし
 							else
 								create_modify_field_sql rec

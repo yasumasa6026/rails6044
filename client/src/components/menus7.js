@@ -88,6 +88,9 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, hostError,loadingOrg,
               {loading && ( <div colSpan="10000">
             	              Loading...
           	              </div>)}
+              {screenFlg==="first"&&hostError&& ( <div colSpan="10000">
+                                  {hostError}
+          	              </div>)}
               {  
                   //第二画 
               }
@@ -96,6 +99,9 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, hostError,loadingOrg,
               {showScreen&&screenFlg==="second"&&!toggleSubFormSecond&&<div> <ButtonList screenFlg = "second" /></div>}
               {loadingSecond && ( <div colSpan="10000">
             	              Loading.....
+          	              </div>)}
+              {screenFlg==="second"&&hostError&& ( <div colSpan="10000">
+                                  {hostError}
           	              </div>)}
           </div>
         )
@@ -140,17 +146,17 @@ const  mapStateToProps = (state,ownProps) =>({
 const mapDispatchToProps = (dispatch,ownProps ) => ({
       getScreen : (screenCode, screenName,view_name, auth) =>{
         let params
-        switch(screenCode){
-          case "fmcustord_custinsts":
-          case "fmcustinst_custdlvs":
-            params = { screenName:  (screenName||""),disableFilters:false,
-                        parse_linedata:{},
-                        filtered:[],where_str:"",sortBy:[],screenFlg:"first",
-                        screenCode:screenCode,pageIndex:0,pageSize:20,
-                        index:-1,err:null,clickIndex:[],
-                        buttonflg:"inlineedit7",viewName:view_name} 
-            break
-          default:
+        // switch(screenCode){
+        //   case "fmcustord_custinsts":
+        //   case "fmcustinst_custdlvs":
+        //     params = { screenName:  (screenName||""),disableFilters:false,
+        //                 parse_linedata:{},aud:"view",
+        //                 filtered:[],where_str:"",sortBy:[],screenFlg:"first",
+        //                 screenCode:screenCode,pageIndex:0,pageSize:20,
+        //                 index:-1,err:null,clickIndex:[],
+        //                 buttonflg:"inlineedit7",viewName:view_name} 
+        //     break
+        //   default:
             params = { screenName:  (screenName||""),disableFilters:false,
                         parse_linedata:{},aud:"view",
                         filtered:[],where_str:"",
@@ -158,7 +164,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                         screenFlg:"first",screenCode:screenCode,pageIndex:0,pageSize:20,
                         index:-1,clickIndex:[],err:null,
                         buttonflg:"viewtablereq7",viewName:view_name} 
-        }
+        // }
         dispatch(ScreenInitRequest(params,auth))}   //data:null
         ,
       changeShowScreen:(showScreen)=>{dispatch(changeShowScreen(showScreen))}

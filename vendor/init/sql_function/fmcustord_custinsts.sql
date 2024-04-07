@@ -25,10 +25,11 @@ custord.amt  custinst_amt,
 custord.qty  custord_qty,
 (case when func_get_custxxxs_qty_bal('custords',custord.id) is null then 0 else
 					func_get_custxxxs_qty_bal('custords',custord.id) end) custord_qty_bal ,
-lotpackno.qty_stk  custord_qty_stk,
 lotpackno.lotno custinst_lotno,
 lotpackno.packno custinst_packno,
-lotpackno.qty_stk custinst_qty,
+lotpackno.qty_stk  custinst_qty_stk,
+(lotpackno.qty_stk * custord.taxrate * custord.price / 100) custinst_tax  ,
+custord.taxrate  custinst_taxrate,
 current_date  custinst_isudate,
   cust.loca_code_cust  loca_code_cust ,
   custrcvplc.loca_code_custrcvplc  loca_code_custrcvplc ,
@@ -53,13 +54,9 @@ custord.chrgs_id   custinst_chrg_id,
   opeitm.classlist_name  classlist_name ,
   cust.bill_loca_id_bill_cust  bill_loca_id_bill_cust ,
   cust.loca_code_bill_cust  loca_code_bill_cust ,
-  cust.loca_name_bill_cust  loca_name_bill_cust ,
-  cust.cust_bill_id_cust  cust_bill_id_cust ,
-  crr.crr_code  crr_code ,
+  cust.loca_name_bill_cust  loca_name_bill_cust ,  crr.crr_code  crr_code ,
   crr.crr_name  crr_name ,
   crr.crr_decimal  crr_decimal ,
-  cust.crr_name_cust  crr_name_cust ,
-  cust.crr_code_cust  crr_code_cust ,
   opeitm.boxe_unit_id_box  boxe_unit_id_box ,
 custord.custrcvplcs_id   custinst_custrcvplc_id,
 custord.itm_code_client  custinst_itm_code_client,
@@ -128,8 +125,10 @@ custord.crrs_id   custinst_crr_id,
 ,custinst_duedate   timestamp(6) 
 ,custord_qty  numeric (18,4)
 ,custord_qty_bal  numeric (18,4)
-,custord_qty_stk  numeric (18,4)
+,custinst_qty_stk numeric (18,4)
 ,custinst_qty numeric (18,4)
+,custinst_tax numeric (18,4)
+,custinst_taxrate numeric (18,4)
 ,custinst_price  numeric (22,0)
 ,custinst_contractprice  varchar (1) 
 ,custinst_amt  numeric (18,4)
@@ -142,9 +141,6 @@ custord.crrs_id   custinst_crr_id,
 ,prjno_priority  numeric (38,0)
 ,crr_code  varchar (50) 
 ,crr_name  varchar (100) 
-,crr_pricedecimal  numeric (22,0)
-,crr_code_cust  varchar (50) 
-,crr_name_cust  varchar (100) 
 ,crr_name_bill  varchar (100) 
 ,crr_code_bill  varchar (50) 
 ,classlist_code  varchar (50) 
@@ -209,7 +205,6 @@ opeitm_shelfno_id_opeitm  numeric (22,0)
 ,custinst_updated_at   timestamp(6) 
 ,custinst_cust_id  numeric (22,0)
 ,custinst_update_ip  varchar (40) 
-,cust_bill_id  numeric (22,0)
 ,custinst_packno  varchar (10) 
 ,custinst_lotno  varchar (50) 
 ,id  numeric (22,0)

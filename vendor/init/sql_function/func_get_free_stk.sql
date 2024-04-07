@@ -1,16 +1,10 @@
 
-drop function func_get_free_ord_stk;
-create or replace function 
-	func_get_free_ord_stk(induedate varchar(30),inprjnos_id numeric,initms_id numeric,inprocessseq numeric)
-		returns table( tblname varchar(30),tblid numeric,
-			priority text,due numeric,
-			starttime timestamp(6),duedate timestamp(6),
-			processseq numeric,mlevel numeric,
-			itms_id numeric,  shelfnos_id numeric, prjnos_id numeric,
-	 	 	trngantts_id numeric,alloctbls_id numeric	,
-	 	 	qty numeric(22,6), qty_stk numeric(22,6),	qty_linkto_alloctbl  numeric(22,6),
- 	 		update_ip varchar(30),updated_at timestamp(6))
-as $func$
+-- DROP FUNCTION public.func_get_free_ord_stk(varchar, numeric, numeric, numeric);
+
+CREATE OR REPLACE FUNCTION public.func_get_free_ord_stk(induedate character varying, inprjnos_id numeric, initms_id numeric, inprocessseq numeric)
+ RETURNS TABLE(tblname character varying, tblid numeric, priority text, due numeric, starttime timestamp without time zone, duedate timestamp without time zone, processseq numeric, mlevel numeric, itms_id numeric, shelfnos_id numeric, prjnos_id numeric, trngantts_id numeric, alloctbls_id numeric, qty numeric, qty_stk numeric, qty_linkto_alloctbl numeric, update_ip character varying, updated_at timestamp without time zone)
+ LANGUAGE plpgsql
+AS $function$
 BEGIN
 	RETURN QUERY
 	 EXECUTE 'select   ---  free　を求めるsql
@@ -39,10 +33,10 @@ BEGIN
 	 	 					and gantt.orgtblid = gantt.paretblid  and gantt.paretblid = gantt.tblid
 	 	 					and  gantt.itms_id_trn = $3 and gantt.processseq_trn = $4
 	 	 				---	and  gantt.shelfnos_id_to_trn = shelfnos_id_to ---作成場所、購入先にはこだわらない。
-	 	 					and (gantt.tblname = '||'''prdords'''||' or gantt.tblname = '||'''purords'''||'  or gantt.tblname = '||'''lotstkhists'''||' )
+	 	 					and  alloc.srctblname not like  '||'''%schs'''||'
 	 	 					--- freeの在庫　　未定 仮に"lotstkhists"にした。要確認
 							--- xxxordsはxxxinsts,xxxactsに変わってもtrngantts.tblname は xxxordsのまま
-	 	 					and   alloc.qty_linkto_alloctbl > 0
+	 	 					and   alloc.qty_linkto_alloctbl > 0 and alloc.allocfree = '||'''free'''||' 
 	 	 					order by priority,due
 	 	 					---for update
 	 	 				--- xxxacts等を登録するときは必ずxxxordsを前に登録すること。
@@ -50,19 +44,22 @@ BEGIN
 		using induedate ,inprjnos_id ,initms_id ,inprocessseq ;
 
 END
-$func$  LANGUAGE plpgsql;
+$function$
+;
 
 
 create or replace function 
 	func_get_free_stk(prjnos_id  numeric,itms_id numeric,processseq numeric,out qty_stk numeric(22,6))
 as $func$
 BEGIN	
-  EXECUTE 'select sum(qty_linkto_alloctbl)  qty_stk
-					from  func_get_free_ord_stk('||'''2000-01-01'''||',prjnos_id ,itms_id ,processseq)
-	where (tblname like '||'''%dlvs' or tblname like '||'''%acts' )
- 	group by trn.itms_id,trn.processseq'
+  EXECUTE 'select case sum(qty_linkto_alloctbl)
+					when  NULL then 0
+					else  sum(qty_linkto_alloctbl) end qty_stk
+					from  func_get_free_ord_stk('||'''2000-01-01'''||',$1 ,$2 ,$3)
+	where (tblname like '||'''%dlvs'''||' or tblname like '||'''%acts'''||' )
+ 	group by $2,$3'
    INTO qty_stk
-   USING  itms_id,processseq;
+   USING  prjnos_id ,itms_id,processseq;
 END
 $func$  LANGUAGE plpgsql;
 	

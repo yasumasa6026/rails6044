@@ -305,7 +305,7 @@ const ScreenGrid7 = ({
     screenwidth, hiddenColumns,fetch_check,
     dropDownList, buttonflg, params,columnsOrg, dataOrg,screenCodeOrg,
     //buttonflg 下段のボタン：request params[:buttonflg] MenusControllerでの実行ケース
-    loadingOrg, hostError, pageSizeList, 
+    loadingOrg,  pageSizeList, 
     handleScreenRequest, handleFetchRequest,handleSubForm,toggleSubForm,message,handleDataSetRequest,
     }) => {
         const data = useMemo(
@@ -531,11 +531,11 @@ const ScreenGrid7 = ({
        
       <button  onClick={()=>{handleSubForm(params,false)}} 
                                     disabled={toggleSubForm?false:true} >Close_subForm</button>
-      <p>{hostError}</p>
      
       {toggleSubForm&&<ToSubForm/>}
       
       {screenCode==="r_fieldcodes"&&<p> 修正時には、再起動が必要</p>}
+      <p>{message}</p>
     </div>
     )
 }
@@ -779,7 +779,6 @@ const mapStateToProps = (state,ownProps) => {
           dropDownList: state.second.grid_columns_info.dropDownList,
           hiddenColumns: state.second.grid_columns_info.hiddenColumns,
           toggleSubForm:state.second.toggleSubForm,
-          hostError: state.second.hostError,
           message:state.second.message,
           screenFlg:ownProps.screenFlg,
        }
@@ -797,7 +796,6 @@ const mapStateToProps = (state,ownProps) => {
           dropDownList: state.screen.grid_columns_info.dropDownList,
           hiddenColumns: state.screen.grid_columns_info.hiddenColumns,
           toggleSubForm:state.screen.toggleSubForm,
-          hostError: state.screen.hostError,
           message:state.screen.message,
           screenFlg:ownProps.screenFlg,
         }

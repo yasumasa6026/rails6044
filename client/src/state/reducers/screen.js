@@ -26,6 +26,7 @@ case SCREENINIT_REQUEST:
           toggleSubForm:false,
           data: [],
           status: {},
+          message:null,
           grid_columns_info:{columns_info:[],pageSizeList:[],dropDownList:[]},
           // editableflg:actions.payload.editableflg
 }
@@ -58,7 +59,6 @@ return {...state,
 case SCREEN_SUCCESS7: // payloadに統一
 return {...state,
   loading:false,
-  hostError: null,
   disabled:false,
   data: actions.payload.data.data,
   params: actions.payload.params,
@@ -77,8 +77,7 @@ case SCREEN_CONFIRM7_SUCCESS:
     data:data,
     loading:false,
     screenFlg:"first",
-    hostError:actions.payload.params.err,
-    message:`${date.toJSON()} confirmed line ${actions.payload.params.index}`,
+    message:actions.payload.message + data[actions.payload.index].confirm_message&&`${date.toJSON()} confirmed line ${actions.payload.params.index}`,
   }
 
 
@@ -100,9 +99,8 @@ case SECOND_CONFIRM7_SUCCESS:
 case CONFIRMALL_SUCCESS:
   return {...state,
    loading:false,
-   hostError: null,
    disabled:false,
-   messages:actions.payload.messages,
+   message:actions.payload.message,
 }
 
 
@@ -145,7 +143,7 @@ case FETCH_FAILURE:
       params:actions.payload.params,  
       data:data,
       loading:false,
-      hostError: actions.payload.params.err,  
+      message: actions.payload.params.err,  
     }
 
 case FETCH_RESULT:
@@ -155,7 +153,6 @@ case FETCH_RESULT:
             params:actions.payload.params,  
             data:data,
             loading:false,
-            hostError: null,
     }
 
 case INPUTFIELDPROTECT_REQUEST:
@@ -172,6 +169,7 @@ case SCREEN_DATASET:
 
 case MKSHPORDS_SUCCESS:
   return {...state,
+      message:actions.payload.message, 
       loading:false,
   }    
 
@@ -181,7 +179,6 @@ case MKSHPORDS_SUCCESS:
     disabled:false,
     message:"",
     toggleSubForm:false,
-    hostError:null,
   }
 
 
@@ -205,7 +202,8 @@ case GANTTCHART_SUCCESS:
 
 case TBLFIELD_SUCCESS:
             return {...state,
-            params: {...state.params,messages:actions.payload.messages},
+            params: {...state.params},
+            message:actions.payload.message,
             disabled:false,
             loading:false,
             }
@@ -215,7 +213,6 @@ case TBLFIELD_SUCCESS:
   case  LOGIN_SUCCESS:
   return {
       toggleSubForm:true,
-      hostError: null,
       disabled:false,
       message:null,
   }
@@ -224,7 +221,6 @@ case TBLFIELD_SUCCESS:
     return {
         ...state,
         loading:false,
-        hostError: null,
         disabled:false,
         message:null,
     }

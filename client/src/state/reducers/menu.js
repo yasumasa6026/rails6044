@@ -1,7 +1,7 @@
 import {MENU_REQUEST,MENU_SUCCESS,LOGOUT_REQUEST,MENU_FAILURE,LOGIN_FAILURE,
-          SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,SCREEN_FAILURE,
-                    SCREEN_CONFIRM7,LOGIN_SUCCESS,CHANGE_SHOW_SCREEN,
-           SECOND_CONFIRMALL_SUCCESS,SECOND_REQUEST,SECOND_SUCCESS7,SECOND_CONFIRM7,
+          SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_CONFIRM7_SUCCESS,
+          SCREEN_CONFIRM7,LOGIN_SUCCESS,CHANGE_SHOW_SCREEN,
+          SECOND_CONFIRMALL_REQUEST,SECOND_CONFIRMALL_SUCCESS,SECOND_REQUEST,SECOND_SUCCESS7,SECOND_CONFIRM7,
           SECOND_FAILURE, } from '../../actions'
 const initialValues = {
   isSubmitting:false,
@@ -35,7 +35,8 @@ const menureducer =  (state= initialValues , actions) =>{
     
     case SCREEN_FAILURE:
       return {...state,
-        hostError: actions.payload.message.message,
+        screenFlg:"first",
+        hostError: actions.payload.message,
       loading:false,
     }
 
@@ -59,6 +60,7 @@ const menureducer =  (state= initialValues , actions) =>{
       }
 
     case SCREEN_SUCCESS7:
+    case SCREEN_CONFIRM7_SUCCESS:  
           return {...state,
             showScreen:true,
             hostError: null,
@@ -66,18 +68,6 @@ const menureducer =  (state= initialValues , actions) =>{
             screenFlg:"first",
             loading:false,
     }
-
-    
-    case SCREEN_CONFIRM7:
-    case SECOND_CONFIRM7:
-          return {...state,
-                    loading:false,
-      }
-
-      case LOGIN_SUCCESS:
-            return {...state,
-              showScreen:false,
-      }
     
     case SECOND_SUCCESS7:
           return {...state,
@@ -87,7 +77,18 @@ const menureducer =  (state= initialValues , actions) =>{
             loading:false,
             showScreen:true,
     }
-  
+      
+    case SCREEN_CONFIRM7:
+    case SECOND_CONFIRM7:
+    case SECOND_CONFIRMALL_REQUEST:  
+          return {...state,
+                    loading:true,
+      }
+
+      case LOGIN_SUCCESS:
+            return {...state,
+              showScreen:false,
+      }
 
 
   //  case MKSHPACTS_RESULT:
@@ -98,10 +99,16 @@ const menureducer =  (state= initialValues , actions) =>{
         }   
         
     case SECOND_CONFIRMALL_SUCCESS:
+      return {...state,
+        screenFlg:"second",
+        loading:false,
+      }   
+
     case SECOND_FAILURE:
           return {...state,
             screenFlg:"second",
             loading:false,
+            hostError: actions.payload.message
           }   
 
 

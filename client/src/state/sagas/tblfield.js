@@ -26,11 +26,11 @@ export function* TblfieldSaga({ payload: {params,auth}  }) {
           if(params.screenFlg==="second"){
             switch(params.buttonflg) {
               case "yup":  // create yup schema
-                return yield put({ type: SECONDTBLFIELD_SUCCESS, payload: {message:response.data.params.messages} })   
+                return yield put({ type: SECONDTBLFIELD_SUCCESS, payload: {message:response.data.params.message} })   
               case  "createTblViewScreen":  // create  or add field table and create or replacr view  and create screen
-                return yield put({ type: SECONDTBLFIELD_SUCCESS, payload: {messages:response.data.params.messages} })  
+                return yield put({ type: SECONDTBLFIELD_SUCCESS, payload: {messages:response.data.params.message} })  
               case "createUniqueIndex":  // create  or add field table and create or replacr view  and create screen
-                return yield put({ type: SECONDTBLFIELD_SUCCESS, payload: {messages:response.data.params.messages} })        
+                return yield put({ type: SECONDTBLFIELD_SUCCESS, payload: {messages:response.data.params.message} })        
               default:
                 return {}
             }  
@@ -38,11 +38,11 @@ export function* TblfieldSaga({ payload: {params,auth}  }) {
           else{
             switch(params.buttonflg) {
               case "yup":  // create yup schema
-                return yield put({ type: TBLFIELD_SUCCESS, payload: {message:response.data.params.messages} })   
+                return yield put({ type: TBLFIELD_SUCCESS, payload: {message:response.data.params.message} })   
               case  "createTblViewScreen":  // create  or add field table and create or replacr view  and create screen
-                return yield put({ type: TBLFIELD_SUCCESS, payload: {messages:response.data.params.messages} })  
+                return yield put({ type: TBLFIELD_SUCCESS, payload: {message:response.data.params.message} })  
               case "createUniqueIndex":  // create  or add field table and create or replacr view  and create screen
-                return yield put({ type: TBLFIELD_SUCCESS, payload: {messages:response.data.params.messages} })        
+                return yield put({ type: TBLFIELD_SUCCESS, payload: {message:response.data.params.message} })        
               default:
                 return {}
             }  

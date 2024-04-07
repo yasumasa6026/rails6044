@@ -6,7 +6,7 @@ module GanttChart
 		def initialize(gantt_reverse,tbl)
 			@bgantts = {}  ###全体のtree構造　keyは階層レベル
         	@ngantts = []  ###親直下の子ども処理用
-			@level = tbl
+			@level = tbl  ###itm or trn:gantt(reverse)
 			@err = false
 			@base = @level
 		end
@@ -529,7 +529,12 @@ module GanttChart
 						end
 						n0[:sno] = rec["sno"]
 						n0[:duedate] = (CtlFields.proc_get_endtime(n0[:tblname],rec))  ###duedate? rcptdate? cmpldate?
-						n0[:start] = rec["starttime"]
+						case n0[:tblname] 
+						when /schs$|ords$insts$/
+							n0[:start] = rec["starttime"]
+						else
+							n0[:start] = n0[:duedate]
+						end
 						if gantt_reverse =~ /gantt/
 							if @bgantts[@level][:start] < n0[:duedate]
 								n0[:delay] = true

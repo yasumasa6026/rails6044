@@ -1,7 +1,8 @@
 import {LOGIN_REQUEST,LOGOUT_REQUEST,LOGIN_SUCCESS,  //SECONDSCREEN_REQUEST,
         //MKSHPACTS_RESULT,
-        SECOND_CONFIRMALL_SUCCESS,SECOND_SUCCESS7,SECOND_DATASET,
-        SECOND_CONFIRM7,SECOND_CONFIRM7_SUCCESS,SECOND_FAILURE, SECONDFETCH_REQUEST,SECOND_SUBFORM,
+        SECOND_CONFIRMALL_REQUEST,SECOND_CONFIRMALL_SUCCESS,SECOND_SUCCESS7,SECOND_DATASET,
+        SECOND_CONFIRM7,SECOND_CONFIRM7_SUCCESS,
+        SECOND_FAILURE, SECONDFETCH_REQUEST,SECOND_SUBFORM,
         SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT, CHANGE_SHOW_SCREEN,
         GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
         TBLFIELD_REQUEST,TBLFIELD_SUCCESS, UPLOADEXCEL_INIT,
@@ -22,15 +23,6 @@ const secondreducer =  (state = initialValues , actions) =>{
     let data
     let date = new Date()
   switch (actions.type) {
-
-    case SECOND_CONFIRMALL_SUCCESS:
-        return {...state,
-             loading:false,
-             hostError: null,
-             disabled:false,
-            messages:actions.payload.messages,
-      }
-
     case SECOND_REQUEST:
         return {...state,
         screenFlg:"second",
@@ -38,18 +30,34 @@ const secondreducer =  (state = initialValues , actions) =>{
          // editableflg:actions.payload.editableflg
      }
 
-     case SECOND_CONFIRM7:
+    case SECOND_CONFIRM7:
         return {...state,
             data:actions.payload.data,
             screenFlg:"second",
             loading:true,
              // editableflg:actions.payload.editableflg
          }
+
+    case SECOND_CONFIRMALL_REQUEST:
+        return {...state,
+            params:actions.payload.params,
+            screenFlg:"second",
+            loading:true,
+             // editableflg:actions.payload.editableflg
+         }
+
+    case SECOND_CONFIRMALL_SUCCESS:
+        return {...state,
+                  loading:false,
+                  disabled:false,
+                 message:actions.payload.message,
+        }
+     
+         
    
     case SECOND_SUCCESS7: // payloadに統一
         return {...state,
             loading:false,
-            hostError: null,
             disabled:false,
             data: actions.payload.data.data,
             params: actions.payload.params,
@@ -65,15 +73,14 @@ const secondreducer =  (state = initialValues , actions) =>{
             data:data,
             params:actions.payload.params,
             loading:false,
-            hostError:data[actions.payload.index].confirm_message,
-            message:`${date.toJSON()} confirmed line ${actions.payload.index}`,
+            message:data[actions.payload.index].confirm_message&&`${date.toJSON()} confirmed line ${actions.payload.index}`,
         } 
 
     case SECOND_FAILURE:
         data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
                                               return row }) 
         return {...state,
-            hostError: actions.payload.message,
+            message: actions.payload.message,
             data: data,
             loading:false,
         }
@@ -92,7 +99,6 @@ const secondreducer =  (state = initialValues , actions) =>{
             data:data,
             params:actions.payload.params, 
             loading:false,
-            hostError: actions.payload.params.err,  
         }
         
     case SECONDFETCH_RESULT:
@@ -102,7 +108,6 @@ const secondreducer =  (state = initialValues , actions) =>{
             params:actions.payload.params,  
             data:data,
             loading:false,
-            hostError: null,
         }
 
 
@@ -153,7 +158,7 @@ const secondreducer =  (state = initialValues , actions) =>{
     case UPLOADEXCEL_INIT:
         return {...state,
               params:actions.payload.params,
-              loading:false
+              loading:false,
     }
   
 

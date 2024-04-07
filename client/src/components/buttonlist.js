@@ -10,7 +10,7 @@ import "react-tabs/style/react-tabs.css"
 import {Button} from '../styles/button'
 import "../index.css"
 import {ScreenRequest,DownloadRequest,UploadExcelInit,GanttChartRequest,ButtonFlgRequest,ScreenFailure,
-        YupRequest,TblfieldRequest,ResetRequest, } from '../actions'
+           SecondConfirmAllRequest,YupRequest,TblfieldRequest,ResetRequest, } from '../actions'
 
  const  ButtonList = ({auth,buttonListData,doButtonFlg,buttonflg,loading,
                         screenCode,data,params,
@@ -117,13 +117,14 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                 return  dispatch(ScreenRequest(params,null)) //
 
           case "showdetail":
+          //case "adddetail":
                 let clickcnt = 0
                 params["clickIndex"].map((click)=>{if(click.id){clickcnt = clickcnt + 1
                                                                 params["head"] = {lineId:click["lineId"],id:click["id"],pareScreenCode:click["screenCode"]}}
                                                   }
                                         )
                 if(clickcnt === 1){
-                      params= { ...params,buttonflg:"showdetail",disableFilters:false,screenFlg:"second",aud:"view"}
+                      params= { ...params,buttonflg:buttonflg,disableFilters:false,screenFlg:"second",aud:"view"}
                       return dispatch(ScreenRequest(params,null))}
                   else{return dispatch(ScreenFailure({message:"no select or duplicated select"}))}
                   //break
@@ -134,12 +135,12 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
  
           case "confirmShpacts"://第二画面専用
                     params= {...params,buttonflg:"confirmShpacts",disableFilters:true,screenFlg:ownProps.screenFlg}
-                    return  dispatch(ScreenRequest(params,null)) //
+                    return  dispatch(SecondConfirmAllRequest(params,null)) //
     
 
           case "confirmShpinsts":  //第二画面専用
                   params= {...params,buttonflg:"confirmShpinsts",disableFilters:true,screenFlg:ownProps.screenFlg}
-                  return  dispatch(ScreenRequest(params,null)) //
+                  return  dispatch(SecondConfirmAllRequest(params,null)) //
 
           case "ganttchart":
                   if(typeof(params.index)==="number"){

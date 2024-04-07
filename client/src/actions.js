@@ -43,7 +43,6 @@ export const FETCH_FAILURE = 'FETCH_FAILURE'
 export const MKSHPORDS_SUCCESS = 'MKSHPORDS_SUCCESS'
 export const MKSHPORDS_RESULT = 'MKSHPORDS_RESULT'
 //export const MKSHPACTS_RESULT = 'MKSHPACTS_RESULT'
-export const SECOND_CONFIRMALL_SUCCESS = 'SECOND_CONFIRMALL_SUCCESS'
 
 export const SECOND_REQUEST = 'SECOND_REQUEST'
 export const SECOND_SUCCESS7 = 'SECOND_SUCCESS7'
@@ -52,6 +51,8 @@ export const SECONDFETCH_REQUEST = 'SECONDFETCH_REQUEST'
 export const SECONDFETCH_RESULT = 'SECONDFETCH_RESULT'
 export const SECONDFETCH_FAILURE = 'SECONDFETCH_FAILURE'
 export const SECOND_CONFIRM7 = 'SECOND_CONFIRM7'
+export const SECOND_CONFIRMALL_REQUEST = 'SECOND_CONFIRMALL_REQUEST'
+export const SECOND_CONFIRMALL_SUCCESS = 'SECOND_CONFIRMALL_SUCCESS'
 export const SECOND_CONFIRM7_SUCCESS = 'SECOND_CONFIRM7_SUCCESS'
 export const SECOND_SUBFORM = 'SECOND_SUBFORM'
 
@@ -172,6 +173,12 @@ export const SecondRequest = (params) => ({
 export const SecondConfirm = (params,data) => ({
   type:  SECOND_CONFIRM7,
   payload: { params,data}  //
+})
+
+
+export const SecondConfirmAllRequest = (params) => ({
+  type:  SECOND_CONFIRMALL_REQUEST,
+  payload: { params}  //
 })
 
 

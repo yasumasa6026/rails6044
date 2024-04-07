@@ -46,7 +46,7 @@ export function  setProtectFunc(id,values){
                     readOnly = true
                      break
                 }
-                switch(values.purdlv_contractrice){
+                switch(values.purdlv_contractprice){
                 case "1":
                 case "2": 
                 case "3": 

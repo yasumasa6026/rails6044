@@ -85,7 +85,7 @@ module CtlFields
 			flgfetchview = fetchview + if delm == "" then "" else ":#{delm}" end	  
 			fetcfieldgetsql = "select pobject_code_sfd from r_screenfields
 								 where pobject_code_scr =  '#{params[:screenCode]}' 
-								 and screenfield_paragraph  like '%#{flgfetchview}%'"
+								 and screenfield_paragraph  = '#{flgfetchview}'"
 			missing = false   ###missing:true パラメータが未だ未設定　　false:チェックok
 			where_strsql = ""
 			fetchs = ActiveRecord::Base.connection.select_all(fetcfieldgetsql)
@@ -109,8 +109,6 @@ module CtlFields
 						when /_sno_|_cno_|_packinglistno_/
 							 ### 
 							where_strsql << " #{viewtblnamechop}_#{xno} = '#{params[:parse_linedata][fetch["pobject_code_sfd"].to_sym]}'       and"
-						# when /linkhead_sno|linkhead_cno|linkhead_packingListNo/
-						# 	###何もしない
 						else
 							if delm == ""
 								where_strsql << "  #{fetch["pobject_code_sfd"]} = '#{params[:parse_linedata][fetch["pobject_code_sfd"].to_sym]}'        and"
@@ -380,9 +378,11 @@ module CtlFields
 	### 
 	def proc_judge_check_code params,sfd,checkCode  ###
 		line_data = params[:parse_linedata]
+		err = nil
 		checkCode.split(",").each do |chk|
 			line_data,err = __send__("proc_judge_check_#{chk}",line_data,sfd,params[:index],params[:screenCode])  ###[1]: nil all,add,updateは画面側で判断
 		end
+		params[:err] = err
 		return params 
 	end	
 
@@ -475,7 +475,7 @@ module CtlFields
 		return line_data,err
 	end	
 
-	def proc_judge_check_strorder params,item,index,screenCode   ###　r_screens(screens)のみで有効
+	def proc_judge_check_strorder line_data,item,index,screenCode   ###　r_screens(screens)のみで有効
 		if line_data[:screen_strorder] and line_data[:screen_strorder] != ""
 			ary_select_fields = line_data.keys
 			sort_info = {}
@@ -597,7 +597,7 @@ module CtlFields
 
 	def proc_judge_check_qty line_data,item,index,screenCode
 		###　get_fetch_recで実施済
-	 	return line_data,err
+	 	return line_data,nil   ###err= nil
 	end	
 
 	 def proc_judge_check_loca_code_to line_data,item,index,screenCode
@@ -740,6 +740,22 @@ module CtlFields
 				line_data[:pursch_price] = price["price"].to_f
 				line_data[:pursch_contractprice] = supplier["contractprice"]
 				line_data[:pursch_amt_sch] = line_data[:pursch_qty_sch].to_f * price["price"].to_f
+				case line_data[:itm_taxflg]
+				when "0","1","9"
+					base_date =  line_data[:pursch_duedate]
+				when "A"
+					base_date =   line_data[:pursch_isudate]
+				else
+					base_date =  line_data[:pursch_duedate]
+				end
+				strsql = %Q&
+							select taxrate from taxtbls where taxflg = '#{line_data[:itm_taxflg]}' 
+														and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+														order by expiredate limit 1
+				&
+				line_data[:pursch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
+				line_data[:pursch_taxrate] ||= 0
+				line_data[:pursch_tax] = (line_data[:pursch_amt_sch] * line_data[:pursch_taxrate].to_f / 100)
 				if line_data[:pursch_crr_id]
 					strsql = %Q&
 							select decimal from crrs where id = #{line_data[:pursch_crr_id]}
@@ -761,6 +777,8 @@ module CtlFields
 			else
 				line_data[:pursch_price] = 0
 				line_data[:pursch_amt_sch] = 0
+				line_data[:pursch_tax] = 0
+				line_data[:pursch_taxrate] = 0
 				line_data[:pursch_contractprice] = "C"
 			end
 		when /purord/
@@ -769,7 +787,8 @@ module CtlFields
 									and expiredate > current_date
 			&
 			supplier = ActiveRecord::Base.connection.select_one(strsql)
-			strsql = %Q&
+			if supplier
+				strsql = %Q&
 						select * from supplierprices 
 									where suppliers_id = #{supplier["id"]} and opeitms_id = #{line_data[:purord_opeitm_id]}
 									and maxqty >= #{line_data[:purord_qty]}
@@ -784,111 +803,179 @@ module CtlFields
 											end											
 											}
 									order by maxqty,expiredate limit 1
-			&
-			price = ActiveRecord::Base.connection.select_one(strsql)
-			if price
-				line_data[:purord_price] = line_data[:purord_masterprice] = price["price"].to_f
-				line_data[:purord_contractprice] = supplier["contractprice"]
-				line_data[:purord_amt] = line_data[:purord_qty].to_f * price["price"].to_f
-				if (line_data[:purord_crr_id]||=supplier["crrs_id_supplier"])
-					strsql = %Q&
+				&
+				price = ActiveRecord::Base.connection.select_one(strsql)
+				if price
+					line_data[:purord_price] = line_data[:purord_masterprice] = price["price"].to_f
+					line_data[:purord_contractprice] = supplier["contractprice"]
+					line_data[:purord_amt] = line_data[:purord_qty].to_f * price["price"].to_f
+					if (line_data[:purord_crr_id]||=supplier["crrs_id_supplier"])
+						strsql = %Q&
 							select decimal from crrs where id = #{line_data[:purord_crr_id]||=supplier["crrs_id_supplier"]}
-					&
-					decimal = ActiveRecord::Base.connection.select_value(strsql)
-					case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
-					when "1"
-						line_data[:purord_amt] = line_data[:purord_amt].floor(decimal.to_i )
-						line_data[:purord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).floor(decimal.to_i )
-					when "2"
-						line_data[:purord_amt] = line_data[:purord_amt].round(decimal.to_i + 1)
-						line_data[:purord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).round(decimal.to_i )
-					when "3"
-						line_data[:purord_amt] = line_data[:purord_amt].ceil(decimal.to_i )
-						line_data[:purord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).ceil(decimal.to_i )
+						&
+						decimal = ActiveRecord::Base.connection.select_value(strsql)
+						case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
+						when "1"
+							line_data[:purord_amt] = line_data[:purord_amt].floor(decimal.to_i )
+							line_data[:purord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).floor(decimal.to_i )
+						when "2"
+							line_data[:purord_amt] = line_data[:purord_amt].round(decimal.to_i + 1)
+							line_data[:purord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).round(decimal.to_i )
+						when "3"
+							line_data[:purord_amt] = line_data[:purord_amt].ceil(decimal.to_i )
+							line_data[:purord_tax] = (line_data[:purord_amt] * line_data[:purord_taxrate].to_f / 100).ceil(decimal.to_i )
+						end
+					else
 					end
 				else
+					line_data[:purord_price] = line_data[:purord_masterprice] = 0
+					line_data[:purord_amt] = 0
+					line_data[:purord_tax] = 0
+					line_data[:purord_contractprice] = "C"
 				end
 			else
 				line_data[:purord_price] = line_data[:purord_masterprice] = 0
 				line_data[:purord_amt] = 0
+				line_data[:purord_tax] = 0
 				line_data[:purord_contractprice] = "C"
 			end
 		when /purdlv/  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
-			 if line_data[:purdlv_contractprice]  == "2"
+			if line_data[:purdlv_contractprice]  == "2"
 				strsql = %Q&
 							select * from suppliers where locas_id_supplier = #{line_data[:shelfno_loca_id_shelfno]}
 										and expiredate > current_date
 				&
 				supplier = ActiveRecord::Base.connection.select_one(strsql)
-				strsql = %Q&
+				if supplier
+					strsql = %Q&
 							select * from supplierprices 
 										where suppliers_id = #{supplier["id"]} and opeitms_id = #{line_data[:purdlv_opeitm_id]}
 										and maxqty >= #{line_data[:purdlv_qty]}
-										and minqty < #{line_data[:purord_qty]}
+										and minqty < #{line_data[:purdlv_qty]}
 										and  expiredate >= to_date('#{line_data[:purdlv_depdate]}','yyyy/mm/dd')
 										order by maxqty,expiredate limit 1
-				&
-				price = ActiveRecord::Base.connection.select_one(strsql)
-				decimal = line_data[:crr_decimal].to_i
-				line_data[:purdlv_amt] = line_data[:purdlv_qty].to_f * price["price"].to_f
-				case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
-				when "1"
-					line_data[:purdlv_amt] = line_data[:purdlv_amt].floor(decimal )
-					line_data[:purtdlv_tax] = (line_data[:purdlv_amt] * line_data[:purdlv_taxrate].to_f / 100).floor(decimal.to_i )
-				when "2"
-					line_data[:purdlv_amt] = line_data[:purdlv_amt].round(decimal )
-					line_data[:purtdlv_tax] = (line_data[:purdlv_amt] * line_data[:purdlv_taxrate].to_f / 100).round(decimal.to_i )
-				when "3"
-					line_data[:purdlv_amt] = line_data[:purdlv_amt].ceil(decimal + 1)
-					line_data[:purtdlv_tax] = (line_data[:purdlv_amt] * line_data[:purdlv_taxrate].to_f / 100).ceil(decimal.to_i )
+					&
+					price = ActiveRecord::Base.connection.select_one(strsql)
+					if price
+						decimal = line_data[:crr_decimal].to_i
+						line_data[:purdlv_amt] = line_data[:purdlv_qty].to_f * price["price"].to_f
+						case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
+						when "1"
+							line_data[:purdlv_amt] = line_data[:purdlv_amt].floor(decimal )
+							line_data[:purtdlv_tax] = (line_data[:purdlv_amt] * line_data[:purdlv_taxrate].to_f / 100).floor(decimal.to_i )
+						when "2"
+							line_data[:purdlv_amt] = line_data[:purdlv_amt].round(decimal )
+							line_data[:purtdlv_tax] = (line_data[:purdlv_amt] * line_data[:purdlv_taxrate].to_f / 100).round(decimal.to_i )
+						when "3"
+							line_data[:purdlv_amt] = line_data[:purdlv_amt].ceil(decimal + 1)
+							line_data[:purtdlv_tax] = (line_data[:purdlv_amt] * line_data[:purdlv_taxrate].to_f / 100).ceil(decimal.to_i )
+						end
+					else
+						line_data[:purdlv_contractprice] = "C"
+					end
+				else
+					line_data[:purdlv_contractprice] = "C"
 				end
-			else
-				line_data[:purdlv_contractprice] = "C"
 			end
 		when /puract/  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
 			if line_data[:puract_contractprice]  == "3"
 				strsql = %Q&
-							select * from suppliers where locas_id_supplier = #{line_data[:shelfno_loca_id_shelfno]}
+							select * from suppliers where locas_id_supplier = #{line_data[:supplier_loca_id_supplier]}
 										and expiredate > current_date
 				&
 				supplier = ActiveRecord::Base.connection.select_one(strsql)
-			    strsql = %Q&
+				if supplier
+			    	strsql = %Q&
 						   select * from supplierprices 
 									   where suppliers_id = #{supplier["id"]} and opeitms_id = #{line_data[:puract_opeitm_id]}
-									   and maxqty >= #{line_data[:puract_qty]}
-									   and minqty < #{line_data[:purord_qty]}
+									   and maxqty >= #{line_data[:puract_qty_stk]}
+									   and minqty < #{line_data[:puract_qty_stk]}
 									   and  expiredate >= to_date('#{line_data[:puract_rcptdate]}','yyyy/mm/dd')
 									   order by maxqty,expiredate limit 1
-			   &
-			   price = ActiveRecord::Base.connection.select_one(strsql)
-			   decimal = line_data[:crr_decimal].to_i
-			   line_data[:puract_amt] = line_data[:puract_qty].to_f * price["price"].to_f
-			   case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
-			   when "1"
-					line_data[:puract_amt] = line_data[:puract_amt].floor(decimal )
-					line_data[:purtact_tax] = (line_data[:puract_amt] * line_data[:actdlv_taxrate].to_f / 100).floor(decimal.to_i )
-			   when "2"
-					line_data[:puract_amt] = line_data[:puract_amt].round(decimal )
-					line_data[:purtact_tax] = (line_data[:puract_amt] * line_data[:actdlv_taxrate].to_f / 100).round(decimal.to_i )
-			   when "3"
-					line_data[:puract_amt] = line_data[:puract_amt].ceil(decimal )
-					line_data[:purtact_tax] = (line_data[:puract_amt] * line_data[:actdlv_taxrate].to_f / 100).ceil(decimal.to_i )
-			   end
-			else
-				line_data[:puract_contractprice] = "C"
-		   end
+			   		&
+			   		price = ActiveRecord::Base.connection.select_one(strsql)
+					if price
+				   		decimal = line_data[:crr_decimal].to_i
+				   		line_data[:puract_amt] = line_data[:puract_qty_stk].to_f * price["price"].to_f
+				   		case supplier["amtround"]  ###1:切り捨て　2:四捨五入 3:切り上げ
+				   		when "1"
+							line_data[:puract_amt] = line_data[:puract_amt].floor(decimal )
+							line_data[:purtact_tax] = (line_data[:puract_amt] * line_data[:actdlv_taxrate].to_f / 100).floor(decimal.to_i )
+			   			when "2"
+							line_data[:puract_amt] = line_data[:puract_amt].round(decimal )
+							line_data[:purtact_tax] = (line_data[:puract_amt] * line_data[:actdlv_taxrate].to_f / 100).round(decimal.to_i )
+			   			when "3"
+							line_data[:puract_amt] = line_data[:puract_amt].ceil(decimal )
+							line_data[:purtact_tax] = (line_data[:puract_amt] * line_data[:actdlv_taxrate].to_f / 100).ceil(decimal.to_i )
+			   			end
+					else
+						line_data[:puract_contractprice] = "C"
+					end
+				else
+					line_data[:puract_contractprice] = "C"
+				end
+			end
 		end
-		
 		return line_data,err
 	end
 
 	def proc_judge_check_custprice line_data,item,index,screenCode  ###M
 		err = nil
-		if line_data[:custord_contractprice] =~ /[A-Z]|[a-z]/  ###数字の時マスター単価
-			return line_data,err
-		end
 		case screenCode
-		when /custord/
+		when /custschs/
+			if line_data[:custsch_contractprice] =~ /[A-Z]|[a-z]/ and line_data[:custsch_price] != "" ###数字の時マスター単価
+				return line_data,err
+			end
+			strsql = %Q&
+						select * from custprices 
+									where custs_id = #{line_data[:custsch_cust_id]} and opeitms_id = #{line_data[:custsch_opeitm_id]}
+									and crrs_id_custprice = #{line_data[:custsch_crr_id]}
+									and maxqty >= #{line_data[:custsch_qty_sch]}
+									and minqty < #{line_data[:custsch_qty_sch]}
+									and #{case line_data[:custsch_contractprice]
+											when "1"
+												"expiredate >= to_date('#{line_data[:custsch_isudate]}','yyyy/mm/dd')" 
+											when "2"
+												"expiredate >= to_date('#{line_data[:custsch_duedate]}','yyyy/mm/dd')"
+											when "3"
+												"expiredate >= to_date('#{line_data[:custsch_duedate]}','yyyy/mm/dd')"
+											else
+												"expiredate >= to_date('#{line_data[:custsch_isudate]}','yyyy/mm/dd')"
+											end											
+											}
+									order by maxqty,expiredate limit 1
+			&
+			price = ActiveRecord::Base.connection.select_one(strsql)
+			if price
+				line_data[:custsch_price] =  line_data[:custsch_masterprice] = price["price"].to_f
+				line_data[:custsch_amt] = line_data[:custsch_qty].to_f * price["price"].to_f
+				if line_data[:custsch_crr_id]
+					strsql = %Q&
+							select decimal from crrs where id = #{line_data[:custsch_crr_id]}
+					&
+					decimal = ActiveRecord::Base.connection.select_value(strsql)
+					case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
+					when "1"
+						line_data[:custsch_amt] = line_data[:custsch_amt].floor(decimal.to_i )
+						line_data[:custsch_tax] = (line_data[:custsch_amt] * line_data[:custsch_taxrate].to_f / 100).floor(decimal.to_i )
+					when "2"
+						line_data[:custsch_amt] = line_data[:custsch_amt].round(decimal.to_i )
+						line_data[:custsch_tax] = (line_data[:custsch_amt] * line_data[:custsch_taxrate].to_f / 100).round(decimal.to_i )
+					when "3"
+						line_data[:custsch_amt] = line_data[:custsch_amt].ceil(decimal.to_i )
+						line_data[:custsch_tax] = (line_data[:custsch_amt] * line_data[:custsch_taxrate].to_f / 100).ceil(decimal.to_i )
+					end
+				else
+				end
+			else
+				line_data[:custsch_price] = line_data[:custsch_masterprice] = 0
+				line_data[:custsch_amt] = 0
+				line_data[:custsch_contractprice] = "C"  ###C:マスター単価無
+			end
+		when /custords/
+			if line_data[:custord_contractprice] =~ /[A-Z]|[a-z]/ and line_data[:custord_price] != "" ###数字の時マスター単価
+				return line_data,err
+			end
 			strsql = %Q&
 						select * from custprices 
 									where custs_id = #{line_data[:custord_cust_id]} and opeitms_id = #{line_data[:custord_opeitm_id]}
@@ -935,8 +1022,8 @@ module CtlFields
 				line_data[:custord_amt] = 0
 				line_data[:custord_contractprice] = "C"  ###C:マスター単価無
 			end
-		when /custdlv/  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
-			 if params[:custdlv_contractprice]  == "2"  ###出荷日ベース　
+		when /custdlvs/  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
+			if params[:custdlv_contractprice]  == "2"  ###出荷日ベース　
 				strsql = %Q&
 							select * from custprices 
 										where custs_id = #{line_data[:custdlv_cust_id]} and opeitms_id = #{line_data[:custdlv_opeitm_id]}
@@ -947,23 +1034,25 @@ module CtlFields
 										order by maxqty,expiredate limit 1
 				&
 				price = ActiveRecord::Base.connection.select_one(strsql)
-				decimal = line_data[:crr_decimal].to_i
-				line_data[:custdlv_amt] = line_data[:custdlv_qty].to_f * price["price"].to_f
-				case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
-				when "1"
-					line_data[:custdlv_amt] = line_data[:custdlv_amt].floor(decimal + 1)
-					line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate].to_f  / 100).floor(decimal)
-				when "2"
-					line_data[:custdlv_amt] = line_data[:custdlv_amt].round(decimal + 1)
-					line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate].to_f  / 100).round(decimal )
-				when "3"
-					line_data[:custdlv_amt] = line_data[:custdlv_amt].ceil(decimal + 1)
-					line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate].to_f / 100).ceil(decimal )
+				if price
+					decimal = line_data[:crr_decimal].to_i
+					line_data[:custdlv_amt] = line_data[:custdlv_qty].to_f * price["price"].to_f
+					case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
+					when "1"
+						line_data[:custdlv_amt] = line_data[:custdlv_amt].floor(decimal + 1)
+						line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate].to_f  / 100).floor(decimal)
+					when "2"
+						line_data[:custdlv_amt] = line_data[:custdlv_amt].round(decimal + 1)
+						line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate].to_f  / 100).round(decimal )
+					when "3"
+						line_data[:custdlv_amt] = line_data[:custdlv_amt].ceil(decimal + 1)
+						line_data[:custdlv_tax] = (line_data[:custdlv_amt] * line_data[:custdlv_taxrate].to_f / 100).ceil(decimal )
+					end
+				else
+					line_data[:custdlv_contractprice] = "C"  ###C:マスター単価無
 				end
-			else
-				line_data[:custdlv_contractprice] = "C"  ###C:マスター単価無
 			end
-		when /custact/  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
+		when /custacts/  ###1:発注日ベース　2:仕入れ先きの出荷日ベース　3:検収ベース
 			if params[:custact_contractprice]  == "3"
 				strsql = %Q&
 					select * from custprices 
@@ -975,22 +1064,24 @@ module CtlFields
 							order by maxqty,expiredate limit 1
 					&
 				price = ActiveRecord::Base.connection.select_one(strsql)
+				if price
 			   	decimal = line_data[:crr_decimal].to_i
-				line_data[:custact_amt] = line_data[:custact_qty].to_f * price["price"].to_f
-			   	case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
-			   	when "1"
-					line_data[:custact_amt] = line_data[:custact_amt].floor(decimal + 1)
-					line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate].to_f / 100).floor(decimal )
-			   	when "2"
-					line_data[:custact_amt] = line_data[:custact_amt].round(decimal + 1)
-					line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate].to_f / 100).round(decimal )
-			   	when "3"
-					line_data[:custact_amt] = line_data[:custact_amt].ceil(decimal + 1)
-					line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate].to_f / 100).ceil(decimal)
-			   end
-			else
-				line_data[:custact_contractprice] = "C"  ###C:マスター単価無
-		   end
+					line_data[:custact_amt] = line_data[:custact_qty].to_f * price["price"].to_f
+				   	case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
+				   	when "1"
+						line_data[:custact_amt] = line_data[:custact_amt].floor(decimal + 1)
+						line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate].to_f / 100).floor(decimal )
+			   		when "2"
+						line_data[:custact_amt] = line_data[:custact_amt].round(decimal + 1)
+						line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate].to_f / 100).round(decimal )
+			   		when "3"
+						line_data[:custact_amt] = line_data[:custact_amt].ceil(decimal + 1)
+						line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate].to_f / 100).ceil(decimal)
+			   		end
+				else
+					line_data[:custact_contractprice] = "C"  ###C:マスター単価無
+				end
+		   	end
 		end
 		return line_data,err
 	end
@@ -1272,8 +1363,23 @@ module CtlFields
 	end
 
 	def proc_judge_check_mkprdpurord_code(line_data,item,index,screenCode)
-		if line_data[item.to_sym] == "dummy"
+		if line_data[item.to_sym] == "dummy" or line_data[item.to_sym] == ""
 			return line_data, nil
+		end
+		###
+		case item
+		when /_org$/
+			if line_data["mkprdpurord_orgtblname"] !~ /prd|pur/
+				line_data[item.sub("code","name").to_sym] = " not select orgtblname "
+				err = "#{line_data[item.to_sym]}  not select org table "
+				return line_data,err
+			end
+		when /_pare$/
+			if line_data["mkprdpurord_paretblname"] !~ /prd|pur/
+				line_data[item.sub("code","name").to_sym]  = " not select paretblname"
+				err = "#{line_data[item.to_sym]}  not select parent table "
+				return line_data,err
+			end
 		end
 		case item
 		when /loca/
@@ -1292,6 +1398,10 @@ module CtlFields
 			strsql = %Q&
 						select person_code_chrg from r_chrgs where persomn_code_chrg = '#{line_data[item.to_sym]}'
 						&
+		when /sno/
+			strsql = %Q&
+						select sno from #{line_data["mkprdpurord_paretblname"]} where sno = '#{line_data[item.to_sym]}'
+						&
 		end
 		codeToName = ActiveRecord::Base.connection.select_value(strsql)
 		if codeToName
@@ -1299,8 +1409,9 @@ module CtlFields
 			err = nil
 		else
 			line_data[item.sub("code","name").to_sym] = "#{line_data[item.to_sym]}  not found"
-			err = "#{line_data[item.to_sym]}  not found"
+			err = " #{item}:#{line_data[item.to_sym]}  not found"
 		end
+				
 		return line_data,err
 	end
 	### prd,pur ・・・schs,ords,insts,acts,retsのレコード作成　	
@@ -1366,6 +1477,8 @@ module CtlFields
 				command_x = field_prjnos_id(tblnamechop,command_x,nd,parent)
 			when "expiredate"
 				command_x = field_expiredate(tblnamechop,command_x,nd,parent)
+			when "tax"
+				command_x = field_expiredate(tblnamechop,command_x,nd,parent)
 			end	
 		end		
 		return command_x,qty_require
@@ -1389,7 +1502,12 @@ module CtlFields
 
 	def field_opeitms_id tblnamechop,command_x,nd
 		key = tblnamechop + "_opeitm_id" 
-		command_x[key] = nd["opeitms_id"]  ###  変更はないはず
+		command_x[key] = nd["opeitms_id"]  ###  
+		ActiveRecord::Base.connection.select_one(%Q&select * from opeitms where id = #{nd["opeitms_id"]}&).each do |fld,val|
+			if fld =~ /itms_id|processseq|priority/
+				command_x["opeitm_#{fld.sub("s_id","_id")}"] = val
+			end
+		end
 		return command_x
 	end
 
@@ -1507,7 +1625,9 @@ module CtlFields
 		qty_require = proc_cal_qty_sch(parent["qty_handover"],
 										nd["chilnum"],nd["parenum"],
 										nd["consumunitqty"],nd["consumminqty"],nd["consumchgoverqty"])
-		command_x["#{tblnamechop}_qty_sch"]  = qty_require
+		command_x["#{tblnamechop}_qty_sch"]  = proc_cal_qty_sch(parent["qty_sch"].to_f+ parent["qty"].to_f,
+												nd["chilnum"],nd["parenum"],
+												nd["consumunitqty"],nd["consumminqty"],nd["consumchgoverqty"])
 		# if nd["packqty"] > 0   ### qty_case xxxschsから削除
 		# 	command_x["#{tblnamechop}_qty_case"] = (qty_require /  nd["packqty"]).ceil 
 		# else
@@ -1531,7 +1651,7 @@ module CtlFields
 	def field_price_amt_tax_contractprice tblnamechop,command_x
 		case tblnamechop
 		when /pur/  ###supplierprices
-			command_x,err = proc_judge_check_supplierprice command_x.symbolize_keys,"",0,"r_#{tblnamechop}s"
+			command_x,err = proc_judge_check_supplierprice(command_x.symbolize_keys,"",0,"r_#{tblnamechop}s")
 		when  /shp/  ###custprices
 		end
 		###  command_x = PriceLib.proc_price_amt(tblnamechop,command_x)
@@ -1604,7 +1724,7 @@ module CtlFields
 		when /dlvs/
 			tbldata["depdate"]
 		when /^puracts/
-			bldata["rcptdate"]
+			tbldata["rcptdate"]
 		when /^prdacts/
 			tbldata["cmpldate"]
 		when /rets/

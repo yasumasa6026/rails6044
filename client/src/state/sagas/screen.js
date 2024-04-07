@@ -1,7 +1,8 @@
 import { call, put, select } from 'redux-saga/effects'
 import axios         from 'axios'
 import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_CONFIRM7_SUCCESS, FETCH_RESULT, FETCH_FAILURE,
-        SECOND_SUCCESS7,SECOND_FAILURE,SECOND_CONFIRM7_SUCCESS, SECONDFETCH_RESULT,LOGIN_FAILURE,
+        SECOND_SUCCESS7,SECOND_FAILURE,SECOND_CONFIRM7_SUCCESS, 
+        SECONDFETCH_RESULT,LOGIN_FAILURE,
         SECONDFETCH_FAILURE,MKSHPORDS_SUCCESS,CONFIRMALL_SUCCESS,SECOND_CONFIRMALL_SUCCESS,
         //MKSHPACTS_RESULT,
         }
@@ -32,7 +33,6 @@ export function* ScreenSaga({ payload: {params}  }) {
 
   const headers = {'access-token':auth.token,'client':auth.client,'uid':auth.uid }
     let message
-    let messages = []
     let lineData
     // while (loading===true) {
     //   console.log("delay")
@@ -59,10 +59,10 @@ export function* ScreenSaga({ payload: {params}  }) {
                           screenCode:response.data.params.screenCode,err:response.data.params.err,index:parseInt(params.index)}
               if(params.screenFlg==="second")
                 {  params = {...params,lineData:response.data.params.pareLineData,head:response.data.params.head}
-                   yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{lineData:lineData,index:parseInt(params.index),params:params} })
+                   yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{lineData:lineData,index:parseInt(params.index),params:params,message:""} })
                 }
               else
-                {yield put({type:SCREEN_CONFIRM7_SUCCESS,payload:{lineData:lineData,index:parseInt(params.index),params:params} })}
+                {yield put({type:SCREEN_CONFIRM7_SUCCESS,payload:{lineData:lineData,index:parseInt(params.index),params:params,message:""} })}
               return   
             case "fetch_request":  //viewによる存在チェック内容表示
             case "check_request":   //項目毎のチェック帰りはfetchと同じ
@@ -87,13 +87,13 @@ export function* ScreenSaga({ payload: {params}  }) {
                   data[parseInt(params.index)] = {...response.data.params.parse_linedata}
                   params = {...params,buttonflg:response.data.params.buttonflg,screenFlg:response.data.params.screenFlg,screenCode:response.data.params.screenCode}
                   if(params.screenFlg==="second")
-                    {return yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{data:data,params:params} })}
+                    {return yield put({type:SECOND_CONFIRM7_SUCCESS,payload:{data:data,params:params,message:""} })}
                   else
-                    {return yield put({type:SCREEN_CONFIRM7_SUCCESS,payload:{data:data,params:params} })} 
+                    {return yield put({type:SCREEN_CONFIRM7_SUCCESS,payload:{data:data,params:params,message:""} })} 
             case "mkShpords":  //
-              messages[0] = "out count : " + response.data.outcnt
-              messages[1] = "shortage count : " + response.data.shortcnt
-              return yield put({ type: MKSHPORDS_SUCCESS, payload:{messages:messages}})       
+              message = "out count : " + response.data.outcnt
+              message = message + ",shortage count : " + response.data.shortcnt
+              return yield put({ type: MKSHPORDS_SUCCESS, payload:{message:message}})       
            
             // case "mkShpinsts":  //second画面出力専用　第一画面の修正、追加は不可
             //      return yield put({ type:SECOND_SUCCESS7, payload:response})
@@ -102,15 +102,29 @@ export function* ScreenSaga({ payload: {params}  }) {
             //   return yield put({ type: MKSHPACTS_RESULT, payload:response})    
               
            case "confirmAll":  //
+           //case "adddetail":  //
+                message = "out count : " + response.data.outcnt
+                message = message + ",out qty : " + response.data.outqty
+                message = message + ",out amt : " + response.data.totalAmt
+                return yield put({ type: CONFIRMALL_SUCCESS, payload:{message:message}})     
            case "MkPackingListNo":  //
-               messages[0] = "out count : " + response.data.outcnt
-               messages[1] = "out qty : " + response.data.outqty
-               messages[2] = "out amt : " + response.data.outamt
-                return yield put({ type: CONFIRMALL_SUCCESS, payload:{messages:messages}})     
+               message = "out count : " + response.data.outcnt
+               message = message + ",out qty : " + response.data.outqty
+               return yield put({ type: CONFIRMALL_SUCCESS, payload:{message:message}})     
               
-            case "confirmSecond":  //second画面専用
-              messages[0] = "out count : " + response.data.outcnt
-              return yield put({ type: SECOND_CONFIRMALL_SUCCESS, payload:{messages:messages}})     
+            case "MkInvoiceNo":
+              message = "out count : " + response.data.outcnt
+              message = message + ",out amt : " + response.data.outqty
+              message = message + ",out amt : " + response.data.outamt 
+              lineData  = response.data.params.parse_linedata
+              params = {...params,screenFlg:response.data.params.screenFlg,
+                          screenCode:response.data.params.screenCode,err:response.data.params.err,index:parseInt(params.index)}
+              yield put({type:SCREEN_CONFIRM7_SUCCESS,payload:{lineData:lineData,index:parseInt(params.index),params:params,message:message} })
+              
+            case "confirmAllSecond":  //second画面専用
+              message = "out count : " + response.data.outcnt
+              message = message + " " + response.data.err
+              return yield put({ type: SECOND_CONFIRMALL_SUCCESS, payload:{message:message}})     
             default:
                             }
             break       
@@ -122,9 +136,9 @@ export function* ScreenSaga({ payload: {params}  }) {
         case 202:
               params = response.data.params
               if(params.screenFlg==="second"){
-                  return  yield put({type:SECOND_FAILURE,payload:{message: response.data.err,}})   
+                  return  yield put({type:SECOND_FAILURE,payload:{message: response.data.err + params.err,}})   
               }else{  
-                  return  yield put({type:SCREEN_FAILURE,payload:{message:response.data.err,}})   
+                  return  yield put({type:SCREEN_FAILURE,payload:{message:response.data.err + params.err,}})   
               }
         default:
                   message = `error ${response.status}: Screen Something went wrong ${response.statusText} `
@@ -139,13 +153,13 @@ export function* ScreenSaga({ payload: {params}  }) {
     catch(e){
         switch (true) {
             case /code.*500/.test(e): message = `${e}: Internal Server Error `
-                  return  yield put({type:SCREEN_FAILURE, payload:{message:message,params}})   
+                  return  yield put({type:SCREEN_FAILURE, payload:{message:message}})   
             case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
                     yield call(history.push,'/login')
-                    return  yield put({type:LOGIN_FAILURE, payload:{message:message,params}})   
+                    return  yield put({type:LOGIN_FAILURE, payload:{message:message}})   
             default:
                 message = `catch  Screen Something went wrong ${e} `
-                      return  yield put({type:SCREEN_FAILURE, payload:{message:message,params}})   
+                      return  yield put({type:SCREEN_FAILURE, payload:{message:message}})   
       }
     }
   }

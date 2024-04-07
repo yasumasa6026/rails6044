@@ -29,7 +29,7 @@ module Api
                 render json:{:params=>params} 
               when 'createTblViewScreen'  ### blktbs tblfields 
                 tbl =  TblField::TblClass.new
-                messages,modifysql,status,errmsg = tbl.proc_blktbs params   ###params[:data]に画面の表示内容を含む
+                message,modifysql,status,errmsg = tbl.proc_blktbs params   ###params[:data]に画面の表示内容を含む
 		            $tblfield_materiallized.each do |view|
 				            strsql = %Q%select 1 from pg_catalog.pg_matviews pm 
 				                  where matviewname = '#{view}' %
@@ -43,23 +43,23 @@ module Api
                 foo = File.open("#{Rails.root}/vendor/postgresql/tblviewupdate#{(Time.now).strftime("%Y%m%d%H%M%S")}.sql", "w:UTF-8") # 書き込みモード
                 foo.puts modifysql
                 foo.close
-                foo = File.open("#{Rails.root}/vendor/postgresql/messages#{(Time.now).strftime("%Y%m%d%H%M%S")}.sql", "w:UTF-8") # 書き込みモード
-                foo.puts messages
+                foo = File.open("#{Rails.root}/vendor/postgresql/message#{(Time.now).strftime("%Y%m%d%H%M%S")}.sql", "w:UTF-8") # 書き込みモード
+                foo.puts message
                 foo.close
-                params[:messages] = 	messages 
+                params[:message] = 	message 
                 params[:status] = 	status  
                 params[:errmsg] = 	errmsg 
                 render json:{:params=>params}  
               when 'createUniqueIndex'  ### createUniqueIndex
                 tbl =  TblField::TblClass.new
-                messages,sql,status,errmsg = tbl.proc_createUniqueIndex params   ###params[:data]に画面の表示内容を含む
+                message,sql,status,errmsg = tbl.proc_createUniqueIndex params   ###params[:data]に画面の表示内容を含む
                 foo = File.open("#{Rails.root}/vendor/postgresql/tblviewupdate#{(Time.now).strftime("%Y%m%d%H%M%S")}.sql", "w:UTF-8") # 書き込みモード
                 foo.puts sql
                 foo.close
-                foo = File.open("#{Rails.root}/vendor/postgresql/messages#{(Time.now).strftime("%Y%m%d%H%M%S")}.sql", "w:UTF-8") # 書き込みモード
-                foo.puts messages
+                foo = File.open("#{Rails.root}/vendor/postgresql/message#{(Time.now).strftime("%Y%m%d%H%M%S")}.sql", "w:UTF-8") # 書き込みモード
+                foo.puts message
                 foo.close
-                params[:messages] = 	messages 
+                params[:message] = 	message 
                 params[:status] = 	status  
                 params[:errmsg] = 	errmsg 
                 render json:{:params=>params}  
