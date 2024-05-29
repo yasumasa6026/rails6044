@@ -6,7 +6,7 @@ module Api
         def create
             ###JSON.parseのエラー対応　要
             params["email"] = current_api_user[:email]
-            strsql = "select code,id from persons where email = '#{params["email"]}'"
+            strsql = "select code,id,name from persons where email = '#{params["email"]}'"
             person = ActiveRecord::Base.connection.select_one(strsql)
             if person.nil?
                 params["status"] = 403
@@ -16,6 +16,7 @@ module Api
                 
             end
             params["person_code_upd"] = person["code"]
+            params["person_name_upd"] = person["name"]
             params["person_id_upd"] = person["id"]
 
             #####    
@@ -60,7 +61,7 @@ module Api
             
              
             when 'showdetail'   
-                reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。
+                reqparams = params.dup   ### 
                 reqparams[:where_str] ||= ""
                 reqparams[:filtered] ||= []
                 reqparams[:pageIndex] ||= 0
@@ -81,7 +82,7 @@ module Api
                 render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}             
                 
             when "fetch_request"
-                reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
+                reqparams = params.dup   ### 　　
                 reqparams[:parse_linedata] = JSON.parse(params[:lineData])
                 reqparams = CtlFields.proc_chk_fetch_rec reqparams
                 render json: {:params=>reqparams}   
@@ -102,7 +103,7 @@ module Api
 
             when "confirm7"
                 screen = ScreenLib::ScreenClass.new(params)
-                reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。　　
+                reqparams = params.dup   ### 　
                 reqparams[:parse_linedata] = JSON.parse(params[:lineData])
                 reqparams[:head] = JSON.parse(params[:head]||="{}")
                 reqparams = screen.proc_confirm_screen(reqparams)
@@ -349,7 +350,7 @@ module Api
             
             when 'refShpords'   ###purords,prdordsからshpordsを表示
                 if params["clickIndex"]
-                    reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。
+                    reqparams = params.dup   ###
                     reqparams[:where_str] ||= ""
                     reqparams[:filtered] ||= []
                     reqparams[:pageIndex] ||= 0
@@ -374,7 +375,7 @@ module Api
             
             when 'refShpinsts'  ###purords,prdordsからshpinstsを表示
                 if params["clickIndex"]
-                    reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。
+                    reqparams = params.dup   ### f
                     reqparams[:where_str] ||= ""
                     reqparams[:filtered] ||= []
                     reqparams[:pageIndex] ||= 0
@@ -411,7 +412,7 @@ module Api
             
             when 'refShpacts'   ###purords,prdordsからshpactsを表示
                 if params["clickIndex"]
-                    reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。
+                    reqparams = params.dup   ### 
                     reqparams[:where_str] ||= ""
                     reqparams[:filtered] ||= []
                     reqparams[:pageIndex] ||= 0
@@ -428,13 +429,13 @@ module Api
                 end
 
             when 'confirmShpinsts'
-                reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。
+                reqparams = params.dup   ### 
                 outcnt,err = Shipment.proc_confirmShpinsts(reqparams)
                 reqparams[:buttonflg] = 'confirmAllSecond'
                 render json:{:outcnt => outcnt,:err => err,:params => reqparams}    
             
             when 'confirmShpacts'
-                reqparams = params.dup   ### fields.proc_chk_fetch_rec でparamsがnilになってしまうため。
+                reqparams = params.dup   ### 
                 outcnt,err = Shipment.proc_confirmShpacts(reqparams)
                 reqparams[:buttonflg] = 'confirmAllSecond'
                 render json:{:outcnt => outcnt,:err => err,:params => reqparams}    

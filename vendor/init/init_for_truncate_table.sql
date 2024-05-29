@@ -52,9 +52,7 @@ truncate table linkcusts cascade;
 truncate table mkordopeitms cascade;
 
 truncate table mkprdpurords  cascade;
-truncate table srctbls cascade;
-truncate table instks cascade;
-truncate table outstks cascade;
+truncate table srctbllinks cascade;;
 truncate table mkordorgs cascade;
 
 
@@ -145,14 +143,12 @@ to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'));
 commit;
 
 truncate table sio.sio_r_purschs cascade;
+truncate table sio.sio_bal_purschs cascade;
+truncate table sio.sio_bal_purords cascade;
 truncate table sio.sio_r_purords cascade;
 truncate table sio.sio_r_purinsts cascade;
 truncate table sio.sio_r_purdlvs cascade;
 truncate table sio.sio_r_puracts cascade;
-truncate table sio.sio_r_instks cascade;
-truncate table sio.sio_r_outstks cascade;
-truncate table sio.sio_r_inamts cascade;
-truncate table sio.sio_r_outamts cascade;
 truncate table sio.sio_r_lotstkhists cascade;
 truncate table sio.sio_r_custactheads cascade;
 
@@ -189,7 +185,6 @@ truncate table sio.sio_r_shpords cascade;
 
 truncate table sio.sio_r_mkords cascade;
 
-truncate table sio.sio_r_srctbls cascade;
 truncate table sio.sio_r_shpacts cascade;
 
 truncate table mkordterms  cascade;

@@ -59,13 +59,13 @@ extend self
                     end
                 end 
             end  
-            if rec["screenfield_indisp"] != '0'
+            if rec["screenfield_indisp"] != '0' or rec["screenfield_type"] == "numeric"
                 str << %Q%.required()% 
             end   
             yupschema << "                  #{rec["pobject_code_sfd"]}:" + str + ",\n"
         end 
-            yupschema <<  "         }\n"
-            yupschema <<  "     }"
+        yupschema <<  "         }\n"
+        yupschema <<  "     }"
         return {:yupschema=>yupschema}           
     end 
     def proc_create_fetchCode screenCode       

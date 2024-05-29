@@ -82,6 +82,20 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
                 }
             }
             break
+        case /^loca_code_shelfno$/.test(id):
+                if(screenCode.match(/ords|acts|/)){
+                    if(lineData["loca_code_shelfno"]==="dummy"){
+                        lineData["loca_code_shelfno_gridmessage"]==="err change dummy "
+                    }
+                }
+                break
+        case /^crr_code$/.test(id):
+                if(screenCode.match(/puracts|custords/)){
+                            if(lineData["crr_code"]==="dummy"){
+                                lineData["crr_code_gridmessage"]==="err change dummy "
+                            }
+                }
+                break
         default:
              break    
         }

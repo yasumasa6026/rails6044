@@ -639,11 +639,18 @@ module ScreenLib
 			until num <= 0 do   ###初期値セット　参考　ctl_fields.get_fetch_rec onblurfunc.js
 				temp ={}
 				grid_columns_info[:columns_info].each do |cell|
-					next if cell[:accessor] == "id" 
-					if cell[:accessor] =~ /_id/
-						temp[cell[:accessor]] = "0"   ###nullだと端末から該当項目が返らないため
-					end
 					temp[cell[:accessor]] = ""
+					next if cell[:accessor] == "id" 
+					case cell[:accessor]
+					when /_id/
+						temp[cell[:accessor]] = "0"   ###nullだと端末から該当項目が返らないため
+					when /prjno_name/	  ### prjnosはid=0,code=0,name="common"で初期設定済
+						temp[cell[:accessor]] = "common"
+					when /prjno_priority/	  ### prjnosはid=0,code=0,name="common"で初期設定済
+						temp[cell[:accessor]] = "0"
+					when /person_name_chrg/	
+						temp[cell[:accessor]] = params["person_name_upd"]
+					end
 					if cell[:className] =~ /^Editable/
 						if cell[:className] =~ /Numeric/
 							temp[cell[:accessor]] = "0" ###初期表示
@@ -651,7 +658,7 @@ module ScreenLib
 						case cell[:accessor]   ###初期表示
 						when /_expiredate/
 							temp[cell[:accessor]] = "2099-12-31"
-						when /_isudate|_rcptdate|_cmpldate/
+						when /_isudate|_rcptdate|_cmpldate|payact_paymentdate/
 							temp[cell[:accessor]] = Time.now.strftime("%Y/%m/%d")
 						when /pobject_objecttype_tbl/
 							temp[cell[:accessor]] = "tbl"
@@ -661,7 +668,7 @@ module ScreenLib
 							temp[cell[:accessor]] = "0"
 						when /person_code_chrg/	
 							temp[cell[:accessor]] = params["person_code_upd"]
-						when /prjno_code/	
+						when /prjno_code/	### prjnosはid=0,code=0,name="common"で初期設定済
 							temp[cell[:accessor]] = "0"
 						when /custinst_starttime/
 							temp[cell[:accessor]] = Time.now.strftime("%Y/%m/%d")
@@ -682,6 +689,11 @@ module ScreenLib
 						end
 						if cell[:className] =~ /Numeric/
 							temp[cell[:accessor]] = "0" ###初期表示
+						end
+					when "r_mkpayinsts"  ###オーダー作成時の抽出条件初期値
+						case cell[:accessor]
+						when /loca_code_|person_code_chrg/	
+							temp[cell[:accessor]] = "dummy"
 						end
 					when /fieldcodes/
 						case cell[:accessor]
@@ -714,6 +726,8 @@ module ScreenLib
 						case cell[:accessor]
 						when /shelfno_code$/	
                             temp[cell[:accessor]] = "000" 
+						when /itm_taxflg/	
+                            temp[cell[:accessor]] = "1" 
 						end
 					when /cust1_custords/   ###custordheadsからの引継ぎ
 						case cell[:accessor]
@@ -721,6 +735,8 @@ module ScreenLib
 							next
 						when /custord_gno/
 							temp[cell[:accessor]] = custhead["custordhead_cno"]
+						when /itm_taxflg/	
+                            temp[cell[:accessor]] = "1" 
 						else
 							if custhead[cell[:accessor].sub("custord_","custordhead_")]
 								case cell[:accessor]   ###初期表示
@@ -732,6 +748,16 @@ module ScreenLib
 									temp[cell[:accessor]] = custhead[cell[:accessor].sub("custord_","custordhead_")]
 								end
 							end
+						end
+					when /^bal/   ###
+						case cell[:accessor]
+						when  /qty.*bal/  ###
+							temp[cell[:accessor]] = 0
+						end
+					else
+						case cell[:accessor]
+						when /itm_taxflg/	
+							temp[cell[:accessor]] = "1"
 						end
 					end
 				end	
@@ -775,7 +801,6 @@ module ScreenLib
 						download_columns_info[i["pobject_code_sfd"].to_sym] = contents
 					else
 						if i["pobject_code_sfd"] == "id" ###レコードの更新の時必要
-							contents << "id" ###
 							contents << "id" ###
 							contents << "ffffff" ###
 							contents <<  "right"
@@ -936,16 +961,17 @@ module ScreenLib
 				 	end  
 				 	setParams[:fetchview] = yup_fetch_code[field]
 				 	setParams = CtlFields.proc_chk_fetch_rec setParams  
+					Rails.logger.debug " class:#{self} ,line:#{__LINE__},parse_linedata:#{setParams[:parse_linedata]} " if field =~ /custrcv/
 				 	if setParams[:err] 
 						command_c[:confirm_gridmessage] = setParams[:err] 
 						command_c[:confirm] = false 
 						command_c[(field+"_gridmessage").to_sym] = setParams[:err] 
 				 		if command_c[:errPath].nil? 
 							command_c[:errPath] = [field+"_gridmessage"]
-				 		 end
+				 		end
 				   		break
 				 	end
-			  	end
+				end
 			 	if setParams[:err].nil?
 					if yup_check_code[field] 
 				  		setParams = CtlFields.proc_judge_check_code setParams,field,yup_check_code[field]  
@@ -962,8 +988,11 @@ module ScreenLib
 			  	end 
 				###setParams[:parse_linedata][field] = val    
 			end	
+			Rails.logger.debug " class:#{self} ,line:#{__LINE__},parse_linedata:#{setParams[:parse_linedata]} "
+			Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_c:#{command_c} "
+			### cannot use parse_linedata
 			if  setParams[:err].nil?
-				 parse_linedata.each do |key,val|
+				setParams[:parse_linedata].each do |key,val|
 				 	if key.to_s =~ /_id/ and val == ""   and tblnamechop == key.to_s.split("_")[0] and
 					  key.to_s !~ /_gridmessage$/ and  key.to_s !~ /_person_id_upd$/ and  key.to_s != "#{tblnamechop}_id"
 					  		command_c[:confirm_gridmessage] = " error key #{key.to_s} missing"
@@ -974,7 +1003,7 @@ module ScreenLib
 							end
 							break
 					else
-				  		command_c[key.to_s] = val
+				  		command_c[key.to_s] = val  
 					end
 				end
 				### セカンドkeyのユニークチェック
@@ -992,6 +1021,7 @@ module ScreenLib
 					end	
 				end
 			end	
+			Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_c:#{command_c} "
 			if  setParams[:err].nil?
 				if command_c["id"] == "" or  command_c["id"].nil?   ### add画面で同一lineで二度"enter"を押されたとき errorにしない
 					###  追加後エラーに気づいたときエラーしないほうが，操作性がよい
@@ -1048,19 +1078,19 @@ module ScreenLib
 						when  /freetoalloc_alloctbls/
 							begin
 								ActiveRecord::Base.connection.begin_db_transaction()
-								src["trngantts_id"] = parse_linedata[:alloctbl_trngantt_id_src]
+								src["trngantts_id"] = params[:parse_linedata][:alloctbl_trngantt_id_src]
 								src["srctblname"] = "lotstkhists"
-								src["tblname"] = parse_linedata[:alloctbl_srctblname_src]
-								src["tblid"]  = parse_linedata[:alloctbl_srctblid_src]
-								src["alloctbls_id"]  = parse_linedata[:alloctbl_id_src]
+								src["tblname"] = params[:parse_linedata][:alloctbl_srctblname_src]
+								src["tblid"]  = params[:parse_linedata][:alloctbl_srctblid_src]
+								src["alloctbls_id"]  = params[:parse_linedata][:alloctbl_id_src]
 								####src["qty_linkto_alloctbl"]  = parse_linedata[:trngantt_qty_sch]
-								base["trngantts_id"] = parse_linedata[:alloctbl_trngantt_id_free]
+								base["trngantts_id"] = params[:parse_linedata][:alloctbl_trngantt_id_free]
 								base["srctblname"] = "lotstkhists"
-								base["tblname"] = parse_linedata[:alloctbl_srctblname_free]
-								base["tblid"] = parse_linedata[:alloctbl_srctblid_free]
-								base["qty_src"] = parse_linedata[:dummy_qty_alloc]
+								base["tblname"] = params[:parse_linedata][:alloctbl_srctblname_free]
+								base["tblid"] = params[:parse_linedata][:alloctbl_srctblid_free]
+								base["qty_src"] = params[:parse_linedata][:dummy_qty_alloc]
 								base["amt_src"] = 0
-								base["alloctbls_id"]  = parse_linedata[:alloctbl_id_free]
+								base["alloctbls_id"]  = params[:parse_linedata][:alloctbl_id_free]
 								strsql = %Q&select srctblid from inoutlotstks 
 											where tblname = '#{base["tblname"]}' and tblid = #{base["tblid"]}
 											and trngantts_id = #{base["trngantts_id"]} and srctblname = 'lotstkhists'  &

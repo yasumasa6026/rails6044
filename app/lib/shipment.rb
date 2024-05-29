@@ -859,7 +859,7 @@ module Shipment
 		command_c["sio_classname"] = "#{yield}_add_"
 		command_c["#{tblnamechop}_id"] = "" 
 		command_c["#{tblnamechop}_itm_id"] = child["itms_id"]
-		command_c["#{tblnamechop}_processseq"] = child["processseq"]
+		command_c["#{tblnamechop}_processseq"] = (child["processseq"]||="000")
 		command_c["#{tblnamechop}_consumauto"] = (child["consumauto"]||="")
 		command_c["#{tblnamechop}_isudate"] = Time.now 
 		command_c["#{tblnamechop}_packno"] =  ""  
@@ -1257,7 +1257,6 @@ module Shipment
 									qty = #{new_stkinout["qty"]} ,
 									qty_sch = #{new_stkinout["qty_sch"].to_f}  
 									where id = #{lotstkhists["id"]}
-									for update		
 						&
 			ActiveRecord::Base.connection.update(strsql)
 		end

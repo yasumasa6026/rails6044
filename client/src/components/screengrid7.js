@@ -56,7 +56,8 @@ const AutoCell = ({
     column: { id, className },  //id field_code
     //setData,
      data, // This is a custom function that we supplied to our table instance
-    setChangeData,
+    //setChangeData,
+    baseData,
     row,params,dropDownList,fetch_check,fetchCheck,
     buttonflg,  //useTableへの登録が必要
     handleScreenRequest,handleFetchRequest,toggleSubForm,handleDataSetRequest,
@@ -65,8 +66,10 @@ const AutoCell = ({
             if(e.target){
                  values[id] =  e.target.value
                  updateMyData(index, id, values[id] ) //dataの内容が更新されない。但しとると、画面に入力内容が表示されない。
-                 updateChangeData(index,id,values[id])
-                 // handleDataSetRequest(data,params)
+                 //updateChangeData(data,index,id,values[id])
+                let msg_id = `${id}_gridmessage`
+                updateMyData(index, msg_id, "ok" )
+                 handleDataSetRequest(data,params)
                }   
         } 
   
@@ -81,8 +84,8 @@ const AutoCell = ({
                 lineData,autoAddFields = onBlurFunc7(params.screenCode, lineData, id)
             }
             updateData(index, lineData) 
-            handleDataSetRequest(data,params)
-            if ( lineData[msg_id] === "ok") {
+            //handleDataSetRequest(data,params)
+            if ( (lineData[msg_id] === "ok"&baseData[index][id]!==data[index][id]) ||lineData[msg_id] === "error not detected" ) { // 変更項目のみ対象error not detected
               const {fetchCheckFlg,idKeys} = fetchCheck( lineData,id,fetch_check)
               params = {...params,fetchCode: JSON.stringify(idKeys),
                                       checkCode: JSON.stringify({ [id]: fetch_check.checkCode[id] }),
@@ -92,9 +95,9 @@ const AutoCell = ({
               if(fetchCheckFlg){handleFetchRequest(params,buttonflg)}
                   else{if(Object.keys(autoAddFields).length)
                         {handleDataSetRequest(data,params)}} //onBlurFunc7でセットされた項目を画面に反映
-            }else{
-              updateMyData(index, msg_id, " error " + lineData[msg_id])
-              handleDataSetRequest(data,params)
+            }else{if ( lineData[msg_id] !== "ok")
+                        {updateMyData(index, msg_id, " error " + lineData[msg_id])
+                        handleDataSetRequest(data,params)}
             }
         }    
   
@@ -141,19 +144,16 @@ const AutoCell = ({
         }
 
         
-        const updateChangeData = (rowIndex, columnId, value) => {
-          setChangeData(prev=>
-            prev.map((row, index) => {
-              if (index === rowIndex) {
-                  row =  {
-                    ...prev[rowIndex],
-                  [columnId]: value,
-                  }
-              }
-            return row
-            })
-          )
-        }
+        // const updateChangeData = (data,rowIndex, columnId, value) => {
+        //   setChangeData(changeData=>
+        //     changeData =   data.map((row, index) => {
+        //       if (index === rowIndex) {
+        //           row =  {...changeData[index],[columnId]:value}
+        //           }
+        //     return row
+        //     })
+        //   )
+        // }
        
 
         switch (true){   
@@ -303,7 +303,7 @@ const DefaultColumnFilter = ({
 
 const ScreenGrid7 = ({ 
     screenwidth, hiddenColumns,fetch_check,
-    dropDownList, buttonflg, params,columnsOrg, dataOrg,screenCodeOrg,
+    dropDownList, buttonflg, params,columnsOrg, dataOrg,screenCodeOrg,baseData,
     //buttonflg 下段のボタン：request params[:buttonflg] MenusControllerでの実行ケース
     loadingOrg,  pageSizeList, 
     handleScreenRequest, handleFetchRequest,handleSubForm,toggleSubForm,message,handleDataSetRequest,
@@ -319,7 +319,7 @@ const ScreenGrid7 = ({
         const [aggregated,setAggregated] = useState([]) //useState({})は動かなかった 
         const filters = useMemo(
                 () => ([]),[screenCodeOrg])
-        const [changeData, setChangeData] = useState([]) 
+        //const [changeData, setChangeData] = useState([]) 
         const [loading, setLoading] = useState(false)
         const [screenCode,setScreenCode] = useState(screenCodeOrg)
        // const [columns,setColumns] = useState([])
@@ -374,7 +374,8 @@ const ScreenGrid7 = ({
           screenwidth={screenwidth} >
           <GridTable  columns={columns}  screenCode={screenCode}
             data={data} dropDownList={dropDownList}
-            setChangeData={setChangeData} changeData={changeData}
+            //setChangeData={setChangeData} 
+            baseData={baseData}
             //controlledPageIndex={controlledPageIndex} 
             //controlledPageSize={controlledPageSize}
              buttonflg={buttonflg} loading={loading}
@@ -548,7 +549,9 @@ const defaultPropGetter = () => ({})
 const GridTable = ({
     columns,
     data,
-    dropDownList,setChangeData,changeData,
+    dropDownList,
+    //setChangeData,
+    baseData,
     fetch_check,
     params,aggregated,
     buttonflg,loading,disableFilters,
@@ -619,9 +622,10 @@ const GridTable = ({
     } = useTable(
         {
             columns,data,
-            changeData, params, dropDownList,
+            baseData, params, dropDownList,
             fetch_check,fetchCheck,
-            buttonflg,setChangeData,
+            buttonflg,
+            //setChangeData,
             defaultColumn,
             manualPagination: false,
             manualFilters: true,
@@ -770,6 +774,7 @@ const mapStateToProps = (state,ownProps) => {
           buttonflg: state.second.params.buttonflg,
           loadingOrg: state.second.loading,
           dataOrg: state.second.data,
+          baseData: state.second.baseData,
           params: state.second.params,
           screenCodeOrg:state.second.params.screenCode,
           pageSizeList: state.second.grid_columns_info.pageSizeList,
@@ -787,6 +792,7 @@ const mapStateToProps = (state,ownProps) => {
           buttonflg: state.screen.params.buttonflg,
           loadingOrg: state.screen.loading,
           dataOrg: state.screen.data,
+          baseData: state.screen.baseData,
           params: state.screen.params,
           screenCodeOrg:state.screen.params.screenCode,
           pageSizeList: state.screen.grid_columns_info.pageSizeList,

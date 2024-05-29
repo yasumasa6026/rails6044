@@ -78,7 +78,8 @@ export function* ScreenSaga({ payload: {params}  }) {
                      }else{
                                  if(params.screenFlg==="second"){
                                      yield put({type: SECONDFETCH_RESULT, payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
-                                 }else{  
+                                 }else{
+                                      console.log(lineData)
                                      yield put({type: FETCH_RESULT, payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
                                  }  
                                }

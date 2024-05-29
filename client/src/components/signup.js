@@ -12,6 +12,7 @@ const SignUp = ({isSubmitting,onSubmit,error}) => {
   return(
   <div>
   <form  onSubmit={handleSubmit(onSubmit)}>
+    <h1>SignUp</h1>
   <ul>
     <li>
       <label htmlFor="email">

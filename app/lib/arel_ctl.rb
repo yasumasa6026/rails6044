@@ -363,9 +363,23 @@ module ArelCtl
 	end
 
 	def proc_insert_alloctbls(rec_alloc)
-		alloctbl_id = proc_get_nextval("alloctbls_seq")
 		strsql = %Q&
-		insert into alloctbls(id,
+					select id from alloctbls 
+									where srctblname = '#{rec_alloc["srctblname"]}' and srctblid = #{rec_alloc["srctblid"]}
+									and   trngantts_id = #{rec_alloc["trngantts_id"]}  
+		&
+		alloctbl_id = ActiveRecord::Base.connection.select_value(strsql)
+		if alloctbl_id
+			strsql = %Q&
+						update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl +  #{rec_alloc["qty_linkto_alloctbl"]},
+									remark = '#{rec_alloc["remark"]}'}',   --- persond_id_upd=0
+									where id = #{alloc_id}
+					&
+			ActiveRecord::Base.connection.update(strsql)
+		else
+			alloctbl_id = proc_get_nextval("alloctbls_seq")
+			strsql = %Q&
+				insert into alloctbls(id,
 							srctblname,srctblid,
 							trngantts_id,
 							qty_linkto_alloctbl,
@@ -380,8 +394,9 @@ module ArelCtl
 							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 							' ',0,'2099/12/31','#{rec_alloc["remark"]}',   --- persond_id_upd=0
 							'#{rec_alloc["allocfree"]}')
-		&
-		ActiveRecord::Base.connection.insert(strsql)
+			&
+			ActiveRecord::Base.connection.insert(strsql)
+		end
 		return alloctbl_id
 	end
 
@@ -488,7 +503,7 @@ module ArelCtl
 				"qty_src" => 0,"amt_src" => 0,"qty_linkto_alloctbl" => 0,
 				"qty_sch" => tmptbldata["qty_sch"].to_f,"qty" =>tmptbldata["qty"].to_f,"qty_stk" => tmptbldata["qty_stk"].to_f,
 				"qty_real" => tmptbldata["qty_stk"].to_f}	
-		stkinout["duedate"] = stkinout["starttime"] =  CtlFields.proc_get_endtime stkinout["tblname"],tmptbldata
+		###stkinout["duedate"] = stkinout["starttime"] =  CtlFields.proc_get_endtime stkinout["tblname"],tmptbldata
 		return stkinout		
 	end
 	
@@ -506,13 +521,13 @@ module ArelCtl
 		###################################################################       
 		free_qty = base["qty_src"].to_f   ###  xxxordsからxxxacts等に変わった時も同じ
 		if src["qty_linkto_alloctbl"].to_f > base["qty_src"].to_f
-			qty_src = src["qty_linkto_alloctbl"].to_f - base["qty_src"].to_f   ###引当残
+			qty_src = src["qty_linkto_alloctbl"].to_f - base["qty_src"].to_f   ###引当残  qty_sch
 			base["remark"] = "#{self} line:(#{__LINE__})" + base["remark"]
 			proc_insert_linktbls(src,base)  ###linktbls.qty_src作成後free_qty=base["qty_src"] = 0
 			base["qty_src"] = 0
 			free_qty = 0
 	   	else
-			qty_src = 0  ###全て引き合ったった 
+			qty_src = 0  ###全て引き合ったった qty_sch
 			base["qty_src"] =  src["qty_linkto_alloctbl"].to_f
 			base["remark"] = "#{self} line:(#{__LINE__})" +  base["remark"]
 			proc_insert_linktbls(src,base)
@@ -543,8 +558,8 @@ module ArelCtl
 					   "qty"
 				   	end
 
-		 strsql = %Q&
-			 update trngantts set #{str_qty} =  #{str_qty} - #{src["qty_linkto_alloctbl"].to_f -  qty_src},
+		 strsql = %Q&  ---   tblname=xxxschsのqty,qty_sch
+			 update trngantts set #{str_qty} = #{str_qty}  - #{base["qty_src"]},
 			 						#{new_str_qty} =  #{new_str_qty} + #{base["qty_src"].to_f},
 						 updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 						 remark = '#{self} line:(#{__LINE__})'|| remark
@@ -562,7 +577,7 @@ module ArelCtl
 
 		alloc = {"trngantts_id" => src["trngantts_id"],"srctblname" => base["tblname"] ,
 			 "srctblid" => base["tblid"],"allocfree" => "alloc",
-			"qty_linkto_alloctbl" => src["qty_linkto_alloctbl"].to_f -  qty_src  ,
+			"qty_linkto_alloctbl" => base["qty_src"] ,
 			 "remark" => "#{self} (line: #{__LINE__} #{Time.now})"}
 		proc_insert_alloctbls(alloc)
 		base["qty_src"] = free_qty

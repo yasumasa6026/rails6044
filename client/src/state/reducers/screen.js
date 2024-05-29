@@ -52,6 +52,7 @@ return {...state,
         loading:true,
         params:actions.payload.params,
         data:actions.payload.data,
+        baseData:actions.payload.data,
         screenFlg:"first",
         // editableflg:actions.payload.editableflg
 }
@@ -61,6 +62,7 @@ return {...state,
   loading:false,
   disabled:false,
   data: actions.payload.data.data,
+  baseData: actions.payload.data.data,
   params: actions.payload.params,
   status: actions.payload.data.status,
   grid_columns_info:actions.payload.data.grid_columns_info,
@@ -75,6 +77,7 @@ case SCREEN_CONFIRM7_SUCCESS:
   return {...state,
     params:actions.payload.params,
     data:data,
+    baseData:data,
     loading:false,
     screenFlg:"first",
     message:actions.payload.message + data[actions.payload.index].confirm_message&&`${date.toJSON()} confirmed line ${actions.payload.params.index}`,
@@ -87,7 +90,7 @@ case SECOND_CONFIRM7_SUCCESS:
         data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...lineData}}
                                           return row }) 
         return {...state,
-            data:data,
+            data:data,baseData:data
         } 
     }
     else{
@@ -142,6 +145,7 @@ case FETCH_FAILURE:
     return {...state, 
       params:actions.payload.params,  
       data:data,
+      baseData:data,
       loading:false,
       message: actions.payload.params.err,  
     }
@@ -152,6 +156,7 @@ case FETCH_RESULT:
           return {...state,
             params:actions.payload.params,  
             data:data,
+            baseData:data,
             loading:false,
     }
 
