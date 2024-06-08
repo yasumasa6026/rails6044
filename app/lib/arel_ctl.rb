@@ -169,8 +169,8 @@ module ArelCtl
 					proc_createtable fmtbl,totbl,fmview,params["cassname"]
 				end
 			else
-				 	Rails.logger.debug " create table not support table:#{fmtbl}"
-				 	Rails.logger.debug " create table not support table:#{totbl}"
+				 	Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
+				 	Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{totbl}"
 				 	raise
 				return
 		end
@@ -874,7 +874,8 @@ module ArelCtl
                ope.packqty,ope.prdpur,ope.units_id_case_shp,itm.units_id,
                ope.locas_id_shelfno locas_id_shelfno,ope.shelfnos_id_opeitm,  ---子部品作業場所
                ope.locas_id_shelfno_to locas_id_shelfno_to,ope.shelfnos_id_to_opeitm,   ---子部品保管場所
-			   ope.consumauto,ope.duration,ope.units_lttime
+			   ope.consumauto,ope.duration,ope.units_lttime,
+			   itm.taxflg
            from nditms nditm 
                inner join itms itm on itm.id = nditm.itms_id_nditm 
                left join (select o.*,s.locas_id_shelfno locas_id_shelfno,xto.locas_id_shelfno locas_id_shelfno_to

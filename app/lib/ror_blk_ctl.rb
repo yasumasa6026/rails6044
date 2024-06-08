@@ -247,7 +247,7 @@ module RorBlkCtl
 								"tax" =>  @tbldata["tax"],"taxrate" =>  @tbldata["taxrate"],
 								"suppliers_id" => @tbldata["suppliers_id"],"duedate" => @tbldata["rcptdate"],
 								"last_amt" => ope.last_rec["puract_amt"],
-								"last_tax" =>  ope.last_rec["purord_tax"],"last_taxrate" =>  ope.last_rec["purord_taxrate"],
+								"last_tax" =>  ope.last_rec["puract_tax"],"last_taxrate" =>  ope.last_rec["puract_taxrate"],
 								"last_duedate" => ope.last_rec["puract_rcptdate"],"crrs_id" => @tbldata["crrs_id"],
 								"remark" => " class:#{self}, line:#{__LINE__} ",
 								"seqno" => setParams["seqno"],###link_lotstkhists_update　と同時
@@ -535,7 +535,6 @@ module RorBlkCtl
 				gantt["qty_pare"] = 0
 				gantt["qty_sch_pare"] = if  @tblname =~ /schs/ then @tbldata["qty_sch"] else 0 end
 				gantt["shelfnos_id_to_trn"] =  gantt["shelfnos_id_to_pare"] =  @tbldata["shelfnos_id_to"]
-				gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = gantt["shelfnos_id_org"] = @tbldata["shelfnos_id"]     
 				gantt["chrgs_id_trn"] =  gantt["chrgs_id_pare"] =  gantt["chrgs_id_org"] =  @tbldata["chrgs_id"]
 				gantt["prjnos_id"] = @tbldata["prjnos_id"]
 				gantt["shuffle_flg"] = (opeitm["shuffle_flg"]||="0")
@@ -543,6 +542,15 @@ module RorBlkCtl
 				gantt["processseq_trn"] = gantt["processseq_pare"]  = gantt["processseq_org"]  = opeitm["processseq"]
 				gantt["stktaking_proc"] =  opeitm["stktaking_proc"]
 				gantt["qty_sch"] = gantt["qty"] = gantt["qty_stk"] = 0  ### xxxschs,xxxords,・・・で対応
+				if @tblname =~ /^pur/  ###purxxxs 
+					suppliers = ActiveRecord::Base.connection.select_one("select * from suppliers where id = #{@tbldata["suppliers_id"]}")
+					shelfnos = ActiveRecord::Base.connection.select_one("select s.* from shelfnos s
+																				inner join locas l on s.locas_id_shelfno = l.id 
+																									and l.id = #{suppliers["locas_id_supplier"]}" )
+					gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = gantt["shelfnos_id_org"] = shelfnos["id"]     
+				else
+					gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = gantt["shelfnos_id_org"] = @tblname["shelfnos_id"]    
+				end
 				case @tblname
 				when "puracts" 
 					gantt["duedate_trn"] = gantt["duedate_pare"] = gantt["duedate_org"] = @tbldata["rcptdate"]
@@ -655,7 +663,15 @@ module RorBlkCtl
 			 		gantt["shuffle_flg"] = (opeitm["shuffle_flg"]||="0")
 					####
 			 		gantt["shelfnos_id_to_trn"] =  @tbldata["shelfnos_id_to"]
-			 		gantt["shelfnos_id_trn"] =  @tbldata["shelfnos_id"]
+					 if @tblname =~ /^pur/  ###purxxxs 
+						 suppliers = ActiveRecord::Base.connection.select_one("select * from suppliers where id = #{@tbldata["suppliers_id"]}")
+						 shelfnos = ActiveRecord::Base.connection.select_one("select s.* from shelfnos s
+																					 inner join locas l on s.locas_id_shelfno = l.id 
+																										 and l.id = #{suppliers["locas_id_supplier"]}" )
+						 gantt["shelfnos_id_trn"] =  shelfnos["id"]     
+					 else
+						 gantt["shelfnos_id_trn"] = @tbldata["shelfnos_id"]    
+					 end
 			 		gantt["prjnos_id"] = @tbldata["prjnos_id"]
 			 		gantt["chrgs_id_trn"] =  @tbldata["chrgs_id"]
 			 		gantt["itms_id_trn"] = opeitm["itms_id"]
@@ -663,9 +679,11 @@ module RorBlkCtl
 			 		gantt["duedate_trn"] = @tbldata["duedate"]
 			 		gantt["toduedate_trn"] = @tbldata["toduedate"]
 			 		gantt["starttime_trn"] = @tbldata["starttime"]
+					Rails.logger.debug " class:#{self}.line #{__LINE__} ,gantt:#{gantt} "
+					Rails.logger.debug " class:#{self}.line #{__LINE__} ,@tbldata:#{@tbldata} "
 				end
 			end
-			gantt["remark"] = " #{self}  line:#{__LINE__} "
+			gantt["remark"] = " #{self}  line:#{__LINE__} " + (gantt["remark"]||="")
 			setParams["gantt"] = gantt.dup
 			return setParams
 		end
@@ -793,7 +811,8 @@ module RorBlkCtl
 				# strsql = %Q&select fieldcode_ftype from r_fieldcodes where  pobject_code_fld = '#{key.to_s}'&
 				# ftype = ActiveRecord::Base.connection.select_value(strsql)
 				ftype = $ftype[key]
-				strset << case ftype
+				if ftype
+					strset << case ftype
 					when /char/  ###db type
 						case val.class.to_s
 						when "String"
@@ -839,8 +858,13 @@ module RorBlkCtl
 							Rails.logger.debug " class:#{self} : line #{__LINE__} : error val.class #{ftype} : key #{key} : $ftype #{ $ftype}"
 							Rails.logger.debug " class:#{self} : line #{__LINE__} : tblname #{tblname} : tbldata:#{tbldata} " 
 							debugger if key == "sno"
+							raise
 						end	
 					end
+				else
+					3.times{Rails.logger.debug" error ftype is nil ,class:#{self} ,line:#{__LINE__}, key:#{key} "}
+					raise
+				end
 			end
 			ActiveRecord::Base.connection.update("update #{tblname}  set #{strset.chop} where #{strwhere} ")
 		end

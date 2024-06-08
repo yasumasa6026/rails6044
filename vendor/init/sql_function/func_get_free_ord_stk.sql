@@ -1,5 +1,4 @@
--- DROP FUNCTION public.func_get_free_ord_stk(varchar, numeric, numeric, numeric);
-
+ DROP FUNCTION public.func_get_free_ord_stk(varchar, numeric, numeric, numeric);
 CREATE OR REPLACE FUNCTION public.func_get_free_ord_stk(induedate character varying, inprjnos_id numeric, initms_id numeric, inprocessseq numeric)
  RETURNS TABLE(tblname character varying, tblid numeric, priority text, due numeric, starttime timestamp without time zone, duedate timestamp without time zone, processseq numeric, mlevel numeric, itms_id numeric, shelfnos_id numeric, prjnos_id numeric, trngantts_id numeric, alloctbls_id numeric, qty numeric, qty_stk numeric, qty_linkto_alloctbl numeric, update_ip character varying, updated_at timestamp without time zone)
  LANGUAGE plpgsql
@@ -27,6 +26,8 @@ BEGIN
 						gantt.update_ip,gantt.updated_at	
 	 	 				from trngantts gantt
 	 	 				inner join alloctbls alloc on gantt.id = alloc.trngantts_id
+	 	 				inner join inoutlotstks  inout on inout.tblname = gantt.tblname and inout.tblid = gantt.tblid 
+									and inout.srctblname = '||'''lotstkhists'''||' and gantt.id = inout.trngantts_id 
 	 	 				where gantt.prjnos_id =  $2 and  
 	 	 						 gantt.orgtblname = gantt.paretblname and gantt.paretblname = gantt.tblname
 	 	 					and gantt.orgtblid = gantt.paretblid  and gantt.paretblid = gantt.tblid
@@ -35,8 +36,8 @@ BEGIN
 	 	 				---	and (alloc.srctblname = '||'''prdords'''||' or alloc.srctblname = '||'''purords'''||'  or alloc.srctblname = '||'''lotstkhists'''||' )
 	 	 					--- freeの在庫　　未定 仮に"lotstkhists"にした。要確認
 							--- xxxordsはxxxinsts,xxxactsに変わってもtrngantts.tblname は xxxordsのまま
-							and orgtblname = paretblname and paretblname = tblname
-							and orgtblid = paretblid and paretblid = tblid
+							and orgtblname = paretblname and paretblname = gantt.tblname
+							and orgtblid = paretblid and paretblid = gantt.tblid
 	 	 					and   alloc.qty_linkto_alloctbl > 0 and alloc.allocfree = '||'''free'''||'
 							and   orgtblname not like  '||'''cust%'''||' 
 	 	 					order by priority,due

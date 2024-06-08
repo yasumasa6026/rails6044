@@ -27,7 +27,7 @@ class UploadexcelController < ApplicationController
         end
         jparams["person_code_upd"] = person["code"]
         jparams["person_id_upd"] = person["id"]
-        jparams[:uploadData] = {}  ###jparamsではuploaddataは使用しない。processreqへの保存対象外
+        jparams[:uploadData] = jparams[:uploadexcel] = {}  ###jparamsではuploaddataは使用しない。processreqへの保存対象外
         jparams[:buttonflg] = "import"
         command_c = {}
         screen = ScreenLib::ScreenClass.new(jparams)

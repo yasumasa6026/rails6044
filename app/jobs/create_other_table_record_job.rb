@@ -87,7 +87,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 %
                             ActiveRecord::Base.connection.update(strsql)
                         when "mkpayords"
-                            if params["last_amt"] or (params["last_amt"].to_f != params["amt"].to_f or params["last_tax"].to_f != params["tax"].to_f )
+                            if params["last_amt"] and (params["last_amt"].to_f != params["amt"].to_f or params["last_tax"].to_f != params["tax"].to_f )
                                 delete_payords(params)
                                 next if params["tbldata"]["amt"].to_f == 0 
                             end
@@ -569,8 +569,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                             ###
                             #
                             ###
-                            setParams["segment"]  = "link_lotstkhists_update"   ### inoutlotstksも作成
-                            processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
                             ###
                             #
                             ###
@@ -580,7 +578,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             child = {"itms_id_nditm" => gantt["itms_id_trn"],"processseq_nditm" => gantt["processseq_trn"] ,
                                     "opeitms_id"=> tbldata["opeitms_id"],
                                     "parenum" => 1,"chilnum" => 1,"qty_sch" => qty_sch, 
-                                    "locas_id_shelfno" => opeitm["locas_id_shelfno"],"shelfnos_id" => opeitm["shelfnos_id_opeitm"], 
+                                    "locas_id_shelfno" => opeitm["locas_id_shelfno"],"shelfnos_id_opeitm" => opeitm["shelfnos_id_opeitm"], 
                                     "locas_id_shelfno_to" => opeitm["locas_id_shelfno_to"],"shelfnos_id_to" => opeitm["shelfnos_id_to_opeitm"],  
                                     "consumunitqty" => 1,"consumminqty" => 0,"consumchgoverqty" => 0}
                             child.merge!(setParams["opeitm"])
@@ -589,12 +587,14 @@ class CreateOtherTableRecordJob < ApplicationJob
                             Rails.logger.debug"debugg class #{self},line:#{__LINE__} . command_c: #{command_c} "
                             command_c["#{setParams["opeitm"]["prdpur"]}sch_person_id_upd"] = setParams["person_id_upd"]
                             command_c["#{setParams["opeitm"]["prdpur"]}sch_starttime"] = tbldata["starttime"]
-                            command_c,qty_require = add_update_prdpur_table_from_nditm(child,tbldata,paretblname,command_c)
+                            command_c,qty_require = add_update_prdpur_table_from_nditm(child,tbldata,paretblname,command_c)  ###tbldata--->parent
                             command_c["#{setParams["opeitm"]["prdpur"]}sch_created_at"] = Time.now
                             command_c = blk.proc_create_tbldata(command_c)
                             setParams["gantt"] = gantt.dup
                             setParams = blk.proc_private_aud_rec(setParams,command_c)   
                             result_f = '1'
+                            setParams["segment"]  = "link_lotstkhists_update"   ### inoutlotstksも作成
+                            processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
                     else  
                         result_f = '6'
                         remark = "    #{self} line:#{__LINE__}  program nothing for #{setParams["segment"]} "  
@@ -790,55 +790,55 @@ class CreateOtherTableRecordJob < ApplicationJob
         ###check billscks exists or not
         case segment
         when "updatebillords"
-            blk = RorBlkCtl::BlkClass.new("r_billords")
-            command_c = blk.command_init
-            command_c["billord_accounttitle"] = "A"  ### 売上
+            # blk = RorBlkCtl::BlkClass.new("r_billords")
+            # command_c = blk.command_init
+            # command_c["billord_accounttitle"] = "A"  ### 売上
             paybillsch = "billord"
             mst = "bill"
             str_amt = "amt"
         when "updatebillschs"
-            blk = RorBlkCtl::BlkClass.new("r_billschs")
-            command_c = blk.command_init
-            command_c["billsch_accounttitle"] = "A"  ### 売上
+            # blk = RorBlkCtl::BlkClass.new("r_billschs")
+            # command_c = blk.command_init
+            # command_c["billsch_accounttitle"] = "A"  ### 売上
             paybillsch = "billsch"
             mst = "bill"
             str_amt = "amt_sch"
         when "updatebillests"
-            blk = RorBlkCtl::BlkClass.new("r_billests")
-            command_c = blk.command_init
-            command_c["billest_accounttitle"] = "A"  ### 売上
+            # blk = RorBlkCtl::BlkClass.new("r_billests")
+            # command_c = blk.command_init
+            # command_c["billest_accounttitle"] = "A"  ### 売上
             mst = "bill"
             paybillsch = "billest"
             str_amt = "amt_est"
         when "updatepayschs"
-            blk = RorBlkCtl::BlkClass.new("r_payschs")
-            command_c = blk.command_init
-            command_c["paysch_accounttitle"] = "1"  ### 仕入
+            # blk = RorBlkCtl::BlkClass.new("r_payschs")
+            # command_c = blk.command_init
+            # command_c["paysch_accounttitle"] = "1"  ### 仕入
             mst = "payment"
             paybillsch = "paysch"
             str_amt = "amt_sch"
         when "updatepayords"
-            blk = RorBlkCtl::BlkClass.new("r_payords")
-            command_c = blk.command_init
-            command_c["payord_accounttitle"] = "1"  ### 仕入
+            # blk = RorBlkCtl::BlkClass.new("r_payords")
+            # command_c = blk.command_init
+            # command_c["payord_accounttitle"] = "1"  ### 仕入
             mst = "payment"
             paybillsch = "payord"
             str_amt = "amt"
         end 
 
-        strsql = %Q&
+        strsql = %Q& --- payxxxsとpurxxxs、billxxxsとcustxxxsの関係
                     select * from srctbllinks where srctblname = '#{params["srctblname"]}' and srctblid = #{params["srctblid"]} 
                 &
         link =  ActiveRecord::Base.connection.select_one(strsql)
-        last_rec = ActiveRecord::Base.connection.select_one(%Q&select * from r_#{link["tblname"]} where  id = #{link["tblid"]}&)
-        command_c.merge!(last_rec)
+        #last_rec = ActiveRecord::Base.connection.select_one(%Q&select * from r_#{link["tblname"]} where  id = #{link["tblid"]}&)
+        # command_c.merge!(last_rec)
 
         
-        command_c["#{paybillsch}_person_id_upd"] = params["person_id_upd"]
-        command_c["#{paybillsch}_#{str_amt}"] = command_c["#{paybillsch}_#{str_amt}"].to_f - params["last_amt"].to_f
-        command_c["#{paybillsch}_tax"] = command_c["#{paybillsch}_tax"].to_f - params["last_tax"].to_f
-        command_c["#{paybillsch}_updated_at"] = Time.now
-        command_c["sio_classname"] = %Q&_update_from_#{paybillsch}s &
+        # command_c["#{paybillsch}_person_id_upd"] = params["person_id_upd"]
+        # command_c["#{paybillsch}_#{str_amt}"] = command_c["#{paybillsch}_#{str_amt}"].to_f - params["last_amt"].to_f
+        # command_c["#{paybillsch}_tax"] = command_c["#{paybillsch}_tax"].to_f - params["last_tax"].to_f
+        # command_c["#{paybillsch}_updated_at"] = Time.now
+        # command_c["sio_classname"] = %Q&_update_from_#{paybillsch}s &
 
         update_sql = %Q&
                     update srctbllinks set amt_src = amt_src - #{params["last_amt"]} where id = #{link["id"]}
@@ -846,16 +846,16 @@ class CreateOtherTableRecordJob < ApplicationJob
 
         ActiveRecord::Base.connection.update(update_sql)
 		
-        command_c["sio_classname"] = %Q&_update_from_#{case mst
-                                                        when "bill"
-                                                            'custords'
-                                                        when "payment"
-                                                            "purords"
-                                                        end } &
-		command_c["#{paybillsch}_remark"] = "auto update class:#{self} line:#{__LINE__} "
-		command_c["id"] = command_c["#{paybillsch}_id"] = last_rec["id"]
-        command_c = blk.proc_create_tbldata(command_c) ##
-        billParams = blk.proc_private_aud_rec({},command_c)
+        # command_c["sio_classname"] = %Q&_update_from_#{case mst
+        #                                                 when "bill"
+        #                                                     'custords'
+        #                                                 when "payment"
+        #                                                     "purords"
+        #                                                 end } &
+		# command_c["#{paybillsch}_remark"] = "auto update class:#{self} line:#{__LINE__} "
+		# command_c["id"] = command_c["#{paybillsch}_id"] = last_rec["id"]
+        # command_c = blk.proc_create_tbldata(command_c) ##
+        # billParams = blk.proc_private_aud_rec({},command_c)
 
     end
 
@@ -959,23 +959,43 @@ class CreateOtherTableRecordJob < ApplicationJob
         ###
         ### purordsを求める
         notords = [src]
+        new_notords = []
         until notords == [] do
             notords.each do |notord|
-                ords,notords = getprdpurord_from_linktbls(notord["tblname"],notord["tblid"],"pur")  ###ords-->acts
+                ords,new_notords = getprdpurord_from_linktbls(notord["tblname"],notord["tblid"],"pur")  ###ords-->acts
                 ords.each do |ord|
                     updatepaybillschs(ord["srctblid"],"pay",payord["amt_src"])
                 end
             end
+            notords = new_notords.dup
         end
     end
 
     
     def delete_payords(params)
-        update_sql = %Q&
-                        update srctbllinks set amt_src = amt_src - #{params["last_amt"]}
-                                where tblname = 'payords' and tblid = #{params["tbldata"]["id"]}
-                &
-        ActiveRecord::Base.connection.update(update_sql)
+        strsql = %Q&
+                         select * from  srctbllinks 
+                                 where tblname = 'payords' 
+                                 and srctblname = 'puracts' and tblid = #{params["tbldata"]["id"]}
+                 &
+        last_amt = params["last_amt"].to_f
+        ActiveRecord::Base.connection.select_all(strsql).each do |rec|
+            if last_amt > rec["amt_src"].to_f
+                update_sql = %Q&
+                        update srctbllinks set amt_src = #{rec["amt_src"]}
+                                where #{rec["id"]}
+                    &
+                ActiveRecord::Base.connection.update(update_sql)
+                update_sql = %Q&
+                         update payords set amt = #{rec["amt_src"]}
+                                 where id = #{rec["tblid"]}
+                 &
+                ActiveRecord::Base.connection.update(update_sql)
+                last_amt -=  rec["amt_src"].to_f
+            else
+                last_amt -=  rec["amt_src"].to_f
+            end
+        end
     end
 
     
@@ -1107,12 +1127,12 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 where id = #{rec["id"]}
         &
         ActiveRecord::Base.connection.update(updatelinktblsql)
-        updatepaybilllsql = %Q& 
-                            update #{paybill}schs set amt_sch = amt_sch - #{amt},
-                                updated_at = current_timestamp,remark = '#{self} line:#{__LINE__}'||remark
-                                where id = #{rec["tblid"]}
-        &
-        ActiveRecord::Base.connection.update(updatepaybilllsql)
+        # updatepaybilllsql = %Q& 
+        #                     update #{paybill}schs set amt_sch = amt_sch - #{amt},
+        #                         updated_at = current_timestamp,remark = '#{self} line:#{__LINE__}'||remark
+        #                         where id = #{rec["tblid"]}
+        # &
+        # ActiveRecord::Base.connection.update(updatepaybilllsql)
     end
     ###
     #

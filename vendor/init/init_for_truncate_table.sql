@@ -91,6 +91,7 @@ truncate  table payschs cascade;
 truncate  table payords cascade;
 truncate  table payinsts cascade;
 truncate  table payacts cascade;
+truncate  table dymschs cascade;
 
 --insert into lotstkhists(id,
 --									itms_id,shelfnos_id,
@@ -215,6 +216,7 @@ truncate  table sio.sio_r_payacts cascade;
  truncate table  sio.sio_r_mnfinsts cascade;
  truncate table  sio.sio_r_mnfords cascade;
  truncate table  sio.sio_r_mnfschs cascade;
+ truncate table  sio.sio_r_dymschs cascade;
 
 
 REFRESH MATERIALIZED view  r_pobjects;

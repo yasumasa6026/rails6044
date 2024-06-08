@@ -612,7 +612,9 @@ class OpeClass
 					sio.#{@tblname.chop}_shelfno_id_fm shelfnos_id_fm,sio.*
 					from sio.sio_r_#{@tblname} sio
 					inner join opeitms ope on ope.id = sio.#{@tblname.chop}_opeitm_id
-					where sio.id = #{@tblid} order by sio_id desc limit 1
+					where sio.id = #{@tblid} 
+					and sio.#{@tblname.chop}_updated_at < cast('#{@tbldata["updated_at"]}' as timestamp)
+					order by sio_id desc limit 1
 			&
 		when /puracts|prdact/
 			strsql = %Q&---最後に登録・修正されたレコード
@@ -623,7 +625,9 @@ class OpeClass
 					sio.#{@tblname.chop}_shelfno_id_to shelfnos_id_to,sio.*
 					from sio.sio_r_#{@tblname} sio
 					inner join opeitms ope on ope.id = sio.#{@tblname.chop}_opeitm_id
-					where sio.id = #{@tblid} order by sio_id desc limit 1
+					where sio.id = #{@tblid} 
+					and sio.#{@tblname.chop}_updated_at < cast('#{@tbldata["updated_at"]}' as timestamp)  
+					order by sio_id desc limit 1
 			&
 		when /prd|pur/ ### xxxactsは除く
 			strsql = %Q&---最後に登録・修正されたレコード
@@ -633,7 +637,9 @@ class OpeClass
 					sio.#{@tblname.chop}_shelfno_id_to shelfnos_id_to,sio.*
 					from sio.sio_r_#{@tblname} sio
 					inner join opeitms ope on ope.id = sio.#{@tblname.chop}_opeitm_id
-					where sio.id = #{@tblid} order by sio_id desc limit 1
+					where sio.id = #{@tblid} 
+					and sio.#{@tblname.chop}_updated_at < cast('#{@tbldata["updated_at"]}' as timestamp)  
+					order by sio_id desc limit 1
 			&
 		end
 		@last_rec = ActiveRecord::Base.connection.select_one(strsql)
@@ -658,14 +664,42 @@ class OpeClass
 		if @tbldata[@str_duedate] != @last_rec["#{@tblname.chop}_#{@str_duedate}"]
 			chng_flg << "due"
 		end
-		if @tbldata["shelfnos_id_to"] != @last_rec["#{@tblname.chop}_shelfno_id_to"] or  @tbldata["shelfnos_id"] != @last_rec["#{@tblname.chop}_shelfno_id"]
-			chng_flg << "shelfno"
-			###locas_id = ActiveRecord::Base.connection.select_value("select locas_id_shelfno from shelfnos where id = #{@last_rec["#{@tblname.chop}_shelfno_id"]}")
-			update_sql = %Q&
+		case @tblname
+		when /^pur/
+			if @tbldata["suppliers_id"] != @last_rec["#{@tblname.chop}_supplier_id"]
+				chng_flg << "shelfno"
+				strsql = %Q&
+							select s.id from shelfnos s 
+										inner join  suppliers supplier on supplier.locas_id_supplier = s.locas_id_shelfno
+																							and supplier.id = #{@tbldata["suppliers_id"]}
+										where s.code = '000'												
+				&
+				crr_shelfnos_id = ActiveRecord::Base.connection.select_value(strsql)
+				update_sql = %Q&
+							update trngantts set shelfnos_id_trn = #{crr_shelfnos_id},shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}
+								where tblname = '#{@tblname}' and tblid = #{@tblid}
+					&
+				ActiveRecord::Base.connection.update(update_sql)
+			else
+				if @tbldata["shelfnos_id_to"] != @last_rec["#{@tblname.chop}_shelfno_id_to"]
+					chng_flg << "shelfno"
+					update_sql = %Q&
+								update trngantts set shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}
+									where tblname = '#{@tblname}' and tblid = #{@tblid}
+						&
+					ActiveRecord::Base.connection.update(update_sql)
+				end
+			end
+		else
+			if @tbldata["shelfnos_id_to"] != @last_rec["#{@tblname.chop}_shelfno_id_to"] or  @tbldata["shelfnos_id"] != @last_rec["#{@tblname.chop}_shelfno_id"]
+				chng_flg << "shelfno"
+				###locas_id = ActiveRecord::Base.connection.select_value("select locas_id_shelfno from shelfnos where id = #{@last_rec["#{@tblname.chop}_shelfno_id"]}")
+				update_sql = %Q&
 							update trngantts set shelfnos_id_trn = #{@tbldata["shelfnos_id"]},shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}
 								where tblname = '#{@tblname}' and tblid = #{@tblid}
-				&
-			ActiveRecord::Base.connection.update(update_sql)
+					&
+				ActiveRecord::Base.connection.update(update_sql)
+			end
 		end
 		###
 		#数量・納期の変更がないときは何もしない。

@@ -539,7 +539,18 @@ module Shipment
 														child["consumminqty"].to_f,child["consumchgoverqty"].to_f)
 					command_c["#{tblnamechop}_qty_sch"] = stkinout["qty_sch"] = qty_sch
 					stkinout["qty"] = stkinout["qty_stk"] = stkinout["qty_real"] = 0
-					command_c["#{tblnamechop}_shelfno_id_to"] = parent["shelfnos_id"]  ###親の作業場所へ納品
+					###親の作業場所へ納品
+					if parent["tblname"] =~ /^pur/
+						strsql = %Q&
+									select shelf.id from shelfnos shelf
+												inner join suppliers supp on shelf.locas_id_shelfno = locas_id_supplier
+															and supp.id = #{parent["suppliers_id"]} 	
+												where shelf.code = '000'
+						&
+						command_c["#{tblnamechop}_shelfno_id_to"] = ActiveRecord::Base.connection.select_value(strsql)
+					else
+						command_c["#{tblnamechop}_shelfno_id_to"] = parent["shelfnos_id"] 
+					end
 					command_c["#{tblnamechop}_duedate"] = (parent["starttime"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")   ###稼働日考慮
 					command_c["#{tblnamechop}_depdate"] = (parent["starttime"].to_time - 2*24*3600).strftime("%Y-%m-%d %H:%M:%S")
 					stkinout["tblname"] = "shpschs"
@@ -576,7 +587,6 @@ module Shipment
 				command_c["#{tblnamechop}_created_at"] = Time.now
 				blk.proc_create_tbldata(command_c) ##
 				blk.proc_private_aud_rec(setParams,command_c)
-				Rails.logger.debug"  #{self} line:#{__LINE__}"
 				
 				stkinout["srctblname"] = "lotstkhists"
 				stkinout["tblid"] = command_c["id"]
@@ -604,35 +614,17 @@ module Shipment
 					stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]   ###入り
 					stkinout = shp_inoutlotstk("in",stkinout)   ###入りと出は同一日
 				end
-				Rails.logger.debug"  #{self} line:#{__LINE__}"
 				###
 				#  業者倉庫の時は業者倉庫も更新
 				###
-				if yield =~ /shpsch|shpord|shpinst/
-					sql_check_supplier = %Q&
-						select s.id from suppliers s  
-							inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-				 			where s2.id = #{command_c["#{tblnamechop}_shelfno_id_fm"]} and s.expiredate > current_date
-						&
-					suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
-					if  suppliers_id
-						stkinout["srctblname"] = "supplierwhs"
-						stkinout["suppliers_id"] = suppliers_id
-						stkinout["remark"] = "  #{self} line:#{__LINE__}"
+				if  parent["tblname"] =~ /^pur/
+					stkinout["srctblname"] = "supplierwhs"
+					stkinout["suppliers_id"] = parent["suppliers_id"]
+					stkinout["remark"] = "  #{self} line:#{__LINE__}"
+					case yield 
+					when  /shpsch|shpord|shpinst/
 						stkinout = proc_mk_supplierwhs_rec("out",stkinout)
-					end
-				end
-				if yield =~ /shpsch|shpord|shpact/
-					sql_check_supplier = %Q&
-							select s.id from suppliers s  
-								inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-				 				where s2.id = #{command_c["#{tblnamechop}_shelfno_id_to"]} and s.expiredate > current_date
-						&
-					suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
-					if  suppliers_id
-						stkinout["srctblname"] = "supplierwhs"
-						stkinout["suppliers_id"] = suppliers_id
-						stkinout["remark"] = "  #{self} line:#{__LINE__}"
+					when  /shpsch|shpord|shpact/
 						stkinout = proc_mk_supplierwhs_rec("in",stkinout)
 					end
 				end
@@ -700,7 +692,6 @@ module Shipment
 		else
 			ActiveRecord::Base.connection.commit_db_transaction()
 		end
-		Rails.logger.debug"  #{self} line:#{__LINE__}"
 		return outcnt,err
 	end	
 
@@ -815,7 +806,7 @@ module Shipment
 			stkinout["trngantts_id"] = ActiveRecord::Base.connection.select_value(strsql)
 			if  suppliers_id
 				stkinout["srctblname"] = "supplierwhs"
-				stkinout["suppliers_id"] = suppliers_id
+				stkinout["suppliers_id"] = stkinout["srctblid"] = suppliers_id
 			else	
 				stkinout["srctblname"] = "lotstkhists"
 			end
@@ -828,7 +819,6 @@ module Shipment
 			# proc_create_shpxxxs(setParams)  do  ###prd,purordsによる自動作成 も含まれる。
 			# 	"shpact"
 			# end
-			Rails.logger.debug"  #{self} line:#{__LINE__}"
 		end
 		
 		# blk = RorBlkCtl::BlkClass.new("r_#{prevshpchop}s")
@@ -864,7 +854,18 @@ module Shipment
 		command_c["#{tblnamechop}_isudate"] = Time.now 
 		command_c["#{tblnamechop}_packno"] =  ""  
 		command_c["#{tblnamechop}_lotno"] = "" 
-		command_c["#{tblnamechop}_shelfno_id_fm"] =  child["shelfnos_id_fm"] = parent["shelfnos_id"]  ###親の作業場所
+		case parent["tblname"]
+		when /^pur/
+			strsql = %Q&
+						select s.id from shelfnos s 
+									inner join  suppliers supplier on supplier.locas_id_supplier = s.locas_id_shelfno
+																	and supplier.id = #{parent["suppliers_id"]}
+									where s.code = '000'	
+			&
+			command_c["#{tblnamechop}_shelfno_id_fm"] =  child["shelfnos_id_fm"] = ActiveRecord::Base.connection.select_value(strsql)
+		else
+			command_c["#{tblnamechop}_shelfno_id_fm"] =  child["shelfnos_id_fm"] = parent["shelfnos_id"]  ###親の作業場所
+		end
 		command_c["#{tblnamechop}_gno"] = parent["sno"] 
 		command_c["#{tblnamechop}_paretblname"] = parent["tblname"] 
 		command_c["#{tblnamechop}_paretblid"] = parent["tblid"]
@@ -955,7 +956,7 @@ module Shipment
 						inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
 						 where s2.id = #{child["shelfnos_id_fm"]} and s.expiredate > current_date
 					&
-			stkinout["suppliers_id"] = ActiveRecord::Base.connection.select_value(strsql)
+			stkinout["suppliers_id"] = stkinout["srctblid"] = ActiveRecord::Base.connection.select_value(strsql)
 		else
 			stkinout["srctblname"] = "lotstkhists"
 			if  parent["tblname"] =~ /^prdacts/
@@ -1171,7 +1172,7 @@ module Shipment
 			suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
 			if  suppliers_id
 				stkinout["srctblname"] = "supplierwhs"
-				stkinout["suppliers_id"] = suppliers_id
+				stkinout["suppliers_id"] = stkinout["srctblid"] = suppliers_id
 				stkinout["shelfnos_id"] = shp["shelfnos_id_fm"] 
 				stkinout["starttime"] = shp["depdate"]
 				stkinout["remark"] =  "  #{self} line:#{__LINE__}"
@@ -1185,7 +1186,7 @@ module Shipment
 			suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
 			if  suppliers_id
 				stkinout["srctblname"] = "supplierwhs"
-				stkinout["suppliers_id"] = suppliers_id
+				stkinout["suppliers_id"] = stkinout["srctblid"] = suppliers_id
 				stkinout["remark"] = "  #{self} line:#{__LINE__}"
 				stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
 				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]
@@ -1352,6 +1353,7 @@ module Shipment
 	end
 
 	def proc_alloc_change_inoutlotstk(stkinout)  ###  alloctbls,linktblsは更新済
+		Rails.logger.debug " calss:#{self},line:#{__LINE__},stkinout:#{stkinout}"
 		###
 		#  現在のinout
 		###
@@ -1372,7 +1374,6 @@ module Shipment
 									and alloc.srctblname = link.tblname and alloc.srctblid = link.tblid 
 							where 	alloc.srctblid = #{stkinout["tblid"]} and alloc.srctblname = '#{stkinout["tblname"]}'
 			&
-		stkinout["remark"] = " #{self} line:#{__LINE__}"
 		ActiveRecord::Base.connection.select_all(strsql).each do |inoutlotstk|
 			case inoutlotstk["alloctblname"]
 			when /schs$/
@@ -1390,6 +1391,7 @@ module Shipment
 			end
 			stkinout["trngantts_id"] = inoutlotstk["trngantts_id"]
 			stkinout["remark"] = "#{self} line:#{__LINE__}," + stkinout["remark"] 
+			Rails.logger.debug " calss:#{self},line:#{__LINE__},stkinout:#{stkinout}"
 			check_inoutlotstk(stkinout)
 		end
 		###
@@ -1696,7 +1698,7 @@ module Shipment
 		suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
 		if  suppliers_id
 			stkinout["srctblname"] = "supplierwhs"
-			stkinout["suppliers_id"] = suppliers_id
+			stkinout["suppliers_id"] = stkinout["srctblid"] = suppliers_id
 		else
 			stkinout["shelfnos_id"] = command_c["shpord_shelfno_id_fm"]
 			stkinout["persons_id_upd"] = command_c["shpord_person_id_upd"]
@@ -1711,7 +1713,7 @@ module Shipment
 		suppliers_id = ActiveRecord::Base.connection.select_value(sql_check_supplier)
 		if  suppliers_id
 			stkinout["srctblname"] = "supplierwhs"
-			stkinout["suppliers_id"] = suppliers_id
+			stkinout["suppliers_id"] = stkinout["srctblid"] = suppliers_id
 		else
 			stkinout["starttime"] = command_c["shpord_duedate"]
 			stkinout["shelfnos_id"] =  command_c["shpord_shelfno_id_to"]

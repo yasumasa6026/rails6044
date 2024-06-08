@@ -153,6 +153,7 @@ module CtlFields
 					findstatus = false
 				end
 				if !rec.nil?  ###viewレコードあり
+					Rails.logger.debug " class:#{self} ,line:#{__LINE__} rec:#{rec} "
 					### line_data = params[:parse_linedata].dup loop 中に内容の変更はできない。 
 					params[:parse_linedata].each do |key,val|  ###結果をセット
 						if key.to_s == "id"
@@ -169,20 +170,26 @@ module CtlFields
 							field = key.to_s
 						end
 						if key.to_s =~ /_id/
-								other_tbl_key = (screentblnamechop+"_"+viewtblnamechop+"_id").to_sym
+								if delm == ""
+									other_tbl_key = (screentblnamechop+"_"+viewtblnamechop+"_id").to_sym
+									other_tbl_key_grid = (screentblnamechop+"_"+viewtblnamechop+"_id_gridmessage").to_sym
+								else
+									other_tbl_key = (screentblnamechop+"_"+viewtblnamechop+"_id_"+delm).to_sym
+									other_tbl_key_grid = (screentblnamechop+"_"+viewtblnamechop+"_id_"+delm+"_gridmessage").to_sym
+								end
 								if line_data[other_tbl_key]
 									if rec[viewtblnamechop+"_id"]
 										line_data[other_tbl_key] = rec[viewtblnamechop+"_id"]
-										next
+										line_data[other_tbl_key_grid] = "deteted"
 									end
 								end
 						end
 						if rec[field]  ###id,sno,cnoから求められた同一項目を画面にセットする。
-							field_gridmessage = (field + "_gridmessage").to_sym
+							field_gridmessage = (key.to_s + "_gridmessage").to_sym
 							next if line_data[field_gridmessage] == "ok"  or line_data[field_gridmessage] == "deteted"    ###手入力あり
-							if line_data[key].nil? or line_data[key] == "" or line_data[key].to_s == "0"   ###rec:検索結果
+							###if line_data[key].nil? or line_data[key] == "" or line_data[key].to_s == "0"   ###rec:検索結果
 								line_data[key] =  rec[field]  
-							end
+							###end
 							###自動セット項目 onblurfunc.js 参照(tableをgetしないとき利用)
 							### qty,qty_stkの修正のため	nextしない。
 						else
@@ -207,6 +214,9 @@ module CtlFields
 					end
 					if fetch["pobject_code_sfd"] 	=~ /_sno_/
 						org = nil
+						Rails.logger.debug " class:#{self} ,line:#{__LINE__} screentblnamechop:#{screentblnamechop}"
+						Rails.logger.debug " class:#{self} ,line:#{__LINE__} viewtblnamechop:#{viewtblnamechop}"
+						Rails.logger.debug " class:#{self} ,line:#{__LINE__} params[:parse_linedata]:#{params[:parse_linedata]}"	
 						case screentblnamechop
 						when /prd|pur/
 							str_srctbl_qty = "" ###次のステータスに移行していないqtyを求める。　
@@ -235,8 +245,8 @@ module CtlFields
 											from #{viewtblnamechop}s srctbl 
 											left join  linktbls link  on srctbl.id = link.srctblid	and link.srctblname = '#{viewtblnamechop}s'
 																		and (link.srctblname != link.tblname or link.srctblid != link.tblid)
+																		and link.tblid != '#{params[:parse_linedata][(screentblnamechop+"_id").to_sym]}' 
 											where srctbl.sno = '#{params[:parse_linedata][(screentblnamechop+"_sno_"+viewtblnamechop).to_sym]}' ---key.split("_")[1] :sno
-											and link.tblid != '#{params[:parse_linedata][(screentblnamechop+"_id").to_sym]}' 
 											group by srctbl.id
 										%  
 								org =  ActiveRecord::Base.connection.select_one(strsql)
@@ -296,6 +306,7 @@ module CtlFields
 											from #{viewtblnamechop}s srctbl 
 											left join linktbls link  on srctbl.id = link.srctblid	and link.srctblname = '#{viewtblnamechop}s'
 																		and (link.srctblname != link.tblname or link.srctblid != link.tblid)
+																		and link.tblid != '#{params[:parse_linedata][(screentblnamechop+"_id").to_sym]}' 
 											where srctbl.cno = '#{params[:parse_linedata][(screentblnamechop+"_cno_"+viewtblnamechop).to_sym]}'  #{str_loca_code}  
 											group by srctbl.id
 										% 
@@ -304,6 +315,7 @@ module CtlFields
 						next if str_srctbl_qty == ""
 					end
 					if org
+						Rails.logger.debug " class:#{self} ,line:#{__LINE__} org:#{org} "	
 						case screentblnamechop
 						when /prd|pur/
 							###既に状態が変化しているかチェック
@@ -793,8 +805,8 @@ module CtlFields
 			strtaxsym = "purdlv_tax".to_sym
 		when /puract/
 			strpur = "puract"
-			stramtsym = "purdlv_amt".to_sym
-			strqtysym = "purdlv_qty_stk".to_sym
+			stramtsym = "puract_amt".to_sym
+			strqtysym = "puract_qty_stk".to_sym
 			strtaxsym = "puract_tax".to_sym
 		end	
 		strcontractpricesym = "#{strpur}_contractprice".to_sym
@@ -808,14 +820,16 @@ module CtlFields
 		strsuppliersym = "#{strpur}_supplier_id".to_sym
 		case screenCode
 		when /pursch|purord/
-			ex_date = case line_data[strcontractpricesym]
-						when "1"
-							"expiredate >= to_date('#{line_data[strisudatesym]}','yyyy/mm/dd')" 
-						when "2","3"
-							"expiredate >= to_date('#{line_data[strduedatesym]}','yyyy/mm/dd')"
-						else
-							nil
-						end
+			case line_data[strcontractpricesym]
+			when "1"
+				ex_date = "expiredate >= to_date('#{line_data[strisudatesym]}','yyyy/mm/dd')" 
+			when "2","3"
+				ex_date = "expiredate >= to_date('#{line_data[strduedatesym]}','yyyy/mm/dd')"
+			else
+				ex_date = nil
+				line_data[strcontractpricesym] = "C"
+				line_data[strmasterpricesym] = line_data[strpricesym]  = line_data[stramtsym]  = 0
+			end
 		when /purdlv/ 
 			ex_date = case line_data[strcontractpricesym] 
 						when "1"
@@ -830,6 +844,7 @@ module CtlFields
 						else
 							nil
 						end
+						
 		end 
 			
 			# strsql = %Q&
@@ -888,10 +903,10 @@ module CtlFields
 				end
 			else
 				line_data[strcontractpricesym] = "C"
-				line_data[strmasterpricesym] = line_data[strpricesym]  = line_data[stratmsym]  = 0
+				line_data[strmasterpricesym] = line_data[strpricesym]  = line_data[stramtsym]  = 0
 			end
 		else
-			line_data[strmasterpricesym] =  line_data[strpricesym]  = 0
+			###line_data[strmasterpricesym] =  line_data[strpricesym]  = 0
 			line_data[stramtsym] = line_data[strqtysym].to_f * line_data[strpricesym].to_f 
 			case line_data[:itm_taxflg]
 			when "0","1","9"
@@ -1575,12 +1590,13 @@ module CtlFields
 	def field_opeitms_id tblnamechop,command_x,nd
 		key = tblnamechop + "_opeitm_id" 
 		command_x[key] = nd["opeitms_id"]  ###  
-		ActiveRecord::Base.connection.select_one(%Q&select * from opeitms where id = #{nd["opeitms_id"]}&).each do |fld,val|
+		nd.each do |fld,val|
 			case fld
-			when /itms_id|processseq|priority/
-				command_x["opeitm_#{fld.sub("s_id","_id")}"] = val
+			when /processseq/
+				command_x["opeitm_processseq"] = val
+			when /priority/
+				command_x["opeitm_priority"] = val
 			when /shelfnos_id_opeitm/
-				command_x["#{tblnamechop}_shelfno_id"] = nd["shelfnos_id_opeitm"] ##
 				locas_id = ActiveRecord::Base.connection.select_value(%Q&select locas_id_shelfno from shelfnos where id = #{val}&)				
 				case  tblnamechop 
 				when /^pur/
@@ -1591,10 +1607,17 @@ module CtlFields
 					command_x["#{tblnamechop}_crr_id"] = supplier["crrs_id_supplier"]
 				when /^prd/
 					command_x["shelfno_loca_id_shelfno"] = locas_id
+					command_x["#{tblnamechop}_shelfno_id"] = nd["shelfnos_id_opeitm"] ##
+				else
+					command_x["#{tblnamechop}_shelfno_id"] = nd["shelfnos_id_opeitm"] ##
 				end
 			when /itms_id/
-				itm = ActiveRecord::Base.connection.select_one(%Q&select * from itms where id = #{val}&)		
-				command_x["#{tblnamechop}_taxflg"] = itm["taxflg"]	
+				command_x["opeitm_itm_id"] = val
+			when /taxflg/		
+				case  tblnamechop 
+				when /^pur/
+					command_x["itm_taxflg"] = nd["taxflg"]
+				end
 			end
 		end
 		return command_x

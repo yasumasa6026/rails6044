@@ -32,11 +32,6 @@ pursch.toduedate  pursch_toduedate,
 pursch.isudate  pursch_isudate,
 pursch.tax  pursch_tax,
 pursch.opeitms_id   pursch_opeitm_id,
-  shelfno.shelfno_code  shelfno_code ,
-  shelfno.shelfno_name  shelfno_name ,
-  shelfno.shelfno_loca_id_shelfno  shelfno_loca_id_shelfno ,
-  shelfno.loca_code_shelfno  loca_code_shelfno ,
-  shelfno.loca_name_shelfno  loca_name_shelfno ,
   prjno.prjno_code  prjno_code ,
 pursch.prjnos_id   pursch_prjno_id,
   chrg.chrg_person_id_chrg  chrg_person_id_chrg ,
@@ -76,7 +71,6 @@ pursch.qty_sch  pursch_qty_sch,
 func_get_purprd_qty_bal('purschs',pursch.id) linktbl_qty_sch_bal,
 pursch.amt_sch  pursch_amt_sch,
   prjno.prjno_name_chil  prjno_name_chil ,
-pursch.shelfnos_id   pursch_shelfno_id,
   opeitm.shelfno_code_to_opeitm  shelfno_code_to_opeitm ,
   opeitm.shelfno_name_to_opeitm  shelfno_name_to_opeitm ,
   opeitm.loca_code_shelfno_to_opeitm  loca_code_shelfno_to_opeitm ,
@@ -107,12 +101,12 @@ pursch.contents  pursch_contents,
 pursch.contractprice  pursch_contractprice
  from purschs   pursch,
   persons  person_upd ,  r_opeitms  opeitm ,  r_prjnos  prjno ,  r_chrgs  chrg ,  r_suppliers  supplier ,
-  r_shelfnos  shelfno_to ,  crrs  crr ,  r_shelfnos  shelfno
+  r_shelfnos  shelfno_to ,  crrs  crr 
   ---,linktbls link 
   where       pursch.persons_id_upd = person_upd.id      and pursch.opeitms_id = opeitm.id
  				and pursch.prjnos_id = prjno.id      and pursch.chrgs_id = chrg.id      
  				and pursch.suppliers_id = supplier.id      and pursch.shelfnos_id_to = shelfno_to.id
- 			    and pursch.crrs_id = crr.id      and pursch.shelfnos_id = shelfno.id
+ 			    and pursch.crrs_id = crr.id      
  			    ---and link.tblname = link.srctblname and link.tblname = 'purschs'
  			   	---and link.srctblid = link.tblid and link.srctblid = pursch.id
  			   	;
@@ -146,16 +140,12 @@ pursch.contractprice  pursch_contractprice
 ,loca_name_shelfno_opeitm  varchar (100) 
 ,shelfno_code_opeitm  varchar (50) 
 ,shelfno_name_opeitm  varchar (100) 
-,loca_code_shelfno  varchar (50) 
-,loca_name_shelfno  varchar (100) 
-,shelfno_code  varchar (50) 
-,shelfno_name  varchar (100) 
-,loca_code_shelfno_to_opeitm  varchar (50) 
-,loca_name_shelfno_to_opeitm  varchar (100) 
+,loca_code_to_opeitm  varchar (50) 
+,loca_name_to_opeitm  varchar (100) 
 ,shelfno_code_to_opeitm  varchar (50) 
 ,shelfno_name_to_opeitm  varchar (100) 
-,loca_code_shelfno_to  varchar (50) 
-,loca_name_shelfno_to  varchar (100) 
+,loca_code_to  varchar (50) 
+,loca_name_to  varchar (100) 
 ,shelfno_code_to  varchar (50) 
 ,shelfno_name_to  varchar (100) 
 ,unit_code  varchar (50) 
@@ -180,6 +170,10 @@ pursch.contractprice  pursch_contractprice
 ,person_code_chrg  varchar (50) 
 ,unit_code_case_prdpur  varchar (50) 
 ,loca_code_payment_supplier  varchar (50) 
+,loca_code_shelfno_to  varchar (50) 
+,loca_name_shelfno_to  varchar (100) 
+,loca_code_shelfno_to_opeitm  varchar (50) 
+,loca_name_shelfno_to_opeitm  varchar (100) 
 ,person_code_chrg_payment_supplier  varchar (50) 
 ,crr_code_supplier  varchar (50) 
 ,unit_name_case_shp  varchar (100) 
@@ -215,28 +209,27 @@ pursch.contractprice  pursch_contractprice
 ,pursch_created_at   timestamp(6) 
 ,person_sect_id_chrg  numeric (22,0)
 ,pursch_shelfno_id_to  numeric (38,0)
-,shelfno_loca_id_shelfno_to  numeric (38,0)
+,opeitm_shelfno_id_opeitm  numeric (38,0)
+,opeitm_loca_id_to  numeric (38,0)
 ,pursch_opeitm_id  numeric (38,0)
 ,pursch_id  numeric (38,0)
 ,itm_classlist_id  numeric (38,0)
 ,supplier_crr_id_supplier  numeric (22,0)
 ,supplier_chrg_id_supplier  numeric (22,0)
-,opeitm_shelfno_id_opeitm  numeric (22,0)
+,opeitm_id_opeitm  numeric (22,0)
 ,supplier_loca_id_supplier  numeric (22,0)
 ,pursch_chrg_id  numeric (38,0)
-,shelfno_loca_id_shelfno_opeitm  numeric (38,0)
+,opeitm_loca_id_opeitm  numeric (38,0)
 ,itm_unit_id  numeric (22,0)
 ,opeitm_boxe_id  numeric (22,0)
 ,pursch_update_ip  varchar (40) 
 ,boxe_unit_id_box  numeric (38,0)
-,shelfno_loca_id_shelfno  numeric (38,0)
 ,opeitm_itm_id  numeric (38,0)
 ,id  numeric (38,0)
 ,pursch_updated_at   timestamp(6) 
 ,chrg_person_id_chrg  numeric (38,0)
 ,pursch_prjno_id  numeric (38,0)
 ,pursch_person_id_upd  numeric (38,0)
-,pursch_shelfno_id  numeric (38,0)
           ,sio_errline varchar(4000)
           ,sio_org_tblname varchar(30)
           ,sio_org_tblid numeric(22,0)
