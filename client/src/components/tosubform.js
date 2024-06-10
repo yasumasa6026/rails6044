@@ -13,12 +13,11 @@ const ToSubForm  = ({params, data, subFormInfo,dropDownList,screenCode,index,
         //const {  handleSubmit,register, getValues} = useForm({resolver: yupResolver(yupschema), })
     const {  handleSubmit,register, getValues,setValue} = useForm()
         
-    const [lineNo,setLineNo] =  useState(index)
-    useEffect(()=>{setLineNo(index)
-                        pageChange(index)},[index])
+    const [lineNo,setLineNo] =  useState(index<0?0:index)
+    useEffect(()=>setLineNo((index) => index<0?0:index ))
     const [linedata,setLinedata] = useState(data[lineNo])
-    useEffect(()=>{setLinedata(index)
-                    pageChange(index)},[index])
+    useEffect(()=>{setLinedata(lineNo)
+                    pageChange(lineNo)})
     const pageChange = ((cnt) =>{
         setLinedata(data[cnt])
         subFormInfo.map((sub)=>{
@@ -191,7 +190,7 @@ const mapDispatchToProps = dispatch => ({
     index:state.screen.params.index,  //params.indexではuseEffectが効かない。
     screenCode: state.screen.params.screenCode,
     fetch_check: state.screen.grid_columns_info.fetch_check,
-    dropDownList: state.screen.grid_columns_info.dropdownlist, 
+    dropDownList: state.screen.grid_columns_info.dropDownList, 
     subFormInfo: state.screen.grid_columns_info.subform_info,   
   })
   
