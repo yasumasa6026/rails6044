@@ -742,29 +742,96 @@ class TblClass
 			else
 				delm = nil
 			end	
-			if sfd.split("_")[0] == tblchop
-				if sfd.split("_")[2] =~/^id/  ## 自分のテーブル.chop_相手のテーブル.chop_id  + delm
-					createviewscript << "\n#{tblchop}.#{sfd.split("_")[1]}s_id#{sfd.split("_id")[1]}   #{sfd},"
-					otherview << sfd.split("_")[1]  + if sfd.split("_id")[1] then   sfd.split("_id")[1] else "" end
-				else	
-					createviewscript << "\n#{tblchop}.#{sfd.split("_",2)[1]}  #{sfd},"
-				end	
-			else
-				if sfd == "id"
-					createviewscript << "\n#{tblchop}.id id,"
-				else
-					if !delm.nil?
-						createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.split(/#{delm}$/)[0]}  #{sfd} ,"
-					else
-						createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd}  #{sfd} ,"
+			case sfd 
+			when  /person_.*upd$/
+					if sfd =~/_id/  ## 自分のテーブル.chop_相手のテーブル.chop_id  + delm
+						if sfd.split("_")[0] == tblchop
+							createviewscript << "\n#{tblchop}.persons_id_upd    #{sfd},"
+							otherview << "person_upd"
+						else
+							next ###自身のpersons_id_upd以外は無視
+						end
+					else	### viewの中にperson_XXX_updは一つのみ
+						createviewscript << "\n person_upd.#{sfd.split("_")[1]}  #{sfd},"
 					end	
-				end	
-			end	
+			when  /crr_/  ###アンダーバ”_”はpaersons_id_ipd,created_at,update_at,update_ip以外使用できない
+					if sfd =~/_id/  ## 自分のテーブル.chop_相手のテーブル.chop_id  + delm
+						if sfd.split("_")[0] == tblchop
+							createviewscript << "\n#{tblchop}.crrs_id    #{sfd},"
+							otherview << "crr"
+						else
+							if !delm.nil?
+								createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.split(/#{delm}$/)[0]}  #{sfd} ,"
+							else
+								createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd}  #{sfd} ,"
+							end
+						end
+					else	### viewの中にcrrs_idは一つのみ
+						if rec["screenfield_crtfield"] =~ /crr/ or rec["screenfield_crtfield"].nil? or rec["screenfield_crtfield"] == "" 
+							createviewscript << "\n crr.#{sfd.split("_")[1]}  #{sfd},"
+						else
+							if !delm.nil?
+								createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.split(/#{delm}$/)[0]}  #{sfd} ,"
+							else
+								createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd}  #{sfd} ,"
+							end
+						end
+					end	
+			when  /loca_/  ###アンダーバ”_”はpaersons_id_ipd,created_at,update_at,update_ip以外使用できない
+						if sfd =~/_id/  ## 自分のテーブル.chop_相手のテーブル.chop_id  + delm
+							if sfd.split("_")[0] == tblchop
+								createviewscript << "\n#{tblchop}.locas_id    #{sfd},"
+								otherview << "loca"
+							else
+								if !delm.nil?
+									createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.split(/#{delm}$/)[0]}  #{sfd} ,"
+								else
+									createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd}  #{sfd} ,"
+								end	
+							end
+						else	### viewの中にlocas_idは一つのみ
+							if rec["screenfield_crtfield"] =~ /loca/ or rec["screenfield_crtfield"].nil? or rec["screenfield_crtfield"] == ""
+								createviewscript << "\n loca.#{sfd.split("_")[1]}  #{sfd},"
+							else
+								if !delm.nil?
+									createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.split(/#{delm}$/)[0]}  #{sfd} ,"
+								else
+									createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd}  #{sfd} ,"
+								end	
+							end
+						end	
+			else	
+				if sfd.split("_")[0] == tblchop
+					if sfd.split("_")[2] =~/^id/  ## 自分のテーブル.chop_相手のテーブル.chop_id  + delm
+						createviewscript << "\n#{tblchop}.#{sfd.split("_")[1]}s_id#{sfd.split("_id")[1]}   #{sfd},"
+						otherview << sfd.split("_")[1]  + if sfd.split("_id")[1] then   sfd.split("_id")[1] else "" end
+					else	
+						createviewscript << "\n#{tblchop}.#{sfd.split("_",2)[1]}  #{sfd},"
+					end	
+				else
+					if sfd == "id"
+						createviewscript << "\n#{tblchop}.id id,"
+					else
+						if !delm.nil?
+							createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.split(/#{delm}$/)[0]}  #{sfd} ,"
+						else
+							createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd}  #{sfd} ,"
+						end	
+					end	
+				end
+			end
 		end	
 		createviewscript = createviewscript.chop + "\n from #{tblchop}s   #{tblchop}," 
 		createviewscript << "\n"
 		otherview.each do |xview|
-			createviewscript << ("  r_" + xview.split("_")[0] + "s  " + xview  + " ,")
+			case xview
+			when /person_upd/
+				createviewscript <<    " persons person_upd ,"
+			when /crr|loca/
+				createviewscript <<   xview + "s  " + xview  + " ,"
+			else
+				createviewscript << ("  r_" + xview.split("_")[0] + "s  " + xview  + " ,")
+			end
 		end 
 		createviewscript = createviewscript.chop + "\n  where      "
 		otherview.each do |xview|   ###where でtable間　を結合

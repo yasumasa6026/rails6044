@@ -361,7 +361,7 @@ module ScreenLib
 				end
 				dropDownList[key] = tmpval.chop + "]"
 			end	
-			@grid_columns_info[:dropDownList] = dropDownList
+			@grid_columns_info[:dropDownList] = dropDownList.dup
 			# if sort_info[:default]
 			# 	ary_select_fields = select_fields.split(',')
 			# 	sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields

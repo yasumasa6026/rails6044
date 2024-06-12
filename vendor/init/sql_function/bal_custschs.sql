@@ -17,8 +17,8 @@
 custsch.id id,
   cust.cust_loca_id_cust  cust_loca_id_cust ,
   prjno.prjno_name  prjno_name ,
-  person_upd.person_code  person_code_upd ,
-  person_upd.person_name  person_name_upd ,
+  person_upd.code  person_code_upd ,
+  person_upd.name  person_name_upd ,
   prjno.prjno_code  prjno_code ,
 custsch.cno  custsch_cno,
 custsch.isudate  custsch_isudate,
@@ -88,7 +88,7 @@ custsch.contractprice  custsch_contractprice,
 custsch.crrs_id   custsch_crr_id,
 custsch.masterprice  custsch_masterprice
  from custschs   custsch,linkcusts l ,
-  r_prjnos  prjno ,  r_persons  person_upd ,  r_custs  cust ,  r_opeitms  opeitm ,  r_shelfnos  shelfno_fm ,  r_custrcvplcs  custrcvplc ,
+  r_prjnos  prjno ,  persons  person_upd ,  r_custs  cust ,  r_opeitms  opeitm ,  r_shelfnos  shelfno_fm ,  r_custrcvplcs  custrcvplc ,
   r_chrgs  chrg ,  crrs  crr 
   where       custsch.prjnos_id = prjno.id      and custsch.persons_id_upd = person_upd.id      
  	and custsch.custs_id = cust.id      and custsch.opeitms_id = opeitm.id      and custsch.shelfnos_id_fm = shelfno_fm.id      
