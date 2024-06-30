@@ -325,9 +325,9 @@ export const changeShowScreen = (showScreen) => ({
   payload: {showScreen:showScreen}
 })
 
-export const ScreenDataSet = (data) => ({
+export const ScreenDataSet = (data,params) => ({
   type: SCREEN_DATASET,  // 
-  payload: {data:data}
+  payload: {data:data,params:params}
 })
 
 export const SecondDataSet = (data) => ({

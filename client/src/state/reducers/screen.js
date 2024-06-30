@@ -163,6 +163,7 @@ case FETCH_RESULT:
 case INPUTFIELDPROTECT_REQUEST:
   return {...state,
             }
+            
 case INPUTPROTECT_RESULT:
   return {...state,
           }
@@ -170,6 +171,7 @@ case INPUTPROTECT_RESULT:
 case SCREEN_DATASET:
       return {...state,
         data: actions.payload.data,
+        params: actions.payload.params,
       }
 
 case MKSHPORDS_SUCCESS:

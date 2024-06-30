@@ -316,7 +316,8 @@ const ScreenGrid7 = ({
                 () => ([]),[screenCodeOrg])
         const groupBy = useMemo(
                         () => ([]),[screenCodeOrg])
-        const [aggregated,setAggregated] = useState([]) //useState({})は動かなかった 
+        const aggregations = useMemo(
+                                        () => ({}),[screenCodeOrg])
         const filters = useMemo(
                 () => ([]),[screenCodeOrg])
         //const [changeData, setChangeData] = useState([]) 
@@ -382,7 +383,7 @@ const ScreenGrid7 = ({
             pageSizeList={pageSizeList}  fetch_check={fetch_check} fetchCheck={fetchCheck}
             params={params}
             sortBy={sortBy} filters={filters} groupBy={groupBy} 
-            aggregated={aggregated} setAggregated={setAggregated} //skipReset={skipResetRef.current}
+            aggregations={aggregations}  //skipReset={skipResetRef.current}
             disableFilters={params.disableFilters} toggleSubForm={toggleSubForm}
             hiddenColumns={hiddenColumns} handleScreenRequest={handleScreenRequest} 
             handleFetchRequest={handleFetchRequest} handleSubForm={handleSubForm} handleDataSetRequest={handleDataSetRequest}
@@ -402,47 +403,74 @@ const ScreenGrid7 = ({
                                         column.toggleSortBy(false,true) //sort:true desc:false
                                         return
                                         }
-                               }else{if(e.altKey&&params.aud==="view"){let index = aggregated.findIndex(({columnId}) => columnId === column.id) 
-                                                  switch(true){
-                                                    case /_qty|_amt|_cash/.test(column.id):
-                                                        if(index===-1){aggregated[0]= {columnId:column.id,value:"SUM:"}}
-                                                          else{if(aggregated[index].value){aggregated[index]= {columnId:column.id,value:null}}
-                                                                  else{aggregated[index]= {columnId:column.id,value:"SUM:"}}}
-                                                      break
-                                                    case /_price/.test(column.id):
-                                                        if(index===-1){aggregated[0]= {columnId:column.id,value:"MAX:"}}
-                                                          else{switch(aggregated[index].value){
-                                                                  case "MAX:":
-                                                                      aggregated[index]= {columnId:column.id,value:"MIN:"}
-                                                                  case "MIN:":
-                                                                      aggregated[index]= {columnId:column.id,value:null}
-                                                                  default:
-                                                                    aggregated[index]= {columnId:column.id,value:"MAX:"}                                                                    
+                               }else{if(e.altKey&&params.aud==="view"){  
+                                                    switch(true){
+                                                      case /_qty|_amt|_cash/.test(column.id):
+                                                        if(column.isGrouped){
+                                                          column.toggleGroupBy() }//
+                                                        else{
+                                                          switch(aggregations[column.id]){  
+                                                            case  "SUM:":
+                                                              aggregations[column.id] = "MAX:"        
+                                                                  break
+                                                            case  "MAX:":
+                                                              aggregations[column.id]="MIN:"        
+                                                                  break
+                                                            case  "MIN:":
+                                                              aggregations[column.id]=""
+                                                                  column.toggleGroupBy() //)
+                                                                  break
+                                                             default:
+                                                              aggregations[column.id] = "SUM:"        
+                                                                  }
                                                                 }
-                                                          }
+                                                        break
+                                                      case /_price/.test(column.id):
+                                                        if(column.isGrouped){
+                                                          column.toggleGroupBy() }//
+                                                        else{
+                                                          switch(aggregations[column.id]){  
+                                                            case  "MAX:":
+                                                              aggregations[column.id] = "MIN:"
+                                                                  break
+                                                            case  "MIN:":
+                                                              aggregations[column.id] = ""
+                                                                  column.toggleGroupBy() //)
+                                                                  break
+                                                             default:
+                                                              aggregations[column.id] = "MAX:"
+                                                                  }
+                                                                }
                                                         break  
-                                                    case /date$|_at$/.test(column.id):  //group by  対象
-                                                        if(index===-1){aggregated[0]= {columnId:column.id,value:"MM:"}}
-                                                              else{switch(aggregated[index].value){
+                                                      case /date$|_at$/.test(column.id):  //group by  対象
+                                                        if(column.isGrouped){
+                                                          switch(aggregations[column.id]){
                                                                       case "MM:":
-                                                                          aggregated[index]= {columnId:column.id,value:"WW:"}
+                                                                        aggregations[column.id] = "WW:"
+                                                                        break
                                                                       case "WW:":
-                                                                          aggregated[index]= {columnId:column.id,value:"DD:"}
+                                                                        aggregations[column.id] = "DD:"
+                                                                        break
                                                                       case "DD:":
-                                                                              aggregated[index]= {columnId:column.id,value:null}
+                                                                        aggregations[column.id] = ""
+                                                                        column.toggleGroupBy() // 
+                                                                        break                   
                                                                       default:
-                                                                        aggregated[index]= {columnId:column.id,value:"MM:"}                                                                    
-                                                                    }
+                                                                        aggregations[column.id] = "MM:"                                     
+                                                              }}
+                                                        else{  
+                                                                      
+                                                                  aggregations[column.id] = "MM:"   
+                                                                  column.toggleGroupBy() //     
                                                               }
-                                                        break  
-                                                    case /_code/.test(column.id): //group by  対象　code
-                                                      column.toggleGroupBy() //
-                                                      return
-                                                    default: 
-                                                      return
+                                                          break  
+                                                      default: 
+                                                              column.toggleGroupBy() //
+                                                        break
                                                   }
-                              }
-                            }},
+                                                params = {...params,groupBy:groupBy,aggregations:aggregations}
+                                              handleDataSetRequest(data,params)
+                            }}},
              style:{fontSize:cellFontSize(column,'Header')}, 
                           })}
             getCellProps={cell=>({
@@ -553,11 +581,10 @@ const GridTable = ({
     //setChangeData,
     baseData,
     fetch_check,
-    params,aggregated,
-    buttonflg,loading,disableFilters,
+    params,   aggregations, //setAggregated,
+    buttonflg,disableFilters,  //loading,
     hiddenColumns,handleScreenRequest,
     handleFetchRequest,fetchCheck,toggleSubForm,handleSubForm,handleDataSetRequest,
-    setAggregated,
     getHeaderProps = defaultPropGetter,
     //getColumnProps = defaultPropGetter,
     getCellProps = defaultPropGetter,
@@ -600,16 +627,14 @@ const GridTable = ({
         setAllFilters(params.filtered?params.filtered.map((filter)=>{
           return (typeof(filter)==="string"?JSON.parse(filter):filter)}):[]),
  
-        setSortBy(params.sortBy?params.sortBy.map((sort)=>{
-          return (typeof(sort)==="string"?JSON.parse(sort):sort)}):[])
+        // setSortBy(params.sortBy?params.sortBy.map((sort)=>{
+        //   return (typeof(sort)==="string"?JSON.parse(sort):sort)}):[])
 
         setGroupBy(params.groupBy?params.groupBy.map((group)=>{
-          return (typeof(group)==="string"?JSON.parse(group):sort)}):[])
+           return (typeof(group)==="string"?JSON.parse(group):group)}):[])
 
-        setAggregated(params.aggregated?params.aggregated.map((aggregate)=>{
-          return (typeof(aggregate)==="string"?JSON.parse(aggregate):aggregated)}):[])
-        },[loading])    
-                
+          },[])    
+        
     const {
         getTableProps,
         getTableBodyProps,
@@ -617,7 +642,7 @@ const GridTable = ({
         rows,
         prepareRow, 
         toggleAllRowsSelected, 
-        setAllFilters,setSortBy,setGroupBy,
+        setAllFilters,setGroupBy,// aggregations, /*setSortBy, */
         state:{filters,sortBy,groupBy,selectedRowIds,},  
     } = useTable(
         {
@@ -667,7 +692,7 @@ const GridTable = ({
                       {  // filter sortでの検索しなおし
                        if (e.key === "Enter" &&!params.disableFilters&&!toggleSubForm)
                            { 
-                             params = {...params,aud:"view",buttonflg:"viewtablereq7",filtered:filters,sortBy:sortBy,groupBy:groupBy,aggregated:aggregated,} 
+                             params = {...params,aud:"view",buttonflg:"viewtablereq7",filtered:filters,sortBy:sortBy,groupBy:groupBy,aggregations:aggregations,} 
                              // Apply the header cell props
                              handleScreenRequest(params,data)
                            }else{e.key==="Enter"&&toggleSubForm&&alert("can not use filer or sortBy or groupBy when subForm using")}
@@ -681,7 +706,7 @@ const GridTable = ({
                                                 ])} className="th">
                   <span style={{ backgroundColor:"red"}}>
                     {column.isGrouped ? 'Gr ' :  ''}  
-                    {aggregated?aggregated[column.id]?aggregated[column.id]:"":""}
+                    {aggregations[column.id]?aggregations[column.id]:""}
                   </span>
                   {column.render('Header')}
                   <span>
@@ -831,9 +856,9 @@ const mapDispatchToProps = (dispatch, ownProps) => ({
       },
     handleDataSetRequest: (data,params) => {
         if(params.screenFlg === "second"){
-           dispatch(SecondDataSet(data))
+           dispatch(SecondDataSet(data,params))
          }else{
-           dispatch(ScreenDataSet(data))}      
+           dispatch(ScreenDataSet(data,params))}      
         },
   
 })

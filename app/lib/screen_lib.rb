@@ -203,6 +203,7 @@ module ScreenLib
 				end
 				@grid_columns_info[:select_fields] = select_fields.chop
 				@grid_columns_info[:select_row_fields] = select_row_fields.chop
+				@grid_columns_info[:strGroupBy] = ""
 				@grid_columns_info
 			end
 		end
@@ -225,82 +226,97 @@ module ScreenLib
 			line_subform = []
 			columncnt = 1
 			hiddenColumns = []
-			flds = params[:groupBy].join(",")
-			params[:groupBy].each do |gr|
-				flds << "," + gr.sub('_code','_name')
+			strGroupBy = ""
+			# if params[:groupBy].size > 0
+			# 	strGroupBy = " group by " + params[:groupBy].join(",")
+			# 	params[:groupBy].each do |gr|
+			# 		strGroupBy << "," + gr.sub(/_code/,'_name') if gr =~ /_code/
+			# 	end
+			# else
+			# 	strGroupBy = ""
+			# end	
+			aggregations = {}
+			if params[:aggregations].size > 0
+				aggregations = JSON.parse(params[:aggregations])
 			end
-			aggregated = {}
-			flds <<   params[:aggregated].each do |stragg|		 	####groupBy
-						agg = JSON.parse(stragg)
-						if agg["value"] and agg["value"].size > 0
-							"," + agg["columnId"]
-							aggregated[agg["columnId"]] = agg["value"]
+			strsql = "select * from  func_get_screenfield_grpname('#{params["email"]}','#{screenCode}')	"
+			ActiveRecord::Base.connection.select_all(strsql).each_with_index do |i,cnt|	
+				if params[:groupBy].include?(i["pobject_code_sfd"])
+					if 	strGroupBy == ""
+						strGroupBy = " group by "
+					else
+						strGroupBy << ","
+					end		
+					if aggregations[i["pobject_code_sfd"]]		
+						case aggregations[i["pobject_code_sfd"]]
+						when "YY:"
+							select_row_fields << %Q% to_char(#{i["pobject_code_sfd"]},'yyyy') #{i["pobject_code_sfd"]} ,% 
+							strGroupBy << %Q% to_char(#{i["pobject_code_sfd"]},'yyyy') %
+						when "MM:"
+							select_row_fields << %Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm') #{i["pobject_code_sfd"]} ,%  
+							strGroupBy << %Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm') %
+						when "WW:"
+							select_row_fields << %Q% to_char(#{i["pobject_code_sfd"]},'yyyy/ww') #{i["pobject_code_sfd"]} ,% 
+							strGroupBy << %Q% to_char(#{i["pobject_code_sfd"]},'yyyy/ww') % 
+						when "DD:"
+							select_row_fields << %Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd') #{i["pobject_code_sfd"]} ,% 
+							strGroupBy << %Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd') % 
+						when "",nil
+							select_row_fields << %Q%  #{i["pobject_code_sfd"]} ,% 
+							strGroupBy << %Q% #{i["pobject_code_sfd"]} % 
 						else
-							next
+							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, aggregations:#{aggregations[i["pobject_code_sfd"]]} not support"
+							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, field:#{i["pobject_code_sfd"]} "
+							Rails.logger.debug " class:#{self} ,line:#{__LINE__},  support by  YY:,MM:,WW:.DD:"
+							raise
 						end
+					else											
+						select_row_fields << i["pobject_code_sfd"]  + " ,"
+						strGroupBy << %Q% #{i["pobject_code_sfd"]} % 
 					end
-			strsql = "select * from  func_get_screenfield_grpname('#{params["email"]}','#{screenCode}')
-							where pobject_code_sfd in(#{flds})"
-			ActiveRecord::Base.connection.select_all(strsql).each_with_index do |i,cnt|		
-						select_fields = 	select_fields + 
-											case i["screenfield_type"]
-											when "timestamp(6)" ,"date"
-												case aggregated[i["pobject_code_sfd"]] 
-												when "YY:"
-													%Q% to_char(#{i["pobject_code_sfd"]},'yyyy') #{i["pobject_code_sfd"]}% + " ,"
-												when "MM:"
-													%Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm') #{i["pobject_code_sfd"]}% + " ,"
-												when "DD:"
-													%Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd') #{i["pobject_code_sfd"]}% + " ,"
-												else
-													next
-												end
-											when "numeric"
-												if i["screenfield_datascale"].to_i > 0
-													case aggregated[i["pobject_code_sfd"]] 
-													when "SUM:"
-														%Q% to_char(sum(#{i["pobject_code_sfd"]}), 'FM999999999999.#{i["screenfield_datascale"]}') #{i["pobject_code_sfd"]}% + ","
-													when "MAX:"
-														%Q% to_char(max(#{i["pobject_code_sfd"]}), 'FM999999999999.#{i["screenfield_datascale"]}') #{i["pobject_code_sfd"]}% + ","
-													when "MIN:"
-														%Q% to_char(min(#{i["pobject_code_sfd"]}), 'FM999999999999.#{i["screenfield_datascale"]}') #{i["pobject_code_sfd"]}% + ","
-													else
-														next
-													end
-												else 												
-													i["pobject_code_sfd"] + " ,"
-													case aggregated[i["pobject_code_sfd"]] 
-													when "SUM:"
-														%Q% sum(#{i["pobject_code_sfd"]}) #{i["pobject_code_sfd"]}%  + ","
-													when "MAX:"
-														%Q% max(#{i["pobject_code_sfd"]}) #{i["pobject_code_sfd"]}% + ","
-													when "MIN:"
-														%Q% min(#{i["pobject_code_sfd"]}) #{i["pobject_code_sfd"]}% + ","
-													else
-														next
-													end
-												end
-											else 
-												if params[:groupBy].include?(i["pobject_code_sfd"])												
-													i["pobject_code_sfd"] + " ,"
-												else
-													%Q%max(#{i["pobject_code_sfd"]})  #{i["pobject_code_sfd"]}  ,%
-												end
-											end		
-						select_row_fields = 	select_row_fields + i["pobject_code_sfd"] + " ,"
-						if 	nameToCode[i["screenfield_name"].to_sym].nil?   ###nameToCode excelから取り込むときの表示文字からテーブル項目名への変換テーブル
-							nameToCode[i["screenfield_name"].to_sym] = i["pobject_code_sfd"]
+				else
+					if aggregations[i["pobject_code_sfd"]]
+						case aggregations[i["pobject_code_sfd"]]
+						when "SUM:"
+							select_row_fields << %Q% sum(#{i["pobject_code_sfd"]}) #{i["pobject_code_sfd"]} ,%  
+						when "MAX:"
+							select_row_fields << %Q% max(#{i["pobject_code_sfd"]}) #{i["pobject_code_sfd"]} ,% 
+						when "MIN:"
+							select_row_fields << %Q% min(#{i["pobject_code_sfd"]}) #{i["pobject_code_sfd"]} ,% 
+						when "",nil
+							select_row_fields << %Q% null  #{i["pobject_code_sfd"]}  ,%
 						else
-							if i["pobject_code_sfd"].split("_")[0] == screenCode.split("_")[1].chop
-								nameToCode[i["screenfield_name"].to_sym] = i["pobject_code_sfd"]  ###nameがテーブル項目しか登録されてない。
+							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, aggregations:#{aggregations[i["pobject_code_sfd"]]} not support"
+							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, field:#{i["pobject_code_sfd"]} "
+							Rails.logger.debug " class:#{self} ,line:#{__LINE__},  support by  SUM:,MIN:,MAX:"
+							raise
+						end
+					else
+						if i["pobject_code_sfd"] =~ /_qty|_amt|_cash/
+							select_row_fields << %Q% sum(#{i["pobject_code_sfd"]})  #{i["pobject_code_sfd"]}  ,% 
+						else
+							if i["pobject_code_sfd"] =~ /_name/
+								if params[:groupBy].include?(i["pobject_code_sfd"].sub("_name","_code"))
+									select_row_fields << %Q% max(#{i["pobject_code_sfd"]})  #{i["pobject_code_sfd"]}  ,%
+								else
+									select_row_fields << %Q% null  #{i["pobject_code_sfd"]}  ,%
+								end
+							else
+								select_row_fields << %Q% null  #{i["pobject_code_sfd"]}  ,%
 							end
 						end
-						@grid_columns_info[:nameToCode] = nameToCode
-						columns_info << {:Header=>if aggregated[i["pobject_code_sfd"]] and aggregated[i["pobject_code_sfd"]].size > 0
-														%Q%#{aggregated[i["pobject_code_sfd"]]}  #{i["screenfield_name"]}%
-													else
-														%Q%#{i["screenfield_name"]}%
-													end,
+					end
+				end	
+				select_fields = 	select_fields + i["pobject_code_sfd"] + " ,"
+				if 	nameToCode[i["screenfield_name"].to_sym].nil?   ###nameToCode excelから取り込むときの表示文字からテーブル項目名への変換テーブル
+							nameToCode[i["screenfield_name"].to_sym] = i["pobject_code_sfd"]
+				else
+					if i["pobject_code_sfd"].split("_")[0] == screenCode.split("_")[1].chop
+							nameToCode[i["screenfield_name"].to_sym] = i["pobject_code_sfd"]  ###nameがテーブル項目しか登録されてない。
+					end
+				end
+				@grid_columns_info[:nameToCode] = nameToCode
+				columns_info << {:Header=>%Q%#{i["screenfield_name"]}%,
 									:id=>"#{i["screenfield_id"]}",
 									:accessor=>"#{i["pobject_code_sfd"]}",
 									:filter=>"text",
@@ -308,8 +324,8 @@ module ScreenLib
 									:className=>classNameset(buttonflg,i,aud)
 									}
 																
-						init_where_info[i["pobject_code_sfd"].to_sym] = i["screenfield_type"]	
-						if cnt == 0
+				init_where_info[i["pobject_code_sfd"].to_sym] = i["screenfield_type"]	
+				if cnt == 0
 							init_where_info[:filtered] = (i["screen_strwhere"]||="")
 							@grid_columns_info[:pageSizeList] = []
 							i["screen_rowlist"].split(",").each do |list|
@@ -318,13 +334,13 @@ module ScreenLib
 							if i["screen_strorder"] 
 								sort_info[:default] = i["screen_strorder"]
 							end	
-						else	
-				 		end
-					if  i["screenfield_type"] == "select" and i["screenfield_hideflg"] == "0"
+				else	
+				end
+				if  i["screenfield_type"] == "select" and i["screenfield_hideflg"] == "0"
 						dropDownList[i["pobject_code_sfd"].to_sym] = i["screenfield_edoptvalue"]
-					end	
-					tmp_subform = {label:i["screenfield_name"]}
-					if   i["screenfield_hideflg"] == "0" 
+				end	
+				tmp_subform = {label:i["screenfield_name"]}
+				if   i["screenfield_hideflg"] == "0" 
 						screenwidth = screenwidth +  i["screenfield_width"].to_i
 						if 	i["screenfield_rowpos"] == "1" or (columncnt + i["screenfield_edoptcols"].to_i > 10)
 							if line_subform != []
@@ -340,10 +356,10 @@ module ScreenLib
 						tmp_subform[:className] = classNameset(buttonflg,i,aud)
 						tmp_subform[:edoptrows]	= i["screenfield_edoptrow"]	
 						tmp_subform[:hideflg]	= "visible"  ###subForm
-					else
-					end
-					tmp_subform[:id] = i["pobject_code_sfd"]
-					line_subform << tmp_subform
+				else
+				end
+				tmp_subform[:id] = i["pobject_code_sfd"]
+				line_subform << tmp_subform
 			end
 			subform_info << line_subform
 			@grid_columns_info[:columns_info] = columns_info
@@ -374,6 +390,7 @@ module ScreenLib
 			end
 			@grid_columns_info[:select_fields] = select_fields.chop
 			@grid_columns_info[:select_row_fields] = select_row_fields.chop
+			@grid_columns_info[:strGroupBy] = strGroupBy
 			@grid_columns_info
 		end
 
@@ -539,7 +556,7 @@ module ScreenLib
 			setParams[:disableFilters] = false
 			setParams[:sortBy]||= []
 			setParams[:groupBy]||= []
-			setParams[:aggregated]||= []
+			setParams[:aggregations]||= {}
 			return setParams
 		end	
 
@@ -552,60 +569,69 @@ module ScreenLib
 			end
 			where_str = setParams[:where_str]
 			strsorting = ""
-			if params[:groupBy] 
-				strsorting = "group by " + params[:groupBy].join(",")
-				strsorting <<   params[:aggregated].each do |stragg|		 	####groupBy
-							agg = JSON.parse(stragg)
-							case  agg["value"] 
-							when "YY:"
-								%Q% ,to_char(#{i["pobject_code_sfd"]},'yyyy')% 
-							when "MM:"
-								%Q% ,to_char(#{i["pobject_code_sfd"]},'yyyy/mm') % 
-							when "DD:"
-								%Q% ,to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd') %
-							else
-								next
-							end
-						end
-				if params[:sortBy]  ###: {id: "itm_name", desc: false}
-					strsorting << " order by "
-					params[:sortBy].each do |strSortKey|
-						sortKey = JSON.parse(strSortKey)
-						aggregatedFlg = 0
-						params[:aggregated].each do |straggregatedKey|
-							next if aggregatedFlg == 1
-							aggregatedKey = JSON.parse(straggregatedKey)
-							if aggregatedKey["columnId"] == sortKey["id"] and aggregatedKey["value"] != "" and !aggregatedKey["value"].nil? 
-								strsorting << %Q% #{aggregatedKey["value"].chop}(#{sortKey["id"]}) #{if sortKey["desc"]  == false then " asc " else "desc" end} ,%
-								aggregatedFlg = 1
-								next
-							end
-						end
-						strsorting << %Q% #{sortKey["id"]} #{if sortKey["desc"]  == false then " asc " else "desc" end} ,%
-					end	
-				end
-			else
+			# if params[:groupBy] and params[:aggregations]
+			# 	strsorting = "group by " + params[:groupBy].join(",")
+			# 	strsorting <<   params[:aggregations].each_with_index do |stragg,i|		 	####groupBy
+			# 				agg = JSON.parse(stragg)
+			# 				case  agg["value"] 
+			# 				when "YY:"
+			# 					%Q% ,to_char(#{i["pobject_code_sfd"]},'yyyy')% 
+			# 				when "MM:"
+			# 					%Q% ,to_char(#{i["pobject_code_sfd"]},'yyyy/mm') % 
+			# 				when "DD:"
+			# 					%Q% ,to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd') %
+			# 				else
+			# 					next
+			# 				end
+			# 			end
+			# 	if params[:sortBy]  ###: {id: "itm_name", desc: false}
+			# 		strsorting << " order by "
+			# 		params[:sortBy].each do |strSortKey|
+			# 			sortKey = JSON.parse(strSortKey)
+			# 			aggregationsFlg = 0
+			# 			params[:aggregations].each do |straggregationsKey|
+			# 				next if aggregationsFlg == 1
+			# 				aggregationsKey = JSON.parse(straggregationsKey)
+			# 				if aggregationsKey["columnId"] == sortKey["id"] and aggregationsKey["value"] != "" and !aggregationsKey["value"].nil? 
+			# 					strsorting << %Q% #{aggregationsKey["value"].chop}(#{sortKey["id"]}) #{if sortKey["desc"]  == false then " asc " else "desc" end} ,%
+			# 					aggregationsFlg = 1
+			# 					next
+			# 				end
+			# 			end
+			# 			strsorting << %Q% #{sortKey["id"]} #{if sortKey["desc"]  == false then " asc " else "desc" end} ,%
+			# 		end	
+			# 	end
+			# else
 				if params[:sortBy] ###: {id: "itm_name", desc: false}
 					params[:sortBy].each do |strSortKey|
 						strsorting = " order by " 
 						sortKey = JSON.parse(strSortKey)
 						strsorting << %Q% #{sortKey["id"]} #{if sortKey["desc"]  == false then " asc " else "desc" end} ,%
 					end	
-					strsorting << " id desc "
+					strsorting << " id desc " if params[:groupBy].nil?
+					strsorting = strsorting.chop 
 				else ###r_screensに登録している規定値
 					strSort = grid_columns_info[:sort_info][:default]
 					if strSort.nil? or strSort == ""
-						strsorting = "  order by id desc "
+						if params[:groupBy].nil?
+							strsorting = "  order by id desc "
+						else
+							strsorting = ""
+						end
 					else
-						strsorting = "  order by #{strSort} ,id desc "
+						if params[:groupBy].nil?
+							strsorting = "  order by #{strSort} ,id desc "
+						else
+							strsorting = "  order by #{strSort} "
+						end
 					end
 					setParams[:sortBy] = []
 				end
-			end
+			# end
 			setParams[:clickIndex] = []
 			strsql = "select #{grid_columns_info[:select_fields]} 
 							from (SELECT ROW_NUMBER() OVER (#{strsorting}) ,#{grid_columns_info[:select_row_fields]}
-									 FROM #{params[:view]} #{if where_str == '' then '' else where_str end } ) x
+									 FROM #{params[:view]} #{if where_str == '' then '' else where_str end }  #{grid_columns_info[:strGroupBy]}) x
 														where ROW_NUMBER > #{(setParams[:pageIndex])*setParams[:pageSize] } 
 														and ROW_NUMBER <= #{(setParams[:pageIndex] + 1)*setParams[:pageSize] } 
 																  "
@@ -623,6 +649,36 @@ module ScreenLib
 			end
 			return pagedata,setParams 
 		end	
+
+		# def proc_linechart(params)
+		# 	setParams = create_filteredstr(params)
+		# 	str_func = %Q&select * from func_get_name('screen','#{params[:screenCode]}','#{params["email"]}')&
+		# 	setParams[:screenName] = ActiveRecord::Base.connection.select_value(str_func)
+		# 	if setParams[:screenName].nil?
+		# 		setParams[:screenName] = params[:screenCode]
+		# 	end
+		# 	setParams[:clickIndex] = []
+		# 	strsorting = ""
+		# 	strsql = "select #{grid_columns_info[:select_fields]} 
+		# 					from (SELECT ROW_NUMBER() OVER (#{strsorting}) ,#{grid_columns_info[:select_row_fields]}
+		# 							 FROM #{params[:view]} #{if where_str == '' then '' else where_str end } ) x
+		# 												where ROW_NUMBER > #{(setParams[:pageIndex])*setParams[:pageSize] } 
+		# 												and ROW_NUMBER <= #{(setParams[:pageIndex] + 1)*setParams[:pageSize] } 
+		# 														  "
+		# 	pagedata = ActiveRecord::Base.connection.select_all(strsql)
+		# 	if where_str =~ /where/ or params[:screenCode] !~ /^r_/
+		# 		strsql = "SELECT count(*) FROM #{params[:view]} #{where_str}"
+		# 	else
+		# 		strsql = "SELECT count(*) FROM #{params[:view].split("_")[1]} "
+		# 	end  ###fillterがあるので、table名は抽出条件に合わず使用できない。
+		# 	totalCount = ActiveRecord::Base.connection.select_value(strsql)
+		# 	setParams[:pageCount] = (totalCount.to_f/setParams[:pageSize]).ceil
+		# 	setParams[:totalCount] = totalCount.to_f
+		# 	if params[:parse_linedata]
+		# 		setParams[:parse_linedata] = params[:parse_linedata].dup
+		# 	end
+		# 	return pagedata,setParams 
+		# end	
 
 		def proc_add_empty_data(params) ###新規追加画面の画面の初期値
 			num = params[:pageSize].to_f
@@ -769,7 +825,7 @@ module ScreenLib
 			setParams[:filtered]= []
 			setParams[:sortBy]= []
 			setParams[:groupBy]= []
-			setParams[:aggregated] = []
+			setParams[:aggregations] = {}
 			return pagedata,setParams		
 		end	   ## proc_strwhere
 
@@ -1284,7 +1340,8 @@ module ScreenLib
 							where main.#{mainTblName.chop}_paretblname = '#{innerjoinTblName}'
 					& 
 					str_orderby = %Q&order by #{mainTblName.chop}_paretblid,id desc &
-					params[:sortBy] = params[:groupBy] = params[:aggregated] = []
+					params[:sortBy] = params[:groupBy] = []
+					params[:aggregations] = {}
 				end
 			end
 			
@@ -1328,7 +1385,8 @@ module ScreenLib
 									) link on detail.id = link.tblid
 					& 
 			str_orderby = %Q&order by id desc &
-			setParams[:sortBy] = setParams[:groupBy] = setParams[:aggregated] = []
+			setParams[:sortBy] = setParams[:groupBy] = [] 
+			setParams[:aggregations] = {}
 			
 			strsql = %Q&select   #{grid_columns_info[:select_fields]} 
 						from (SELECT ROW_NUMBER() OVER (#{str_orderby}) ,#{grid_columns_info[:select_row_fields]} 

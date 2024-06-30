@@ -48,6 +48,11 @@ module Api
                 screen = ScreenLib::ScreenClass.new(params)
                 pagedata,reqparams = screen.proc_search_blk(params)   ###:pageInfo  -->menu7から未使用
                 render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
+            
+            # when 'linechart'
+            #     screen = ScreenLib::ScreenClass.new(params)
+            #     pagedata,reqparams = screen.proc_linechart(params)   ###:pageInfo  -->menu7から未使用
+            #     render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
 
             when 'inlineedit7'
                 screen = ScreenLib::ScreenClass.new(params)

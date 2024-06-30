@@ -80,7 +80,7 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, hostError,loadingOrg,
                       {val.contents?val.contents:" "}
                     </TabPanel>)}
                 </Tabs>
-              {showScreen&&<div> <ScreenGrid7 screenFlg = "first" /></div>}
+              {showScreen&&screenFlg=="first"&&<div> <ScreenGrid7 screenFlg = "first" /></div>}
               { 
                   //  第一画面  
                }  
@@ -146,7 +146,7 @@ const  mapStateToProps = (state,ownProps) =>({
 const mapDispatchToProps = (dispatch,ownProps ) => ({
       getScreen : (screenCode, screenName,view_name, auth) =>{
         let params
-        // switch(screenCode){
+        switch(screenCode){
         //   case "fmcustord_custinsts":
         //   case "fmcustinst_custdlvs":
         //     params = { screenName:  (screenName||""),disableFilters:false,
@@ -156,7 +156,16 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
         //                 index:-1,err:null,clickIndex:[],
         //                 buttonflg:"inlineedit7",viewName:view_name} 
         //     break
-        //   default:
+        // case "linechart_payalls":
+        // case "linechart_billalls":
+        //      params = { screenName:  (screenName||""),disableFilters:false,
+        //                  parse_linedata:{},aud:"view",
+        //                  filtered:[],where_str:"",sortBy:[],screenFlg:"first",
+        //                  screenCode:screenCode,pageIndex:0,pageSize:20,
+        //                  index:-1,err:null,clickIndex:[],
+        //                  buttonflg:"linechart",viewName:view_name} 
+        //      break
+        default:
             params = { screenName:  (screenName||""),disableFilters:false,
                         parse_linedata:{},aud:"view",
                         filtered:[],where_str:"",
@@ -164,7 +173,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                         screenFlg:"first",screenCode:screenCode,pageIndex:0,pageSize:20,
                         index:-1,clickIndex:[],err:null,
                         buttonflg:"viewtablereq7",viewName:view_name} 
-        // }
+         }
         dispatch(ScreenInitRequest(params,auth))}   //data:null
         ,
       changeShowScreen:(showScreen)=>{dispatch(changeShowScreen(showScreen))}

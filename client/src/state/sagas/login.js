@@ -3,7 +3,9 @@ import { call, put } from 'redux-saga/effects'
 import axios         from 'axios'
 //import qs            from 'qs'
 import {LOGIN_SUCCESS,LOGIN_FAILURE,
-        MenuRequest,ButtonListRequest} from '../../actions'
+        //MENU_REQUEST,
+        MenuRequest,ButtonListRequest
+                  } from '../../actions'
 
 function loginApi({ email, password}) {
   const url = 'http://localhost:3001/api/auth/sign_in'
@@ -28,13 +30,14 @@ export function* LoginSaga({ payload: { email, password } }) {
     let {response,error} = yield call(loginApi, { email, password} )
       if(response || !error){
         yield put({ type: LOGIN_SUCCESS, payload: response.headers })
+
+        
         // const token = {token:response.headers["access-token"]}
         // const client = {client:response.headers["client"]}
         // const uid = {uid:response.headers["uid"]}
-        //yield put({ type: MENU_REQUEST, action: (token,client,uid) })
+        // yield put({ type: MENU_REQUEST, action: (token,client,uid) })
 
-        yield put(MenuRequest(response.headers) )
-      
+        yield put(MenuRequest(response.headers) )      
         yield put(ButtonListRequest(response.headers) )
       }else{  
 

@@ -384,14 +384,14 @@ module CtlFields
 						end
 					end
 				else
+					findstatus = false
 					##再入力時のNgに対応	
-					if missing == false 
+					if missing == false and mainviewflg == false
 						if screentblnamechop != viewtblnamechop and xno !~ /_sno|_cno|_packinglistno/ ### omit self table
 							### sno,cnoの時は例えば r_puractsにpurord_idを含んでない。(sno_purord,sno_ourdlv等どちらを使用するか不明。)
 							field = (screentblnamechop+"_"+viewtblnamechop+"_id"+delm).to_sym
 							line_data[field] =  ""
 						end
-						findstatus = false
 						line_data[(fetch["pobject_code_sfd"]+"_gridmessage").to_sym] =  "error not detected" 
 					else
 					end

@@ -450,7 +450,7 @@ class TblClass
 					end
 				end
 			end
-			create_viewfield "r_#{tbl}"
+			create_viewfield "r_#{tbl}" ##  persons_upd,locas,crrsはtableを使用する。
 		else 
 			### テーブルscreendsに登録されてない
 			@messages << " <p>please add screen  to　screens   --> 'r_#{tbl}' </p>"
@@ -719,7 +719,7 @@ class TblClass
 	end	
 	
 	
-	def create_viewfield screen   ##view
+	def create_viewfield screen   ##　create view_script   persons_upd,locas,crrsはtableを使用する。
 		strsql = "select sfd.code pobject_code_sfd,screenfield.crtfield screenfield_crtfield
 						from screenfields screenfield
 						inner join pobjects sfd on screenfield.pobjects_id_sfd = sfd.id 
@@ -757,8 +757,8 @@ class TblClass
 			when  /crr_/  ###アンダーバ”_”はpaersons_id_ipd,created_at,update_at,update_ip以外使用できない
 					if sfd =~/_id/  ## 自分のテーブル.chop_相手のテーブル.chop_id  + delm
 						if sfd.split("_")[0] == tblchop
-							createviewscript << "\n#{tblchop}.crrs_id    #{sfd},"
-							otherview << "crr"
+							createviewscript << "\n#{tblchop}.crrs_id#{sfd.split("crr_id")[1]}  #{sfd},"
+							otherview << "crr" + (sfd.split("crr_id")[1]||="")
 						else
 							if !delm.nil?
 								createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.split(/#{delm}$/)[0]}  #{sfd} ,"
@@ -767,21 +767,31 @@ class TblClass
 							end
 						end
 					else	### viewの中にcrrs_idは一つのみ
-						if rec["screenfield_crtfield"] =~ /crr/ or rec["screenfield_crtfield"].nil? or rec["screenfield_crtfield"] == "" 
-							createviewscript << "\n crr.#{sfd.split("_")[1]}  #{sfd},"
-						else
-							if !delm.nil?
-								createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.split(/#{delm}$/)[0]}  #{sfd} ,"
+						if sfd.split("_")[0] == "crr"
+							if rec["screenfield_crtfield"].nil? or rec["screenfield_crtfield"] == ""
+								createviewscript << "\n crr.#{sfd.split("_")[1]}  #{sfd},"
 							else
-								createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd}  #{sfd} ,"
+								if  rec["screenfield_crtfield"] =~ /crr/
+									if !delm.nil?
+										createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.sub("crr_","").sub(/#{delm}$/,"")} #{sfd} ,"
+									else
+										createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.sub("crr_","")}  #{sfd} ,"
+									end
+								else
+									if !delm.nil?
+										createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.split(/#{delm}$/)[0]}  #{sfd} ,"
+									else
+										createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd}  #{sfd} ,"
+									end
+								end
 							end
 						end
 					end	
 			when  /loca_/  ###アンダーバ”_”はpaersons_id_ipd,created_at,update_at,update_ip以外使用できない
 						if sfd =~/_id/  ## 自分のテーブル.chop_相手のテーブル.chop_id  + delm
 							if sfd.split("_")[0] == tblchop
-								createviewscript << "\n#{tblchop}.locas_id    #{sfd},"
-								otherview << "loca"
+								createviewscript << "\n#{tblchop}.locas_id#{sfd.split("loca_id")[1]}    #{sfd},"
+								otherview << "loca" + (sfd.split("loca_id")[1]||="")
 							else
 								if !delm.nil?
 									createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.split(/#{delm}$/)[0]}  #{sfd} ,"
@@ -790,14 +800,24 @@ class TblClass
 								end	
 							end
 						else	### viewの中にlocas_idは一つのみ
-							if rec["screenfield_crtfield"] =~ /loca/ or rec["screenfield_crtfield"].nil? or rec["screenfield_crtfield"] == ""
-								createviewscript << "\n loca.#{sfd.split("_")[1]}  #{sfd},"
-							else
-								if !delm.nil?
-									createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.split(/#{delm}$/)[0]}  #{sfd} ,"
+							if sfd.split("_")[0] == "loca"
+								if rec["screenfield_crtfield"].nil? or rec["screenfield_crtfield"] == ""
+									createviewscript << "\n loca.#{sfd.split("_")[1]}  #{sfd},"
 								else
-									createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd}  #{sfd} ,"
-								end	
+									if  rec["screenfield_crtfield"] =~ /loca/
+										if !delm.nil?
+											createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.sub("loca_","").sub(/#{delm}$/,"")} #{sfd} ,"
+										else
+											createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.sub("loca_","")}  #{sfd} ,"
+										end
+									else
+										if !delm.nil?
+											createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd.split(/#{delm}$/)[0]}  #{sfd} ,"
+										else
+											createviewscript << "\n  #{rec["screenfield_crtfield"]}.#{sfd}  #{sfd} ,"
+										end
+									end
+								end
 							end
 						end	
 			else	
@@ -828,7 +848,7 @@ class TblClass
 			when /person_upd/
 				createviewscript <<    " persons person_upd ,"
 			when /crr|loca/
-				createviewscript <<   xview + "s  " + xview  + " ,"
+				createviewscript <<   xview.split("_")[0] + "s  " + xview  + " ,"
 			else
 				createviewscript << ("  r_" + xview.split("_")[0] + "s  " + xview  + " ,")
 			end

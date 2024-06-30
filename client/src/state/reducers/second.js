@@ -114,6 +114,7 @@ const secondreducer =  (state = initialValues , actions) =>{
     case SECOND_DATASET:
             return {...state,
                         data: actions.payload.data,
+                        params: actions.payload.params,
                 }
            
    

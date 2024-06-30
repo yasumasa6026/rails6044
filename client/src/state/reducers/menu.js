@@ -49,6 +49,7 @@ const menureducer =  (state= initialValues , actions) =>{
       return {...state,
         params:actions.payload.params,
         loading:true,
+        showScreen:false,
       }
 
       
@@ -56,6 +57,7 @@ const menureducer =  (state= initialValues , actions) =>{
       return {...state,
         loading:true,
         screenFlg:null,
+        showScreen:false,
        // showScreen:false,
       }
 
