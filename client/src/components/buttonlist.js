@@ -5,12 +5,12 @@ import { Tab, Tabs, TabList,TabPanel , } from 'react-tabs'
 import UploadExcel from './uploadexcel.js'
 import Download from './download'
 import GanttTask from './gantttask'
-//import ToSubForm from './tosubform'
 import "react-tabs/style/react-tabs.css"
 import {Button} from '../styles/button'
 import "../index.css"
-import {ScreenRequest,DownloadRequest,UploadExcelInit,GanttChartRequest,ButtonFlgRequest,ScreenFailure,
-           SecondConfirmAllRequest,YupRequest,TblfieldRequest,ResetRequest, } from '../actions'
+import {ScreenRequest,DownloadRequest,UploadExcelInit,GanttChartRequest,
+          ButtonFlgRequest,ScreenFailure,
+          SecondConfirmAllRequest,YupRequest,TblfieldRequest,ResetRequest, } from '../actions'
 
  const  ButtonList = ({auth,buttonListData,doButtonFlg,buttonflg,loading,
                         screenCode,data,params,
@@ -33,7 +33,7 @@ import {ScreenRequest,DownloadRequest,UploadExcelInit,GanttChartRequest,ButtonFl
                   {tmpbuttonlist[screenCode].map((val,index) => 
                     <Tab key={index} >
                       <Button  
-                      type={val[1]==='inlineedit7'||'inlineadd7'||'yup'||'ganttchart'||'import'?"submit":"button"}
+                      type="submit"
                       onClick ={() =>{
                                       doButtonFlg(val[1],params,data,pareScreenCode,auth)} // buttonflg
                                      }>
@@ -157,7 +157,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                               if(ownProps.screenFlg==="first"){return  dispatch(GanttChartRequest(params,auth))}
                               else{alert("GanttChart not support second screen  ")} 
                             }//
-                    else{alert("please select")}  
+                    else{alert("please select")}
                     
           case "MkPackingListNo"://
               params= {...params,buttonflg:"MkPackingListNo",disableFilters:true,screenFlg:ownProps.screenFlg}
@@ -179,11 +179,6 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           case "mkShpords":
               params= {...params,linedata:{},buttonflg:"mkShpords",disableFilters:false,screenFlg:ownProps.screenFlg}
               return  dispatch(ScreenRequest(params,null)) //
-
-          case "reset":
-                params= { ...params, buttonflg:"reset",disableFilters:false,screenFlg:ownProps.screenFlg,aud:"",}
-                return dispatch(ResetRequest(params)) //
-
           case "refShpords": //第一画面で選択された親より第二画面表示
               params= {...params,buttonflg:"refShpords",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
               return  dispatch(ScreenRequest(params,null)) //   
@@ -219,6 +214,11 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           case "yup":
                 params= { ...params,buttonflg:"yup",disableFilters:true,screenFlg:ownProps.screenFlg}
                 return  dispatch(YupRequest(params,auth)) //
+
+          case "reset":
+                params= { ...params, buttonflg:"reset",disableFilters:false,screenFlg:ownProps.screenFlg,aud:"",}
+                return dispatch(ResetRequest(params)) //
+      
               
           default:
             console.log(`not Supported ${buttonflg}`)

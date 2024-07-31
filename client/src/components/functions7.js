@@ -86,7 +86,6 @@ export function  setProtectFunc(id,values){
     return readOnly    
 }
 
-
 export function  setClassFunc(field,values,className,aud){  //error処理
 
                 if(aud==="view"){return(className)}
@@ -98,6 +97,43 @@ export function  setClassFunc(field,values,className,aud){  //error処理
                     else{return(className)}
                 }    
 }
+
+
+export function  setYyyymmddFunc(filters){  //  ex. 2024/8/8-->2024/08/08
+
+    filters = filters.map((fld,idx) => {
+             switch (true){   
+                case /date$/.test(fld.id):   
+                case /starttime$/.test(fld.id):   
+                case /created_at$/.test(fld.id):   
+                case /updateed_at$/.test(fld.id):
+                    let yyyymmddhhmm = fld.value.split(" ")
+                    let yyyymmdd = yyyymmddhhmm[0]&&yyyymmddhhmm[0].split(/\/|-/)
+                    if(yyyymmdd[1]&&yyyymmdd[1].length===1){yyyymmdd[1] = "0" + yyyymmdd[1]}
+                    if(yyyymmdd[2]&&yyyymmdd[2].length===1){yyyymmdd[2] = "0" + yyyymmdd[2]}
+                    let hhmm = []
+                    hhmm = yyyymmddhhmm[1]?yyyymmddhhmm[1].split(":"):[]
+                    if(hhmm[0]&&hhmm[0].length===1){hhmm[0] = "0" + hhmm[0]}
+                    if(hhmm[1]&&hhmm[1].length===1){hhmm[1] = "0" + hhmm[1]}
+                    if(yyyymmdd[0]){fld.value = yyyymmdd[0]
+                                    if(yyyymmdd[1]){
+                                        fld.value = fld.value + "/" + yyyymmdd[1]
+                                        if(yyyymmdd[2]){
+                                            fld.value = fld.value + "/" + yyyymmdd[2]
+                                            if(hhmm[0]){fld.value = fld.value + " " + hhmm[0]
+                                                if(hhmm[1]){fld.value = fld.value + ":" + hhmm[1]}
+                                            }
+                                        }
+                                    }
+                    }
+                    return fld
+                default:
+                    return fld
+             }   
+           }) 
+    return filters
+}
+
 
 // export function  setInitailValueForAddFunc(field,row,screenCode){    //screenCode未使用
 //     //let today = new Date();

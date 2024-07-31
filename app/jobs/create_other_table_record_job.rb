@@ -12,7 +12,7 @@ class CreateOtherTableRecordJob < ApplicationJob
             processreq = ActiveRecord::Base.connection.select_one(perform_strsql)
             return if processreq.nil?            
             params = JSON.parse(processreq["reqparams"])   
-            strsql = %Q% select * from persons where id = #{params["tbldata"]["persons_id_upd"]}
+            strsql = %Q% select * from persons where id = #{params["person_id_upd"]}
                     %
             person = ActiveRecord::Base.connection.select_one(strsql) ###
             params["email"] = person["email"]
@@ -377,7 +377,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 if nd["prdpur"]  ###opeitmdが登録されてないとprdords,purordsは作成されない。
                                     blk = RorBlkCtl::BlkClass.new("r_"+nd["prdpur"]+"schs")
                                     command_c = blk.command_init   ###  tblname=paretblname
-                                    command_c,qty_require = add_update_prdpur_table_from_nditm(nd,parent,tblname,command_c)
+                                    command_c,qty_require,err = add_update_prdpur_table_from_nditm(nd,parent,tblname,command_c)  ###tblname = paretblname
                                     command_c["#{nd["prdpur"]}sch_created_at"] = Time.now
                                     trnganttkey += 1
                                     gantt["key"] = gantt_key + format('%05d', trnganttkey)
@@ -413,43 +413,68 @@ class CreateOtherTableRecordJob < ApplicationJob
                                             "conschs"
                                         end
                                     end
-                                else  ###opeitmsに登録されてない時
-                                    blk = RorBlkCtl::BlkClass.new("r_dymschs")
-                                    command_c = blk.command_init
-                                    nd["prdpur"] = "dym"
-                                    nd["itms_id"] = nd["itms_id_nditm"]
+                                else  ###
                                     nd["opeitms_id"] = 0
-                                    gantt["tblname"] = "dymschs"
-                                    command_c,qty_require = add_update_prdpur_table_from_nditm(nd,parent,tblname,command_c)
-                                    command_c["dymsch_person_id_upd"] = setParams["person_id_upd"]
-                                    command_c["dymsch_itm_id"] = nd["itms_id"]
-                                    command_c["dymsch_shelfno_id"] = 0
-                                    command_c["dymsch_shelfno_id_to"] = 0
-                                    command_c["id"] = ArelCtl.proc_get_nextval("#{gantt["tblname"]}_seq")
-                                    command_c["dymsch_created_at"] = Time.now
+                                    nd["shelfnos_id_opeitm"] = 0
+                                    nd["itms_id"] = nd["itms_id_nditm"]
+                                    nd["shelfnos_id_opeitm"] = 0
+                                    case nd["classlist_code"]
+                                    when "apparatus"  ###装置
+                                        blk = RorBlkCtl::BlkClass.new("r_dvsschs")
+                                        command_c = blk.command_init
+                                        nd["prdpur"] = "dvs"
+                                        nd["locas_id_shelfno_to"] = 0
+                                        nd["locas_id_shelfno"] = 0
+                                        gantt["tblname"] = "dvsschs"
+                                        blk = RorBlkCtl::BlkClass.new("r_dvsschs")
+                                        command_c = blk.command_init
+                                        command_c,qty_require,err = add_update_prdpur_table_from_nditm(nd,parent,tblname,command_c)  ###tblname = paretblname
+                                        next if err
+                                        gantt["duedate_trn"] = command_c["#{gantt["tblname"].chop}_endtime"]
+                                        gantt["locas_id_trn"] = 0
+                                        gantt["shelfnos_id_trn"] = 0
+                                        gantt["qty_require"] = 1
+                                        gantt["qty_handover"] = 1  
+                                        gantt["qty_sch"] = 1
+                                    when "mold"       ###金型
+                                    when "installationCharge"   ###設置
+                                    else
+                                        blk = RorBlkCtl::BlkClass.new("r_dymschs")
+                                        command_c = blk.command_init
+                                        nd["prdpur"] = "dym"
+                                        gantt["tblname"] = 'dymschs'
+                                        nd["locas_id_shelfno"] = 0 
+                                        nd["locas_id_shelfno_to"] = 0
+                                        command_c,qty_require = add_update_prdpur_table_from_nditm(nd,parent,tblname,command_c)  ###tblname -->paretblname
+                                        command_c["dymsch_itm_id_dym"] = nd["itms_id"]
+                                        command_c["dymsch_shelfno_id"] = 0
+                                        command_c["dymsch_shelfno_id_to"] = 0
+                                        gantt["duedate_trn"] = command_c["#{gantt["tblname"].chop}_duedate"]
+                                        gantt["locas_id_trn"] = 0
+                                        gantt["shelfnos_id_trn"] = 0
+                                        gantt["qty_require"] = qty_require
+                                        gantt["qty_handover"] = qty_require  
+                                        gantt["processseq_trn"] = command_c["#{gantt["tblname"].chop}_processseq"] = 999
+                                        gantt["toduedate_trn"] = command_c["#{gantt["tblname"].chop}_toduedate"]
+                                        gantt["qty_sch"] = command_c["#{gantt["tblname"].chop}_qty_sch"]
+                                    end
                                     trnganttkey += 1
+                                    command_c["#{gantt["tblname"].chop}_person_id_upd"] = gantt["persons_id_upd"] = setParams["person_id_upd"]
+                                    command_c["id"] = ArelCtl.proc_get_nextval("#{gantt["tblname"]}_seq")
+                                    command_c["#{gantt["tblname"].chop}_created_at"] = Time.now
+                                    gantt["starttime_trn"] =  command_c["#{gantt["tblname"].chop}_starttime"]
                                     gantt["key"] = gantt_key + format('%05d', trnganttkey)
                                     gantt["tblid"] = command_c["id"]
                                     gantt["itms_id_trn"] = nd["itms_id_nditm"]
-                                    gantt["processseq_trn"] = 999
-                                    gantt["locas_id_trn"] = 0
-                                    gantt["shelfnos_id_trn"] = 0
                                     gantt["locas_id_to_trn"] = 0
                                     gantt["consumtype"] = (nd["consumtype"]||="CON")
                                     gantt["shelfnos_id_to_trn"] = 0
-                                    gantt["duedate_trn"] = command_c["dymsch_duedate"]
-                                    gantt["toduedate_trn"] = command_c["#{gantt["tblname"].chop}_toduedate"]
-                                    gantt["qty_require"] = qty_require
-                                    gantt["qty_handover"] = qty_require  
                                     gantt["chilnum"] = nd["chilnum"]
                                     gantt["parenum"] = nd["parenum"]
-                                    gantt["qty_sch"] = command_c["dymsch_qty_sch"]
-                                    gantt["starttime_trn"] =  command_c["dymsch_starttime"]
                                     ###作業場所の稼働日考慮要
                                     setParams["mkprdpurords_id"] = 0
                                     setParams["gantt"] = gantt.dup
                                     setParams["child"] = nd.dup
-                                    command_c["dymsch_person_id_upd"] = gantt["persons_id_upd"] = setParams["person_id_upd"]
                                     setParams["gantt"] = gantt.dup
                                     command_c = blk.proc_create_tbldata(command_c)
                                     setParams = blk.proc_private_aud_rec(setParams,command_c) ###create pur,prdschs
@@ -472,7 +497,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             ActiveRecord::Base.connection.select_all(ArelCtl.proc_pareChildTrnsSqlGroupByChildItem(parent)).each do |nd|
                                 setParams["mkprdpurords_id"] = 0
                                 child = nd.dup
-                                if child["consumtype"] =~ /CON|MET/  ###出庫 消費と金型・設備の使用
+                                if child["consumtype"] =~ /CON|ITool|mold/  ###出庫 消費と金型・設備の使用
                                     child["consumauto"] = (nd["consumauto"]||="")  ###子の保管場所からの出庫
                                     child["packno"] = ""
                                     child["lotno"] = ""   ### shpschs,shpordsの時はlotnoは""  
@@ -488,7 +513,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                             "conords"
                                         end
                                     end
-                                    if child["consumtype"] =~ /MET/ and child_opeitm["consumauto"] == "A"   ###使用後自動返却
+                                    if child["consumtype"] =~ /ITool|mold/ and child_opeitm["consumauto"] == "A"   ###使用後自動返却
                                          ###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
                                         parent["starttime"] = (parent["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
                                         setParams["child"] = child.dup
@@ -660,8 +685,8 @@ class CreateOtherTableRecordJob < ApplicationJob
                 parent.delete("qty") 
                 parent.delete("amt") 
             end
-		    command_c,qty_require = CtlFields.proc_schs_fields_making(nd,parent,"r_"+ nd["prdpur"]+"schs",command_init)
-		    return command_c,qty_require
+		    command_c,qty_require,err = CtlFields.proc_schs_fields_making(nd,parent,"r_"+ nd["prdpur"]+"schs",command_init)
+		    return command_c,qty_require,err
     end
 
     def create_paybillschs(src,sch,billpay)

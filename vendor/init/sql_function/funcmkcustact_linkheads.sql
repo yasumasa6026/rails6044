@@ -29,11 +29,11 @@ select
 	custord.loca_name_cust loca_name_cust ,
 	custord.loca_code_custrcvplc loca_code_custrcvplc,
 	custord.loca_name_custrcvplc loca_name_custrcvplc 
- from r_persons  person_upd,r_custords custord
+ from r_custords custord
  inner join (select sum(qty_src) qty ,tblid from linkcusts link 
  				where srctblname = tblname and srctblid = tblid and srctblname = 'custords' and qty_src > 0
  				group by tblname,tblid) link on link.tblid = custord.id 
- left join linkheads   linkhead on linkhead.tblname = 'custords' and linkhead.sno = custord.custord_sno
+ left join linkheads   linkhead on linkhead.tblname = 'custords' and linkhead.tblid = custord.id
   where       custord.custord_sno = $1 and custord.loca_code_cust  = $2
 union 
 select  
@@ -63,11 +63,11 @@ select
 	custord.loca_name_cust loca_name_cust ,
 	custord.loca_code_custrcvplc loca_code_custrcvplc,
 	custord.loca_name_custrcvplc loca_name_custrcvplc 
- from 	r_persons  person_upd,r_custords custord
+ from 	r_custords custord
  inner join (select sum(qty_src) qty ,tblid from linkcusts link 
  				where srctblname = tblname and srctblid = tblid and srctblname = 'custords' and qty_src > 0
  				group by tblname,tblid) link on link.tblid = custord.id 
- 	left join  linkheads   linkhead on linkhead.tblname = 'custords' and linkhead.cno = custord.custord_cno  
+ 	left join  linkheads   linkhead on linkhead.tblname = 'custords' and linkhead.tblid = custord.id  
   where       custord.custord_cno = $3 and custord.loca_code_cust  = $2
  		
 union
@@ -99,14 +99,14 @@ select
 	custdlv.loca_code_custrcvplc loca_code_custrcvplc,
 	custdlv.loca_name_custrcvplc loca_name_custrcvplc
  from 	r_persons  person_upd,
- 		(select loca_code_cust,loca_name_cust,max(depdate) depdate ,sum(qty_stk) qty,sum(amt) amt ,packingListNo,
- 			max(persons_id_upd) persons_id_upd,custrcvplc.loca_code_custrcvplc loca_code_custrcvplc,
+ 		(select dlv.id,loca_code_cust,loca_name_cust,(depdate) depdate ,(qty_stk) qty,(amt) amt ,packingListNo,
+ 			(persons_id_upd) persons_id_upd,custrcvplc.loca_code_custrcvplc loca_code_custrcvplc,
 			custrcvplc.loca_name_custrcvplc loca_name_custrcvplc
  			from custdlvs dlv 
  			inner join r_custs cust on dlv.custs_id = cust.cust_id and cust.loca_code_cust = $2
  			inner join r_custrcvplcs custrcvplc on dlv.custrcvplcs_id = custrcvplc.custrcvplc_id
- 			group by loca_code_cust,loca_name_cust,packingListNo,custrcvplc.loca_code_custrcvplc,custrcvplc.loca_name_custrcvplc ) custdlv 
-  	left join linkheads   linkhead on linkhead.tblname = 'custdlvs' and linkhead.packingListNo = custdlv.packingListNo
+ 			) custdlv 
+  	left join linkheads   linkhead on linkhead.tblname = 'custdlvs' and linkhead.tblid = custdlv.id
   where  custdlv.packingListNo = $4 and person_upd.id = custdlv.persons_id_upd
  		
 $function$

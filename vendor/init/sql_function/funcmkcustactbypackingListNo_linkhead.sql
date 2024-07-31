@@ -11,8 +11,8 @@ CREATE OR REPLACE FUNCTION funcmkcustactbypackingListNo_linkheads(loca_code_cust
 AS $function$
 select  
 	linkhead.id id,
-  	person_upd.person_code  person_code_upd ,
-  	person_upd.person_name  person_name_upd ,
+  	person_upd.code  person_code_upd ,
+  	person_upd.name  person_name_upd ,
 	linkhead.id  linkhead_id,
 	linkhead.remark  linkhead_remark,
 	linkhead.expiredate  linkhead_expiredate,
@@ -36,15 +36,15 @@ select
 	custdlv.loca_name_cust loca_name_cust ,
 	custdlv.loca_code_custrcvplc loca_code_custrcvplc,
 	custdlv.loca_name_custrcvplc loca_name_custrcvplc
- from 	r_persons  person_upd,
- 		(select loca_code_cust,loca_name_cust,max(depdate) depdate ,sum(qty_stk) qty,sum(amt) amt ,packingListNo,
- 			max(persons_id_upd) persons_id_upd,custrcvplc.loca_code_custrcvplc loca_code_custrcvplc,
+ from 	persons  person_upd,
+ 		(select dlv.id,loca_code_cust,loca_name_cust,(depdate) depdate ,(qty_stk) qty,(amt) amt ,packingListNo,
+ 			(persons_id_upd) persons_id_upd,custrcvplc.loca_code_custrcvplc loca_code_custrcvplc,
 			custrcvplc.loca_name_custrcvplc loca_name_custrcvplc
  			from custdlvs dlv 
  			inner join r_custs cust on dlv.custs_id = cust.cust_id and cust.loca_code_cust = $1
  			inner join r_custrcvplcs custrcvplc on dlv.custrcvplcs_id = custrcvplc.custrcvplc_id
- 			group by loca_code_cust,loca_name_cust,packingListNo,custrcvplc.loca_code_custrcvplc,custrcvplc.loca_name_custrcvplc ) custdlv 
-  	left join linkheads   linkhead on linkhead.tblname = 'custdlvs' and linkhead.packingListNo = custdlv.packingListNo
+ 			 ) custdlv 
+  	left join linkheads   linkhead on linkhead.tblname = 'custdlvs' and linkhead.tblid = custdlv.id
   where  custdlv.packingListNo = $2 and person_upd.id = custdlv.persons_id_upd
  		
 $function$

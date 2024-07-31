@@ -36,11 +36,11 @@ select
 	custord.loca_name_cust loca_name_cust ,
 	custord.loca_code_custrcvplc loca_code_custrcvplc,
 	custord.loca_name_custrcvplc loca_name_custrcvplc 
- from r_persons  person_upd,r_custords custord
+ from r_custords custord
  inner join (select sum(qty_src) qty ,tblid from linkcusts link 
  				where srctblname = tblname and srctblid = tblid and srctblname = 'custords' and qty_src > 0
  				group by tblname,tblid) link on link.tblid = custord.id 
- left join linkheads   linkhead on linkhead.tblname = 'custords' and linkhead.sno = custord.custord_sno
+ left join linkheads   linkhead on linkhead.tblname = 'custords' and linkhead.tblid = custord.id
   where       custord.custord_sno = $1 
 
   

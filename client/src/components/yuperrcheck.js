@@ -19,7 +19,7 @@ export  function yupErrCheck (schema,field,linedata) {
   }      
   catch(err){
     linedata.confirm = false
-              linedata[mfield] = " yup check error " + err.errors.join(",")
+              linedata[mfield] = err.errors.join(",")
               linedata["confuem_gridmessage"] = " error " + err.errors.join(",")
               return linedata
   }
@@ -44,20 +44,20 @@ export function dataCheck7(schema,field,linedata){
                     linedata[`${field}_gridmessage`] = "ok"
                     linedata[field] = yyyymmdd[0]+"/"+yyyymmdd[1]+"/"+yyyymmdd[2]+" "+yyyymmdd[3]+":"+yyyymmdd[4]+":"+yyyymmdd[5]
                 }else{
-                      linedata[`${field}_gridmessage`] = "error  mi:ss: 0:0<= mi:ss <= 59:59"
+                      linedata[`${field}_gridmessage`] = "  mi:ss: 0:0<= mi:ss <= 59:59"
                       }
             }else{
-                  linedata[`${field}_gridmessage`] = "error hour:  0<= hh24 <= 24"
+                  linedata[`${field}_gridmessage`] = " hour:  0<= hh24 <= 24"
                 } 
           }else{
-                linedata[`${field}_gridmessage`] = "error not date type yyyy/mm/dd  or yyyy-mm-dd"
+                linedata[`${field}_gridmessage`] = " not date type yyyy/mm/dd  or yyyy-mm-dd"
           }       
       }else{
           switch(field){
             case "screen_rowlist":  //一画面に表示できる行数をセットする項目の指定が正しくできているか？
                 linedata[field].split(',').map((rowcnt)=>{
                     if(isNaN(rowcnt)){ 
-                        linedata[`${field}_gridmessage`] = "error  must be xxx,yyy,zzz :xxx-->numeric"
+                        linedata[`${field}_gridmessage`] = " must be xxx,yyy,zzz :xxx-->numeric"
                       }else{
                         if(linedata[`${field}_gridmessage`]){
                             if(/error/.test(linedata[`${field}_gridmessage`])){}
@@ -72,7 +72,7 @@ export function dataCheck7(schema,field,linedata){
                 if(/_code/.test(linedata["pobject_code_sfd"])&&String(linedata["screenfield_editable"])==="1")
                     {if(String(linedata["screenfield_indisp"])==="1") //excelが数字を自動変換してしまう
                             {linedata[`${field}_gridmessage`] = "ok"}
-                      else{linedata["screenfield_indisp_gridmessage"] = ` error!  must be Required(indisp===1) `
+                      else{linedata["screenfield_indisp_gridmessage"] = ` must be Required(indisp===1) `
                             }
                 }else{
                             linedata[`${field}_gridmessage`] = "ok"}
@@ -83,7 +83,7 @@ export function dataCheck7(schema,field,linedata){
          }
        return linedata
     }else{  //yupに登録されてないとき
-      linedata[`${field}_gridmessage`] = `error  field:${field} not exists in yupschema. please creat 'yupschema' by yup button `
+      linedata[`${field}_gridmessage`] = ` field:${field} not exists in yupschema. please creat 'yupschema' by yup button `
     }
 }
 

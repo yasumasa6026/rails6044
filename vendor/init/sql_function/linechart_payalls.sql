@@ -1,4 +1,4 @@
- DROP FUNCTION public.linechart_payalls();
+ DROP FUNCTION  IF EXISTS public.linechart_payalls();
 CREATE OR REPLACE FUNCTION public.linechart_payalls()
  RETURNS TABLE(payall_amt_sch numeric,payall_amt numeric, payall_cash numeric,
  				payall_duedate date , 
@@ -81,4 +81,5 @@ CREATE INDEX sio_linechart_payalls_uk1 ON sio.sio_linechart_payalls USING btree 
 
 
 
-select sum(payall_amt_sch) payall_amt_sch,to_char(payall_duedate,'yy-mm') from linechart_payalls() group by to_char(payall_duedate,'yy-mm');
+select sum(payall_amt_sch) payall_amt_sch,sum(payall_amt) payall_amt,sum(payall_cash) payall_cash,
+			to_char(payall_duedate,'yy-ww') from linechart_payalls() group by to_char(payall_duedate,'yy-ww');

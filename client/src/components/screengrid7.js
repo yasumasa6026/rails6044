@@ -3,12 +3,12 @@
 //
 import React, { useState, useMemo, useEffect, } from 'react'
 import { connect } from 'react-redux'
-import { ScreenConfirm, FetchRequest,ScreenSubForm,SecondSubForm,
+import { ScreenConfirm, FetchRequest,ScreenSubForm,SecondSubForm,AreaChartRequest,
             SecondConfirm, SecondFetchRequest,ScreenDataSet,SecondDataSet  } from '../actions'
 //import DropDown from './dropdown'
 import { yupschema } from '../yupschema'
 import { yupErrCheck } from './yuperrcheck'
-import Tooltip from 'react-tooltip-lite'
+import { Tooltip } from 'react-tooltip'
 import { onBlurFunc7,onFieldValite ,fetchCheck} from './onblurfunc'
 //import ButtonList from './buttonlist'
 import {useTable, useRowSelect, useFilters, useGroupBy,useSortBy, useResizeColumns, useBlockLayout,
@@ -21,8 +21,9 @@ import {useTable, useRowSelect, useFilters, useGroupBy,useSortBy, useResizeColum
 // please use the useTokenPagination plugin instead
 import { TableGridStyles } from '../styles/tablegridstyles'
 import "../index.css"
-import {setClassFunc,setProtectFunc,} from './functions7'
+import {setClassFunc,setProtectFunc,setYyyymmddFunc,} from './functions7'
 import ToSubForm from './tosubform'
+import AreaChartScreen from './areachartscreen'
 
 const cellFontSize = (column,para) =>{
   let length
@@ -159,11 +160,13 @@ const AutoCell = ({
         switch (true){   
         case /^Editable/.test(className):
             return (
-                <Tooltip content={data[index][id + '_gridmessage']||""}  border={true} tagName="span" arrowSize={2}>
-                {(params.aud === "add"||params.aud === "edit")&&(  //
-                <input value={initialValue||""}
+              <sp>
+                <a id={`${id}_${index}`} data-tooltip-content={`${data[index][id + '_gridmessage']}`}
+                data-tooltip-html={`<div>${data[index][id + '_gridmessage']}</div>`}
+                data-tooltip-id={`Tooltip_#${id}_${index}`}>
+                <input value={initialValue||""}   
                    //placeholder(入力されたことにならない。) defaultvale（照会内容の残像が残る。)
-                   onChange={(e) => setFieldsByonChange(e)}
+                   onChange={(e) => setFieldsByonChange(e)} 
                      //onFocus={(e) => {setFieldsByonFocus(e)
                       //               }}
                       readOnly={setProtectFunc(id,row.values)}
@@ -176,9 +179,20 @@ const AutoCell = ({
                                  {
                                    onLineValite(row.values,index,params)
                                  }else{e.key === "Enter"&&toggleSubForm&&alert("can not use filer and sord when subForm using")}
-                         }}        
-                    />)}
-                </Tooltip>)
+                                }
+                      }
+                      //data-tooltip-offset={30}  // data-tooltip-content={`${data[index][id + '_gridmessage']||""}`}
+                      //data-tooltip-html={`<sp>${data[index][id + '_gridmessage']}</sp>`}
+                      //data-tooltip-content={`${data[index][id + '_gridmessage']}`}
+                      //data-tooltip-id={`Tooltip_#${id}_${index}`}
+                      //Sdata-tooltip-position-strategy="fixed"
+                      //data-tooltip-place="buttom"
+                    />  
+                </a>
+                <Tooltip id={`Tooltip_#${id}_${index}`}  
+                data-tooltip-offset={-30} style={{ backgroundColor: "rgb(0, 255, 30)", color: "#222" }} />
+               </sp> 
+              )
         case /SelectEditable/.test(className):
             return (<select
                 value={initialValue ||""}
@@ -219,8 +233,8 @@ const AutoCell = ({
         case /checkbox/.test(className):
           let chekboxClassName = setClassFunc(id,row.values,className,params.aud)
             return (
-              <Tooltip content={data[index][`${id}_gridmessage`]||""}
-              border={true} tagName="span" arrowSize={2}>
+              <sp>
+              <Tooltip content={data[index][`${id}_gridmessage`]||""}  anchorSelect={`#${id}_${index}`} />
               <label   htmlFor={`${id}_${index}`} className={chekboxClassName} >
               {chekboxClassName==="checkbox"?"":"error"}
               </label> 
@@ -229,7 +243,7 @@ const AutoCell = ({
                       className={chekboxClassName}
                       readOnly />
               {/*     style={{bakground:"red"}}が有効にならない。*/}
-              </Tooltip>)
+              </sp>)
         default:
             return <input value={initialValue || ""} readOnly />
         }
@@ -306,7 +320,9 @@ const ScreenGrid7 = ({
     dropDownList, buttonflg, params,columnsOrg, dataOrg,screenCodeOrg,baseData,
     //buttonflg 下段のボタン：request params[:buttonflg] MenusControllerでの実行ケース
     loadingOrg,  pageSizeList, 
-    handleScreenRequest, handleFetchRequest,handleSubForm,toggleSubForm,message,handleDataSetRequest,
+    handleScreenRequest, handleFetchRequest,handleSubForm,toggleSubForm,
+    handleAreaChart,toggleAreaChart,
+    message,handleDataSetRequest,
     }) => {
         const data = useMemo(
                 () => (dataOrg),[dataOrg])
@@ -320,7 +336,6 @@ const ScreenGrid7 = ({
                                         () => ({}),[screenCodeOrg])
         const filters = useMemo(
                 () => ([]),[screenCodeOrg])
-        //const [changeData, setChangeData] = useState([]) 
         const [loading, setLoading] = useState(false)
         const [screenCode,setScreenCode] = useState(screenCodeOrg)
        // const [columns,setColumns] = useState([])
@@ -368,7 +383,7 @@ const ScreenGrid7 = ({
                                             handleSubForm(params,true)
                                             }
                                   }
-  
+    
     return (
      <div>
         <TableGridStyles height={buttonflg ? "840px" : buttonflg === "download" ? "500px" : buttonflg === "import" ? "300px" : "840px"}
@@ -387,6 +402,7 @@ const ScreenGrid7 = ({
             disableFilters={params.disableFilters} toggleSubForm={toggleSubForm}
             hiddenColumns={hiddenColumns} handleScreenRequest={handleScreenRequest} 
             handleFetchRequest={handleFetchRequest} handleSubForm={handleSubForm} handleDataSetRequest={handleDataSetRequest}
+            handleAreaChart={handleAreaChart}
             getHeaderProps={column => ({  //セルのサイズ合わせとclick　keyが重複するのを避けるため
               onClick: (e) =>{if(e.ctrlKey){ //sort時はctrlKey　keyが必須
                                 switch(column.isSorted){
@@ -560,9 +576,26 @@ const ScreenGrid7 = ({
        
       <button  onClick={()=>{handleSubForm(params,false)}} 
                                     disabled={toggleSubForm?false:true} >Close_subForm</button>
+      <span> {" "}</span>
+           
+     {/^linechart/.test(params.screenCode)&&<button  
+                      disabled={toggleAreaChart?true:false}
+                      onClick={()=>{
+                                    handleAreaChart(params,true)   //toggleAreaChart=true
+                                          }  //toggle not function why?
+                                    } >AreaChart</button>}
+      <span> {" "}</span>      
+     {/^linechart/.test(params.screenCode)&&<button  
+                      disabled={toggleAreaChart?false:true}
+                      onClick={()=>{
+                                    handleAreaChart(params,false)   //toggleAreaChart=true
+                                          }  //toggle not function why?
+                                    } >Close AreaChart</button>}
      
       {toggleSubForm&&<ToSubForm/>}
-      
+     
+      {toggleAreaChart&&<AreaChartScreen/>} 
+            
       {screenCode==="r_fieldcodes"&&<p> 修正時には、再起動が必要</p>}
       <p>{message}</p>
     </div>
@@ -692,6 +725,7 @@ const GridTable = ({
                       {  // filter sortでの検索しなおし
                        if (e.key === "Enter" &&!params.disableFilters&&!toggleSubForm)
                            { 
+                            setYyyymmddFunc(filters)
                              params = {...params,aud:"view",buttonflg:"viewtablereq7",filtered:filters,sortBy:sortBy,groupBy:groupBy,aggregations:aggregations,} 
                              // Apply the header cell props
                              handleScreenRequest(params,data)
@@ -811,6 +845,7 @@ const mapStateToProps = (state,ownProps) => {
           toggleSubForm:state.second.toggleSubForm,
           message:state.second.message,
           screenFlg:ownProps.screenFlg,
+          toggleAreaChart:false,
        }
     }else{
         return {
@@ -829,6 +864,7 @@ const mapStateToProps = (state,ownProps) => {
           toggleSubForm:state.screen.toggleSubForm,
           message:state.screen.message,
           screenFlg:ownProps.screenFlg,
+          toggleAreaChart:state.screen.toggleAreaChart,
         }
     }      
 }
@@ -854,6 +890,14 @@ const mapDispatchToProps = (dispatch, ownProps) => ({
        }else{
          dispatch(ScreenSubForm(toggleSubForm,params))}      
       },
+    handleAreaChart: (params,toggleAreaChart) => {
+              if(Array.isArray(params.groupBy)&&params.groupBy.find(ele =>ele.match(/duedate/))){
+                          if(ownProps.screenFlg==="first"){
+                                  return  dispatch(AreaChartRequest(toggleAreaChart,params))}
+                            else{if(ownProps.screenFlg==="second"){alert("AreaChart not support second screen  ")}}
+                         }//
+              else{alert("GroupBy duedate (alt_key + duedate")}  
+        },
     handleDataSetRequest: (data,params) => {
         if(params.screenFlg === "second"){
            dispatch(SecondDataSet(data,params))

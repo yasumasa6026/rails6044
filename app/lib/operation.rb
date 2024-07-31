@@ -591,7 +591,8 @@ class OpeClass
 				command_c["#{trn["tblname"].chop}_qty_sch"]  = 0
 			end
 		end
-		starttime = CtlFields.proc_field_starttime(command_c["#{trn["tblname"].chop}_duedate"],trn,"gantt")
+		parent = {"duedate"=>@gantt["duedate_pare"],"starttime"=>@gantt["starttime"]}
+		starttime,duedate = CtlFields.proc_field_starttime(command_c["#{trn["tblname"].chop}_duedate"],trn,"gantt"),0
 		command_c["#{trn["tblname"].chop}_starttime"] = starttime
 		@gantt["tblname"] = trn["tblname"]
 		@gantt["tblid"] = trn["tblid"]

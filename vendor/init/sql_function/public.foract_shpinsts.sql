@@ -29,8 +29,8 @@ shpinst.update_ip  shpinst_update_ip,
 shpinst.id  shpinst_id,
   prjno.prjno_name  prjno_name ,
   chrg.person_sect_id_chrg  person_sect_id_chrg ,
-  person_upd.person_code  person_code_upd ,
-  person_upd.person_name  person_name_upd ,
+  person_upd.code  person_code_upd ,
+  person_upd.name  person_name_upd ,
   prjno.prjno_code  prjno_code ,
   chrg.chrg_person_id_chrg  chrg_person_id_chrg ,
   itm.classlist_code  classlist_code ,
@@ -67,7 +67,7 @@ shpinst.units_id_case_shp   shpinst_unit_id_case_shp,
 shpinst.shelfnos_id_to   shpinst_shelfno_id_to,
 shpinst.qty_real  shpinst_qty_real
  from shpinsts   shpinst,
-  r_itms  itm ,  r_prjnos  prjno ,  r_persons  person_upd ,  r_chrgs  chrg ,  r_transports  transport ,  r_units  unit_case_shp ,  r_shelfnos  shelfno_to 
+  r_itms  itm ,  r_prjnos  prjno ,  persons  person_upd ,  r_chrgs  chrg ,  r_transports  transport ,  r_units  unit_case_shp ,  r_shelfnos  shelfno_to 
   where       shpinst.itms_id = itm.id      and shpinst.prjnos_id = prjno.id      and shpinst.persons_id_upd = person_upd.id      and shpinst.chrgs_id = chrg.id      and shpinst.transports_id = transport.id      and shpinst.units_id_case_shp = unit_case_shp.id      and shpinst.shelfnos_id_to = shelfno_to.id     ;
  DROP TABLE IF EXISTS sio.sio_foract_shpinsts;
  CREATE TABLE sio.sio_foract_shpinsts (

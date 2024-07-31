@@ -15,8 +15,8 @@
   custrcvplc.loca_name_custrcvplc  loca_name_custrcvplc ,
 '' id,
   cust.cust_loca_id_cust  cust_loca_id_cust ,
-  person_upd.person_code  person_code_upd ,
-  person_upd.person_name  person_name_upd ,
+  person_upd.code  person_code_upd ,
+  person_upd.name  person_name_upd ,
   custrcvplc.custrcvplc_loca_id_custrcvplc  custrcvplc_loca_id_custrcvplc ,
   chrg.chrg_person_id_chrg  chrg_person_id_chrg ,
   cust.person_code_chrg_cust  person_code_chrg_cust ,
@@ -90,7 +90,7 @@ opeitm.opeitm_processseq opeitm_processseq,
 ''  unit_name_weight,
 custinst.packno custdlv_packno,
 '' custdlv_packinglistno
- from r_custs  cust ,  r_custrcvplcs  custrcvplc ,  r_persons  person_upd ,  r_shelfnos  shelfno_fm ,
+ from r_custs  cust ,  r_custrcvplcs  custrcvplc ,  persons  person_upd ,  r_shelfnos  shelfno_fm ,
   r_opeitms  opeitm ,  r_chrgs  chrg , r_crrs crr,
   custinsts   custinst
   where       custinst.custs_id = cust.id      and custinst.custrcvplcs_id = custrcvplc.id     

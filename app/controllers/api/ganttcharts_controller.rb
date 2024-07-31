@@ -17,11 +17,26 @@ module Api
                             ganttData =  gantt.proc_get_ganttchart_data(tblcode,line["id"],params[:buttonflg])  
                             ganttData.sort.each do |level,ganttdata|
                                 tasks << {"id"=>ganttdata[:id],
-                                     "name"=>ganttdata[:itm_code]+":#{ganttdata[:itm_name]},#{ganttdata[:processseq]},#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]},QTY:#{ganttdata[:qty]},
-                                                NumberOfItems:#{ganttdata[:chilnum]}/#{ganttdata[:parenum]}",
-                                     "type"=>ganttdata[:type],
-                                     "start"=>ganttdata[:start],"end"=>ganttdata[:duedate],
-                                     "styles"=>{"backgroundColor"=>"#9C6E41"} ,
+                                     "name"=>ganttdata[:itm_code]+":#{ganttdata[:itm_name]},#{ganttdata[:processseq]},#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]},QTY:#{ganttdata[:qty]},"  +
+                                               %Q& #{case ganttdata[:classlist_code]
+                                                when "installationCharge","mold","apparatus","ITool"
+                                                    ""
+                                                else
+                                                    "NumberOfItems:#{ganttdata[:chilnum]}/#{ganttdata[:parenum]}"
+                                                end}&,
+                                     "type"=>ganttdata[:type],"start"=>ganttdata[:start],"end"=>ganttdata[:duedate],
+                                     "styles"=>case ganttdata[:classlist_code]
+                                                when "installationCharge"   ###設置
+                                                    {"backgroundColor"=>"#33FFFF"}
+                                                when "mold"  ###金型
+                                                    {"backgroundColor"=>"#66FF66"}
+                                                when "apparatus" ### 設備
+                                                    {"backgroundColor"=>"#FFFF66"}
+                                                when "ITool" ### 工具
+                                                    {"backgroundColor"=>"#009900"}
+                                                else
+                                                    {"backgroundColor"=>"#9C6E41"} 
+                                                end    ,
                                       "progress"=>0,"dependencies"=>ganttdata[:depend]
                                     }
                             end
@@ -108,7 +123,8 @@ module Api
                         else
                              raise
                         end
-                    end
+                    end 
+		            Rails.logger.debug " class:#{self} ,line:#{__LINE__},tasks:#{tasks} "
                     render json: {:tasks=>tasks}   
                 when "updateNditm"
                     reqparams = params.dup

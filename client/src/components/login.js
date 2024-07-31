@@ -77,8 +77,10 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
         <h2>・基本操作</h2>
           <h3>・・gridでのデータ追加・更新</h3>
             <p>－－－＞Enterで行ごとに追加・更新</p>
-          <h3>・・grid内でのsort</h3>
+          <h3>・・grid内での SortBy</h3>
             <p>－－－＞ヘッダーの項目をCtrl+クリック</p>
+          <h3>・・grid内での GroupBy</h3>
+            <p>－－－＞ヘッダーの項目をAlt+クリック</p>
           <h2>rails</h2>
             <h3>activereord</h3>
               <p>model機能、crud機能は使用してない。</p>

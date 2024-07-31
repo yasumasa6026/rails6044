@@ -242,7 +242,7 @@ module ArelCtl
 		blk.proc_create_tbldata(command_c)
 		blk.proc_private_aud_rec({},command_c)
 		head = {"amt" => amt,"taxrate" => taxrate,"#{headTbl.chop}_id" => command_c["id"]}
-		returen head
+		return head
 	end	
 
 	# def consume_amt_sch_by_act fmtbl,fmtblid,prev_totbl
@@ -866,25 +866,38 @@ module ArelCtl
 	
     def proc_nditmSql(opeitms_id)  
         %Q%
-            select ope.itms_id,nditm.itms_id_nditm,  ---itms_id = itms_id_nditm
-               ope.processseq,nditm.processseq_nditm,
+            select pare.processseq processseq_pare,pare.packqty packqty_pare,
+				pare.duration duration_pare,pare.units_lttime units_lttime,
+				ope.itms_id,nditm.itms_id_nditm,  ---itms_id = itms_id_nditm
+               nditm.processseq_nditm,ope.packqty,
                nditm.consumtype,nditm.parenum,nditm.chilnum,
                nditm.consumunitqty,nditm.consumminqty,nditm.consumchgoverqty,
                ope.id opeitms_id,ope.prdpur,ope.packno_proc,
-               ope.packqty,ope.prdpur,ope.units_id_case_shp,itm.units_id,
+               ope.prdpur,ope.units_id_case_shp,itm.units_id,
                ope.locas_id_shelfno locas_id_shelfno,ope.shelfnos_id_opeitm,  ---子部品作業場所
                ope.locas_id_shelfno_to locas_id_shelfno_to,ope.shelfnos_id_to_opeitm,   ---子部品保管場所
-			   ope.consumauto,ope.duration,ope.units_lttime,
-			   itm.taxflg
+			   ope.consumauto,
+			    itm.taxflg, itm.classlist_code,itm.itm_code_nditm,itm.itm_name_nditm,
+				nditm.duration_facility,nditm.packqtyfacility,nditm.changeoverlt,
+				case ope.duration
+				when null then 
+					1
+				else
+					ope.duration
+				end duration
            from nditms nditm 
-               inner join itms itm on itm.id = nditm.itms_id_nditm 
-               left join (select o.*,s.locas_id_shelfno locas_id_shelfno,xto.locas_id_shelfno locas_id_shelfno_to
+				inner join opeitms pare on pare.id = nditm.opeitms_id
+               	inner join (select i.id,i.taxflg,i.units_id,c.code classlist_code,i.code itm_code_nditm,i.name itm_name_nditm
+			   					from itms i 
+								inner join classlists c on i.classlists_id = c.id ) itm on itm.id = nditm.itms_id_nditm 
+               	left join (select o.*,s.locas_id_shelfno locas_id_shelfno,xto.locas_id_shelfno locas_id_shelfno_to
                            from opeitms o 
                            inner join shelfnos s on o.shelfnos_id_opeitm = s.id
                            inner join shelfnos xto on o.shelfnos_id_to_opeitm = xto.id
 						   where  o.priority = 999) ope ---完成後の移動場所から親の場所に
                    on  ope.itms_id = nditm.itms_id_nditm  and ope.processseq = nditm.processseq_nditm
                    where nditm.expiredate > current_date and nditm.opeitms_id = #{opeitms_id} 
+			order by itm.classlist_code,itm.itm_code_nditm 
         %  
     end
 	

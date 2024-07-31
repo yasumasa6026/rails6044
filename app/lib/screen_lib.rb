@@ -14,6 +14,7 @@ module ScreenLib
 				p "add person to his or her email "
 				raise   ### 別画面に移動する　後で対応
 			end
+			@sort_info = {}
 			if params[:groupBy]
 				proc_create_grid_groupBy_columns_info(params)
 			else
@@ -44,7 +45,6 @@ module ScreenLib
 				gridmessages_fields = ""  ### error messages
 				init_where_info = {:filtered => ""}
 				dropDownList = {}
-				sort_info = {}
 				nameToCode = {}
 				columns_info = []
 				subform_info = []
@@ -77,8 +77,8 @@ module ScreenLib
 											when "numeric"
 												if i["screenfield_datascale"].to_i > 0
 													%Q% to_char(#{i["pobject_code_sfd"]}, 'FM999999999999.#{i["screenfield_datascale"]}') #{i["pobject_code_sfd"]}% + ","
-												else 												
-													i["pobject_code_sfd"] + " ,"
+												else
+													%Q% to_char(#{i["pobject_code_sfd"]}, 'FM999999999999') #{i["pobject_code_sfd"]}% + ","
 												end
 											else 												
 												i["pobject_code_sfd"] + " ,"
@@ -127,8 +127,8 @@ module ScreenLib
 							i["screen_rowlist"].split(",").each do |list|
 								@grid_columns_info[:pageSizeList]  <<  list.to_i
 							end
-							if i["screen_strorder"] 
-								sort_info[:default] = i["screen_strorder"]
+							if i["screen_strorder"] and i["screen_strorder"]  != "" 
+								@sort_info[:default] = i["screen_strorder"]
 							end	
 						else	
 				 		end
@@ -191,12 +191,8 @@ module ScreenLib
 					dropDownList[key] = tmpval.chop + "]"
 				end	
 				@grid_columns_info[:dropDownList] = dropDownList
-				# if sort_info[:default]
-				# 	ary_select_fields = select_fields.split(',')
-				# 	sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
-				# end	
 				@grid_columns_info[:init_where_info] = init_where_info
-				@grid_columns_info[:sort_info] = sort_info	
+				@grid_columns_info[:sort_info] = @sort_info	
 				@grid_columns_info[:screenwidth] = screenwidth	
 				if gridmessages_fields.size > 1
 					select_fields << gridmessages_fields
@@ -219,7 +215,6 @@ module ScreenLib
 			gridmessages_fields = ""  ### error messages
 			init_where_info = {:filtered => ""}
 			dropDownList = {}
-			sort_info = {}
 			nameToCode = {}
 			columns_info = []
 			subform_info = []
@@ -293,7 +288,16 @@ module ScreenLib
 						end
 					else
 						if i["pobject_code_sfd"] =~ /_qty|_amt|_cash/
-							select_row_fields << %Q% sum(#{i["pobject_code_sfd"]})  #{i["pobject_code_sfd"]}  ,% 
+							case i["screenfield_type"]
+							when "numeric"
+								if i["screenfield_datascale"].to_i > 0
+									select_row_fields << %Q% to_char(sum(#{i["pobject_code_sfd"]}), 'FM999,999,999,999.#{i["screenfield_datascale"]}') #{i["pobject_code_sfd"]}% + ","
+								else
+									select_row_fields << %Q% to_char(sum(#{i["pobject_code_sfd"]}), 'FM999,999,999,999') #{i["pobject_code_sfd"]}% + ","
+								end
+							else
+								select_row_fields << %Q% sum(#{i["pobject_code_sfd"]})  #{i["pobject_code_sfd"]}  ,%   ###fm9999select_fields = 	select_fields + 
+							end
 						else
 							if i["pobject_code_sfd"] =~ /_name/
 								if params[:groupBy].include?(i["pobject_code_sfd"].sub("_name","_code"))
@@ -331,8 +335,8 @@ module ScreenLib
 							i["screen_rowlist"].split(",").each do |list|
 								@grid_columns_info[:pageSizeList]  <<  list.to_i
 							end
-							if i["screen_strorder"] 
-								sort_info[:default] = i["screen_strorder"]
+							if i["screen_strorder"] and i["screen_strorder"]  != ""
+								@sort_info[:default] = i["screen_strorder"]
 							end	
 				else	
 				end
@@ -378,12 +382,8 @@ module ScreenLib
 				dropDownList[key] = tmpval.chop + "]"
 			end	
 			@grid_columns_info[:dropDownList] = dropDownList.dup
-			# if sort_info[:default]
-			# 	ary_select_fields = select_fields.split(',')
-			# 	sort_info = CtlFields.proc_detail_check_strorder sort_info,ary_select_fields
-			# end	
 			@grid_columns_info[:init_where_info] = init_where_info
-			@grid_columns_info[:sort_info] = sort_info	
+			@grid_columns_info[:sort_info] = @sort_info	
 			@grid_columns_info[:screenwidth] = screenwidth	
 			if gridmessages_fields.size > 1
 				select_fields << gridmessages_fields
@@ -569,21 +569,34 @@ module ScreenLib
 			end
 			where_str = setParams[:where_str]
 			strsorting = ""
-			# if params[:groupBy] and params[:aggregations]
-			# 	strsorting = "group by " + params[:groupBy].join(",")
-			# 	strsorting <<   params[:aggregations].each_with_index do |stragg,i|		 	####groupBy
-			# 				agg = JSON.parse(stragg)
-			# 				case  agg["value"] 
-			# 				when "YY:"
-			# 					%Q% ,to_char(#{i["pobject_code_sfd"]},'yyyy')% 
-			# 				when "MM:"
-			# 					%Q% ,to_char(#{i["pobject_code_sfd"]},'yyyy/mm') % 
-			# 				when "DD:"
-			# 					%Q% ,to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd') %
-			# 				else
-			# 					next
-			# 				end
-			# 			end
+			if params[:groupBy] and params[:groupBy].size > 0
+				if  params[:aggregations] and params[:aggregations].size > 0
+					strsorting = "order by "
+					hagg = JSON.parse(params[:aggregations])
+			 		hagg.each do |agg,val|		 	####groupBy
+			 				case  val 
+			 				when "YY:"
+			 					strsorting <<   %Q% to_char(#{agg.to_s},'yyyy') ,% 
+			 				when "MM:"
+			 					strsorting <<   %Q% to_char(#{agg.to_s},'yyyy/mm') ,% 
+			 				when "WW:"
+			 					strsorting <<   %Q% to_char(#{agg.to_s},'yyyy/ww') ,%
+			 				when "DD:"
+			 					strsorting <<   %Q% to_char(#{agg}.to_s,'yyyy/mm/dd') ,%
+			 				when "sum","min","max"
+			 					next
+			 				else
+								strsorting <<   " #{agg.to_s} ,"
+			 				end
+					end
+					if strsorting == "order by "
+						strsorting = ""
+					else
+						strsorting = strsorting.chop
+					end
+				else
+					strsorting = "order by " + params[:groupBy].join(",")
+			 	end
 			# 	if params[:sortBy]  ###: {id: "itm_name", desc: false}
 			# 		strsorting << " order by "
 			# 		params[:sortBy].each do |strSortKey|
@@ -601,7 +614,7 @@ module ScreenLib
 			# 			strsorting << %Q% #{sortKey["id"]} #{if sortKey["desc"]  == false then " asc " else "desc" end} ,%
 			# 		end	
 			# 	end
-			# else
+			else
 				if params[:sortBy] ###: {id: "itm_name", desc: false}
 					params[:sortBy].each do |strSortKey|
 						strsorting = " order by " 
@@ -611,23 +624,14 @@ module ScreenLib
 					strsorting << " id desc " if params[:groupBy].nil?
 					strsorting = strsorting.chop 
 				else ###r_screensに登録している規定値
-					strSort = grid_columns_info[:sort_info][:default]
-					if strSort.nil? or strSort == ""
-						if params[:groupBy].nil?
-							strsorting = "  order by id desc "
-						else
-							strsorting = ""
-						end
+					if grid_columns_info[:sort_info][:default] and grid_columns_info[:sort_info][:default] != ""
+						strsorting = " order by " + grid_columns_info[:sort_info][:default]
 					else
-						if params[:groupBy].nil?
-							strsorting = "  order by #{strSort} ,id desc "
-						else
-							strsorting = "  order by #{strSort} "
-						end
+						strsorting = "  order by id desc "
 					end
 					setParams[:sortBy] = []
 				end
-			# end
+			end
 			setParams[:clickIndex] = []
 			strsql = "select #{grid_columns_info[:select_fields]} 
 							from (SELECT ROW_NUMBER() OVER (#{strsorting}) ,#{grid_columns_info[:select_row_fields]}
@@ -636,11 +640,17 @@ module ScreenLib
 														and ROW_NUMBER <= #{(setParams[:pageIndex] + 1)*setParams[:pageSize] } 
 																  "
 			pagedata = ActiveRecord::Base.connection.select_all(strsql)
-			if where_str =~ /where/ or params[:screenCode] !~ /^r_/
-				strsql = "SELECT count(*) FROM #{params[:view]} #{where_str}"
+			if params[:groupBy] and params[:groupBy].size > 0
+				strsql = "select sum(cnt) from (select 1 cnt 
+								from  #{params[:view]} #{if where_str == '' then '' else where_str end }  #{grid_columns_info[:strGroupBy]}) as aa
+																	  "
 			else
-				strsql = "SELECT count(*) FROM #{params[:view].split("_")[1]} "
-			end  ###fillterがあるので、table名は抽出条件に合わず使用できない。
+				if where_str =~ /where/ or params[:screenCode] !~ /^r_/
+					strsql = "SELECT count(*) FROM #{params[:view]} #{where_str}"
+				else
+					strsql = "SELECT count(*) FROM #{params[:view].split("_")[1]} "
+				end  ###fillterがあるので、table名は抽出条件に合わず使用できない。
+			end
 			totalCount = ActiveRecord::Base.connection.select_value(strsql)
 			setParams[:pageCount] = (totalCount.to_f/setParams[:pageSize]).ceil
 			setParams[:totalCount] = totalCount.to_f
@@ -718,7 +728,7 @@ module ScreenLib
 							temp[cell[:accessor]] = Time.now.strftime("%Y/%m/%d")
 						when /pobject_objecttype_tbl/
 							temp[cell[:accessor]] = "tbl"
-						when /opeitm_processseq|opeitm_priority/	
+						when /opeitm_processseq|opeitm_priority|nditm_processseq_nditm|lotstkhist_processseq/	
 							temp[cell[:accessor]] = "999"
 						when /mkprdpurord_priority|mkprdpurord_processseq/	
 							temp[cell[:accessor]] = "0"
@@ -909,7 +919,6 @@ module ScreenLib
 				select_fields = ""
 				gridmessages_fields = ""  ### error messages
 				dropDownList = {}   ###uploadでは未使用
-				sort_info = {}
 				screenwidth = 0
 				nameToCode = {}
 				tblchop = screenCode.split("_")[1].chop
@@ -978,8 +987,8 @@ module ScreenLib
 								i["screen_rowlist"].split(",").each do |list|
 									page_info[:sizePerPageList]  <<  list.to_i
 								end
-								if i["screen_strorder"] 
-									sort_info[:default] = i["screen_strorder"]
+								if i["screen_strorder"] and i["screen_strorder"] != "" 
+									@sort_info[:default] = i["screen_strorder"]
 								end	
 				 	end
 					if   i["screenfield_hideflg"] == "0" 
@@ -994,7 +1003,7 @@ module ScreenLib
 				if gridmessages_fields.size > 1
 					select_fields << gridmessages_fields
 				end
-				upload_columns_info = [columns_info,page_info,init_where_info,select_fields.chop,fetch_check,dropDownList,sort_info,nameToCode]
+				upload_columns_info = [columns_info,page_info,init_where_info,select_fields.chop,fetch_check,dropDownList,@sort_info,nameToCode]
 			end
 			return upload_columns_info
 		end

@@ -668,9 +668,9 @@ module RorBlkCtl
 						 shelfnos = ActiveRecord::Base.connection.select_one("select s.* from shelfnos s
 																					 inner join locas l on s.locas_id_shelfno = l.id 
 																										 and l.id = #{suppliers["locas_id_supplier"]}" )
-						 gantt["shelfnos_id_trn"] =  shelfnos["id"]     
+						 gantt["shelfnos_id_trn"] =  gantt["shelfnos_id_pare"] = gantt["shelfnos_id_org"] = shelfnos["id"]     
 					 else
-						 gantt["shelfnos_id_trn"] = @tbldata["shelfnos_id"]    
+						 gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = gantt["shelfnos_id_org"] = @tbldata["shelfnos_id"]    
 					 end
 			 		gantt["prjnos_id"] = @tbldata["prjnos_id"]
 			 		gantt["chrgs_id_trn"] =  @tbldata["chrgs_id"]
@@ -679,8 +679,6 @@ module RorBlkCtl
 			 		gantt["duedate_trn"] = @tbldata["duedate"]
 			 		gantt["toduedate_trn"] = @tbldata["toduedate"]
 			 		gantt["starttime_trn"] = @tbldata["starttime"]
-					Rails.logger.debug " class:#{self}.line #{__LINE__} ,gantt:#{gantt} "
-					Rails.logger.debug " class:#{self}.line #{__LINE__} ,@tbldata:#{@tbldata} "
 				end
 			end
 			gantt["remark"] = " #{self}  line:#{__LINE__} " + (gantt["remark"]||="")
@@ -826,7 +824,7 @@ module RorBlkCtl
 						"#{key.to_s} = #{val.to_s.gsub(",","")},"
 		   			when /timestamp|date/  ##db type
 			   			case val.class.to_s  ### ruby type
-			   			when  /Time|Date/
+			   			when  /Time|Date|time/
 				   			case key
 							when "created_at"
 								next
@@ -849,7 +847,7 @@ module RorBlkCtl
 								%Q&  #{key} = to_timestamp('#{val.gsub("-","/")}','yyyy/mm/dd hh24:mi'),&
 				   			end
 			   			else
-				  			Rails.logger.debug " line #{__LINE__} : error val.class #{ftype}  key #{key} "
+				  			Rails.logger.debug " class:#{self} ,line:#{__LINE__} ,error val.class:#{ftype} ,key:#{key} "
 			   			end	
 					else
 						if tblname.downcase =~ /^sio_|^bk_/

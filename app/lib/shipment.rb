@@ -118,7 +118,7 @@ module Shipment
 				save_qty = 0
                 ActiveRecord::Base.connection.select_all(ord_strsql).each do |nd|
 					save_nd =  nd.dup
-					if nd["consumtype"] =~ /CON|MET/  ###出庫 消費と金型・設備の使用
+					if nd["consumtype"] =~ /CON|ITool|mold/  ###出庫 消費と金型・設備の使用
 						if nd["shpordauto"] != "M"   ###手動出庫は除く
 							if save_itms_id == nd["itms_id"] and save_processseq == nd["processseq"]
 								next if save_qty <= 0
@@ -133,7 +133,7 @@ module Shipment
 									shpord_create_by_shpsch(shp,save_nd,stk)   ###prd,purordsによる自動作成 
 									outcnt += 1
 									shortcnt += 1
-									if save_nd["consumtype"] =~ /MET/ and save_nd["consumauto"] == "A"   ###使用後自動返却
+									if save_nd["consumtype"] =~ /ITool|mold/ and save_nd["consumauto"] == "A"   ###使用後自動返却
 								 		###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
 										shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
 										shp["shelfnos_id_fm"] = save_nd["shelfnos_id_pare"]
@@ -174,7 +174,7 @@ module Shipment
 									save_qty = 0
 									shpord_create_by_shpsch(shp,nd,stk)   
 									outcnt += 1
-									if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
+									if nd["consumtype"] =~ /ITool|mold/ and nd["consumauto"] == "A"   ###使用後自動返却
 								 		###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
 										shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
 										shp["shelfnos_id_fm"] = nd["shelfnos_id_pare"]
@@ -188,7 +188,7 @@ module Shipment
 										save_qty -= stk["qty_stk"].to_f
 										shpord_create_by_shpsch(shp,nd,stk)  
 										outcnt += 1 
-										if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
+										if nd["consumtype"] =~ /ITool|mold/ and nd["consumauto"] == "A"   ###使用後自動返却
 											 ###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
 											shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
 											shp["shelfnos_id_fm"] = nd["shelfnos_id_pare"]
@@ -219,7 +219,7 @@ module Shipment
 													save_qty -= shuffle_stk["qty_stk"].to_f
 												end
 												shpord_create_by_shpsch(shp,nd,shuffle_stk)   ###prd,purordsによる自動作成 
-												if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
+												if nd["consumtype"] =~ /ITool|mold/ and nd["consumauto"] == "A"   ###使用後自動返却
 												 	###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
 													shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
 													shp["shelfnos_id_fm"] = nd["shelfnos_id_pare"]
@@ -236,7 +236,7 @@ module Shipment
 												save_qty = 0
 												outcnt += 1 
 												shortcnt += 1
-												if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
+												if nd["consumtype"] =~ /ITool|mold/ and nd["consumauto"] == "A"   ###使用後自動返却
 												 		###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
 														shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
 														shp["shelfnos_id_fm"] = nd["shelfnos_id_pare"]
@@ -249,7 +249,7 @@ module Shipment
 											shp["qty_shortage"] = save_qty 
 											save_qty = 0
 											shpord_create_by_shpsch(shp,nd,stk)   ###prd,purordsによる自動作成 
-											if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
+											if nd["consumtype"] =~ /ITool|mold/ and nd["consumauto"] == "A"   ###使用後自動返却
 												 ###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
 												shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
 												shp["shelfnos_id_fm"] = nd["shelfnos_id_pare"]
@@ -271,7 +271,7 @@ module Shipment
 								$
 								shortage_stk = ActiveRecord::Base.connection.select_one(shortage_sql)
 								shpord_create_by_shpsch(shp,nd,shortage_stk)   ###prd,purordsによる自動作成 
-								if nd["consumtype"] =~ /MET/ and nd["consumauto"] == "A"   ###使用後自動返却
+								if nd["consumtype"] =~ /ITool|mold/ and nd["consumauto"] == "A"   ###使用後自動返却
 									 ###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
 									shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
 									shp["shelfnos_id_fm"] = nd["shelfnos_id_pare"]
@@ -290,7 +290,7 @@ module Shipment
 					shpord_create_by_shpsch(shp,save_nd,stk)   ###prd,purordsによる自動作成 
 					outcnt += 1
 					shortcnt += 1
-					if save_nd["consumtype"] =~ /MET/ and save_nd["consumauto"] == "A"   ###使用後自動返却
+					if save_nd["consumtype"] =~ /ITool|mold/ and save_nd["consumauto"] == "A"   ###使用後自動返却
 						 ###shpschs,shpordsでは瓶毎、リール毎に出庫してないので、瓶、リールの自動返却はない。
 						shp["starttime"] = (tblrec["duedate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###親の作業後元に戻す。
 						shp["shelfnos_id_fm"] = save_nd["shelfnos_id_pare"]

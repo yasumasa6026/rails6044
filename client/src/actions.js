@@ -76,6 +76,10 @@ export const GANTTCHART_REQUEST = 'GANTTCHART_REQUEST'
 export const GANTTCHART_FAILURE = 'GANTTCHART_FAILURE'
 export const GANTTCHART_SUCCESS = 'GANTTCHART_SUCCESS'
 
+export const AREACHART_REQUEST = 'AREACHART_REQUEST'
+export const AREACHART_FAILURE = 'AREACHART_FAILURE'
+export const AREACHART_SUCCESS = 'AREACHART_SUCCESS'
+
 export const UPDATENDITM_REQUEST = 'UPDATENDITM_REQUEST'
 export const UPDATENDITM_SUCCESS = 'UPDATENDITM_SUCCESS'
 export const UPDATENDITM_FAILURE = 'UPDATENDITM_FAILURE'
@@ -351,6 +355,26 @@ export const GanttChartFailure = (params,auth) => ({
   type:  GANTTCHART_FAILURE,
   payload: { params,auth}  //
 })
+
+
+export const AreaChartRequest = (toggleAreaChart,params) => ({
+  type:  AREACHART_REQUEST,
+  payload: { toggleAreaChart,params}  //
+})
+
+export const AreaChartSuccess = (params,auth) => ({
+  type:  AREACHART_SUCCESS,
+  payload: { params,auth}  //
+})
+
+
+export const AreaChartFailure = (params,auth) => ({
+  type:  AreaTCHART_FAILURE,
+  payload: { params,auth}  //
+})
+
+
+
 
 export const UpdateNditmSuccess = (params,auth) => ({
   type:  UPDATENDITM_SUCCESS,

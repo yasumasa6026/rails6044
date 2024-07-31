@@ -38,8 +38,8 @@ nditm.chilnum  nditm_chilnum,
 nditm.id id,
   itm_nditm.itm_unit_id  itm_unit_id_nditm ,
   opeitm.opeitm_operation  opeitm_operation ,
-  person_upd.person_code  person_code_upd ,
-  person_upd.person_name  person_name_upd ,
+  person_upd.code  person_code_upd ,
+  person_upd.name  person_name_upd ,
   opeitm.opeitm_prdpur  opeitm_prdpur ,
   opeitm.opeitm_chkord_proc  opeitm_chkord_proc ,
   opeitm.opeitm_esttosch  opeitm_esttosch ,
@@ -78,7 +78,7 @@ nditm.price  nditm_price,
   opeitm.opeitm_prdpurordauto  opeitm_prdpurordauto ,
   opeitm.opeitm_itmtype  opeitm_itmtype 
  from nditms   nditm,
-  r_opeitms  opeitm ,  r_persons  person_upd ,  r_itms  itm_nditm 
+  r_opeitms  opeitm ,  persons  person_upd ,  r_itms  itm_nditm 
   where       nditm.opeitms_id = opeitm.id      and nditm.persons_id_upd = person_upd.id      and nditm.itms_id_nditm = itm_nditm.id     ;
  DROP TABLE IF EXISTS sio.sio_gantt_nditms;
  CREATE TABLE sio.sio_gantt_nditms (

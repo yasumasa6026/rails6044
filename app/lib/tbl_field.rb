@@ -438,7 +438,7 @@ class TblClass
 			end
 			last_screenfields.each do |del_field,screenfield|   ###delete
 				next if del_field == "id"
-				next if del_field == "#{tbl.chop}_id"
+				###next if del_field == "#{tbl.chop}_id"
 				pobjects_id_sfd = chk_pobject_sfd_and_add del_field 
 				add_screenfield_record screens_id,pobjects_id_sfd,screenfield,"delete",true
 				if del_field =~ /_id/
@@ -818,6 +818,8 @@ class TblClass
 										end
 									end
 								end
+							else
+								createviewscript << "\n#{tblchop}.#{sfd.split("_",2)[1]}  #{sfd},"
 							end
 						end	
 			else	

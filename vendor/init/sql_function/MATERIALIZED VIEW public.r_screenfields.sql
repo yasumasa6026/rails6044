@@ -55,8 +55,8 @@ CREATE MATERIALIZED VIEW public.r_screenfields AS
     tblfield.fieldcode_contents,
     screenfield.formatter AS screenfield_formatter,
     tblfield.fieldcode_dataprecision,
-    person_upd.person_code AS person_code_upd,
-    person_upd.person_name AS person_name_upd,
+    person_upd.code AS person_code_upd,
+    person_upd.name AS person_name_upd,
     screen.scrlv_level1,
     screen.scrlv_code,
     screenfield.contents AS screenfield_contents,
@@ -64,7 +64,7 @@ CREATE MATERIALIZED VIEW public.r_screenfields AS
     tblfield.tblfield_contents,
     screen.screen_strorder
    FROM public.screenfields screenfield,
-    public.r_persons person_upd,
+    public.persons person_upd,
     public.r_screens screen,
     public.r_pobjects pobject_sfd,
     public.r_tblfields tblfield

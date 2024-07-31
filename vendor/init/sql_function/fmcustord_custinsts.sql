@@ -40,8 +40,8 @@ custord.sno  custinst_sno_custord,
 custord.id  custord_id,
   cust.cust_loca_id_cust  cust_loca_id_cust ,
   prjno.prjno_name  prjno_name ,
-  person_upd.person_code  person_code_upd ,
-  person_upd.person_name  person_name_upd ,
+  person_upd.code  person_code_upd ,
+  person_upd.name  person_name_upd ,
 custord.cno  custinst_cno,
   prjno.prjno_code  prjno_code ,
 custord.prjnos_id   custinst_prjno_id,
@@ -88,7 +88,7 @@ custord.crrs_id   custinst_crr_id,
   opeitm.opeitm_itmtype  opeitm_itmtype ,
   '' custinst_packingListNo
  from custords   custord,public.func_get_custord_lotno_packno(custord.id) lotpackno,
-  r_persons  person_upd ,  r_custs  cust ,  r_prjnos  prjno ,  r_chrgs  chrg ,  r_custrcvplcs  custrcvplc ,
+  persons  person_upd ,  r_custs  cust ,  r_prjnos  prjno ,  r_chrgs  chrg ,  r_custrcvplcs  custrcvplc ,
   r_opeitms  opeitm ,  r_shelfnos  shelfno_fm ,  r_crrs  crr 
   where       custord.persons_id_upd = person_upd.id      and custord.custs_id = cust.id      
   	and custord.prjnos_id = prjno.id      and custord.chrgs_id = chrg.id      

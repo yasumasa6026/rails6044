@@ -5,8 +5,8 @@
   chrg.person_code_chrg  person_code_chrg ,
 payord.id id,
   chrg.person_sect_id_chrg  person_sect_id_chrg ,
-  person_upd.person_code  person_code_upd ,
-  person_upd.person_name  person_name_upd ,
+  person_upd.code  person_code_upd ,
+  person_upd.name  person_name_upd ,
   chrg.chrg_person_id_chrg  chrg_person_id_chrg ,
   payment.loca_code_payment  loca_code_payment ,
   payment.loca_name_payment  loca_name_payment ,
@@ -44,7 +44,7 @@ payord.denomination  payord_denomination,
 payord.billingdate  payord_billingdate,
 payord.accounttitle  payord_accounttitle
  from payords   payord,
-  r_persons  person_upd ,  r_chrgs  chrg ,  r_suppliers  supplier ,  r_payments  payment ,  r_crrs  crr 
+  persons  person_upd ,  r_chrgs  chrg ,  r_suppliers  supplier ,  r_payments  payment ,  r_crrs  crr 
   where       payord.persons_id_upd = person_upd.id      and payord.chrgs_id = chrg.id      and payord.suppliers_id = supplier.id      and payord.payments_id = payment.id      and payord.crrs_id = crr.id     ;
  DROP TABLE IF EXISTS sio.sio_bal_payords;
  CREATE TABLE sio.sio_bal_payords (

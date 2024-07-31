@@ -5,8 +5,10 @@ import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
   SECOND_SUCCESS7,SECOND_CONFIRM7_SUCCESS,
   MKSHPORDS_SUCCESS,SCREEN_DATASET,CHANGE_SHOW_SCREEN,
   TBLFIELD_REQUEST,TBLFIELD_SUCCESS,
-  GANTTCHART_REQUEST,GANTTCHART_SUCCESS, UPLOADEXCEL_INIT,
-  DROPDOWNVALUE_SET,SCREEN_SUBFORM,LOGIN_SUCCESS,LOGOUT_SUCCESS} 
+  GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
+  AREACHART_REQUEST,
+  UPLOADEXCEL_INIT, DROPDOWNVALUE_SET,
+  SCREEN_SUBFORM,LOGIN_SUCCESS,LOGOUT_SUCCESS} 
   from '../../actions'
 
 export let getScreenState = state => state.screen
@@ -24,6 +26,7 @@ case SCREENINIT_REQUEST:
           params:actions.payload.params,
           loading:true,
           toggleSubForm:false,
+          toggleAreaChart:false,
           data: [],
           status: {},
           message:null,
@@ -35,6 +38,12 @@ case SCREENINIT_REQUEST:
 case SCREEN_SUBFORM:
 return {...state,
   toggleSubForm:actions.payload.toggleSubForm,
+  params:actions.payload.params,
+}
+
+case AREACHART_REQUEST:
+return {...state,
+  toggleAreaChart:actions.payload.toggleAreaChart,
   params:actions.payload.params,
 }
 
@@ -222,6 +231,7 @@ case TBLFIELD_SUCCESS:
       toggleSubForm:true,
       disabled:false,
       message:null,
+      params:{},
   }
 
   case  LOGOUT_REQUEST:

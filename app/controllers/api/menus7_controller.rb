@@ -36,8 +36,8 @@ module Api
                 screenList = Rails.cache.fetch('screenList'+params["email"]) do
                     strsql = "select pobject_code_scr_ub screen_code,button_code,button_contents,button_title
                         from r_usebuttons u
-                        inner join r_persons p on u.screen_scrlv_id_ub = p.person_scrlv_id
-                                   and p.person_email = '#{params["email"]}' 
+                        inner join persons p on u.screen_scrlv_id_ub = p.scrlvs_id
+                                   and p.email = '#{params["email"]}' 
                         where usebutton_expiredate > current_date
                         order by pobject_code_scr_ub,button_seqno"
                     screenList = ActiveRecord::Base.connection.select_all(strsql)

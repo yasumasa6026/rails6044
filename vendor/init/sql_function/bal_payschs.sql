@@ -5,8 +5,8 @@
   chrg.person_code_chrg  person_code_chrg ,
 paysch.id id,
   chrg.person_sect_id_chrg  person_sect_id_chrg ,
-  person_upd.person_code  person_code_upd ,
-  person_upd.person_name  person_name_upd ,
+  person_upd.code  person_code_upd ,
+  person_upd.name  person_name_upd ,
 paysch.id  paysch_id,
 paysch.remark  paysch_remark,
 paysch.expiredate  paysch_expiredate,
@@ -39,7 +39,7 @@ paysch.taxrate  paysch_taxrate,
 paysch.accounttitle  paysch_accounttitle,
 paysch.crrs_id   paysch_crr_id
  from payschs   paysch,
-  r_persons  person_upd ,  r_payments  payment ,  r_chrgs  chrg ,  r_crrs  crr 
+  persons  person_upd ,  r_payments  payment ,  r_chrgs  chrg ,  r_crrs  crr 
   where       paysch.persons_id_upd = person_upd.id      and paysch.payments_id = payment.id      and paysch.chrgs_id = chrg.id      and paysch.crrs_id = crr.id     ;
  DROP TABLE IF EXISTS sio.sio_bal_payschs;
  CREATE TABLE sio.sio_bal_payschs (
