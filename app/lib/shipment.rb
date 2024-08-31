@@ -433,7 +433,7 @@ module Shipment
 		end
 		screenCode = params[:screenCode]
 		tblnamechop = screenCode.split("_",2)[1].chop
-		pareTblName = params[:pareTblName] ###第一画面のテーブル名
+		pareTblName = params["gantt"]["paretblname"] ###第一画面のテーブル名
 		nextTblName = case screenCode
 					when /shpords/
 						"shpinsts" 
@@ -500,21 +500,24 @@ module Shipment
 		###
 		parent = setParams["parent"]  ###親
 		child = setParams["child"]  #
-		case yield
-		when "shpsch" 
-			tblnamechop = "shpsch"
-		when "shpord" 
-			tblnamechop = "shpsch"  ###新規に作成し入出庫対象の減 child=shp
-		when "shpinst" 
-			tblnamechop = "shpord"  ###新規に作成し出庫対象の減 child=shp
-		when "shpact"
-			tblnamechop = "shpact" ###新規に作成し入り対象の減 child=shp
-		end
+		tblnamechop = yield
+		# case yield
+		# when "shpest" 
+		# 	tblnamechop = "shpsch"
+		# when "shpsch" 
+		# 	tblnamechop = "shpsch"
+		# when "shpord" 
+		# 	tblnamechop = "shpsch"  ###新規に作成し入出庫対象の減 child=shp
+		# when "shpinst" 
+		# 	tblnamechop = "shpord"  ###新規に作成し出庫対象の減 child=shp
+		# when "shpact"
+		# 	tblnamechop = "shpact" ###新規に作成し入り対象の減 child=shp
+		# end
 		blk = RorBlkCtl::BlkClass.new("r_#{tblnamechop}s")
 		command_c = blk.command_init
 		stkinout = {}
-		if child["shelfnos_id_to"] != parent["shelfnos_id"] or yield != "shpsch" ###子部品の保管場所!=shelfnos_id_fm親の作業場所
-				command_c["sio_classname"] = "shpschs_add_"
+		if child["shelfnos_id_to"] != parent["shelfnos_id"]  ###子部品の保管場所!=shelfnos_id_fm親の作業場所
+				command_c["sio_classname"] = "shpxxxx_add_"
 				command_c["#{tblnamechop}_id"] = "" 
 				command_c["#{tblnamechop}_isudate"] = Time.now
 				### child["shelfnos_id_to"]:購入,製造後の保管場所
@@ -526,17 +529,53 @@ module Shipment
 				command_c["#{tblnamechop}_packno"] = ""  
 				command_c["#{tblnamechop}_lotno"] = ""
 				command_c["#{tblnamechop}_person_id_upd"] = params["person_id_upd"]
+				command_c["#{tblnamechop}_paretblname"] = parent["tblname"] 
+				command_c["#{tblnamechop}_paretblid"] = parent["tblid"]
+				command_c["#{tblnamechop}_prjno_id"] = parent["prjnos_id"]
+				command_c["#{tblnamechop}_chrg_id"] = parent["chrgs_id"]
 				case yield
+				when /shpest/  ### mold 
+					case child["consumtype"]
+					when "mold","ITool"
+						command_c["#{tblnamechop}_shelfno_id_fm"] = child["shelfnos_id_to"] ###自身の保管先から出庫
+						command_c["#{tblnamechop}_qty_est"] =  1
+						###親の作業場所へ納品
+						if parent["tblname"] =~ /^pur/
+							strsql = %Q&
+									select shelf.id from shelfnos shelf
+												inner join suppliers supp on shelf.locas_id_shelfno = locas_id_supplier
+															and supp.id = #{parent["suppliers_id"]} 	
+												where shelf.code = '000'
+							&
+							command_c["#{tblnamechop}_shelfno_id_to"] = ActiveRecord::Base.connection.select_value(strsql)
+						else
+							command_c["#{tblnamechop}_shelfno_id_to"] = parent["shelfnos_id"] 
+						end
+						command_c["#{tblnamechop}_duedate"] = parent["duedate"] 
+						command_c["#{tblnamechop}_depdate"] = (parent["starttime"].to_time - 1*24*3600).strftime("%Y-%m-%d %H:%M:%S")
+					else
+						Rails.logger.debug"logic error not support  consumtype:#{child["consumtype"]} "
+						Rails.logger.debug"error class #{self} , line:#{__LINE__} "
+						raise
+					end
 				when /shpsch/
 					command_c["#{tblnamechop}_shelfno_id_fm"] = child["shelfnos_id_to"] ###自身の保管先から出庫
 					command_c["#{tblnamechop}_gno"] = parent["sno"] 
-					command_c["#{tblnamechop}_paretblname"] = parent["tblname"] 
-					command_c["#{tblnamechop}_paretblid"] = parent["tblid"]
-					command_c["#{tblnamechop}_prjno_id"] = parent["prjnos_id"]
-					command_c["#{tblnamechop}_chrg_id"] = parent["chrgs_id"]
-					qty_sch = CtlFields.proc_cal_qty_sch(parent["qty"].to_f,
+					case child["consumtype"]
+					when "CON"
+						qty_sch = CtlFields.proc_cal_qty_sch(parent["qty"].to_f,
 														child["chilnum"].to_f,child["parenum"].to_f,child["consumunitqty"].to_f,
 														child["consumminqty"].to_f,child["consumchgoverqty"].to_f)
+						command_c["#{tblnamechop}_duedate"] = command_c["#{tblnamechop}_depdate"] = (parent["starttime"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")   ###稼働日考慮
+					when "mold","ITool"
+						qty_sch = 1
+						command_c["#{tblnamechop}_duedate"] = parent["duedate"]
+						command_c["#{tblnamechop}_depdate"] = (parent["starttime"].to_time - 1*24*3600).strftime("%Y-%m-%d %H:%M:%S")
+					else
+						Rails.logger.debug"logic error not support  consumtype:#{child["consumtype"]} "
+						Rails.logger.debug"error class #{self} , line:#{__LINE__} "
+						raise
+					end
 					command_c["#{tblnamechop}_qty_sch"] = stkinout["qty_sch"] = qty_sch
 					stkinout["qty"] = stkinout["qty_stk"] = stkinout["qty_real"] = 0
 					###親の作業場所へ納品
@@ -551,18 +590,12 @@ module Shipment
 					else
 						command_c["#{tblnamechop}_shelfno_id_to"] = parent["shelfnos_id"] 
 					end
-					command_c["#{tblnamechop}_duedate"] = (parent["starttime"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")   ###稼働日考慮
-					command_c["#{tblnamechop}_depdate"] = (parent["starttime"].to_time - 2*24*3600).strftime("%Y-%m-%d %H:%M:%S")
 					stkinout["tblname"] = "shpschs"
-				when /shpord/
+				when /shpord/   ###	未使用
 					command_c["#{tblnamechop}_shelfno_id_fm"] = child["shelfnos_id_fm"] ###自身の保管先から出庫
 					command_c["#{tblnamechop}_qty_sch"] = stkinout["qty_sch"] =  child["qty_sch"].to_f * -1
 					stkinout["qty"] = stkinout["qty_stk"] = stkinout["qty_real"] = 0
-					command_c["#{tblnamechop}_gno"] = child["gno"] 
-					command_c["#{tblnamechop}_paretblname"] = child["paretblname"] 
-					command_c["#{tblnamechop}_paretblid"] = child["paretblid"]
-					command_c["#{tblnamechop}_prjno_id"] = child["prjnos_id"]
-					command_c["#{tblnamechop}_chrg_id"] = child["chrgs_id"]
+					command_c["#{tblnamechop}_gno"] = child["gno"]
 					command_c["#{tblnamechop}_shelfno_id_to"] = child["shelfnos_id_to"]  
 					command_c["#{tblnamechop}_duedate"] = child["duedate"]
 					command_c["#{tblnamechop}_depdate"] = child["depdate"]
@@ -572,14 +605,23 @@ module Shipment
 					command_c["#{tblnamechop}_qty"] = stkinout["qty"] = child["qty"].to_f * -1
 					stkinout["qty_sch"] = stkinout["qty_stk"] = stkinout["qty_real"] = 0
 					command_c["#{tblnamechop}_gno"] = child["gno"] 
-					command_c["#{tblnamechop}_paretblname"] = child["paretblname"] 
-					command_c["#{tblnamechop}_paretblid"] = child["paretblid"]
-					command_c["#{tblnamechop}_prjno_id"] = child["prjnos_id"]
-					command_c["#{tblnamechop}_chrg_id"] = child["chrgs_id"]
 					command_c["#{tblnamechop}_shelfno_id_to"] = child["shelfnos_id_to"]  
 					command_c["#{tblnamechop}_duedate"] = child["duedate"]
 					command_c["#{tblnamechop}_depdate"] = child["depdate"]
 					stkinout["tblname"] = "shpords"
+					case child["consumtype"]
+					when "CON"
+						command_c["#{tblnamechop}_depdate"] = (parent["starttime"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")   ###稼働日考慮
+						command_c["#{tblnamechop}_duedate"] = parent["starttime"].to_time
+					when "mold","ITool"
+						qty_sch = 1
+						command_c["#{tblnamechop}_duedate"] = parent["duedate"]
+						command_c["#{tblnamechop}_depdate"] = (parent["starttime"].to_time - 1*24*3600).strftime("%Y-%m-%d %H:%M:%S")
+					else
+						Rails.logger.debug"logic error not support  consumtype:#{child["consumtype"]} "
+						Rails.logger.debug"error class #{self} , line:#{__LINE__} "
+						raise
+					end
 				end
 	
 				
@@ -587,7 +629,15 @@ module Shipment
 				command_c["#{tblnamechop}_created_at"] = Time.now
 				blk.proc_create_tbldata(command_c) ##
 				blk.proc_private_aud_rec(setParams,command_c)
-				
+				###
+				#  mold,ITollのshpxxxxのlinktbls
+				###
+				return if yield == "shpest"
+				update_mold_IToll_shp_link(blk.tbldata,"add") do
+						yield
+				end
+				###
+				###
 				stkinout["srctblname"] = "lotstkhists"
 				stkinout["tblid"] = command_c["id"]
 				stkinout["trngantts_id"] = params["parent"]["trngantts_id"]  ###親 purords,prdordsのtrngantts_id
@@ -706,7 +756,7 @@ module Shipment
 		shp.each do |k,val|
 			tblchop,field = k.to_s.split("_",2)
 			rec[field.sub("_id","s_id")] = val if tblchop == prevshpchop
-			next if field =~ /^qty|^sno|^id$|^isudate|^duedate|^depdate|masterprice/
+			next if field =~ /^qty|^sno|^id$|^isudate|masterprice/
 			if tblchop == prevshpchop
 				command_c["#{nextshpchop}_#{field}"] = val
 			end
@@ -742,6 +792,15 @@ module Shipment
 		command_c["#{nextshpchop}_created_at"] = Time.now
 		blk.proc_create_tbldata(command_c) ##
 		blk.proc_private_aud_rec({},command_c)
+
+		
+		###
+		#  mold,ITollのshpxxxxのlinktbls
+		###
+		update_mold_IToll_shp_link(blk.tbldata,"add") do
+			nextshpchop
+		end
+		###
 		
 		stkinout = {}
 		stkinout["tblname"] = nextshp
@@ -821,15 +880,6 @@ module Shipment
 			# end
 		end
 		
-		# blk = RorBlkCtl::BlkClass.new("r_#{prevshpchop}s")
-		# command_c = blk.command_init
-		# command_c["sio_classname"] = "#{prevshpchop}_update_"
-		# shp.each do |k,v|
-		# 	command_c[k] = shp[k]
-		# end
-		# command_c["#{prevshpchop}_expiredate"] = Time.now
-		# blk.proc_create_tbldata(command_c) ##
-		# blk.proc_private_aud_rec({},command_c)
 	end
 
 	def proc_create_consume(params) ##
@@ -849,7 +899,7 @@ module Shipment
 		command_c["sio_classname"] = "#{yield}_add_"
 		command_c["#{tblnamechop}_id"] = "" 
 		command_c["#{tblnamechop}_itm_id"] = child["itms_id"]
-		command_c["#{tblnamechop}_processseq"] = (child["processseq"]||="000")
+		command_c["#{tblnamechop}_processseq"] = child["processseq"]
 		command_c["#{tblnamechop}_consumauto"] = (child["consumauto"]||="")
 		command_c["#{tblnamechop}_isudate"] = Time.now 
 		command_c["#{tblnamechop}_packno"] =  ""  
@@ -1003,8 +1053,8 @@ module Shipment
 				str_con_qty = "qty_stk"
 				prev_contbl ="conacts" 
 			else
-				Rails.logger.debug"logic error nots upport  table:#{link["srctblname"]} "
-				Rails.logger.debug"error class #{self} : #{Time.now}: line:#{__LINE__} "
+				Rails.logger.debug"logic error not support  table:#{link["srctblname"]} "
+				Rails.logger.debug"error class:#{self} , line:#{__LINE__} "
 				raise
 			end
 			strsql = %Q&
@@ -1032,63 +1082,6 @@ module Shipment
 			stkinout["remark"] =  "  #{self} line:#{__LINE__}"
 			shp_inoutlotstk("in",stkinout)
 		end
-		# if  tblnamechop == "consch"
-		# 	stkinout["trngantts_id"] = params["gantt"]["trngantts_id"] 
-		# 	if  parent["tblname"] =~ /^pur/
-		# 	 	supplierwh_stkinout["trngantts_id"] = params["gantt"]["trngantts_id"] 
-		# 	 	proc_insert_inoutlotstk_sql(-1,supplierwh_stkinout)
-		# 	else
-		# 	 	proc_insert_inoutlotstk_sql(-1,stkinout)
-		# 	end
-		# else
-		# if  tblnamechop != "consch" 
-		#  	prev_stkinout = stkinout.dup
-		#  	prev_stkinout["qty_sch"] = prev_stkinout["qty"] = prev_stkinout["qty_stk"] = prev_stkinout["qty_real"] = 0   
-		#  	ActiveRecord::Base.connection.select_all(ArelCtl.proc_PrevConSql(parent,child,prev_contblname)).each do |conlink|
-		#  		prev_stkinout["trngantts_id"] = stkinout["trngantts_id"] = conlink["trngantts_id"]
-		#  		stkinout[str_con_qty] = CtlFields.proc_cal_qty_sch(  conlink["qty_src"].to_f,
-		#  										child["chilnum"],child["parenum"],child["consumunitqty"],
-		#  										child["consumminqty"],child["consumchgoverqty"])
-		# 		# proc_insert_inoutlotstk_sql(-1,stkinout)  ###今回の消費の明細
-		# 		###  前の状態のリセット
-		 		###next if conlink["prev_paretblname"] == conlink["paretblname"] and conlink["prev_paretblid"] == conlink["paretblid"]  
-		 		# prev_stkinout[prev_str_con_qty] = stkinout[str_con_qty] 
-				# strduedate = case  conlink["prev_paretblname"]
-				# 				when /schs$|ords$|insts$/
-				# 				 	"duedate"
-				# 				when /reply/
-				# 				 	"replydate"
-				# 				when /puracts/
-				# 					"rcptdate"
-				# 				when /prdacts/
-				# 					"cmpldate"
-				# 				end			
-		 		# strsql = %Q&
-		 		# 		select #{strduedate} from #{conlink["prev_paretblname"]} where id = #{conlink["prev_paretblid"]}
-		 		# &
-		 		# prev_stkinout["starttime"] = ActiveRecord::Base.connection.select_value(strsql).to_time
-		 		# if  parent["tblname"] =~ /^pur/  ###業者倉庫も
-		 		# 	# prev_stkinout["wh"] = "supplierwhs"
-		 		# 	# strsql = %Q&
-		 		# 	# 		select s.id from suppliers s  
-		 		# 	# 				inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
-		 		# 	# 				 where s2.id = #{child["shelfnos_id_fm"]} and s.expiredate > current_date
-		 		# 	# &
-		 		# 	# prev_stkinout["suppliers_id"] = ActiveRecord::Base.connection.select_value(strsql)
-		 		# 	proc_mk_supplierwhs_rec("in",prev_stkinout)   ###マイナス在庫の入り
-		 		# else
-		 		# 	prev_stkinout["wh"] = "lotstkhists"
-	 			# 	proc_lotstkhists_in_out("in",prev_stkinout)
-		 		# end
-		# 		# strsql = %Q&
-		# 		# 		select id from #{prev_contblname} where paretblname = '#{conlink["prev_paretblname"]}'
-		# 		# 											and paretblid = #{conlink["prev_paretblid"]}
-		# 		# 											and itms_id = #{child["itms_id"]} and processseq = #{child["processseq"]}
-		# 		# &
-		# 		# prev_stkinout["tblid"] = ActiveRecord::Base.connection.select_value(strsql)
-		# 		# prev_stkinout["tblname"] = prev_contblname
-		# 		# proc_check_inoutlotstk("in",prev_stkinout)  ###以前の状態の時の消費
-		# 	end
 	end	
 	
 	###shpschs用
@@ -1141,6 +1134,13 @@ module Shipment
 			command_c["#{tblnamechop}_created_at"] = Time.now
 			blk.proc_create_tbldata(command_c) ##
 			setParams = blk.proc_private_aud_rec(setParams,command_c)
+			###
+			#  mold,ITollのshpxxxxのlinktbls
+			###
+			update_mold_IToll_shp_link(blk.tbldata,"update") do
+				tblnamechop
+			end
+			###
 
 			stkinout["tblname"] = yield
 			stkinout["tblid"] = command_c["id"]
@@ -1633,7 +1633,7 @@ module Shipment
 		command_c["shpord_shelfno_id_to"] = shp["shelfnos_id_to"] ##
 		command_c["shpord_shelfno_id_fm"] = shp["shelfnos_id_fm"]  ###
 		command_c["shpord_duedate"] = shp["pare_starttime"].to_time - 24*3600
-		command_c["shpord_depdate"] = shp["pare_starttime"].to_time - 2*24*3600
+		command_c["shpord_depdate"] = shp["pare_starttime"].to_time - 1*24*3600
 		command_c["shpord_transport_id"] = shp["transports_id"]
 		command_c["shpord_paretblname"] = shp["paretblname"] 
 		command_c["shpord_paretblid"] = shp["paretblid"]
@@ -1671,6 +1671,13 @@ module Shipment
 		command_c["shpord_created_at"] = Time.now
 		blk.proc_create_tbldata(command_c) ##
 		blk.proc_private_aud_rec({},command_c)
+		###
+		#  mold,ITollのshpxxxxのlinktbls
+		###
+		update_mold_IToll_shp_link(blk.tbldata,"add") do
+			"shpord"
+		end
+		###
 		
 		stkinout = {}
 		stkinout["tblname"] = "shpords"
@@ -1720,4 +1727,107 @@ module Shipment
 		end
 		stkinout = shp_inoutlotstk("in",stkinout)
 	end	
-end    
+
+	def update_mold_IToll_shp_link(shp,aud)
+		case yield
+		when "shpest"
+			if aud == "add"
+				return
+			else
+			end
+		when "shpsch"
+			prevshp = "shpests"
+			currshp = "shpschs"
+		when "shpord"
+			prevshp = "shpschs"
+			currshp = "shpords"
+		when "shpinst"
+			prevshp = "shpords"
+			currshp = "shpinsts"
+		when "shpact"
+			prevshp = "shpinsts"
+			currshp = "shpacts"
+		else
+			return
+		end
+
+		case  yield 
+		when /shpsch|shpord/
+			strsql = %Q&
+					select l.* from #{currshp} s  
+								inner join (select i.id itms_id ,c.code from itms i
+													inner classlists c on c.id = i.classlists_id ) ic
+								on s.itms_id = ic.itms_id
+								inner join linktbls l on l.tblid = s.paretblid and l.tblname = s.paretblname
+								where ic.code in('mold','IToll') and s.id = #{shp["id"]} 
+								and (l.srctblname != l.tblname or l.srctblid != l.tblid) 
+			&
+			ActiveRecord::Base.connection.select_all(strsql).each do |link|
+				strsql = %Q&
+					select shplink.* from linktbls shplink
+							inner join #{prevshp} prevshp
+							on shplink.tblname = '#{prevshp}' and shplink.tblid = prevshp.id 
+							where	  prevshp.paretblname = '#{link["srctblname"]}'  and prevshp.paretblid = #{link["srctblid"]}) shp
+					&
+				ActiveRecord::Base.connection.select_all(strsql).each do |shplink|
+					link_update_sql = %Q&
+							update linktbls set qty_src = 0 ,remark = '#{self} #{__LINE__} #{Time.now}'||remark 
+								where    id = #{shplink["id"]}
+					& 
+					ActiveRecord::Base.connection.update(link_update_sql)
+					alloc_update_sql = %Q&
+							update alloctbls set qty_linkto_alloctbl = 0 ,remark = '#{self} #{__LINE__} #{Time.now}'||remark
+								where srctblname = '#{shplink["srctblname"]}' and srctblid = #{shplink["srctblid"]} 
+								and trngantts_id = #{shplink["trngantts_id"]}
+						& 
+					ActiveRecord::Base.connection.update(alloc_update_sql)
+
+					src = {"tblname" => prevshp,"tblid" => shplink["tblid"],"trngantts_id" => shplink["trngantts_id"]}
+					base = {"tblname" =>currshp,"tblid" => shp["id"],"qty_src" => 1,"amt_src" => 0,
+						"remark" => "#{self} line #{__LINE__}", 
+						"persons_id_upd" => setParams["person_id_upd"]}
+					alloc = {"srctblname" => currshp,"srctblid" => shp["id"],"trngantts_id" => shplink["trngantts_id"],
+						"qty_linkto_alloctbl" => 1,
+						"remark" => "#{self} line #{__LINE__} #{Time.now}","persons_id_upd" => shp["persons_id_upd"],
+						"allocfree" => 	"alloc"}
+					linktbl_id = proc_insert_linktbls(src,base)
+					alloctbl_id = proc_insert_alloctbls(alloc)
+				end
+			end 
+		when /shpinst|shpact/  ###paretblname,paretblidはshpordsから引き継ぐ
+			strsql = %Q&
+					select l.* from #{prevshp} s  
+								inner join (select i.id itms_id ,c.code from itms i
+													inner classlists c on c.id = i.classlists_id ) ic
+								on s.itms_id = ic.itms_id
+								inner join linktbls l on l.tblid = s.id and l.tblname = '#{prevshp}'  ---linktbks shpxxx
+								where ic.code in('mold','IToll') and s.paretblid = #{shp["paretblid"]}
+								and (l.srctblname != l.tblname or l.srctblid != l.tblid) 
+			&
+			ActiveRecord::Base.connection.select_all(strsql).each do |shplink|
+				link_update_sql = %Q&
+						update linktbls set qty_src = 0 ,remark = '#{self} #{__LINE__} #{Time.now}'||remark 
+							where    id = #{shplink["id"]}
+				& 
+				ActiveRecord::Base.connection.update(link_update_sql)
+				alloc_update_sql = %Q&
+						update alloctbls set qty_linkto_alloctbl = 0 ,remark = '#{self} #{__LINE__} #{Time.now}'||remark
+							where srctblname = '#{shplink["tblname"]}' and srctblid = #{shplink["tblid"]} 
+							and trngantts_id = #{shplink["trngantts_id"]}
+					& 
+				ActiveRecord::Base.connection.update(alloc_update_sql)
+
+				src = {"tblname" => prevshp,"tblid" => shplink["tblid"],"trngantts_id" => shplink["trngantts_id"]}
+				base = {"tblname" =>currshp,"tblid" => shp["id"],"qty_src" => 1,"amt_src" => 0,
+					"remark" => "#{self} line #{__LINE__}", 
+					"persons_id_upd" => setParams["person_id_upd"]}
+				alloc = {"srctblname" => currshp,"srctblid" => shp["id"],"trngantts_id" => shplink["trngantts_id"],
+					"qty_linkto_alloctbl" => 1,
+					"remark" => "#{self} line #{__LINE__} #{Time.now}","persons_id_upd" => shp["persons_id_upd"],
+					"allocfree" => 	"alloc"}
+				linktbl_id = proc_insert_linktbls(src,base)
+				alloctbl_id = proc_insert_alloctbls(alloc)
+			end
+		end
+	end 
+end

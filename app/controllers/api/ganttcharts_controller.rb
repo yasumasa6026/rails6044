@@ -57,10 +57,10 @@ module Api
                                                 ""
                                             end
                                 tasks << {"id"=>ganttdata[:id],
-                                     "name"=>"#{ganttdata[:tblname]}:#{ganttdata[:sno]}" + 
+                                     "name"=>"#{ganttdata[:sno]}" + 
                                                     ",#{ganttdata[:itm_code]}:#{ganttdata[:itm_name]},#{ganttdata[:processseq]},#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]}," +
                                                     str_qty +
-                                                    " ,#{ganttdata[:paretblname]}:#{ganttdata[:paretblid]}",
+                                                    " ,",
                                      "type"=>ganttdata[:type],
                                      "start"=>ganttdata[:start],"end"=>ganttdata[:duedate],
                                       "progress"=>case ganttdata[:tblname]
@@ -77,7 +77,16 @@ module Api
                                                 else
                                                     0
                                                 end,
-                                       "styles"=>if ganttdata[:delay] then {"backgroundColor"=>"#FF0000"} else {"backgroundColor"=>"#9C6E41"} end,
+                                       "styles"=>if ganttdata[:delay] then {"backgroundColor"=>"#FF0000"} else 
+                                                                                                            case ganttdata[:tblname]
+                                                                                                            when /^dvs/
+                                                                                                                {"backgroundColor"=>"#03CC03"}
+                                                                                                            when /^shp/
+                                                                                                                {"backgroundColor"=>"#AAAA06"}
+                                                                                                            else
+                                                                                                                {"backgroundColor"=>"#9C6E41"} 
+                                                                                                            end 
+                                                    end,
                                       "dependencies"=>ganttdata[:depend]
                                     }
                             end
@@ -96,10 +105,10 @@ module Api
                                                 ""
                                             end
                                 tasks << {"id"=>ganttdata[:id],
-                                "name"=>"#{ganttdata[:tblname]}:#{ganttdata[:sno]}" + 
+                                "name"=>"#{ganttdata[:sno]}" + 
                                             "#{ganttdata[:itm_code]}:#{ganttdata[:itm_name]},#{ganttdata[:processseq]},#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]}," +
                                             str_qty + 
-                                            " ,#{ganttdata[:paretblname]}:#{ganttdata[:paretblid]}",
+                                            " ,",
                                      "type"=>ganttdata[:type],
                                      "start"=>ganttdata[:start],"end"=>ganttdata[:duedate],
                                       "progress"=>case ganttdata[:tblname]

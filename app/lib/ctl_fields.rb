@@ -682,7 +682,7 @@ module CtlFields
 	 	return line_data,nil   ###err= nil
 	end	
 	
-	def proc_judge_consumtype line_data,item,index,screenCode
+	def proc_judge_check_consumtype line_data,item,index,screenCode
 		classlist = ""
 		case screenCode
 		when /nditms/
@@ -790,21 +790,23 @@ module CtlFields
 
 	def proc_judge_check_duedate line_data,item,index,screenCode  ###
 		tblnamechop = screenCode.split("_")[1].chop
-		duedate = line_data[(tblnamechop+"_duedate").to_sym]
-		nd = {"duration" => line_data["opeitm_duration".to_sym],"units_lttime" => line_data["opeitm_units_lttime"] }
-		case tblnamechop
-		when /prdord/
-			starttime,duedate= proc_field_starttime duedate,nd,"gantt",line_data[(tblnamechop+"_qty").to_sym].to_f
-			line_data[(tblnamechop+"_starttime").to_sym] = line_data[(tblnamechop+"_commencementdate").to_sym] = starttime
-		when /purord/
-			starttime,duedate= proc_field_starttime duedate,nd,"gantt","gantt",line_data[(tblnamechop+"_qty").to_sym].to_f
-			line_data[(tblnamechop+"_starttime").to_sym] = starttime
-		when /pursch|prdsch/
-			starttime,duedate= proc_field_starttime duedate,nd,"gantt","gantt",line_data[(tblnamechop+"_qty_sch").to_sym].to_f
-			line_data[(tblnamechop+"_starttime").to_sym] = starttime
-		end
+		parent = {"starttime"  => line_data[(tblnamechop+"_duedate").to_sym]}
+		nd = {"duration" => line_data["opeitm_duration".to_sym],"units_lttime" => line_data[:opeitm_units_lttime] }
+		line_data = proc_field_starttime parent,nd,"gantt",tblnamechop,line_data.stringify_keys
+		##line_data[(tblnamechop+"_starttime").to_sym] = line_data[(tblnamechop+"_commencementdate").to_sym] = starttime
+		# case tblnamechop
+		# when /prdord/
+		# 	starttime,duedate= proc_field_starttime parent,nd,"gantt",line_data[(tblnamechop+"_qty").to_sym].to_f
+		# 	line_data[(tblnamechop+"_starttime").to_sym] = line_data[(tblnamechop+"_commencementdate").to_sym] = starttime
+		# when /purord/
+		# 	starttime,duedate= proc_field_starttime parent,nd,"gantt","gantt",line_data[(tblnamechop+"_qty").to_sym].to_f
+		# 	line_data[(tblnamechop+"_starttime").to_sym] = starttime
+		# when /pursch|prdsch/
+		# 	starttime,duedate= proc_field_starttime parent,nd,"gantt",line_data[(tblnamechop+"_qty_sch").to_sym].to_f
+		# 	line_data[(tblnamechop+"_starttime").to_sym] = starttime
+		# end
 		err = nil
-		return line_data,err
+		return line_data.symbolize_keys,err
 	end
 	
 	def proc_judge_check_supplierprice line_data,item,index,screenCode  ###M
@@ -1530,11 +1532,11 @@ module CtlFields
 	###
 	#
 	### prd,pur ・・・schs,ords,insts,acts,retsのレコード作成　	
-	def proc_schs_fields_making nd,parent,screenCode ,command_c  ###xxxschsの作成のみ
+	def proc_schs_fields_making nd,parent,screenCode ,command_x  ###xxxschsの作成のみ
 		Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} " 
 		Rails.logger.debug " class:#{self} ,line:#{__LINE__},parent:#{parent} "
-		Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_c:#{command_c} "  
-		command_x = command_c.dup
+		Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_c:#{command_x} "  
+		###command_x = command_c.dup
 		err = false
 		qty_require = 0
 		nd["packqty"] =  if nd["packqty"].to_f == 0
@@ -1572,25 +1574,33 @@ module CtlFields
 			when "starttime"  ###稼働日計算  seqno.starttime > seqno.duedate
 				case tblnamechop
 				when "dvssch"
-					starttime,duedate = proc_field_starttime(parent["starttime"],nd,"gantt",0)  ###qty_schで計算でする為
-					command_x["#{tblnamechop}_starttime"] = starttime
+					command_x = proc_field_starttime(parent,nd,"gantt",tblnamechop,command_x)  ###qty_schで計算でする為
 				else
-					starttime,duedate = proc_field_starttime(command_x["#{tblnamechop}_duedate"],nd,"gantt",0)  ###qty_schで計算でする為
-					command_x["#{tblnamechop}_starttime"] = starttime
+					command_x = proc_field_starttime(parent,nd,"gantt",tblnamechop,command_x)  ###qty_schで計算でする為
+				end
+			when "depdate"  ###稼働日計算  seqno.starttime > seqno.duedate   ##shpxxxはmold,ITool以外は作成しない
+				case tblnamechop
+				when "shpest"
+					command_x = proc_field_starttime(parent,nd,"gantt",tblnamechop,command_x)  ###qty_schで計算でする為
+				else
 				end
 			when "shelfnos_id_to"
 				command_x = field_shelfnos_id_to(tblnamechop,command_x,nd)
 			when "chrgs_id"
 				command_x = field_chrgs_id(tblnamechop,command_x,nd) 
 			when "duedate"  ###稼働日計算
-				command_x = field_duedate(tblnamechop,command_x,nd,parent)
+				case tblnamechop
+				when "dvssch","shpest"
+				else
+				 	command_x = field_duedate(tblnamechop,command_x,nd,parent)
+				end
 			when "endtime"  
-				command_x = field_endtime(tblnamechop,command_x,nd,parent)
+				###command_x = field_endtime(tblnamechop,command_x,nd,parent)
 			when "toduedate"  ###稼働日計算
 				command_x = field_toduedate(tblnamechop,command_x,nd,parent)
 
 			when "facilities_id"  
-				command_x,err = field_facilities_id(tblnamechop,command_x,nd)
+				command_x,err = proc_field_facilities_id(tblnamechop,command_x,nd)
 			when "qty_sch"   ### 
 				command_x,qty_require = field_qty_sch(tblnamechop,command_x,nd,parent)
 
@@ -1715,18 +1725,18 @@ module CtlFields
 
 	def field_duedate tblnamechop,command_x,nd,parent
 		if nd["shelfnos_id_to_opeitm"] == parent["shelfnos_id_trn"]
-			duedate = parent["starttime"].to_time - 24*3600  ###稼働日
+			duedate = parent["starttime"].to_time - 12*3600  ###稼働日
 		else
-			duedate = parent["starttime"].to_time - 2*24*3600  ###稼働日 出庫作業考慮
+			duedate = parent["starttime"].to_time - 1*24*3600  ###稼働日 出庫作業考慮
 		end
 		command_x["#{tblnamechop}_duedate"] = duedate.strftime("%Y-%m-%d %H:%M:%S")
 		return command_x
 	end
 
 	def field_endtime tblnamechop,command_x,nd,parent
-		endtime = parent["starttime"].to_time - 24*3600  ###稼働日
-		command_x["#{tblnamechop}_endtime"] = endtime.strftime("%Y-%m-%d %H:%M:%S")
-		return command_x
+		# endtime = parent["starttime"].to_time - 24*3600  ###稼働日
+		# command_x["#{tblnamechop}_endtime"] = endtime.strftime("%Y-%m-%d %H:%M:%S")
+		# return command_x
 	end
 
 	
@@ -1735,8 +1745,8 @@ module CtlFields
 		return command_x
 	end
 
-	def field_facilities_id tblnamechop,command_x,nd
-		strsql = %Q& select id from facilities  where itms_id = #{nd["itms_id_nditm"]}&
+	def proc_field_facilities_id tblnamechop,command_x,nd
+		strsql = %Q& select id from facilities  where itms_id = #{nd["itms_id"]}&
 		facilitie_id = ActiveRecord::Base.connection.select_value(strsql)
 		if facilitie_id
 			command_x["#{tblnamechop}_facilitie_id"] = facilitie_id
@@ -1744,10 +1754,10 @@ module CtlFields
 		else
 			err = true
 		end
-		return command_x
+		return command_x,err
 	end
 
-	def proc_field_starttime duedate,nd,reverse,qty
+	def proc_field_starttime parent,nd,reverse,tblnamechop,command_c
 		if reverse == "reverse"
 			cal = -1
 		else
@@ -1762,51 +1772,87 @@ module CtlFields
 			dayHour = 1
 			starttime = Time.now
 		end
-		duedate =  duedate.to_time
-		Rails.logger.debug" LINE:#{__LINE__} ,duedate:#{duedate},nd:#{nd}"
-		case nd["classlist_code"]
-		when "apparatus"   ###設置作業,装置,金型,工具
-			### changeoverlt:段取り duration_facility:作業時間 
-			case nd["units_lttime"]  ###char(4)
-			when "Day ",'Hour'
-				starttime =  duedate.to_time - (nd["changeoverlt"]||=0).to_f*dayHour * cal
-				duedate =  duedate.to_time + ((nd["duration_facility"]||=0).to_f*qty/(nd["packqtyfacility"]||=9999999).to_f).ceil*dayHour * cal   
+		duedate =  parent["starttime"].to_time
+
+		
+		case tblnamechop
+		when /prdord/
+			starttime =  duedate - (nd["duration"]||=1).to_f*dayHour * cal
+		 	command_c[(tblnamechop+"_starttime")] = command_c[(tblnamechop+"_commencementdate")] = starttime.strftime("%Y-%m-%d %H:%M:%S")
+		when /purord/
+			starttime =  duedate - (nd["duration"]||=1).to_f*dayHour * cal
+		 	command_c[(tblnamechop+"_starttime")] = starttime.strftime("%Y-%m-%d %H:%M:%S")
+		when /pursch/
+			starttime =  duedate - (nd["duration"]||=1).to_f*dayHour * cal
+		 	command_c["pursch_starttime"] = starttime.strftime("%Y-%m-%d %H:%M:%S")
+		when /prdsch/
+		 	qty_sch = command_c["prdsch_qty_sch"].to_f
+			 strsql = %Q&
+				 select nd.packqtyfacility,nd.duration_facility,itm.classlist_code from nditms nd
+					 inner join (select i.id itms_id,c.code classlist_code from itms i
+											 inner join classlists c	on i.classlists_id = c.id
+														 where c.code in('apparatus') )								
+						 itm on itm.itms_id = nd.itms_id_nditm
+					 inner join opeitms op on op.id = nd.opeitms_id
+					 where op.itms_id = #{nd["itms_id"]} and op.processseq = #{nd["processseq"]} 
+					 and  op.priority = 999 ---nd["itms_id"],nd["processseq"] = child itms
+					 &
+			 appa = ActiveRecord::Base.connection.select_one(strsql)
+			 if appa 		
+				 if  (appa["duration_facility"].to_f) > 0   ###装置のltなし
+					 if (appa["packqtyfacility"].to_f) > 0  ###nd["duration"].nil? --> tbl=dymschs&opeitms無
+						 starttime =  duedate - (appa["duration_facility"].to_f)*qty_sch/(appa["packqtyfacility"].to_f).ceil*dayHour * cal   
+					 else
+						 starttime =  duedate - (appa["duration_facility"].to_f)*dayHour * cal
+					 end
+				 else
+					 starttime =  duedate - (nd["duration"]||=0).to_f*dayHour * cal
+				 end
 			else
-				starttime = Time.now
+					 starttime =  duedate - (nd["duration"]||=1).to_f*dayHour * cal   ###nd["duration"].nil? --> tbl=dymschs&opeitms無,cal=-1 --> reverse
 			end
-		when "mold","ITool"   ###装置,金型,工具
-			### changeoverlt:段取り duration_facility:作業時間 
-			case nd["units_lttime"]  ###char(4)
-			when "Day ","Hour"
-				starttime =  duedate.to_time - (nd["changeoverlt"]||=0).to_f*dayHour * cal   
-				duedate =  duedate.to_time + (nd["duration_facility"]||=0).to_f*dayHour * cal   
-			else
-				starttime = Time.now
-			end
-		when "installationCharge"   ###設置作業
-			raise  ### 未coding
-		else
-			if nd["opeitms_id"] and qty.to_f > 0
-				strsql = %Q&
-							select nd.* from nditms nd
-									inner join (select i.* from itms i
-															inner join classlists c	on i.classlists_id = c.id
-																		where c.code = 'apparatus') 								
-										itm on itm.id = nd.itms_id_nditm
-									where nd.opeitms_id = #{nd["opeitms_id"]}
-				&
-				appa = ActiveRecord::Base.connection.select_one(strsql)
-				if appa and (appa["duration_facility"].to_f) > 0 and (nd["packqtyfacility"].to_f) > 0
-					starttime =  duedate - ((nd["duration_facility"].to_f)*qty.to_f/(nd["packqtyfacility"].to_f)).ceil*dayHour * cal   ###nd["duration"].nil? --> tbl=dymschs&opeitms無
-				else
-						starttime =  duedate - (nd["duration"]||=0).to_f*dayHour * cal   ###nd["duration"].nil? --> tbl=dymschs&opeitms無
-				end
-			else
-				starttime =  duedate - (nd["duration"]||=0).to_f*dayHour * cal   ###nd["duration"].nil? --> tbl=dymschs&opeitms無
-			end
+		 	command_c["prdsch_starttime"] = starttime.strftime("%Y-%m-%d %H:%M:%S")
+		when "dvssch"
+			duedate =  parent["duedate"].to_time + (nd["postprocessinglt"]||=0).to_f*dayHour * cal ###後処理
+			starttime =  parent["starttime"].to_time - (nd["changeoverlt"]||=0).to_f*dayHour * cal
+		 	command_c["dvssch_starttime"] = starttime.strftime("%Y-%m-%d %H:%M:%S")
+		 	command_c["dvssch_duedate"] = duedate.strftime("%Y-%m-%d %H:%M:%S")
+		when "shpest"
+			duedate =  parent["duedate"].to_time + (nd["postprocessinglt"]||=0).to_f*dayHour * cal ###後処理
+			starttime =  parent["starttime"].to_time - (nd["changeoverlt"]||=0).to_f*dayHour * cal
+			command_c["shpest_depdate"] = starttime.strftime("%Y-%m-%d %H:%M:%S")
+			command_c["shpest_duedate"] = duedate.strftime("%Y-%m-%d %H:%M:%S")
 		end
+		
+		Rails.logger.debug" LINE:#{__LINE__} ,duedate:#{duedate},nd:#{nd}"
+		# case nd["classlist_code"]
+		# when "apparatus","mold","ITool"   ###装置,金型,工具  ###設置作業,装置,金型,工具				
+		# 		starttime =  duedate.to_time - (nd["changeoverlt"]||=0).to_f*dayHour * cal
+		# 		duedate =  starttime + ((nd["duration"]||=0).to_f*qty_sch/packqty).ceil*dayHour * cal   
+		# when "installationCharge"   ###設置作業
+		# 	raise  ### 未coding
+		# else
+		# 	if nd["opeitms_id"] and qty_sch.to_f > 0  ###prdxxx
+		# 		strsql = %Q&
+		# 					select nd.* from nditms nd
+		# 							inner join (select i.* from itms i
+		# 													inner join classlists c	on i.classlists_id = c.id
+		# 																where c.code = 'apparatus') 								
+		# 								itm on itm.id = nd.itms_id_nditm
+		# 							where nd.opeitms_id = #{nd["opeitms_id"]}
+		# 		&
+		# 		appa = ActiveRecord::Base.connection.select_one(strsql)
+		# 		if appa and (appa["duration"].to_f) > 0 and (nd["packqtyfacility"].to_f) > 0
+		# 			starttime =  duedate - ((nd["duration"]||=0).to_f*qty_sch/packqty).ceil*dayHour * cal   ###nd["duration"].nil? --> tbl=dymschs&opeitms無
+		# 		else
+		# 			starttime =  duedate - (nd["duration"]||=0).to_f*dayHour * cal   ###nd["duration"].nil? --> tbl=dymschs&opeitms無,cal=-1 --> reverse
+		# 		end
+		# 	else
+		# 		starttime =  duedate - (nd["duration"]||=0).to_f*dayHour * cal   ###nd["duration"].nil? --> tbl=dymschs&opeitms無
+		# 	end
+		# end
 		Rails.logger.debug" LINE:#{__LINE__} ,starttimee:#{starttime},duedate:#{duedate}},reverse:#{reverse}"
-		return starttime.strftime("%Y-%m-%d %H:%M:%S"),duedate.strftime("%Y-%m-%d %H:%M:%S")
+		return command_c
 	end
 
 	def field_chrgs_id tblnamechop,command_x,nd ### seq_noは　chrgs_id > custs_id,suppliers_id,workplaces_idであること
@@ -1850,12 +1896,6 @@ module CtlFields
 		command_x["#{tblnamechop}_qty_sch"]  = proc_cal_qty_sch(parent["qty_sch"].to_f+ parent["qty"].to_f,
 												nd["chilnum"],nd["parenum"],
 												nd["consumunitqty"],nd["consumminqty"],nd["consumchgoverqty"])
-		# if nd["packqty"] > 0   ### qty_case xxxschsから削除
-		# 	command_x["#{tblnamechop}_qty_case"] = (qty_require /  nd["packqty"]).ceil 
-		# else
-		# 	command_x["#{tblnamechop}_qty_case"] = 0
-		# end	
-		proc_field_starttime(command_x["#{tblnamechop}_duedate"],nd,"gantt",qty_require)
 		return command_x,qty_require
 	end	
 
@@ -1921,14 +1961,15 @@ module CtlFields
 	end
 
 	def proc_snolist   ###reqparams["segment"] = ["trn_org"]の対象でもある。
-		{"purschs"=>"PS","purords"=>"PE","purinsts"=>"PH","purdlvs"=>"PV","puracts"=>"PA","dymschs"=>"DY",
+		{"purschs"=>"PS","purords"=>"PO","purinsts"=>"PH","purdlvs"=>"PV","puracts"=>"PA","dymschs"=>"DY",
 			"purreplyinputs"=>"PL","prdreplyinputs"=>"ML",
-			"prdschs"=>"MS","prdords"=>"ME","prdinsts"=>"MH","prdacts"=>"MA","prdrets"=>"MR",
-			"billschs"=>"BS","billords"=>"BE","billinsts"=>"BH","billacts"=>"BA","billrets"=>"BR",
-			"payschs"=>"YS","payords"=>"YE","payinsts"=>"YH","payacts"=>"YA","payrets"=>"YR",
+			"prdschs"=>"MS","prdords"=>"MO","prdinsts"=>"MH","prdacts"=>"MA","prdrets"=>"MR",
+			"dvsschs"=>"DS","dvsords"=>"DO","dvsacts"=>"DA",
+			"billschs"=>"BS","billords"=>"BO","billinsts"=>"BH","billacts"=>"BA","billrets"=>"BR",
+			"payschs"=>"YS","payords"=>"YO","payinsts"=>"YH","payacts"=>"YA","payrets"=>"YR",
 			"custschs"=>"CS","custords"=>"CO","custinsts"=>"CJ","custdlvs"=>"CV","custacts"=>"CA","custrets"=>"CR",
 			"custordheads"=>"CH","custactheads"=>"CB",
-			"shpschs"=>"SS","shpords"=>"SE","shpinsts"=>"SH","shpacts"=>"SA","shprets"=>"SR"}
+			"shpests"=>"ST","shpschs"=>"SS","shpords"=>"SO","shpinsts"=>"SH","shpacts"=>"SA","shprets"=>"SR"}
 	end
 
 	
@@ -1943,20 +1984,22 @@ module CtlFields
 	end
 
 	def proc_get_endtime tblname,tbldata
-		case tblname		
-		when /dlvs/
-			tbldata["depdate"]
-		when /^puracts/
-			tbldata["rcptdate"]
-		when /^prdacts/
-			tbldata["cmpldate"]
-		when /rets/
-			tbldata["retdate"]
-		when /reply/
-			tbldata["replydate"]
-		else
-			tbldata["duedate"]
-		end	
+	 	case tblname		
+	 	when /dlvs/
+	 		tbldata["depdate"]
+	 	when /^puracts/
+	 		tbldata["rcptdate"]
+	 	when /^prdacts/
+	 		tbldata["cmpldate"]
+	 	when /rets/
+	 		tbldata["retdate"]
+	 	when /reply/
+	 		tbldata["replydate"]
+	 	when /^dvs/
+	 		tbldata["duedate"]
+	 	else
+	 		tbldata["duedate"]
+	 	end	
 	end
 
 end   ##module

@@ -316,11 +316,12 @@ class TblClass
 			@modifysql << "\n alter table #{rec["pobject_code_tbl"]}  ADD COLUMN #{rec["pobject_code_fld"]} #{rec["fieldcode_ftype"]}(#{rec["fieldcode_fieldlength"] });\n"
 		when "numeric"
 			@modifysql << "\n alter table  #{rec["pobject_code_tbl"]}  ADD COLUMN #{rec["pobject_code_fld"]} #{rec["fieldcode_ftype"]}(#{rec["fieldcode_dataprecision"]},#{rec["fieldcode_datascale"]})"
-			if rec["pobject_code_fld"] =~ /_id$|_id_/
-				@modifysql << "  DEFAULT 0  not null;\n"
-			else
-				@modifysql << " ;\n"
-			end	
+			# if rec["pobject_code_fld"] =~ /_id$|_id_/
+			# 	@modifysql << "  DEFAULT 0  not null;\n"
+			# else
+			# 	@modifysql << " ;\n"
+			# end	
+			@modifysql << "  DEFAULT 0  not null;\n"
 		when /date|timestamp/
 			@modifysql << "\n alter table #{rec["pobject_code_tbl"]}  ADD COLUMN #{rec["pobject_code_fld"]} #{rec["fieldcode_ftype"]};\n"
 		end	
@@ -552,16 +553,16 @@ class TblClass
 	def  update_pobject_record screenfield,id
 		blk = RorBlkCtl::BlkClass.new("r_pobjects")
 		command_r = blk.command_init
-		command_r["id"] == id
+		command_r["id"] = id
 		command_r["sio_classname"] = "_update_pobject_screenfield"
-		command_r["pobject_id"] = ""
+		command_r["pobject_id"] = id
 		command_r["pobject_remark"] = "auto add pobject screenfield #{screenfield}"
 		command_r["pobject_code"] = screenfield
 		command_r["pobject_objecttype"] = "view_field"
 		command_r["pobject_expiredate"] = '2099/12/31'
 		command_r["pobject_person_id_upd"] = @tblsfields["persons_id_upd"]
-		blk.proc_create_tbldata(command_c) ##
-		setParams = blk.proc_private_aud_rec({},command_c)
+		blk.proc_create_tbldata(command_r) ##
+		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r["sio_result_f"] ==   "9"
 		 	@messages <<  "error  update_pobject_record #{screenfield}\n"
 			 @messages  << command_r["sio_message_contents"][0..200] + "\n"

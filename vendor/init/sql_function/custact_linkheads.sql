@@ -1,235 +1,235 @@
-----–¢Žg—p
-drop view if exists public.custact_linkheads;
-CREATE OR REPLACE VIEW public.custact_linkheads
-AS 
-select 
-	linkhead.id  id,
-  	person.code person_code_upd ,
-  	person.name  person_name_upd ,
-	linkhead.id  linkhead_id,
-	linkhead.remark  linkhead_remark,
-	linkhead.expiredate  linkhead_expiredate,
-	linkhead.update_ip  linkhead_update_ip,
-	linkhead.created_at  linkhead_created_at,
-	linkhead.updated_at   linkhead_updated_at,
-	linkhead.persons_id_upd   linkhead_person_id_upd,
-	linkhead.contents  linkhead_contents,
-	linkhead.tblname  linkhead_tblname,
-	linkhead.paretblname  linkhead_paretblname,
-	linkhead.paretblid  linkhead_paretblid,
-	''  linkhead_packingListNo_tblname,
-	linkhead.sno_tblname   linkhead_sno_tblname,
-	''   linkhead_cno_tblname,
-	''   linkhead_gno_tblname,
-	custord.itm_code itm_code,
-	custord.itm_name itm_name,
-	custord.duedate custord_duedate, 
-	to_timestamp('2000/1/1','yyyy/mm/dd')  custdlv_depdate,
-	linkhead.qty linkhead_qty,
-	linkhead.amt linkhead_amt,
-	custord.loca_code_cust  loca_code_cust,
-	custord.loca_name_cust  loca_name_cust,
-	''  loca_code_cust_gno,
-	''  loca_name_cust_gno,
-	custord.loca_code_custrcvplc loca_code_custrcvplc,
-	custord.loca_name_custrcvplc loca_name_custrcvplc
- from 	linkheads linkhead
- 	inner join persons person on linkhead.persons_id_upd = person.id
- 	inner join (select itm_code,itm_name,loca_code_cust,loca_name_cust,loca_code_custrcvplc,loca_name_custrcvplc,custord.sno,custord.cno,
- 								custord.duedate
- 						from custords custord
- 						inner join r_custs cust on cust.id = custord.custs_id 
- 						inner join r_custrcvplcs custrcvplc on custrcvplc.id = custord.custrcvplcs_id 
- 						inner join r_opeitms opeitm on opeitm.id = custord.opeitms_id ) custord
-		on linkhead.sno_tblname = custord.sno and linkhead.tblname = 'custords'
- union 
- 
-select 
-	linkhead.id  id,
-  	person.code person_code_upd ,
-  	person.name  person_name_upd ,
-	linkhead.id  linkhead_id,
-	linkhead.remark  linkhead_remark,
-	linkhead.expiredate  linkhead_expiredate,
-	linkhead.update_ip  linkhead_update_ip,
-	linkhead.created_at  linkhead_created_at,
-	linkhead.updated_at   linkhead_updated_at,
-	linkhead.persons_id_upd   linkhead_person_id_upd,
-	linkhead.contents  linkhead_contents,
-	linkhead.tblname  linkhead_tblname,
-	linkhead.paretblname  linkhead_paretblname,
-	linkhead.paretblid  linkhead_paretblid,
-	''  linkhead_packingListNo_tblname,
-	''   linkhead_sno_tblname,
-	linkhead.cno_tblname   linkhead_cno_tblname,
-	''   linkhead_gno_tblname,
-	custord.itm_code itm_code,
-	custord.itm_name itm_name,
-	custord.duedate custord_duedate, 
-	to_timestamp('2000/1/1','yyyy/mm/dd')    custdlv_depdate,
-	linkhead.qty linkhead_qty,
-	linkhead.amt linkhead_amt,
-	custord.loca_code_cust  loca_code_cust,
-	custord.loca_name_cust  loca_name_cust,
-	''  loca_code_cust_gno,
-	''  loca_name_cust_gno,
-	custord.loca_code_custrcvplc loca_code_custrcvplc,
-	custord.loca_name_custrcvplc loca_name_custrcvplc
- from 	linkheads linkhead
- 	inner join persons person on linkhead.persons_id_upd = person.id
- 	inner join (select itm_code,itm_name,loca_code_cust,loca_name_cust,loca_code_custrcvplc,loca_name_custrcvplc,custord.sno,custord.cno,
- 								custord.duedate,cust.cust_loca_id_cust
- 						from custords custord
- 						inner join r_custs cust on cust.id = custord.custs_id 
- 						inner join r_custrcvplcs custrcvplc on custrcvplc.id = custord.custrcvplcs_id 
- 						inner join r_opeitms opeitm on opeitm.id = custord.opeitms_id ) custord
- 	                                 on linkhead.cno_tblname = custord.cno and linkhead.tblname = 'custords'  and linkhead.locas_id = custord.cust_loca_id_cust
- 
-union	
-select 
-	linkhead.id  id,
-  	person.code person_code_upd ,
-  	person.name  person_name_upd ,
-	linkhead.id  linkhead_id,
-	linkhead.remark  linkhead_remark,
-	linkhead.expiredate  linkhead_expiredate,
-	linkhead.update_ip  linkhead_update_ip,
-	linkhead.created_at  linkhead_created_at,
-	linkhead.updated_at   linkhead_updated_at,
-	linkhead.persons_id_upd   linkhead_person_id_upd,
-	linkhead.contents  linkhead_contents,
-	linkhead.tblname  linkhead_tblname,
-	linkhead.paretblname  linkhead_paretblname,
-	linkhead.paretblid  linkhead_paretblid,
-	''  linkhead_packingListNo_tblname,
-	''   linkhead_sno_tblname,
-	''  linkhead_cno_tblname,
-	linkhead.gno_tblname   linkhead_gno_tblname,
-	'' itm_code,
-	'' itm_name,
-	custord.duedate  custord_duedate, 
-	to_timestamp('2000/1/1','yyyy/mm/dd')  custdlv_depdate,
-	linkhead.qty linkhead_qty,
-	linkhead.amt linkhead_amt,
-	'' loca_code_cust,
-	'' loca_name_cust,
-	custord.loca_code_cust  loca_code_cust_gno,
-	custord.loca_name_cust  loca_name_cust_gno,
-	custord.loca_code_custrcvplc loca_code_custrcvplc,
-	custord.loca_name_custrcvplc loca_name_custrcvplc
- from 	linkheads linkhead
- 	inner join persons person on linkhead.persons_id_upd = person.id 
- 	inner join (select loca_code_cust,loca_name_cust,loca_code_custrcvplc,loca_name_custrcvplc,custord.duedate,custord.gno,cust.cust_loca_id_cust
- 						from custords custord
- 						inner join r_custs cust on cust.id = custord.custs_id 
- 						inner join r_custrcvplcs custrcvplc on custrcvplc.id = custord.custrcvplcs_id ) custord 
-		on (linkhead.gno_tblname = custord.gno and linkhead.tblname = 'custord' and linkhead.locas_id = custord.cust_loca_id_cust)  
-	
-union	
-select 
-	linkhead.id  id,
-  	person.code person_code_upd ,
-  	person.name  person_name_upd ,
-	linkhead.id  linkhead_id,
-	linkhead.remark  linkhead_remark,
-	linkhead.expiredate  linkhead_expiredate,
-	linkhead.update_ip  linkhead_update_ip,
-	linkhead.created_at  linkhead_created_at,
-	linkhead.updated_at   linkhead_updated_at,
-	linkhead.persons_id_upd   linkhead_person_id_upd,
-	linkhead.contents  linkhead_contents,
-	linkhead.tblname  linkhead_tblname,
-	linkhead.paretblname  linkhead_paretblname,
-	linkhead.paretblid  linkhead_paretblid,
-	linkhead.packinglistno_tblname  linkhead_packingListNo_tblname,
-	''   linkhead_sno_tblname,
-	''  linkhead_cno_tblname,
-	''   linkhead_gno_tblname,
-	'' itm_code,
-	'' itm_name,
-	null custord_duedate, 
-	custdlv.depdate  custdlv_depdate,
-	linkhead.qty linkhead_qty,
-	linkhead.amt linkhead_amt,
-	custdlv.loca_code_cust loca_code_cust,
-	custdlv.loca_name_cust loca_name_cust,
-	''  loca_code_cust_gno,
-	''  loca_name_cust_gno,
-	custdlv.loca_code_custrcvplc loca_code_custrcvplc,
-	custdlv.loca_name_custrcvplc loca_name_custrcvplc
- from 	linkheads linkhead
- 	inner join persons person on linkhead.persons_id_upd = person.id 
- 	inner join (select loca_code_cust,loca_name_cust,loca_code_custrcvplc,loca_name_custrcvplc,custdlv.packinglistno,custdlv.depdate
- 						from custdlvs custdlv
- 						inner join r_custs cust on cust.id = custdlv.custs_id 
- 						inner join r_custrcvplcs custrcvplc on custrcvplc.id = custdlv.custrcvplcs_id ) custdlv 
-		on (linkhead.packinglistno_tblname = custdlv.packinglistno and linkhead.tblname = 'custdlvs')  
-	
- ;
- 	DROP TABLE IF EXISTS sio.sio_custact_linkheads;
- CREATE TABLE sio.sio_custact_linkheads (
-          sio_id numeric(22,0)  CONSTRAINT SIO_custact_linkheads_id_pk PRIMARY KEY           
-          ,sio_user_code numeric(22,0)
-          ,sio_Term_id varchar(30)
-          ,sio_session_id numeric(22,0)
-          ,sio_Command_Response char(1)
-          ,sio_session_counter numeric(22,0)
-          ,sio_classname varchar(50)
-          ,sio_viewname varchar(30)
-          ,sio_code varchar(30)
-          ,sio_strsql varchar(4000)
-          ,sio_totalcount numeric(22,0)
-          ,sio_recordcount numeric(22,0)
-          ,sio_start_record numeric(22,0)
-          ,sio_end_record numeric(22,0)
-          ,sio_sord varchar(256)
-          ,sio_search varchar(10)
-          ,sio_sidx varchar(256)
-,id  numeric (38,0)
-,cust_code  varchar (40) 
-,cust_name  varchar (40)
-,cust_code_gno  varchar (40) 
-,cust_name_gno  varchar (40)
-,custrcvplc_code  varchar (40) 
-,custrcvplc_name  varchar (40)
-,itm_code  varchar (40) 
-,itm_name  varchar (40)
-,linkhead_sno_tblname  varchar (40) 
-,linkhead_cno_tblname  varchar (40) 
-,linkhead_gno_tblname  varchar (40) 
-,linkhead_id  numeric (38,0)
-,linkhead_remark  varchar (4000) 
-,linkhead_expiredate   date 
-,linkhead_update_ip  varchar (40) 
-,linkhead_created_at   timestamp(6) 
-,linkhead_updated_at   timestamp(6) 
-,linkhead_contents  varchar (4000) 
-,linkhead_tblname  varchar (30) 
-,linkhead_paretblname  varchar (30) 
-,linkhead_paretblid  numeric (38,0)
-,linkhead_packingListNo_tblname  varchar (20)
-,custord_duedate timestamp(6)
-,custdlv_depdate timestamp(6)
-,linkhead_qty numeric(22,5)
-,linkhead_amt numeric(22,5)
-,person_code_upd  varchar (50) 
-,person_name_upd  varchar (100) 
-,linkhead_person_id_upd  numeric (22,0)
-          ,sio_errline varchar(4000)
-          ,sio_org_tblname varchar(30)
-          ,sio_org_tblid numeric(22,0)
-          ,sio_add_time date
-          ,sio_replay_time date
-          ,sio_result_f char(1)
-          ,sio_message_code char(10)
-          ,sio_message_contents varchar(4000)
-          ,sio_chk_done char(1)
-);
-
-drop index if exists sio_custact_linkheads_uk1;
-
- CREATE INDEX sio_custact_linkheads_uk1 
-  ON sio.sio_custact_linkheads(id,sio_id); 
-
- drop sequence  if exists sio.sio_custact_linkheads_seq ;
- create sequence sio.sio_custact_linkheads_seq ;
+----  æœªä½¿ç”¨
+--drop view if exists public.custact_linkheads;
+--CREATE OR REPLACE VIEW public.custact_linkheads
+--AS 
+--select 
+--	linkhead.id  id,
+--  	person.code person_code_upd ,
+--  	person.name  person_name_upd ,
+--	linkhead.id  linkhead_id,
+--	linkhead.remark  linkhead_remark,
+--	linkhead.expiredate  linkhead_expiredate,
+--	linkhead.update_ip  linkhead_update_ip,
+--	linkhead.created_at  linkhead_created_at,
+--	linkhead.updated_at   linkhead_updated_at,
+--	linkhead.persons_id_upd   linkhead_person_id_upd,
+--	linkhead.contents  linkhead_contents,
+--	linkhead.tblname  linkhead_tblname,
+--	linkhead.paretblname  linkhead_paretblname,
+--	linkhead.paretblid  linkhead_paretblid,
+--	''  linkhead_packingListNo_tblname,
+--	linkhead.sno_tblname   linkhead_sno_tblname,
+--	''   linkhead_cno_tblname,
+--	''   linkhead_gno_tblname,
+--	custord.itm_code itm_code,
+--	custord.itm_name itm_name,
+--	custord.duedate custord_duedate, 
+--	to_timestamp('2000/1/1','yyyy/mm/dd')  custdlv_depdate,
+--	linkhead.qty linkhead_qty,
+--	linkhead.amt linkhead_amt,
+--	custord.loca_code_cust  loca_code_cust,
+--	custord.loca_name_cust  loca_name_cust,
+--	''  loca_code_cust_gno,
+--	''  loca_name_cust_gno,
+--	custord.loca_code_custrcvplc loca_code_custrcvplc,
+--	custord.loca_name_custrcvplc loca_name_custrcvplc
+-- from 	linkheads linkhead
+-- 	inner join persons person on linkhead.persons_id_upd = person.id
+-- 	inner join (select itm_code,itm_name,loca_code_cust,loca_name_cust,loca_code_custrcvplc,loca_name_custrcvplc,custord.sno,custord.cno,
+-- 								custord.duedate
+-- 						from custords custord
+-- 						inner join r_custs cust on cust.id = custord.custs_id 
+-- 						inner join r_custrcvplcs custrcvplc on custrcvplc.id = custord.custrcvplcs_id 
+-- 						inner join r_opeitms opeitm on opeitm.id = custord.opeitms_id ) custord
+--		on linkhead.sno_tblname = custord.sno and linkhead.tblname = 'custords'
+-- union 
+-- 
+--select 
+--	linkhead.id  id,
+--  	person.code person_code_upd ,
+--  	person.name  person_name_upd ,
+--	linkhead.id  linkhead_id,
+--	linkhead.remark  linkhead_remark,
+--	linkhead.expiredate  linkhead_expiredate,
+--	linkhead.update_ip  linkhead_update_ip,
+--	linkhead.created_at  linkhead_created_at,
+--	linkhead.updated_at   linkhead_updated_at,
+--	linkhead.persons_id_upd   linkhead_person_id_upd,
+--	linkhead.contents  linkhead_contents,
+--	linkhead.tblname  linkhead_tblname,
+--	linkhead.paretblname  linkhead_paretblname,
+--	linkhead.paretblid  linkhead_paretblid,
+--	''  linkhead_packingListNo_tblname,
+--	''   linkhead_sno_tblname,
+--	linkhead.cno_tblname   linkhead_cno_tblname,
+--	''   linkhead_gno_tblname,
+--	custord.itm_code itm_code,
+--	custord.itm_name itm_name,
+--	custord.duedate custord_duedate, 
+--	to_timestamp('2000/1/1','yyyy/mm/dd')    custdlv_depdate,
+--	linkhead.qty linkhead_qty,
+--	linkhead.amt linkhead_amt,
+--	custord.loca_code_cust  loca_code_cust,
+--	custord.loca_name_cust  loca_name_cust,
+--	''  loca_code_cust_gno,
+--	''  loca_name_cust_gno,
+--	custord.loca_code_custrcvplc loca_code_custrcvplc,
+--	custord.loca_name_custrcvplc loca_name_custrcvplc
+-- from 	linkheads linkhead
+-- 	inner join persons person on linkhead.persons_id_upd = person.id
+-- 	inner join (select itm_code,itm_name,loca_code_cust,loca_name_cust,loca_code_custrcvplc,loca_name_custrcvplc,custord.sno,custord.cno,
+-- 								custord.duedate,cust.cust_loca_id_cust
+-- 						from custords custord
+-- 						inner join r_custs cust on cust.id = custord.custs_id 
+-- 						inner join r_custrcvplcs custrcvplc on custrcvplc.id = custord.custrcvplcs_id 
+-- 						inner join r_opeitms opeitm on opeitm.id = custord.opeitms_id ) custord
+-- 	                                 on linkhead.cno_tblname = custord.cno and linkhead.tblname = 'custords'  and linkhead.locas_id = custord.cust_loca_id_cust
+-- 
+--union	
+--select 
+--	linkhead.id  id,
+--  	person.code person_code_upd ,
+--  	person.name  person_name_upd ,
+--	linkhead.id  linkhead_id,
+--	linkhead.remark  linkhead_remark,
+--	linkhead.expiredate  linkhead_expiredate,
+--	linkhead.update_ip  linkhead_update_ip,
+--	linkhead.created_at  linkhead_created_at,
+--	linkhead.updated_at   linkhead_updated_at,
+--	linkhead.persons_id_upd   linkhead_person_id_upd,
+--	linkhead.contents  linkhead_contents,
+--	linkhead.tblname  linkhead_tblname,
+--	linkhead.paretblname  linkhead_paretblname,
+--	linkhead.paretblid  linkhead_paretblid,
+--	''  linkhead_packingListNo_tblname,
+--	''   linkhead_sno_tblname,
+--	''  linkhead_cno_tblname,
+--	linkhead.gno_tblname   linkhead_gno_tblname,
+--	'' itm_code,
+--	'' itm_name,
+--	custord.duedate  custord_duedate, 
+--	to_timestamp('2000/1/1','yyyy/mm/dd')  custdlv_depdate,
+--	linkhead.qty linkhead_qty,
+--	linkhead.amt linkhead_amt,
+--	'' loca_code_cust,
+--	'' loca_name_cust,
+--	custord.loca_code_cust  loca_code_cust_gno,
+--	custord.loca_name_cust  loca_name_cust_gno,
+--	custord.loca_code_custrcvplc loca_code_custrcvplc,
+--	custord.loca_name_custrcvplc loca_name_custrcvplc
+-- from 	linkheads linkhead
+-- 	inner join persons person on linkhead.persons_id_upd = person.id 
+-- 	inner join (select loca_code_cust,loca_name_cust,loca_code_custrcvplc,loca_name_custrcvplc,custord.duedate,custord.gno,cust.cust_loca_id_cust
+-- 						from custords custord
+-- 						inner join r_custs cust on cust.id = custord.custs_id 
+-- 						inner join r_custrcvplcs custrcvplc on custrcvplc.id = custord.custrcvplcs_id ) custord 
+--		on (linkhead.gno_tblname = custord.gno and linkhead.tblname = 'custord' and linkhead.locas_id = custord.cust_loca_id_cust)  
+--	
+--union	
+--select 
+--	linkhead.id  id,
+--  	person.code person_code_upd ,
+--  	person.name  person_name_upd ,
+--	linkhead.id  linkhead_id,
+--	linkhead.remark  linkhead_remark,
+--	linkhead.expiredate  linkhead_expiredate,
+--	linkhead.update_ip  linkhead_update_ip,
+--	linkhead.created_at  linkhead_created_at,
+--	linkhead.updated_at   linkhead_updated_at,
+--	linkhead.persons_id_upd   linkhead_person_id_upd,
+--	linkhead.contents  linkhead_contents,
+--	linkhead.tblname  linkhead_tblname,
+--	linkhead.paretblname  linkhead_paretblname,
+--	linkhead.paretblid  linkhead_paretblid,
+--	linkhead.packinglistno_tblname  linkhead_packingListNo_tblname,
+--	''   linkhead_sno_tblname,
+--	''  linkhead_cno_tblname,
+--	''   linkhead_gno_tblname,
+--	'' itm_code,
+--	'' itm_name,
+--	null custord_duedate, 
+--	custdlv.depdate  custdlv_depdate,
+--	linkhead.qty linkhead_qty,
+--	linkhead.amt linkhead_amt,
+--	custdlv.loca_code_cust loca_code_cust,
+--	custdlv.loca_name_cust loca_name_cust,
+--	''  loca_code_cust_gno,
+--	''  loca_name_cust_gno,
+--	custdlv.loca_code_custrcvplc loca_code_custrcvplc,
+--	custdlv.loca_name_custrcvplc loca_name_custrcvplc
+-- from 	linkheads linkhead
+-- 	inner join persons person on linkhead.persons_id_upd = person.id 
+-- 	inner join (select loca_code_cust,loca_name_cust,loca_code_custrcvplc,loca_name_custrcvplc,custdlv.packinglistno,custdlv.depdate
+-- 						from custdlvs custdlv
+-- 						inner join r_custs cust on cust.id = custdlv.custs_id 
+-- 						inner join r_custrcvplcs custrcvplc on custrcvplc.id = custdlv.custrcvplcs_id ) custdlv 
+--		on (linkhead.packinglistno_tblname = custdlv.packinglistno and linkhead.tblname = 'custdlvs')  
+--	
+-- ;
+-- 	DROP TABLE IF EXISTS sio.sio_custact_linkheads;
+-- CREATE TABLE sio.sio_custact_linkheads (
+--          sio_id numeric(22,0)  CONSTRAINT SIO_custact_linkheads_id_pk PRIMARY KEY           
+--          ,sio_user_code numeric(22,0)
+--          ,sio_Term_id varchar(30)
+--          ,sio_session_id numeric(22,0)
+--          ,sio_Command_Response char(1)
+--          ,sio_session_counter numeric(22,0)
+--          ,sio_classname varchar(50)
+--          ,sio_viewname varchar(30)
+--          ,sio_code varchar(30)
+--          ,sio_strsql varchar(4000)
+--          ,sio_totalcount numeric(22,0)
+--          ,sio_recordcount numeric(22,0)
+--          ,sio_start_record numeric(22,0)
+--          ,sio_end_record numeric(22,0)
+--          ,sio_sord varchar(256)
+--          ,sio_search varchar(10)
+--          ,sio_sidx varchar(256)
+--,id  numeric (38,0)
+--,cust_code  varchar (40) 
+--,cust_name  varchar (40)
+--,cust_code_gno  varchar (40) 
+--,cust_name_gno  varchar (40)
+--,custrcvplc_code  varchar (40) 
+--,custrcvplc_name  varchar (40)
+--,itm_code  varchar (40) 
+--,itm_name  varchar (40)
+--,linkhead_sno_tblname  varchar (40) 
+--,linkhead_cno_tblname  varchar (40) 
+--,linkhead_gno_tblname  varchar (40) 
+--,linkhead_id  numeric (38,0)
+--,linkhead_remark  varchar (4000) 
+--,linkhead_expiredate   date 
+--,linkhead_update_ip  varchar (40) 
+--,linkhead_created_at   timestamp(6) 
+--,linkhead_updated_at   timestamp(6) 
+--,linkhead_contents  varchar (4000) 
+--,linkhead_tblname  varchar (30) 
+--,linkhead_paretblname  varchar (30) 
+--,linkhead_paretblid  numeric (38,0)
+--,linkhead_packingListNo_tblname  varchar (20)
+--,custord_duedate timestamp(6)
+--,custdlv_depdate timestamp(6)
+--,linkhead_qty numeric(22,5)
+--,linkhead_amt numeric(22,5)
+--,person_code_upd  varchar (50) 
+--,person_name_upd  varchar (100) 
+--,linkhead_person_id_upd  numeric (22,0)
+--          ,sio_errline varchar(4000)
+--          ,sio_org_tblname varchar(30)
+--          ,sio_org_tblid numeric(22,0)
+--          ,sio_add_time date
+--          ,sio_replay_time date
+--          ,sio_result_f char(1)
+--          ,sio_message_code char(10)
+--          ,sio_message_contents varchar(4000)
+--          ,sio_chk_done char(1)
+--);
+--
+--drop index if exists sio_custact_linkheads_uk1;
+--
+-- CREATE INDEX sio_custact_linkheads_uk1 
+--  ON sio.sio_custact_linkheads(id,sio_id); 
+--
+-- drop sequence  if exists sio.sio_custact_linkheads_seq ;
+-- create sequence sio.sio_custact_linkheads_seq ;

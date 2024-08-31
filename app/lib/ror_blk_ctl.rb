@@ -26,6 +26,9 @@ module RorBlkCtl
         def command_init
             @command_init
         end
+		def tbldata
+			@tbldata
+		end
 
 		def proc_create_tbldata(command_c) ##
 			@tbldata["id"] = command_c["id"]
@@ -167,7 +170,8 @@ module RorBlkCtl
 				setParams["remark"] = " #{self} line #{__LINE__} "
 				processreqs_id ,setParams = ArelCtl.proc_processreqs_add(setParams)	
 				return setParams
-			when /^dymschs$/
+				setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,
+			when /^dymschs$|^dvsschs$|^shpests$/
 				setParams = setGantt(setParams)				###作業場所の稼働日考慮要
 				setParams["tbldata"] = @tbldata.dup	###変更されているため再セット
 				ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
@@ -184,6 +188,7 @@ module RorBlkCtl
 				setParams["tbldata"] = @tbldata.dup	###変更されているため再セット
 				ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
 				setParams = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
+				update_dvs_link(setParams)
 				if (setParams["mkprdpurords_id"]||=0) == 0
 					setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
 					processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
@@ -525,7 +530,7 @@ module RorBlkCtl
 				opeitm = {}
 			end
 			setParams["opeitm"] = opeitm.dup
-			if setParams["gantt"].nil?
+			if setParams["gantt"].nil?  ###custschs,custords,prdschs,prdords,purschs,purords top
 				gantt = {}
 				gantt["orgtblname"] = gantt["paretblname"] = gantt["tblname"] = @tblname
 				gantt["orgtblid"] = gantt["paretblid"] =  gantt["tblid"] =  @tbldata["id"]	
@@ -604,6 +609,7 @@ module RorBlkCtl
 					gantt["qty"] = @tbldata["qty"] 
 					gantt["toduedate_trn"] = gantt["toduedate_pare"] = gantt["toduedate_org"] = (@tbldata["toduedate"]||= gantt["duedate"])
 					gantt["starttime_trn"] = gantt["starttime_pare"] = gantt["starttime_org"] = @tbldata["starttime"]
+					gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = gantt["shelfnos_id_org"] = @tbldata["shelfnos_id"]
 					gantt["qty_require"] = 0
 					gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
 				when /trngantts$/
@@ -646,19 +652,56 @@ module RorBlkCtl
 				gantt["tblname"] = @tblname
 				gantt["tblid"] =  @tbldata["id"]	
 				gantt["persons_id_upd"]   =  setParams["person_id_upd"]
-				if  @tblname == "dymschs" and @tbldata["opeitms_id"] == "0"  ###opeitms 未登録
+				gantt["prjnos_id"] = @tbldata["prjnos_id"]
+				case @tblname
+				when "dymschs"
 					gantt["shuffle_flg"] = "0"
-				   ####
 					gantt["shelfnos_id_to_trn"] =  "0"
 					gantt["shelfnos_id_trn"] =  "0"
 					gantt["locas_id_trn"] =  "0"
-					gantt["prjnos_id"] = @tbldata["prjnos_id"]
 					gantt["chrgs_id_trn"] =  0
 					gantt["itms_id_trn"] = @tbldata["itms_id_dym"]
 					gantt["processseq_trn"] = "999"
 					gantt["duedate_trn"] = @tbldata["duedate"]
 					gantt["toduedate_trn"] = @tbldata["duedate"]
 					gantt["starttime_trn"] = @tbldata["duedate"]
+				when "dvsschs"
+					gantt["shuffle_flg"] = "0"
+					gantt["shelfnos_id_to_trn"] =  "0"
+					strsql = %Q&
+								select s.id shelfnos_id,l.id locas_id,f.itms_id
+										from shelfnos s
+										inner join locas l on s.locas_id_shelfno = l.id
+										inner join facilities f on s.id = f.shelfnos_id
+									where  f.id = #{@tbldata["facilities_id"]}
+					&
+					facilities = ActiveRecord::Base.connection.select_one(strsql)
+					gantt["shelfnos_id_trn"] =  facilities["shelfnos_id"]
+					gantt["locas_id_trn"] =  facilities["locas_id"]
+					gantt["chrgs_id_trn"] =  0
+					gantt["itms_id_trn"] = facilities["itms_id"]
+					gantt["processseq_trn"] = "999"
+					gantt["duedate_trn"] = @tbldata["duedate"]
+					gantt["toduedate_trn"] = @tbldata["duedate"]
+					gantt["starttime_trn"] = @tbldata["starttime"]
+				when "shpests"
+					gantt["shuffle_flg"] = "0"
+					gantt["shelfnos_id_to_trn"] =  @tbldata["shelfnos_id_to"]
+					gantt["shelfnos_id_trn"] =  @tbldata["shelfnos_id_fm"]
+					strsql = %Q&
+								select l.id locas_id from shelfnos s
+													inner join locas l on s.locas_id_shelfno = l.id
+									where  s.id = #{@tbldata["shelfnos_id_fm"]}
+					&
+					locas_id = ActiveRecord::Base.connection.select_value(strsql)
+					gantt["locas_id_trn"] =  locas_id
+					gantt["chrgs_id_trn"] =  @tbldata["chrgs_id"]
+					gantt["itms_id_trn"] = @tbldata["itms_id"]
+					gantt["processseq_trn"] = "999"
+					gantt["duedate_trn"] = @tbldata["duedate"]
+					gantt["toduedate_trn"] = @tbldata["duedate"]
+					gantt["starttime_trn"] = @tbldata["duedate"]
+					gantt["qty_handover"] = 0
 				else
 			 		gantt["shuffle_flg"] = (opeitm["shuffle_flg"]||="0")
 					####
@@ -672,7 +715,6 @@ module RorBlkCtl
 					 else
 						 gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = gantt["shelfnos_id_org"] = @tbldata["shelfnos_id"]    
 					 end
-			 		gantt["prjnos_id"] = @tbldata["prjnos_id"]
 			 		gantt["chrgs_id_trn"] =  @tbldata["chrgs_id"]
 			 		gantt["itms_id_trn"] = opeitm["itms_id"]
 			 		gantt["processseq_trn"] = opeitm["processseq"]
@@ -1227,6 +1269,116 @@ module RorBlkCtl
 				end
 			end
 			return ords
-		end  
+		end 
+		def update_dvs_link(setParams)
+			case @tblname  ###親 prdxxxs
+			when "prdords"
+				prevdvstbl = "dvsschs"
+				currdvstbl = "dvsords"
+				prevprdtbl = "prdschs"
+				strduedate = "duedate"
+			when "prdinsts"
+				prevdvstbl = "dvsords"
+				currdvstbl = "dvsinsts"
+				prevprdtbl = "prdords"
+				strduedate = "duedate"
+			when "prdacts"
+				prevdvstbl = "dvsinsts"
+				currdvstbl = "dvsacts"
+				prevprdtbl = "prdinsts"
+				strduedate = "cmpldate"
+			else
+				return 
+			end 
+
+			strsql = %Q&
+						select n.itms_id_nditm ,ic.code classlist_code from nditms n 
+									inner join (select i.id itms_id ,c.code from itms i
+														inner classlists c on c.id = i.classlists_id ) ic
+									on ic.itms_id = n.itms_id_nditm
+									where ic.code = 'apparatus' and n.opeitms_id = #{@tbldata["opeitms_id"]}
+			&
+			apparatus = ActiveRecord::Base.connection.select_one(strsql)
+			if apparatus
+				blk = RorBlkCtl::BlkClass.new("r_#{currdvstbl}")
+				command_dvs = blk.command_init
+				gantt = setParams["gantt"].dup
+				gantt["tblname"] = "dvsschs"
+				dvs = RorBlkCtl::BlkClass.new("r_#{currdvstbl}")
+				command_dvs = dvs.command_init
+				command_dvs["id"] = ArelCtl.proc_get_nextval("#{currdvstbl}_seq")
+				command_dvs["#{currdvstbl.chop}_sno"] = CtlFields.proc_field_sno(currdvstbl.chop,Time.now,command_dvs["id"])
+				command_dvs["#{currdvstbl.chop}_facilitie_id"] = CtlFields.proc_field_facilities_id(currdvstbl.chop,command_dvs,apparatus)
+				case @tblname
+				when "prdords","prdinsts"
+					command_dvs["#{currdvstbl.chop}_starttime"] = @tbldata["commencementdate"]
+					command_dvs["#{currdvstbl.chop}_duedate"] = @tbldata["duedate"]
+				when "prdacts"
+					command_dvs["#{currdvstbl.chop}_duedate"] = @tbldata["cmpldate"]
+				end
+				gantt["duedate_trn"] = @tbldata[strduedate]
+				gantt["qty_require"] = 1
+				gantt["qty_handover"] = 0
+				gantt["qty_sch"] = 1 
+				command_dvs["#{currdvstbl.chop}_#{@tblname.chop}_id_#{currdvstbl.chop}"] = @tbldata["id"]
+				command_dvs["dvssch_person_id_upd"] = gantt["persons_id_upd"] = setParams["person_id_upd"]
+				command_dvs["#{currdvstbl.chop}_created_at"] = command_dvs["#{currdvstbl.chop}_updated_at"] = Time.now
+				setParams["mkprdpurords_id"] = 0
+				setParams["gantt"] = gantt.dup
+				setParams["child"] = nd.dup
+				setParams["gantt"] = gantt.dup
+
+				strsql = %Q&
+					select * from linktbls where  tblname = '#{@tblname}' and tblid = #{@tbldata["id"]}   --- @tblname-->prdxxxs 
+											and srctblname != tblname
+				&
+				ActiveRecord::Base.connection.select_all(strsql).each do |link|
+					strsql = %Q&
+							select id,starttime from #{prevdvstbl} where prdschs_id_dvssch = #{link["srctblid"]}
+					&
+					prevdvs = ActiveRecord::Base.connection.select_one(strsql)
+					link_update_sql = %Q&
+									update linktbls set qty_src = 0 ,remark = '#{self} #{__LINE__} #{Time.now}'||remark 
+									where tblname  = '#{prevdvstbl}' and tblid = #{prevdvs["id"]}   
+					& 
+					ActiveRecord::Base.connection.update(link_update_sql)
+					if @tblname = "prdacts"
+						command_dvs["#{currdvstbl.chop}_starttime"] = prevdvs["starttime"]
+					end
+					alloc_update_sql = %Q&
+									update alloctbls set qty_linkto_alloctbl = 0 ,remark = '#{self} #{__LINE__} #{Time.now}'||remark
+									where srctblname = '#{prevdvstbl} and srctblid = #{prevdvs["id"]}  ---xxxschs.id unique on alloctbls
+					& 
+					ActiveRecord::Base.connection.update(alloc_update_sql)
+
+					strsql = %Q&
+							select trngantts_id from  linktbls where tblname  = '#{prevdvstbl}' and tblid = #{prevdvs["id"]}   
+					&
+					prevtrngantts_id = ActiveRecord::Base.connection.select_value(strsql)
+					src = {"tblname" => prevdvstbl,"tblid" => prevdvsid,"trngantts_id" => prevtrngantts_id}
+					base = {"tblname" =>currdvstbl,"tblid" => command_dvs["id"],"qty_src" => 1,"amt_src" => 0,
+							"remark" => "#{self} line #{__LINE__}", 
+							"persons_id_upd" => setParams["person_id_upd"]}
+					alloc = {"srctblname" => currdvstbl,"srctblid" => command_dvs["id"],"trngantts_id" => prevtrngantts_id,
+							"qty_linkto_alloctbl" => 1,
+							"remark" => "#{self} line #{__LINE__} #{Time.now}","persons_id_upd" => gantt["persons_id_upd"],
+							"allocfree" => 	"alloc"}
+					linktbl_id = proc_insert_linktbls(src,base)
+					alloctbl_id = proc_insert_alloctbls(alloc)
+				end
+				case setParams[:aud]
+				when "add","insert"
+					command_c["sio_classname"] = "_add_dvs_link"
+				when "update","edit"
+					command_c["sio_classname"] = "_update_dvs_link"
+				else
+            		Rails.logger.debug"error class #{self} ,line:#{__LINE__} ,time: #{Time.now} ,setParams:#{setParams} "
+            		Rails.logger.debug" not indicate add or update  "
+					raise
+				end
+				command_dvs = dvs.proc_create_tbldata(command_dvs)
+				setParams = dvs.proc_private_aud_rec(setParams,command_dvs) ###create pur,prdschs
+			end
+		end 
 	end
 end   ##module Ror_blk

@@ -85,17 +85,36 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
         case /^loca_code_shelfno$/.test(id):
                 if(screenCode.match(/ords|acts|/)){
                     if(lineData["loca_code_shelfno"]==="dummy"){
-                        lineData["loca_code_shelfno_gridmessage"]==="err change dummy "
-                    }
+                        lineData["loca_code_shelfno_gridmessage"]="err change dummy "
+                    }else{lineData["loca_code_shelfno_gridmessage"]="ok"}
                 }
                 break
         case /^crr_code$/.test(id):
                 if(screenCode.match(/puracts|custords/)){
                             if(lineData["crr_code"]==="dummy"){
-                                lineData["crr_code_gridmessage"]==="err change dummy "
-                            }
+                                lineData["crr_code_gridmessage"]="err change dummy "
+                            }else{lineData["crr_code_gridmessage"]="ok"}
                 }
                 break
+        case /endtime/.test(id):
+                let strstarttime = id.replace("endtime","starttime")
+                if(lineData[strstarttime]){
+                            if(lineData[strstarttime]>lineData[id]){
+                                   lineData[`${id}_gridmessage`]="err starttime > endtime "
+                            }else{lineData[`${id}_gridmessage`]="ok"}
+                        }
+            //  break はなし　effectivestarttime|effectivestarttimeに続く　
+        case /effectivestarttime|effectivestarttime/.test(id):
+            if(lineData[id]){
+                if(/^[0-2][0-9]:[0-2][0-9]$/.exec(lineData[id])){
+                                                lineData[`${id}_gridmessage`]="ok"}else{lineData[`${id}_gridmessage`]="err HH:MM"}}
+            break
+        case /mmdd/.test(id):
+            if(lineData[id]){
+                let mmdd = new Date(lineData[id])
+                if(mmdd.getDate()){
+                                     lineData[`${id}_gridmessage`]="ok"}else{lineData[`${id}_gridmessage`]="err mm/dd"}}
+            break
         default:
              break    
         }

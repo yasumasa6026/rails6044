@@ -1,42 +1,43 @@
-drop view if exists bygnocustord_linkheads;
-CREATE OR REPLACE VIEW bygnocustord_linkheads
-AS 
-select  
-	null id,
-  	'' person_code_upd ,
-  	''  person_name_upd ,
-	null  linkhead_id,
-	''  linkhead_remark,
-	'2099/12/31'  linkhead_expiredate,
-	''  linkhead_update_ip,
-	current_timestamp  linkhead_created_at,
-	current_timestamp   linkhead_updated_at,
-	null   linkhead_person_id_upd,
-	''  linkhead_contents,
-	'custords'  linkhead_tblname,
-	'linkheads'  linkhead_paretblname,
-	null  linkhead_paretblid,
-	'' link_packingListNo_tblname,
-	custord.gno  linkhead_gno_tblname,
-	''   linkhead_sno_tblname,
-	''   linkhead_cno_tblname,
-	'' itm_code,
-	'' itm_name,
-	min(custord.duedate)  custord_duedate,
-	'' custdlv_depdate,
-	sum(linkcust.qty_src) linkhead_qty,
-	sum(linkcust.qty_src * custord.price) linkhead_amt, 
-	cust.loca_code_cust loca_code_cust,
-	cust.loca_name_cust loca_name_cust ,
-	custrcvplc.loca_code_custrcvplc loca_code_custrcvplc,
-	custrcvplc.loca_name_custrcvplc loca_name_custrcvplc 
- from 	custords custord
- inner join r_custs cust on cust_id = custord.custs_id
- inner join r_custrcvplcs  custrcvplc on custrcvplc.custrcvplc_id  = custord.custrcvplcs_id
- inner join persons person on person.id = custord.persons_id_upd 
- inner join  linkcusts   linkcust on  linkcust.tblname = 'custords'	and linkcust.tblid = custord.id 
- 	where not exists(select 1 from linkheads   linkhead where linkhead.tblname = 'custords' 
- 						and linkhead.gno_tblname = custord.gno	and linkhead.paretblname = 'custacthead') 
-	group by cust.loca_name_cust ,cust.loca_code_cust ,custrcvplc.loca_code_custrcvplc ,custrcvplc.loca_name_custrcvplc
-			,custord.gno 
- 	;
+------未使用
+--drop view if exists bygnocustord_linkheads;
+--CREATE OR REPLACE VIEW bygnocustord_linkheads
+--AS 
+--select  
+--	null id,
+--  	'' person_code_upd ,
+--  	''  person_name_upd ,
+--	null  linkhead_id,
+--	''  linkhead_remark,
+--	'2099/12/31'  linkhead_expiredate,
+--	''  linkhead_update_ip,
+--	current_timestamp  linkhead_created_at,
+--	current_timestamp   linkhead_updated_at,
+--	null   linkhead_person_id_upd,
+--	''  linkhead_contents,
+--	'custords'  linkhead_tblname,
+--	'linkheads'  linkhead_paretblname,
+--	null  linkhead_paretblid,
+--	'' link_packingListNo_tblname,
+--	custord.gno  linkhead_gno_tblname,
+--	''   linkhead_sno_tblname,
+--	''   linkhead_cno_tblname,
+--	'' itm_code,
+--	'' itm_name,
+--	min(custord.duedate)  custord_duedate,
+--	'' custdlv_depdate,
+--	sum(linkcust.qty_src) linkhead_qty,
+--	sum(linkcust.qty_src * custord.price) linkhead_amt, 
+--	cust.loca_code_cust loca_code_cust,
+--	cust.loca_name_cust loca_name_cust ,
+--	custrcvplc.loca_code_custrcvplc loca_code_custrcvplc,
+--	custrcvplc.loca_name_custrcvplc loca_name_custrcvplc 
+-- from 	custords custord
+-- inner join r_custs cust on cust_id = custord.custs_id
+-- inner join r_custrcvplcs  custrcvplc on custrcvplc.custrcvplc_id  = custord.custrcvplcs_id
+-- inner join persons person on person.id = custord.persons_id_upd 
+-- inner join  linkcusts   linkcust on  linkcust.tblname = 'custords'	and linkcust.tblid = custord.id 
+-- 	where not exists(select 1 from linkheads   linkhead where linkhead.tblname = 'custords' 
+-- 						and linkhead.gno_tblname = custord.gno	and linkhead.paretblname = 'custacthead') 
+--	group by cust.loca_name_cust ,cust.loca_code_cust ,custrcvplc.loca_code_custrcvplc ,custrcvplc.loca_name_custrcvplc
+--			,custord.gno 
+-- 	;

@@ -592,7 +592,7 @@ class OpeClass
 			end
 		end
 		parent = {"duedate"=>@gantt["duedate_pare"],"starttime"=>@gantt["starttime"]}
-		starttime,duedate = CtlFields.proc_field_starttime(command_c["#{trn["tblname"].chop}_duedate"],trn,"gantt"),0
+		starttime,duedate = CtlFields.proc_field_starttime(parent,trn,"gantt",0)
 		command_c["#{trn["tblname"].chop}_starttime"] = starttime
 		@gantt["tblname"] = trn["tblname"]
 		@gantt["tblid"] = trn["tblid"]
@@ -863,6 +863,7 @@ class OpeClass
 		@reqparams["gantt"] = @gantt
 		linktbl_id,alloctbl_id = ArelCtl.proc_insert_trngantts(@gantt)  ###@ganttの内容をセット
 		@reqparams["linktbl_ids"] = [linktbl_id]
+		@reqparams["alloctbl_ids"] = [alloctbl_id]
 
 	 	###proc_mk_instks_rec stkinout,"add"
 		if @gantt["qty_handover"].to_f  > 0  ### and  @gantt["itms_id_trn"] != "0"  ### dummy @gantt["tblname"] != "dymschs"

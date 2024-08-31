@@ -59,7 +59,6 @@ nditm.consumchgoverqty  nditm_consumchgoverqty,
   itm_nditm.itm_classlist_id  itm_classlist_id_nditm ,
   itm_nditm.classlist_name  classlist_name_nditm ,
   itm_nditm.classlist_code  classlist_code_nditm ,
-nditm.price  nditm_price,
   opeitm.shelfno_code_to_opeitm  shelfno_code_to_opeitm ,
   opeitm.shelfno_name_to_opeitm  shelfno_name_to_opeitm ,
   opeitm.loca_code_shelfno_to_opeitm  loca_code_shelfno_to_opeitm ,
@@ -125,7 +124,6 @@ nditm.price  nditm_price,
 ,nditm_consumchgoverqty  numeric (22,6)
 ,nditm_consumminqty  numeric (22,6)
 ,nditm_byproduct  varchar (1) 
-,nditm_price  numeric (38,4)
 ,unit_code_case_shp  varchar (50) 
 ,unit_code_case_prdpur  varchar (50) 
 ,itm_material_nditm  varchar (50) 

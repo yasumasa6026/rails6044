@@ -79,7 +79,8 @@ module Api
                 if reqparams[:screenName].nil?
                     reqparams[:screenName] = reqparams[:screenCode]
                 end
-                reqparams[:pareTblName] = params[:screenCode].split("_",2)[1]
+                reqparams["gantt"] ||= {}
+                reqparams["gantt"]["paretblname"] = params[:screenCode].split("_",2)[1]
                 reqparams[:head] = JSON.parse(params[:head])
                 secondScreen = ScreenLib::ScreenClass.new(reqparams)
                 grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
@@ -363,7 +364,8 @@ module Api
                     reqparams[:buttonflg] = "inlineedit7"
                     reqparams[:aud] = "edit"
                     reqparams[:screenCode] = "forInsts_shpords"   ###shpordsがshpinstsに変わるため
-                    reqparams[:pareTblName] = params[:screenCode].split("_",2)[1]   
+                    reqparams["gantt"] ||= {}
+                    reqparams["gantt"]["paretblname"] = params[:screenCode].split("_",2)[1]
                     secondScreen = ScreenLib::ScreenClass.new(reqparams)
                     grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
                     pagedata,reqparams = Shipment.proc_second_shp reqparams,grid_columns_info
@@ -388,7 +390,8 @@ module Api
                     reqparams[:buttonflg] = "inlineedit7"
                     reqparams[:aud] = "edit"
                     reqparams[:screenCode] = "foract_shpinsts"   ###shpordsがshpinstsに変わるため
-                    reqparams[:pareTblName] = params[:screenCode].split("_",2)[1]   
+                    reqparams["gantt"] ||= {}
+                    reqparams["gantt"]["paretblname"] = params[:screenCode].split("_",2)[1]
                     secondScreen = ScreenLib::ScreenClass.new(reqparams)
                     grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
                     pagedata,reqparams = Shipment.proc_second_shp reqparams,grid_columns_info   ###
@@ -424,7 +427,8 @@ module Api
                     reqparams[:pageSize] ||= 100
                     reqparams[:buttonflg] = 'viewtablereq7'
                     reqparams[:screenCode] = "r_shpacts"   ###shpordsがshpinstsに変わるため
-                    reqparams[:pareTblName] = params[:screenCode].split("_",2)[1]   
+                    reqparams["gantt"] ||= {}
+                    reqparams["gantt"]["paretblname"] = params[:screenCode].split("_",2)[1]
                     secondScreen = ScreenLib::ScreenClass.new(reqparams)
                     grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
                     pagedata,reqparams = secondScreen.proc_second_view reqparams  ###共通lib
