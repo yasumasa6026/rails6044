@@ -3,11 +3,11 @@ import { connect } from 'react-redux'
 import AppBar from '@mui/material/AppBar'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
+import Button from '@mui/material/Button'
+import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { createStyles, makeStyles ,withStyles } from '@mui/styles'
 //import {Button} from './styles/button'
-import Button from '@mui/material/Button'
 import { LogoutRequest, SignUpFormRequest,LoginRequest,} from './actions'
-import { ThemeProvider, createTheme } from '@mui/material/styles'
 
 class GlobalNav extends React.Component {
   render() {
@@ -18,10 +18,10 @@ class GlobalNav extends React.Component {
       <ThemeProvider theme={theme}>
          <StyledAppBar title="RRRP" position='static' color="primary">
          <Toolbar  position='static'>
-          <Typography variant="h5" color="success" position='static' >
+          <Typography variant="h5" color={theme.palette.ochre.cntrastText} position='static' >
             RRRP...
           </Typography>
-          <Typography variant="h5"  gutterBottom = {true} >
+          <Typography variant="h5"  gutterBottom = {true}  >
           { isAuthenticated ? <Button variant="contained" color='success'
               type='submit' disabled={false}
               onClick ={() => LogoutClick(token,client,uid)}>
@@ -45,10 +45,10 @@ class GlobalNav extends React.Component {
 
 const theme = createTheme( {palette: {
   ochre: {
-    main: '#E3D026',
+    main: '#E3D026',  //'#E3D026'
     light: '#E9DB5D',
     dark: '#A29415',
-    contrastText: '#242105',}
+    contrastText: '#242105',}   //'#242105'
   }  
   })
 const StyledAppBar = withStyles({

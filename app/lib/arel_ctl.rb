@@ -70,7 +70,7 @@ module ArelCtl
 		return processreqs_id,params
 	end
 
-	def proc_createtable fmtbl,totbl,fmview,params  ### fmtbl:元のテーブル totbl:fmtblから自動作成するテーブル
+	def proc_createtable fmtbl,totbl,fmcommand_c,params  ### fmtbl:元のテーブル totbl:fmtblから自動作成するテーブル
 		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{params["email"]}','r_#{totbl}')
 		%
 		toFields = ActiveRecord::Base.connection.select_values(strsql) 
@@ -82,24 +82,20 @@ module ArelCtl
 			when /^id$/ 
 				if params[:classname] =~ /_add_|_insert_/
 					command_c["id"] = ""
-				else
-					command_c["id"] = fmview["id"]
 				end
 			when /_sno$|_cno$|_gno$/ 
 				if params[:classname] =~ /_add_|_insert_/
 					command_c[key] = ""
-				else
-					command_c[key] = fmview[prevkey]
 				end
 			when /_amt|_qty/   ###例：qty_schとqtyは同一項目とみなす
-				if fmview[prevkey]
+				if fmcommand_c[prevkey]
 					if key.split(/_amt|_qty/)[0] == prevkey.to_s.split(/_amt|_qty/)[0]
-						command_c[key] = fmview[prevkey]
+						command_c[key] = fmcommand_c[prevkey]
 					end
 				end
 			else
 				if toFields.index(prevkey)  ###配列に該当のkeyがあった時
-					command_c[key] = fmview[prevkey]
+					command_c[key] = fmcommand_c[prevkey]
 				end	
 			end
 		end
@@ -111,62 +107,78 @@ module ArelCtl
 						command_c["custrcvplc_code"] = "000"  
 						command_c["custrcvplc_name"] = "same as customer"  
 						command_c["id"] = nil
+				else
+						 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
+						 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{totbl}"
+						 raise
 				end
-			when /^suppliers/
+			when /^suppliers$/
 				case totbl
 				when "shelfnos"
 						strsql = %Q&
-								select id from shelfnos where code = '000' and locas_id_shelfno = #{fmview["supplier_loca_id_supplier"]}
+								select id from shelfnos where code = '000' and locas_id_shelfno = #{fmcommand_c["supplier_loca_id_supplier"]}
 						& 
 						if ActiveRecord::Base.connection.select_value(strsql)
 						else
 							command_c["shelfno_code"] = "000"
 							command_c["shelfno_name"] = "same as loca name"
-							command_c["shelfno_loca_id_shelfno"] = fmview["supplier_loca_id_supplier"]
+							command_c["shelfno_loca_id_shelfno"] = fmcommand_c["supplier_loca_id_supplier"]
 							command_c["id"] = nil
 						end
+				else
+					 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
+					 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{totbl}"
+					 raise
 				end
-			when /^workplaces/
+			when /^workplaces$/
 				case totbl
 				when "shelfnos"  
 					strsql = %Q&
-								select id from shelfnos where code = '000' and locas_id_shelfno = #{fmview["workplace_loca_id_workplace"]}
+								select id from shelfnos where code = '000' and locas_id_shelfno = #{fmcommand_c["workplace_loca_id_workplace"]}
 					& 
 					if ActiveRecord::Base.connection.select_value(strsql)
 					else
 						command_c["shelfno_code"] =  "000"
 						command_c["shelfno_name"] = "same as loca name"  
-						command_c["shelfno_loca_id_shelfno"] = fmview["workplace_loca_id_workplace"]
+						command_c["shelfno_loca_id_shelfno"] = fmcommand_c["workplace_loca_id_workplace"]
 						command_c["id"] = nil
 					end
+				else
+					 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
+					 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{totbl}"
+					 raise
 				end
 			when /rlstinputs/
 				case totbl 
-					when /^puracts/
-						qty_stk = fmview["purrsltinput_qty"].to_f
+				when /^puracts/
+						qty_stk = fmcommand_c["purrsltinput_qty"].to_f
 						sym_qty_stk = "purrsltinput_qty_stk"
 						sym_packno = "purrsltinput_packno"
-					when /^prdacts/
-						qty_stk = fmview["prdsltinput_qty"].to_f
+				when /^prdacts/
+						qty_stk = fmcommand_c["prdsltinput_qty"].to_f
 						sym_qty_stk = "prdrsltinput_qty_stk"
 						sym_packno = "prdrsltinput_packno"
-				end    
-				packqty = fmview["opeitm_packqty"].to_f
-				fmview["opeitm_packno_proc"] = 0 if packqty <= 0  ###保険　画面でチェック済
+				else
+					 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
+					 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{totbl}"
+					 raise
+				end
+				packqty = fmcommand_c["opeitm_packqty"].to_f
+				fmcommand_c["opeitm_packno_proc"] = 0 if packqty <= 0  ###保険　画面でチェック済
 				case parent["opeitm_packno_proc"]
 				when "1"
 						idx = 0
-						 packqty = fmview["opeitm_packqty"].to_f
+						 packqty = fmcommand_c["opeitm_packqty"].to_f
 						 until qty_stk <= 0 do
-							fmview[sym_packno] = format('%03d', idx)
-							fmview[sym_qty_stk] = packqty
-						   proc_createtable fmtbl,totbl,fmview,params["classname"] 
+							fmcommand_c[sym_packno] = format('%03d', idx)
+							fmcommand_c[sym_qty_stk] = packqty
+						   proc_createtable fmtbl,totbl,fmcommand_c,params["classname"] 
 						   qty_stk -=  packqty 
 						   idx += 1
 						 end
 				else
-					fmview[sym_qty_stk] = qty_stk
-					proc_createtable fmtbl,totbl,fmview,params["cassname"]
+					fmcommand_c[sym_qty_stk] = qty_stk
+					proc_createtable fmtbl,totbl,fmcommand_c,params["cassname"]
 				end
 			else
 				 	Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
@@ -187,7 +199,7 @@ module ArelCtl
 		blk.proc_private_aud_rec({},command_c)
 	end	
 
-	def proc_createDetailTableFmHead  headTbl,baseTbl,headCommand,fmview,params
+	def proc_createDetailTableFmHead  headTbl,baseTbl,headCommand,fmcommand_c,params
 		detailTbl = headTbl.sub(/heads$/,"s") 
 		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{params["email"]}','r_#{detailTbl}')
 		%
@@ -203,23 +215,23 @@ module ArelCtl
 				if params[:classname] =~ /_add_|_insert_/
 					command_c["id"] = ""
 				else
-					command_c["id"] = fmview["id"]
+					command_c["id"] = fmcommand_c["id"]
 				end
 			when /_sno$|_cno$|_gno$/ 
 				if params[:classname] =~ /_add_|_insert_/
 					command_c[key] = ""
 				else
-					command_c[key] = fmview[prevkey]
+					command_c[key] = fmcommand_c[prevkey]
 				end
 			when /_amt|_qty/   ###例：qty_sch,qty,qty_stkは同一項目とみなす
-				if fmview[prevkey]
+				if fmcommand_c[prevkey]
 					if key.to_s.split(/_amt|_qty/)[0] == prevkey.split(/_amt|_qty/)[0]
-						command_c[key] = fmview[prevkey]
+						command_c[key] = fmcommand_c[prevkey]
 					end
 				end
 			else
 				if toFields.index(prevkey)  ###配列に該当のkeyがあった時
-					command_c[key] = fmview[prevkey]
+					command_c[key] = fmcommand_c[prevkey]
 				end	
 			end
 		end
@@ -482,7 +494,7 @@ module ArelCtl
 												"alloc"
 									end}
 		case gantt["tblname"] 
-		when /^prd|^pur|dymschs|^dvs|^shp/   ### shp itmclass,code=mold,ITollの時
+		when /^prd|^pur|dymschs|^dvs|^shp|^erc/   ### shp itmclass,code=mold,ITollの時
 			linktbl_id = proc_insert_linktbls(src,base)
 			alloctbl_id = proc_insert_alloctbls(alloc)
 		when /^cust/
@@ -535,39 +547,43 @@ module ArelCtl
 		###
 		#    dvsxxxs linktbls alloctbls作成 
 		###
-		if src["tblname"] == "prdschs" and base["tblname"] !~ /acts$|dlvs$/
+		if src["tblname"] =~ /^prd/ and base["tblname"] != src["tblname"]
+			strsrcdvs = "dvs#{src["tblname"].sub("prd","")}"
+			strbasedvs = "dvs#{base["tblname"].sub("prd","")}"
 			strsql = %Q&
-					select * from dvsschs where prdschs_id_dvssch = #{src["tblid"]}			
+					select id from #{strsrcdvs} where #{src["tblname"]}_id_#{strsrcdvs.chop} = #{src["tblid"]}			
 			&
-			dvssch = ActiveRecord::Base.connection.select_one(strsql)
-			strsql = %Q&
-					select * from dvs#{base["tblname"].sub("prd","")} where #{base["tblname"].chop}_id_dvs#{base["tblname"].sub("prd","").chop} = #{base["tblid"]}			
-			&
-			dvsbase = ActiveRecord::Base.connection.select_one(strsql)
-			link_update_sql = %Q&
+			srcdvsid = ActiveRecord::Base.connection.select_value(strsql)
+			if srcdvsid
+				strsql = %Q&
+						select id from #{strbasedvs} where #{base["tblname"]}_id_#{strbasedvs.chop} = #{base["tblid"]}			
+				&
+				basedvsid = ActiveRecord::Base.connection.select_value(strsql)
+				link_update_sql = %Q&
 					update linktbls set qty_src = 0 ,remark = '#{self} #{__LINE__} #{Time.now}'||remark 
-						where tblname  = 'dvsschs' and tblid = #{dvssch["id"]}   
+						where tblname  = '#{strsrcdvs}' and tblid = #{srcdvsid}   
 					& 
-			ActiveRecord::Base.connection.update(link_update_sql)
-			alloc_update_sql = %Q&
+				ActiveRecord::Base.connection.update(link_update_sql)
+				alloc_update_sql = %Q&
 					update alloctbls set qty_linkto_alloctbl = 0 ,remark = '#{self} #{__LINE__} #{Time.now}'||remark
-						where srctblname  = 'dvsschs' and srctblid = #{dvssch["id"]}  ---xxxschs.id unique on alloctbls
+						where srctblname  = '#{strsrcdvs}' and srctblid = #{srcdvsid}  ---xxxschs.id unique on alloctbls
 					& 
-			ActiveRecord::Base.connection.update(alloc_update_sql)
-			strsql = %Q&
-					select trngantts_id from  linktbls where tblname  = '#{dvsschs}' and tblid = #{dvssch["id"]}   
-			&
-			trngantts_id = ActiveRecord::Base.connection.select_value(strsql)
-			src = {"tblname" => "dlvschs","tblid" => dvssch["id"],"trngantts_id" => trngantts_id}
-			base = {"tblname" =>"dvs#{base["tblname"].sub("prd","")}","tblid" => basedvs["id"],"qty_src" => 1,"amt_src" => 0,
+				ActiveRecord::Base.connection.update(alloc_update_sql)
+				strsql = %Q&
+						select trngantts_id from  linktbls where tblname  = '#{strsrcdvs}' and tblid = #{srcdvsid}   
+					&
+				trngantts_id = ActiveRecord::Base.connection.select_value(strsql)
+				srcdvs = {"tblname" => "#{strsrcdvs}","tblid" => srcdvsid,"trngantts_id" => trngantts_id}
+				basedvs = {"tblname" =>"#{strbasedvs}","tblid" => basedvsid,"qty_src" => 1,"amt_src" => 0,
 					"remark" => "#{self} line #{__LINE__}", 
 					"persons_id_upd" => 0}
-			alloc = {"srctblname" => "dvs#{base["tblname"].sub("prd","")}","srctblid" => basedvs["id"],"trngantts_id" => trngantts_id,
+				allocdvs = {"srctblname" => "#{strbasedvs}","srctblid" => basedvsid,"trngantts_id" => trngantts_id,
 					"qty_linkto_alloctbl" => 1,
 					"remark" => "#{self} line #{__LINE__} #{Time.now}","persons_id_upd" => 0,
 					"allocfree" => 	"alloc"}
-			linktbl_id = proc_insert_linktbls(src,base)  ###prdords,prdinsts,prdactsにlinkするdvsxxxsのtrnganttsはない
-			alloctbl_id = proc_insert_alloctbls(alloc)
+				linktbl_id = proc_insert_linktbls(srcdvs,basedvs)  ###prdords,prdinsts,prdactsにlinkするdvsxxxsのtrnganttsはない
+				alloctbl_id = proc_insert_alloctbls(allocdvs)
+			end
 		end
 		strsql = %Q&
 			update alloctbls set qty_linkto_alloctbl =  #{qty_src},
@@ -626,21 +642,23 @@ module ArelCtl
             select pare.processseq processseq_pare,pare.packqty packqty_pare,pare.id opeitms_id_pare,
 				pare.duration duration_pare,pare.units_lttime units_lttime,
 				nditm.itms_id_nditm itms_id,  ---itms_id = itms_id_nditm
-               nditm.processseq_nditm processseq,ope.packqty,
-               nditm.consumtype,nditm.parenum,nditm.chilnum,
-               nditm.consumunitqty,nditm.consumminqty,nditm.consumchgoverqty,
-               ope.id opeitms_id,ope.packno_proc,
-               ope.prdpur,ope.units_id_case_shp,itm.units_id,
-               ope.locas_id_shelfno locas_id_shelfno,ope.shelfnos_id_opeitm,  ---子部品作業場所
-               ope.locas_id_shelfno_to locas_id_shelfno_to,ope.shelfnos_id_to_opeitm,   ---子部品保管場所
-			   ope.consumauto,
+               	nditm.processseq_nditm processseq,ope.packqty,
+              	nditm.consumtype,nditm.parenum,nditm.chilnum,
+               	nditm.consumunitqty,nditm.consumminqty,nditm.consumchgoverqty,
+               	ope.id opeitms_id,ope.packno_proc,
+               	ope.prdpur,ope.units_id_case_shp,itm.units_id,
+               	ope.locas_id_shelfno locas_id_shelfno,ope.shelfnos_id_opeitm,  ---子部品作業場所
+               	ope.locas_id_shelfno_to locas_id_shelfno_to,ope.shelfnos_id_to_opeitm,   ---子部品保管場所
+			   	ope.consumauto,
+			   	nditm.duration_facility ,nditm.requireop,nditm.changeoverlt,nditm.changeoverop,
+			   	nditm.postprocessinglt,nditm.postprocessingop,
 			    itm.taxflg, itm.classlist_code,itm.itm_code_nditm,itm.itm_name_nditm,
 				nditm.packqtyfacility,nditm.changeoverlt,postprocessinglt,
-				case ope.duration
+				case pare.duration
 				when null then 
 					1
 				else
-					ope.duration
+					pare.duration
 				end duration
            from nditms nditm 
 				inner join opeitms pare on pare.id = nditm.opeitms_id
@@ -721,7 +739,8 @@ module ArelCtl
              select trn.orgtblname,trn.orgtblid,trn.tblname,trn.tblid,
 			 		trn.qty_sch,trn.qty,trn.qty_stk,
 					trn.mlevel,trn.parenum,trn.chilnum,trn.consumunitqty,trn.consumminqty,
-					trn.consumchgoverqty,pare.qty_linkto_alloctbl pare_qty,
+					trn.consumchgoverqty,pare.qty_linkto_alloctbl alloc_qty,pare.qty_pare pare_qty,
+					trn.itms_id_trn itms_id,trn.processseq_trn processseq,
 					ope.duration ,ope.units_lttime
              	from trngantts trn
                 inner join (select p.*, alloc.qty_linkto_alloctbl 

@@ -47,11 +47,13 @@ module Api
                             ganttData =  gantt.proc_get_ganttchart_data(tblcode,line["id"],params[:buttonflg])
                             ganttData.sort.each do |level,ganttdata|
                                 str_qty =  case ganttdata[:tblname]
-                                            when /schs/
+                                            when /^dvs|^erc/
+                                                "" 
+                                            when /schs$/
                                                 "QTY_SCH:#{ganttdata[:qty_sch]}"
                                             when /ords|insts|reply/
                                                 "QTY:#{ganttdata[:qty]}"
-                                             when /dlvs|acts/
+                                             when /dlvs$|acts$/
                                                 "STK:#{ganttdata[:qty_stk]}"
                                             else
                                                 ""
@@ -64,15 +66,15 @@ module Api
                                      "type"=>ganttdata[:type],
                                      "start"=>ganttdata[:start],"end"=>ganttdata[:duedate],
                                       "progress"=>case ganttdata[:tblname]
-                                                when /ords/
+                                                when /ords$/
                                                     50
-                                                when /insts/
+                                                when /insts%/
                                                     60
-                                                when /rply/
+                                                when /rply$/
                                                     70
-                                                when /dlvs/
+                                                when /dlvs$/
                                                     90
-                                                when /acts/
+                                                when /acts$/
                                                     100
                                                 else
                                                     0
@@ -83,6 +85,8 @@ module Api
                                                                                                                 {"backgroundColor"=>"#03CC03"}
                                                                                                             when /^shp/
                                                                                                                 {"backgroundColor"=>"#AAAA06"}
+                                                                                                            when /^erc/
+                                                                                                                {"backgroundColor"=>"#00bfff"}
                                                                                                             else
                                                                                                                 {"backgroundColor"=>"#9C6E41"} 
                                                                                                             end 
@@ -97,9 +101,9 @@ module Api
                                 str_qty =  case ganttdata[:tblname]
                                             when /schs/
                                                 "QTY_SCH:#{ganttdata[:qty_sch]}"
-                                            when /ords|insts|reply/
+                                            when /ords$|insts$|reply/
                                                 "QTY:#{ganttdata[:qty]}"
-                                             when /dlvs|acts/
+                                             when /dlvs$|acts$/
                                                 "STK:#{ganttdata[:qty_stk]}"
                                             else
                                                 ""
@@ -112,15 +116,15 @@ module Api
                                      "type"=>ganttdata[:type],
                                      "start"=>ganttdata[:start],"end"=>ganttdata[:duedate],
                                       "progress"=>case ganttdata[:tblname]
-                                                when /ords/
+                                                when /ords$/
                                                     50
-                                                when /insts/
+                                                when /insts$/
                                                     60
                                                 when /rply/
                                                     70
-                                                when /dlvs/
+                                                when /dlvs$/
                                                     90
-                                                when /acts/
+                                                when /acts$/
                                                     100
                                                 else
                                                     0

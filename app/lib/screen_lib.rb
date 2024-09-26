@@ -845,7 +845,7 @@ module ScreenLib
 				###  ダブルコーティション　「"」は使用できない。 
 				strsql = "select * from  func_get_screenfield_grpname('#{params["email"]}','#{screenCode}')"
 				ActiveRecord::Base.connection.select_all(strsql).each do |i|
-					contents = []
+					contents = []  ###[field_id,color,position,type]
 					if i["screenfield_hideflg"] == "0"
 						contents << i["pobject_code_sfd"] ###
 						contents << i["screenfield_name"] ###
@@ -866,13 +866,13 @@ module ScreenLib
 						contents << i["screenfield_type"]   ###未使用
 						download_columns_info[i["pobject_code_sfd"].to_sym] = contents
 					else
-						if i["pobject_code_sfd"] == "id" ###レコードの更新の時必要
-							contents << "id" ###
-							contents << "ffffff" ###
-							contents <<  "right"
-							contents << i["screenfield_type"]   ###未使用
-							download_columns_info[i["pobject_code_sfd"].to_sym] = contents
-						end
+						# if i["pobject_code_sfd"] == "id" ###レコードの更新の時必要
+						# 	contents << "id" ###
+						# 	contents << "ffffff" ###
+						# 	contents <<  "right"
+						# 	contents << i["screenfield_type"]   ###未使用
+						# 	download_columns_info[i["pobject_code_sfd"].to_sym] = contents
+						# end
 					end	
 				end
 			###end

@@ -250,7 +250,7 @@ class TblClass
 	def create_drop_field_sql table_name,column_name
 		@modifysql << "\n --- ----------------------------------------------"
 		@modifysql << "\n --- please do the below sql"
-		@modifysql << "\n --- and rerun 'Create table,view,screen'" 
+		@modifysql << "\n --- and rerun 'Create table,view,screen'  again" 
 		@modifysql << "\n --- ----------------------------------------------"	
 		@modifysql << "\n --- alter table #{ table_name} DROP COLUMN #{column_name} CASCADE;\n"
 		@modifysql << "\n --- 使用しているview "

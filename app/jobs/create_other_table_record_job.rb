@@ -51,6 +51,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                     case params["segment"]
                         when "skip" 
                         when "link_lotstkhists_update" ###/insts$|acts$|dlvs$|rets$/のとき
+                            ###parent：在庫移送を発生させたprd,pur
                             opeLotStk = Operation::OpeClass.new(params)  ###xxxschs,xxxords
                             opeLotStk.proc_link_lotstkhists_update()  
                         when "sumrequest" 
@@ -69,6 +70,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             # end    
 
                         when "mkprdpurords"  ###  xxxschsからxxxordsを作成。
+                            ### 　parent 未使用
                             mkordparams = {}
                             mkordparams[:incnt] = 0
                             mkordparams[:inqty] = 0
@@ -87,6 +89,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 %
                             ActiveRecord::Base.connection.update(strsql)
                         when "mkpayords"
+                            ### 　parent 未使用
                             if params["last_amt"] and (params["last_amt"].to_f != params["amt"].to_f or params["last_tax"].to_f != params["tax"].to_f )
                                 delete_payords(params)
                                 next if params["tbldata"]["amt"].to_f == 0 
@@ -175,6 +178,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                         #         %
                         #     ActiveRecord::Base.connection.update(strsql)
                         when "mkbillinsts"
+                            ### 　parent 未使用
                             mkbillinstparams = {}
                             mkbillinst = tbldata.dup
                             mkbillinstparams[:incnt] = 0
@@ -193,6 +197,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             ActiveRecord::Base.connection.update(strsql)
 
                         when /mkpayschs|mkbillschs|mkbillests|updatepayschs/
+                            ### 　parent 未使用
                             if params["segment"] == "updatepayschs"
                                 delete_paybillschs(params["segment"],params)
                             end
@@ -289,6 +294,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                         when /mkbillords/
                             ###ArelCtl.proc_createtable は使用しない
                             ###bill_loca_id_bill_cust
+                            ### 　parent 未使用
                             amt_src = 0
                             isudate = Time.now
                             duedate = Time.
@@ -417,7 +423,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 else  ###
                                     nd["opeitms_id"] = 0
                                     nd["shelfnos_id_opeitm"] = 0
-                                    nd["itms_id"] = nd["itms_id"]
                                     nd["shelfnos_id_opeitm"] = 0
                                     nd["locas_id_shelfno_to"] = 0
                                     nd["locas_id_shelfno"] = 0
@@ -438,14 +443,18 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         gantt["consumtype"] = (nd["consumtype"]||="apparatus")
                                         command_c["dvssch_prdsch_id_dvssch"] = parent["tblid"]
                                         command_c["dvssch_person_id_upd"] = gantt["persons_id_upd"] = setParams["person_id_upd"]
-                                        command_c["id"] = ArelCtl.proc_get_nextval("#{gantt["tblname"]}_seq")
                                         command_c["dvssch_created_at"] = Time.now
                                         setParams["mkprdpurords_id"] = 0
                                         setParams["gantt"] = gantt.dup
                                         setParams["child"] = nd.dup
                                         setParams["gantt"] = gantt.dup
                                         command_c = blk.proc_create_tbldata(command_c)
-                                        setParams = blk.proc_private_aud_rec(setParams,command_c) ###create pur,prdschs
+                                        setParams = blk.proc_private_aud_rec(setParams,command_c) ###
+                                        ###
+                                        # 人のリソース
+                                        ###
+                                        proc_mk_ercschs(nd,setParams,"ercschs")
+                                        ###
                                     when "mold","ITool"       ###金型 ###工具
                                         setParams["mkprdpurords_id"] = 0
                                         gantt["consumtype"] = (nd["consumtype"]||="mold")
@@ -485,11 +494,10 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         gantt["processseq_trn"] = command_c["#{gantt["tblname"].chop}_processseq"] = 999
                                         gantt["toduedate_trn"] = command_c["#{gantt["tblname"].chop}_toduedate"]
                                         gantt["qty_sch"] = command_c["#{gantt["tblname"].chop}_qty_sch"]
-                                        trnganttkey += 1
                                         command_c["#{gantt["tblname"].chop}_person_id_upd"] = gantt["persons_id_upd"] = setParams["person_id_upd"]
-                                        command_c["id"] = ArelCtl.proc_get_nextval("#{gantt["tblname"]}_seq")
                                         command_c["#{gantt["tblname"].chop}_created_at"] = Time.now
                                         gantt["starttime_trn"] =  command_c["#{gantt["tblname"].chop}_starttime"]
+                                        trnganttkey += 1
                                         gantt["key"] = gantt_key + format('%05d', trnganttkey)
                                         gantt["tblid"] = command_c["id"]
                                         gantt["itms_id_trn"] = nd["itms_id"]
@@ -557,7 +565,8 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     next
                                 end
                             end    
-                        when "mkprdpurchildFromCustxxxs"  ### custxxxsからpur,purschsに変更"custord_crr_id_custord"
+                        when "mkprdpurchildFromCustxxxs"  ### custxxxsからpur,purschsに変更"custord_crr_id_custord" 
+                            ###　parent 未使用
                             gantt = params["gantt"].dup
                             gantt["mlevel"] = 1
                             gantt["key"] = "00000000"
@@ -644,7 +653,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             command_c = blk.command_init
                             Rails.logger.debug"debugg class #{self},line:#{__LINE__} . command_c: #{command_c} "
                             command_c["#{setParams["opeitm"]["prdpur"]}sch_person_id_upd"] = setParams["person_id_upd"]
-                            command_c["#{setParams["opeitm"]["prdpur"]}sch_starttime"] = tbldata["starttime"]
+                            command_c["#{setParams["opeitm"]["prdpur"]}sch_duedate"] = tbldata["starttime"].to_time.strftime("%Y-%m-%d") + " 16:00:00"
                             command_c,qty_require = add_update_prdpur_table_from_nditm(child,tbldata,paretblname,command_c)  ###tbldata--->parent
                             command_c["#{setParams["opeitm"]["prdpur"]}sch_created_at"] = Time.now
                             command_c = blk.proc_create_tbldata(command_c)
@@ -969,35 +978,6 @@ class CreateOtherTableRecordJob < ApplicationJob
         command_c = blk.proc_create_tbldata(command_c) ##
         blk.proc_private_aud_rec({},command_c)
     
-        #     ###old_custords check
-        # if payord["last_duedate"]
-        #         strsql = %Q&
-        #                     select b.*,l.id linktbl_id from payords b
-        #                         inner join srctbllinks l on b.id = l.tblid
-        #                         where srctblname = 'puracts' 
-        #                                 and srctblid = #{src["tblid"]}
-        #                                 and tblname = 'payords' and tblid != #{command_c["id"]}
-        #         &
-        #         last_rec = ActiveRecord::Base.connection.select_one(strsql)
-        #         if last_rec
-        #             # strsql = %Q&
-        #             #             update payords set amt = amt + (#{payord["amt_src"].to_f - payord["last_amt"].to_f}),
-        #             #                 updated_at = current_timestamp
-        #             #                 where id = #{last_rec["id"]}
-        #             # &
-        #             # ActiveRecord::Base.connection.update(strsql)
-        #             strsql = %Q&
-        #                         update srctbllinks set amt_src = #{payord["amt_src"].to_f} ,
-        #                             updated_at = current_timestamp
-        #                             where id = #{last_rec["linktbl_id"]}
-        #             &
-        #             ActiveRecord::Base.connection.update(strsql)
-        #         end
-        # end
-        ###
-        #  payschsの減
-        ###
-        ### purordsを求める
         notords = [src]
         new_notords = []
         until notords == [] do
@@ -1177,4 +1157,99 @@ class CreateOtherTableRecordJob < ApplicationJob
     ###
     #
     ###     
+    def proc_mk_ercschs(nd,setParams,erctblname)
+        prdtblname = erctblname.sub("erc","prd")
+        dvstblname = erctblname.sub("erc","dvs")
+        gantt = setParams["gantt"].dup
+        parent = setParams["tbldata"].dup
+        setParams["mkprdpurords_id"] = 0
+        gantt["tblname"] = erctblname
+        gantt["qty_require"] = 1
+        gantt["qty_handover"] = 0
+        case erctblname
+        when /schs/
+            gantt["qty_sch"] = 1 
+            gantt["qty"] = 0 
+            gantt["qty_stk"] = 0 
+        when /acts/
+            gantt["qty_sch"] = 0
+            gantt["qty"] = 0 
+            gantt["qty_stk"] = 1 
+        else
+            gantt["qty_sch"] = 0
+            gantt["qty"] = 1 
+            gantt["qty_stk"] = 0 
+        end
+        gantt["consumtype"] = "apparatus"
+        gantt_key = gantt["key"]
+        trnganttkey = 0
+        Rails.logger.debug" class:#{self} , line:#{__LINE__} ,nd:#{nd}" 
+        Rails.logger.debug" class:#{self} , line:#{__LINE__} ,setParams:#{setParams}" 
+        if nd["changeoverlt"].to_f > 0 and nd["changeoverop"].to_i > 0
+            nd["prdpur"] = "erc"
+            nd["changeoverop"].to_i.times do
+                trnganttkey += 1
+                gantt["key"] = gantt_key + format('%05d', trnganttkey)
+                blk = RorBlkCtl::BlkClass.new("r_ercschs")
+                command_c = blk.command_init
+                command_c["#{erctblname.chop}_#{prdtblname.chop}_id_#{erctblname.chop}"] = parent["#{prdtblname}_id_#{dvstblname.chop}"]
+                command_c["#{erctblname.chop}_created_at"] = Time.now
+                command_c["#{erctblname.chop}_person_id_upd"] = gantt["persons_id_upd"] = setParams["person_id_upd"]
+                command_c["#{erctblname.chop}_processname"] = "changeover"
+                command_c,qty_require,err = add_update_prdpur_table_from_nditm(nd,parent,prdtblname,command_c)  ###tblname = paretblname(prdschs)
+                next if err
+                gantt["starttime_trn"] = command_c["#{erctblname.chop}_starttime"]
+                gantt["duedate_trn"] = command_c["#{erctblname.chop}_duedate"]
+                setParams["gantt"] = gantt.dup
+                setParams["child"] = nd.dup
+                setParams["gantt"] = gantt.dup
+                command_c = blk.proc_create_tbldata(command_c)
+                setParams = blk.proc_private_aud_rec(setParams,command_c) ###
+            end
+        end
+        if nd["duration_facility"].to_f > 0 and nd["requireop"].to_i > 0
+            nd["prdpur"] = "erc"
+            nd["requireop"].to_i.times do
+                trnganttkey += 1
+                gantt["key"] = gantt_key + format('%05d', trnganttkey)
+                blk = RorBlkCtl::BlkClass.new("r_ercschs")
+                command_c = blk.command_init
+                command_c["#{erctblname.chop}_#{prdtblname.chop}_id_#{erctblname.chop}"] = parent["#{prdtblname}_id_#{dvstblname.chop}"]
+                command_c["#{erctblname.chop}_created_at"] = Time.now
+                command_c["#{erctblname.chop}_person_id_upd"] = gantt["persons_id_upd"] = setParams["person_id_upd"]
+                command_c["#{erctblname.chop}_processname"] = "require"
+                command_c,qty_require,err = add_update_prdpur_table_from_nditm(nd,parent,prdtblname,command_c)  ###tblname = paretblname
+                next if err
+                gantt["starttime_trn"] = command_c["#{erctblname.chop}_starttime"]
+                gantt["duedate_trn"] = command_c["#{erctblname.chop}_duedate"]
+                setParams["gantt"] = gantt.dup
+                setParams["child"] = nd.dup
+                setParams["gantt"] = gantt.dup
+                command_c = blk.proc_create_tbldata(command_c)
+                setParams = blk.proc_private_aud_rec(setParams,command_c) ###
+            end
+        end
+        if nd["postprocessinglt"].to_f > 0 and nd["postprocessingop"].to_i > 0
+            nd["prdpur"] = "erc"
+            nd["postprocessingop"].to_i.times do
+                trnganttkey += 1
+                gantt["key"] = gantt_key + format('%05d', trnganttkey)
+                blk = RorBlkCtl::BlkClass.new("r_ercschs")
+                command_c = blk.command_init
+                command_c["#{erctblname.chop}_#{prdtblname.chop}_id_#{erctblname.chop}"] = parent["#{prdtblname}_id_#{dvstblname.chop}"]
+                command_c["#{erctblname.chop}_created_at"] = Time.now
+                command_c["#{erctblname.chop}_person_id_upd"] = gantt["persons_id_upd"] = setParams["person_id_upd"]
+                command_c["#{erctblname.chop}_processname"] = "postprocess"
+                command_c,qty_require,err = add_update_prdpur_table_from_nditm(nd,parent,prdtblname,command_c)  ###tblname = paretblname
+                next if err
+                gantt["starttime_trn"] = command_c["#{erctblname.chop}_starttime"]
+                gantt["duedate_trn"] = command_c["#{erctblname.chop}_duedate"]
+                setParams["gantt"] = gantt.dup
+                setParams["child"] = nd.dup
+                setParams["gantt"] = gantt.dup
+                command_c = blk.proc_create_tbldata(command_c)
+                setParams = blk.proc_private_aud_rec(setParams,command_c) ###
+            end
+        end
+    end
 end

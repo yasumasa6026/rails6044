@@ -1756,7 +1756,7 @@ module Shipment
 			strsql = %Q&
 					select l.* from #{currshp} s  
 								inner join (select i.id itms_id ,c.code from itms i
-													inner classlists c on c.id = i.classlists_id ) ic
+												inner join classlists c on c.id = i.classlists_id ) ic
 								on s.itms_id = ic.itms_id
 								inner join linktbls l on l.tblid = s.paretblid and l.tblname = s.paretblname
 								where ic.code in('mold','IToll') and s.id = #{shp["id"]} 
@@ -1798,7 +1798,7 @@ module Shipment
 			strsql = %Q&
 					select l.* from #{prevshp} s  
 								inner join (select i.id itms_id ,c.code from itms i
-													inner classlists c on c.id = i.classlists_id ) ic
+													inner join classlists c on c.id = i.classlists_id ) ic
 								on s.itms_id = ic.itms_id
 								inner join linktbls l on l.tblid = s.id and l.tblname = '#{prevshp}'  ---linktbks shpxxx
 								where ic.code in('mold','IToll') and s.paretblid = #{shp["paretblid"]}

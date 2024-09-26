@@ -160,11 +160,12 @@ const AutoCell = ({
         switch (true){   
         case /^Editable/.test(className):
             return (
-              <sp>
-                <a id={`${id}_${index}`} data-tooltip-content={`${data[index][id + '_gridmessage']}`}
+             <sp>
+             {/* <a id={`${id}_${index}`} data-tooltip-content={`${data[index][id + '_gridmessage']}`}
                 data-tooltip-html={`<div>${data[index][id + '_gridmessage']}</div>`}
                 data-tooltip-id={`Tooltip_#${id}_${index}`}>
-                <input value={initialValue||""}   
+              */}
+              <input value={initialValue}   //value={initialValue||""}--> zeroが""になった
                    //placeholder(入力されたことにならない。) defaultvale（照会内容の残像が残る。)
                    onChange={(e) => setFieldsByonChange(e)} 
                      //onFocus={(e) => {setFieldsByonFocus(e)
@@ -187,11 +188,12 @@ const AutoCell = ({
                       //data-tooltip-id={`Tooltip_#${id}_${index}`}
                       //Sdata-tooltip-position-strategy="fixed"
                       //data-tooltip-place="buttom"
+                    onClick={()=>data[index][id + '_gridmessage']&&alert(data[index][id + '_gridmessage']) }
                     />  
-                </a>
+                {/*    </a>
                 <Tooltip id={`Tooltip_#${id}_${index}`}  
-                data-tooltip-offset={-30} style={{ backgroundColor: "rgb(0, 255, 30)", color: "#222" }} />
-               </sp> 
+                data-tooltip-offset={-30} style={{ backgroundColor: "rgb(0, 255, 30)", color: "#222" }} /> */}
+                </sp>
               )
         case /SelectEditable/.test(className):
             return (<select
@@ -234,13 +236,14 @@ const AutoCell = ({
           let chekboxClassName = setClassFunc(id,row.values,className,params.aud)
             return (
               <sp>
-              <Tooltip content={data[index][`${id}_gridmessage`]||""}  anchorSelect={`#${id}_${index}`} />
+             {/* <Tooltip content={data[index][`${id}_gridmessage`]||""}  anchorSelect={`#${id}_${index}`} /> */}
               <label   htmlFor={`${id}_${index}`} className={chekboxClassName} >
               {chekboxClassName==="checkbox"?"":"error"}
               </label> 
               <input  type="checkbox" checked={data[index][id]===true?"checked":""} 
                       id={`${id}_${index}`}
                       className={chekboxClassName}
+                      onClick={()=>data[index][id + '_gridmessage']&&alert(data[index][id + '_gridmessage']) }
                       readOnly />
               {/*     style={{bakground:"red"}}が有効にならない。*/}
               </sp>)

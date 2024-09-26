@@ -57,6 +57,7 @@ class OpeClass
 			### viewはr_xxxxxxsのみ
 			get_last_rec()   ##set @last_rec
 		end
+		@chng_flg = ""
 	end
 
 	###------------------------------------------------------
@@ -71,11 +72,11 @@ class OpeClass
 			end	
 		else ###変更　(削除 qty_sch=qty=qty_stk=0 　を含む) purschs,purords,prdschs,prdords
 			return @reqparams if @gantt.nil?
-			chng_flg = check_shelfnos_duedate_qty()  ###
-			return @reqparams  if chng_flg == ""
+			check_shelfnos_duedate_qty()  ###
+			return @reqparams  if @chng_flg == ""
 			###数量・納期・場所の変更があった時
 			case @tblname
-			when /custschs$|ords$|prdschs|purschs/  ###topのみ schsの修正はganttchartから
+			when /chs$|ords$/  ###topのみ schsの修正はganttchartから
 				strsql = %Q% 
 						select * from trngantts where tblname = '#{@tblname}' and tblid = #{@tblid}
 						  and orgtblname = paretblname and paretblname = tblname
@@ -97,17 +98,19 @@ class OpeClass
 
 			###新shelfnos_id_fmで出庫・消費を作成(数量増の変更で対応)
 			###数量又は納期の変更があった時   xxxsxhs,xxxordsの時のみ
-			# strsql = %Q&
-			# 			update trngantts set   --- xxschs,xxxordsが変更された時のみ
-			# 				updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-			# 				#{@str_qty.to_s} = #{@tbldata[@str_qty]},
-			# 				remark = '#{self}  line:#{__LINE__}'||remark,
-			# 				prjnos_id = #{@tbldata["prjnos_id"]},duedate_trn = '#{@tbldata[@str_duedate]}'
-			# 				#{if @tblname =~ /^cust/ then "" else ",shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}" end}
-			# 				where  id = #{@trngantts_id} &
-			# ActiveRecord::Base.connection.update(strsql) 
-			####
-			if chng_flg =~ /qty/ 
+			strsql = %Q&
+			 			update trngantts set   --- xxschs,xxxordsが変更された時のみ
+			 				updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+			 				#{@str_qty.to_s} = #{@tbldata[@str_qty]},
+			 				remark = '#{self}  line:#{__LINE__}'||remark,
+			 				prjnos_id = #{@tbldata["prjnos_id"]},duedate_trn = '#{@tbldata[@str_duedate]}'
+			 				#{if @tblname =~ /^cust/ then "" else ",shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}" end}
+			 				where  id = #{@trngantts_id} &
+			ActiveRecord::Base.connection.update(strsql) 
+			###
+			Rails.logger.debug"class #{self}  line:#{__LINE__} chng_flg:#{@chng_flg}  @tblname:#{@tblname}  "
+			###
+			if @chng_flg =~ /qty/ 
 				###数量の変更があるときはalloctblsも修正する。
 				case @tblname
 				when /^prdschs|^purschs/   ###schsが減されfreeのordsが発生。xxxschsがtopの時のみ変更可能
@@ -120,40 +123,67 @@ class OpeClass
 					base_sch_alloc_update(base_alloc)  
 					###schsが減された時:ords,insts,actsをfreeに　qty_schが増、減されたときshp,conの変更、###在庫の処理を含む
 					###trnganttsは修正済  alloctblsは一件のみ
-				# when /^custords/
-				# 	###引当済以下の数量減は不可。画面,importでチェック済のこと
-				# 	qty =  @tbldata[@str_qty].to_f
-				# 	strsql = %Q&
-				# 			select * from linkcusts where tblname = '#{@tblname}' and tblid = #{@tblid}
-				# 	&
-				# 	ActiveRecord::Base.connection.select_all(strsql).each do |link|
-				# 		if qty < link["qty_src"].to_f
-				# 			update_sql = %Q&
-				# 				update linkcusts 
-				# 					set qty_src = #{qty},remark = ' #{self} line:#{__LINE__} '||remark
-				# 					where id = #{link["id"]}
-				# 			&
-				# 			ActiveRecord::Base.connection.update(update_sql)
-				# 			update_sql = %Q&
-				# 				update linkcusts 
-				# 					set qty_src = qty_src + #{link["qty_src"]} - #{qty},remark = ' #{self} line:#{__LINE__} ' ||remark
-				# 					where tblname = '#{link["srctblname"]}}' and tblid = #{link["srctblid"]}
-				# 					and srctblname = '#{link["srctblname"]}}' and srctblid = #{link["srctblid"]}
-				# 			&
-				# 			ActiveRecord::Base.connection.update(update_sql)
-				# 			qty = 0
-				# 		else
-				# 			qty -= link["qty_src"].to_f
-				# 		end
-				# 	end
+				when /^custords/
+				 	qty =  @tbldata[@str_qty].to_f
+				 	strsql = %Q&
+				 			select * from linkcusts where tblname = 'custords' and tblid = #{@tblid}
+													and srctblname = 'custschs' 
+				 	&
+				 	links = ActiveRecord::Base.connection.select_all(strsql)
+					if links.to_ary.size > 0    ###custschs引当
+				 		if qty < link["qty_src"].to_f
+				 			update_sql = %Q&
+				 				update linkcusts 
+				 					set qty_src = #{qty},remark = ' #{self} line:#{__LINE__} '||remark
+				 					where id = #{link["id"]}
+				 			&
+				 			ActiveRecord::Base.connection.update(update_sql)
+							rcv_qty = qty
+							qty = 0
+				 		else
+							rcv_qty = link["qty_src"]
+				 			qty -= link["qty_src"].to_f
+				 		end
+						custschs_rcv_sql = %Q&
+							 update linkcusts 
+								 set qty_src = qty_src + #{rcv_qty},remark = ' #{self} line:#{__LINE__} '||remark
+								 where tblname = 'custschs' and srctblname = 'custschs'
+								 and tblid = #{link["srctblid"]} and srctblid = #{link["srctblid"]}
+						 	&
+						ActiveRecord::Base.connection.update(custschs_rcv_sql)
+						return @reqparams
+					else  ###paretblname=custords,tblname=prd,pur
+						strsql = %Q% 
+									select * from trngantts where paretblname = '#{@tblname}' and paretblid = #{@tblid}
+					  							and orgtblname = paretblname and paretblname != tblname
+					  							and orgtblid = paretblid 
+								%
+						top_trngantt = ActiveRecord::Base.connection.select_one(strsql)
+						strsql = %Q&
+									 update trngantts set   --- 
+										 updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+										 qty_pare = #{@tbldata[@str_qty]},
+										 remark = '#{self}  line:#{__LINE__}'||remark
+										 where  id = #{top_trngantt["id"]} &
+						ActiveRecord::Base.connection.update(strsql) 
+						### custordsの直下prdschs,purschsの修正
+						trn = {"tblname" => top_trngantt["tblname"],"tblid" => top_trngantt["tblid"],
+								"pare_qty" =>  @tbldata[@str_qty],"qty" => 0,"qty_stk" => 0,
+								"chilnum" => 1,"parenum" => 1,"consumunitqty" => 0,
+								"consumminqty" => 0,"consumchgoverqty" => 0,
+								"itms_id" => top_trngantt["itms_id_trn"],"processseq" => top_trngantt["processseq_trn"],
+								"duration" => 0,"duration_facility" => 0,"packqtyfacility" => 0
+								}
+						update_prdpur_child(trn)
+				 	end
 				when /purords$|prdords$/  ###既に引き当てられている数以下にはできない。画面でチェック済
 					###linktblsとlink先のalloctblの変更
 					change_alloc_last() 
 				end
 				###shp,conの変更 callされるのはschs,ordsの時のみ
 			end
-			###下位の構成変更
-			if top_trngantt["mlevel"].to_i  == 0
+			###下位の構成変更  
+			###if top_trngantt["mlevel"].to_i  == 0
 				lowlevel_gantts = []
 				lowlevel_gantts[0] = top_trngantt
 				until lowlevel_gantts.empty?
@@ -164,7 +194,7 @@ class OpeClass
 						lowlevel_gantts << trn
 					end
 				end
-			end
+			###end
 		end
 		return @reqparams
 	end
@@ -463,9 +493,6 @@ class OpeClass
 				end
 				if stkinout[@str_qty].to_f > 0
 					stkinout["shelfnos_id"] =  @tbldata["shelfnos_id_fm"]
-					Rails.logger.debug"class #{self}  line:#{__LINE__}  "
-					Rails.logger.debug"stkinout:#{stkinout}  "
-					Rails.logger.debug"@tbldata:#{@tbldata}  "
 					stkinout = Shipment.proc_lotstkhists_in_out("out",stkinout)  ###在庫の更新
 					###proc_update_inoutlot_and_src_stk("out","lotstkhists",stkinout)
 				end
@@ -570,12 +597,13 @@ class OpeClass
 	end
 
 	def update_prdpur_child(trn)
-		screenCode = @reqparams[:screenCode] = "r_" + trn["tblname"]
+		cParams = @reqparams.dup
+		cParams[:screenCode] = "r_" + trn["tblname"]
 		strsql = %Q&
 				select * from r_#{trn["tblname"]} where id = #{trn["tblid"]}
 		&
 		rec = ActiveRecord::Base.connection.select_one(strsql)
-		child_blk = RorBlkCtl::BlkClass.new(screenCode)
+		child_blk = RorBlkCtl::BlkClass.new(cParams[:screenCode])
 		command_c = child_blk.command_init
 		command_c.merge!rec 
 		command_c["sio_classname"] = "_update_#{trn["tblname"]}_update_prdpur_child"
@@ -591,16 +619,22 @@ class OpeClass
 				command_c["#{trn["tblname"].chop}_qty_sch"]  = 0
 			end
 		end
-		parent = {"duedate"=>@gantt["duedate_pare"],"starttime"=>@gantt["starttime"]}
-		starttime,duedate = CtlFields.proc_field_starttime(parent,trn,"gantt",0)
-		command_c["#{trn["tblname"].chop}_starttime"] = starttime
+		if trn["tblname"] =~ /^pur/
+			command_c,err = CtlFields.proc_judge_check_supplierprice(command_c.symbolize_keys,"",0,"r_purschs") 
+			command_c = command_c.stringify_keys
+		end
+		if @chng_flg =~ /due|shelfno/
+			parent = {"duedate"=>@gantt["duedate_pare"],"starttime"=>@gantt["starttime_trn"]}
+			command_c = CtlFields.proc_field_starttime(parent,trn,trn["tblname"].chop,command_c)
+		end
 		@gantt["tblname"] = trn["tblname"]
 		@gantt["tblid"] = trn["tblid"]
 		@gantt["mlevel"] = trn["mlevel"]
 		child_blk.proc_create_tbldata(command_c)
-		child_blk.proc_add_update_table(@reqparams,command_c)
+		child_blk.proc_private_aud_rec(cParams,command_c)
 		@gantt["paretblname"] = trn["tblname"]
 		@gantt["paretblid"] = trn["tblid"]
+		@reqparams["gantt"] = @gantt.dup
 	end
 
 	def get_last_rec
@@ -654,21 +688,22 @@ class OpeClass
 	end
 	
 	def check_shelfnos_duedate_qty
-		chng_flg = ""
 		Rails.logger.debug"  class: #{self} , line:#{__LINE__} "
 		Rails.logger.debug"  @tbldata: #{@tbldata} "
 		Rails.logger.debug"  @last_rec: #{@last_rec} "
 		Rails.logger.debug"  @str_qty #{@str_qty} " 
+		Rails.logger.debug"  @tblname #{@tblname} " 
+		Rails.logger.debug"   #{@tbldata[@str_qty]} #{@last_rec["#{@tblname.chop}_#{@str_qty}"]} " 
 		if @tbldata[@str_qty].to_f != @last_rec["#{@tblname.chop}_#{@str_qty}"].to_f  
-			 chng_flg << "qty"
+			 @chng_flg << "qty"
 		end
 		if @tbldata[@str_duedate] != @last_rec["#{@tblname.chop}_#{@str_duedate}"]
-			chng_flg << "due"
+			@chng_flg << "due"
 		end
 		case @tblname
 		when /^pur/
 			if @tbldata["suppliers_id"] != @last_rec["#{@tblname.chop}_supplier_id"]
-				chng_flg << "shelfno"
+				@chng_flg << "shelfno"
 				strsql = %Q&
 							select s.id from shelfnos s 
 										inner join  suppliers supplier on supplier.locas_id_supplier = s.locas_id_shelfno
@@ -683,7 +718,7 @@ class OpeClass
 				ActiveRecord::Base.connection.update(update_sql)
 			else
 				if @tbldata["shelfnos_id_to"] != @last_rec["#{@tblname.chop}_shelfno_id_to"]
-					chng_flg << "shelfno"
+					@chng_flg << "shelfno"
 					update_sql = %Q&
 								update trngantts set shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}
 									where tblname = '#{@tblname}' and tblid = #{@tblid}
@@ -693,7 +728,7 @@ class OpeClass
 			end
 		else
 			if @tbldata["shelfnos_id_to"] != @last_rec["#{@tblname.chop}_shelfno_id_to"] or  @tbldata["shelfnos_id"] != @last_rec["#{@tblname.chop}_shelfno_id"]
-				chng_flg << "shelfno"
+				@chng_flg << "shelfno"
 				###locas_id = ActiveRecord::Base.connection.select_value("select locas_id_shelfno from shelfnos where id = #{@last_rec["#{@tblname.chop}_shelfno_id"]}")
 				update_sql = %Q&
 							update trngantts set shelfnos_id_trn = #{@tbldata["shelfnos_id"]},shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}
@@ -704,7 +739,7 @@ class OpeClass
 		end
 		###
 		#数量・納期の変更がないときは何もしない。
-		return chng_flg
+		return 
 	end
 
 	def base_sch_alloc_update(base_alloc)   ###purschs,prdschs
@@ -803,6 +838,7 @@ class OpeClass
 				else
 					save_qty =- link["qty_src"].to_f
 				end
+				root_trngantts_id = link["trngantts_id"]
 			end
 		end	
 		src_alloc_update_strsql = %Q&

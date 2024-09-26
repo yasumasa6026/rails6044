@@ -486,7 +486,7 @@ module GanttChart
 						n0[:itm_name] = itm["name"]
 				end
 				case n0[:tblname] 
-				when /prd/  
+				when /^prd/  
 					strsql = %Q&
 						select * from #{n0[:tblname]} tbl
 							inner join shelfnos shelf on shelf.id = tbl.shelfnos_id
@@ -501,16 +501,33 @@ module GanttChart
 						n0[:loca_code] = loca["code"]
 						n0[:loca_name] = loca["name"]
 					end 
-				when /dvs/  
+				when /^dvs/  
 					strsql = %Q&
-						select s.* from facilities tbl	
-									inner join  itms itm on itm.id = tbl.itms_id and itm.id =  #{n0[:itms_id]}
-									inner join shelfnos s on s.id = tbl.shelfnos_id 
+						select tbl.code fcode,tbl.name fname,s.code scode,s.name sname from facilities tbl
+									inner join shelfnos s on s.id = tbl.shelfnos_id 	
+									inner join  #{n0[:tblname]} dvs on tbl.id = dvs.facilities_id where dvs.id = #{n0[:tblid]} 
+					&
+					tbl =  ActiveRecord::Base.connection.select_one(strsql)
+					n0[:loca_code] = tbl["scode"]
+					n0[:loca_name] = tbl["sname"]
+					n0[:itm_code] = tbl["fcode"]
+					n0[:itm_name] = tbl["sname"]
+					n0[:processseq] = ""
+				when /^erc/  
+					strsql = %Q&
+						select erc.processname,c.code,c.name from fcoperators f
+									inner join (select ch.id,code,name from chrgs ch
+															inner join persons p on p.id = ch.persons_id_chrg)   
+												c on c.id = f.chrgs_id 	
+									inner join  #{n0[:tblname]} erc on f.id = erc.fcoperators_id where erc.id = #{n0[:tblid]} 
 					&
 					tbl =  ActiveRecord::Base.connection.select_one(strsql)
 					n0[:loca_code] = tbl["code"]
 					n0[:loca_name] = tbl["name"]
-				when /pur/ 
+					n0[:itm_code] = tbl["processname"]
+					n0[:itm_name] = ""
+					n0[:processseq] = ""
+				when /^pur/ 
 					strsql = %Q&
 						select * from #{n0[:tblname]} tbl
 							inner join (select l.code ,l.name,s.id supp_id from locas l 
@@ -528,20 +545,29 @@ module GanttChart
 					end
 				end
 				if @level =~ /trn/
-						if n0[:tblname] =~ /^cust|^dym|^dvs|^shp/ 
+						if n0[:tblname] =~ /^cust|^dym|^dvs|^shp|^erc/ 
 							rec = ActiveRecord::Base.connection.select_one("select * from #{n0[:tblname]} where id = #{n0[:tblid]}")
 						else
 							rec = tbl.dup  ###prd/purの時
 						end
 						n0[:sno] = rec["sno"]
-						n0[:duedate] = (CtlFields.proc_get_endtime(n0[:tblname],rec))  ###duedate? rcptdate? cmpldate?
+						case n0[:tblname] 
+						when /^shpacts|^puracts/   ### itmclass.code=mold,
+							n0[:end] = rec["rcptdate"]
+						when /^prdacts|^dvsacts/
+							n0[:end] = rec["cmpldate"]
+						else
+							n0[:end] = rec["duedate"]  ###duedate? rcptdate? cmpldate?
+						end
 						case n0[:tblname] 
 						when /^shp/   ### itmclass.code=mold,ITool
 							n0[:start] = rec["depdate"]
-						when /schs$|ords$insts$/
+						when /schs$/
 							n0[:start] = rec["starttime"]
+						when /^prd|^dvs/
+							n0[:start] = rec["commencementdate"]
 						else
-							n0[:start] = n0[:duedate]
+							n0[:start] = rec["starttime"]
 						end
 						if buttonflg =~ /gantt/
 							if @bgantts[@level][:start] < n0[:duedate]
@@ -641,7 +667,7 @@ module GanttChart
 				nd =  {"duration"=>contents[:duration],"units_lttime"=>contents[:units_lttime],
 				   	"classlist_code"=>contents[:classlist_code],
 					"changeoverlt"=>contents[:changeoverlt]}
-				contents[:start],contents[:duedate] = CtlFields.proc_field_starttime(contents[:duedate],nd,"gantt",0)
+				contents[:start] = field_starttime(contents[:duedate],nd,"gantt")
 				@ngantts << contents
 				@bgantts[nlevel] = contents	
 				if @max_time < contents[:duedate]
@@ -682,14 +708,13 @@ module GanttChart
 						:duration=>rec["duration"],:units_lttime=>rec["units_lttime"],:id=>nlevel,:type=>"task",
 						:parenum=>rec["parenum"],:chilnum=>rec["chilnum"],:qty=>new_qty,
 						:itms_id=>rec["itms_id"],:itm_code=>rec["itm_code"],:itm_name=>rec["itm_name"],
-   						:classlist_code=>"",
-						:changeoverlt=>0,
+   						:classlist_code=>"",:changeoverlt=>0,
 						:locas_id=>pare["shelfno_loca_id_shelfno"],:loca_code=>pare["loca_code_shelfno"],
 						:loca_name=>pare["loca_name_shelfno"]}
 				depend << nlevel
 				nd =  {"duration"=>contents[:duration],"units_lttime"=>contents[:units_lttime],
 				   	"classlist_code"=>"","changeoverlt"=>0,}
-				contents[:duedate],contents[:start] = CtlFields.proc_field_starttime(contents[:start],nd,"reverse",0)
+				contents[:duedate] = field_starttime(contents[:start],nd,"reverse")
 				@ngantts << contents
 				@bgantts[nlevel] = contents	
 				if @max_time < contents[:duedate]
@@ -703,6 +728,35 @@ module GanttChart
 			@bgantts[@level][:depend] = depend.dup   ###親の依存を調べる。
 		end
 	
+		
+	def field_starttime startEnd,nd,reverse
+		###if tblnamechop =~ /dvs|erc/
+			Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
+			Rails.logger.debug " class:#{self} ,line:#{__LINE__},parent:#{parent} "
+			Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
+		###end
+		if reverse == "reverse"
+			cal = -1
+		else
+			cal = 1
+		end
+		case nd["units_lttime"]  ###char(4)
+		when "Day "
+			dayHour = 24*3600   ###  duedate 16:00   starttime 10:00
+		when "Hour"
+			dayHour = 3600
+		else 
+			dayHour = 1
+			starttime = Time.now
+		end
+
+		startEnd =  startEnd.to_time
+
+		starttime = startEnd - (nd["duration"]||=1).to_f*dayHour * cal
+	
+		return starttime
+	end
+
 	
 		def get_opeitms_id_from_itm_by_processseq itms_id,processseq  ###
 				strsql = %Q& select * from r_opeitms where opeitm_itm_id = #{itms_id} 

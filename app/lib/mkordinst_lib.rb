@@ -142,19 +142,19 @@ module MkordinstLib
 		###ActiveRecord::Base.connection.insert(init_ordorg_strsql(mkprdpurords_id))       ### mkordorgs 親のみ
 		###員数に従って必要数を計算
 		strsql = %Q&
-				select max(pare.mlevel) mlevel,pare.itms_id_trn itms_id_pare ,pare.processseq_trn  processseq_pare,pare.prjnos_id,
-					pare.shelfnos_id_trn shelfnos_id_pare,pare.shelfnos_id_to_trn shelfnos_id_to_pare,
-					pare.mkprdpurords_id_trngantt mkprdpurords_id,#{params["person_id_upd"]} persons_id_upd
-				 	from trngantts	pare
-					where pare.mkprdpurords_id_trngantt = #{mkprdpurords_id}
-					and (pare.qty_sch > 0 or pare.qty > 0)
-					group by pare.mkprdpurords_id_trngantt,pare.prjnos_id,
-							pare.itms_id_pare,pare.processseq_pare,pare.shelfnos_id_pare,pare.shelfnos_id_to_pare,
-							pare.itms_id_trn,pare.processseq_trn,pare.shelfnos_id_trn,pare.shelfnos_id_to_trn
-					---having max(pare.mlevel) > 1
-					order by max(pare.mlevel),pare.itms_id_trn,pare.processseq_trn,pare.prjnos_id,
-							pare.shelfnos_id_trn,pare.shelfnos_id_to_trn,
-							pare.mkprdpurords_id_trngantt
+				select max(trn.mlevel) mlevel,trn.itms_id_trn itms_id_trn ,trn.processseq_trn  processseq_trn,trn.prjnos_id,
+					trn.shelfnos_id_trn shelfnos_id_trn,trn.shelfnos_id_to_trn shelfnos_id_to_trn,
+					trn.mkprdpurords_id_trngantt mkprdpurords_id,#{params["person_id_upd"]} persons_id_upd
+				 	from trngantts	trn
+					where trn.mkprdpurords_id_trngantt = #{mkprdpurords_id}
+					and (trn.qty_sch > 0 or trn.qty > 0)
+					group by trn.mkprdpurords_id_trngantt,trn.prjnos_id,
+							trn.itms_id_trn,trn.processseq_trn,trn.shelfnos_id_trn,trn.shelfnos_id_to_trn,
+							trn.itms_id_trn,trn.processseq_trn,trn.shelfnos_id_trn,trn.shelfnos_id_to_trn
+					---having max(trn.mlevel) > 1
+					order by max(trn.mlevel),trn.itms_id_trn,trn.processseq_trn,trn.prjnos_id,
+							trn.shelfnos_id_trn,trn.shelfnos_id_to_trn,
+							trn.mkprdpurords_id_trngantt
 				&
 			###opeitm.packqtyに対応
 		handovers = ActiveRecord::Base.connection.select_all(strsql)
@@ -323,9 +323,7 @@ module MkordinstLib
 							if free_qty > 0 
 								stkinout["qty_src"] = free_qty  
 								stkinout["remark"] = " #{self} line:(#{__LINE__}) "
-								Rails.logger.debug " calss:#{self},line:#{__LINE__},stkinout:#{stkinout}"
 							 	ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,stkinout)  ###
-								 Rails.logger.debug " calss:#{self},line:#{__LINE__},stkinout:#{stkinout}"
 								Shipment.proc_alloc_change_inoutlotstk(stkinout) ### xxxordsの在庫明細変更
 								free_qty = stkinout["qty_src"].to_f
 							else
@@ -564,10 +562,10 @@ module MkordinstLib
 		%Q&
 			select  1	from trngantts gantt #{add_tbl_pare} --- 親の属性による選択mkord_term
 										where mkprdpurords_id_trngantt = #{handover["mkprdpurords_id"]}
-											and gantt.itms_id_pare = #{handover["itms_id_pare"]} 
-											and gantt.processseq_pare = #{handover["processseq_pare"]} 
-											and gantt.shelfnos_id_pare = #{handover["shelfnos_id_pare"]} 
-											and gantt.shelfnos_id_to_pare = #{handover["shelfnos_id_to_pare"]} 
+											and gantt.itms_id_pare = #{handover["itms_id_trn"]} 
+											and gantt.processseq_pare = #{handover["processseq_trn"]} 
+											and gantt.shelfnos_id_pare = #{handover["shelfnos_id_trn"]} 
+											and gantt.shelfnos_id_to_pare = #{handover["shelfnos_id_to_trn"]} 
 											#{strwhere["pare"]} 
 											
 			&
@@ -722,9 +720,14 @@ module MkordinstLib
 						where   gantt.mlevel > '1' and 
 								gantt.mkprdpurords_id_trngantt = #{handover["mkprdpurords_id"]} ---xxx
 							and gantt.duedate_trn >= term.duedate and gantt.duedate_trn < term.optfixodate
-							and gantt.itms_id_pare = #{handover["itms_id_pare"]} and gantt.processseq_pare = #{handover["processseq_pare"]}  
-							and gantt.shelfnos_id_pare = #{handover["shelfnos_id_pare"]} 
-							and gantt.shelfnos_id_to_pare	= #{handover["shelfnos_id_to_pare"]}
+							and gantt.itms_id_trn = #{handover["itms_id_trn"]} 
+							and gantt.processseq_trn = #{handover["processseq_trn"]}  
+							and gantt.shelfnos_id_trn = #{handover["shelfnos_id_trn"]} 
+							and gantt.shelfnos_id_to_trn	= #{handover["shelfnos_id_to_trn"]}
+							--- and gantt.itms_id_pare = #{handover["itms_id_pare"]} 
+							--- and gantt.processseq_pare = #{handover["processseq_pare"]}  
+							--- and gantt.shelfnos_id_pare = #{handover["shelfnos_id_pare"]} 
+							--- and gantt.shelfnos_id_to_pare	= #{handover["shelfnos_id_to_pare"]}
 							---and gantt.itms_id_trn = #{handover["itms_id_trn"]} and gantt.processseq_trn = #{handover["processseq_trn"]}  
 							---and gantt.shelfnos_id_trn = #{handover["shelfnos_id_trn"]} 
 							---and gantt.shelfnos_id_to_trn	= #{handover["shelfnos_id_to_trn"]}	
@@ -751,8 +754,8 @@ module MkordinstLib
 		 	   	from mkordtmpfs tmp
 		 	   		where tmp.mkprdpurords_id = #{handover["mkprdpurords_id"]} 
 		 				---and tmp.mlevel > '1'
-		 	   			and tmp.itms_id_pare = #{handover["itms_id_pare"]} and tmp.processseq_pare = #{handover["processseq_pare"]}  
-		 	   			and tmp.shelfnos_id_pare = #{handover["shelfnos_id_pare"]}    and  tmp.shelfnos_id_to_pare = #{handover["shelfnos_id_to_pare"]} 
+		 	   			and tmp.itms_id_pare = #{handover["itms_id_trn"]} and tmp.processseq_pare = #{handover["processseq_trn"]}  
+		 	   			and tmp.shelfnos_id_pare = #{handover["shelfnos_id_trn"]}    and  tmp.shelfnos_id_to_pare = #{handover["shelfnos_id_to_trn"]} 
 		 	   			and tmp.prjnos_id = #{handover["prjnos_id"]}
 		 			group by    tmp.itms_id_pare,tmp.processseq_pare,tmp.shelfnos_id_pare,tmp.shelfnos_id_to_pare,  
 		 			            tmp.itms_id_trn,tmp.locas_id_trn,tmp.processseq_trn,tmp.prjnos_id,tmp.shelfnos_id_trn,tmp.shelfnos_id_to_trn,
