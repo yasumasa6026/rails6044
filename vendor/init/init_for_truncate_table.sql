@@ -78,6 +78,19 @@ truncate  table payinsts cascade;
 truncate  table payacts cascade;
 truncate  table dymschs cascade;
 
+
+truncate table ercschs cascade;
+truncate table ercords cascade;
+truncate table ercinsts cascade;
+truncate table ercacts cascade;
+
+
+
+truncate table sio.sio_r_ercschs cascade;
+truncate table sio.sio_r_ercords cascade;
+truncate table sio.sio_r_ercinsts cascade;
+truncate table sio.sio_r_ercacts cascade;
+
 --insert into lotstkhists(id,
 --									itms_id,shelfnos_id,
 --									prjnos_id,
