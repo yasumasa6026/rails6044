@@ -554,8 +554,7 @@ module Shipment
 						command_c["#{tblnamechop}_duedate"] = parent["duedate"] 
 						command_c["#{tblnamechop}_depdate"] = (parent["starttime"].to_time - 1*24*3600).strftime("%Y-%m-%d %H:%M:%S")
 					else
-						Rails.logger.debug"logic error not support  consumtype:#{child["consumtype"]} "
-						Rails.logger.debug"error class #{self} , line:#{__LINE__} "
+						Rails.logger.debug" class #{self} ,line:#{__LINE__} logic error not support  consumtype:#{child["consumtype"]} "
 						raise
 					end
 				when /shpsch/
@@ -654,15 +653,19 @@ module Shipment
 				stkinout["persons_id_upd"] = params["person_id_upd"]
 				case yield
 				when /shpsch|shpord/
-					stkinout = shp_inoutlotstk("out",stkinout)
+					##stkinout = shp_inoutlotstk("out",stkinout)
+		 	    stkinout = proc_lotstkhists_in_out("out",stkinout)
 					stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]   ###入り
-					stkinout = shp_inoutlotstk("in",stkinout)   ###入りと出は同一日
+					##stkinout = shp_inoutlotstk("in",stkinout)   ###入りと出は同一日
+          stkinout = proc_lotstkhists_in_out("in",stkinout)
 				when /shpinst/
-					stkinout = shp_inoutlotstk("out",stkinout)
+					##stkinout = shp_inoutlotstk("out",stkinout)
+          stkinout = proc_lotstkhists_in_out("out",stkinout)
 					###proc_ship_inoutlotstk_sql(-1,stkinout)
 				when /shpact/
 					stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]   ###入り
-					stkinout = shp_inoutlotstk("in",stkinout)   ###入りと出は同一日
+					##stkinout = shp_inoutlotstk("in",stkinout)   ###入りと出は同一日
+          stkinout = proc_lotstkhists_in_out("in",stkinout)
 				end
 				###
 				#  業者倉庫の時は業者倉庫も更新
@@ -869,7 +872,13 @@ module Shipment
 			else	
 				stkinout["srctblname"] = "lotstkhists"
 			end
-			stkinout = shp_inoutlotstk("in",stkinout)
+			###stkinout = shp_inoutlotstk("in",stkinout)
+		  case stkinout["srctblname"]
+		  when "lotstkhists"
+		 	  stkinout = proc_lotstkhists_in_out("in",stkinout)
+		  when "supplierwhs"
+		 	  stkinout = proc_mk_supplierwhs_rec("in",stkinout)   ###マイナス在庫の入り
+		  end
 			# parent = {"trngantts_id" => stkinout["trngantts_id"]}   ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
 			# rec["qty"] = rec["qty_stk"]
 			# rec["qty_stk"] = 0
@@ -1019,7 +1028,13 @@ module Shipment
 		if parent["tblname"] =~ /schs$|ords$/
 			stkinout["trngantts_id"] = params["parent"]["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
 			stkinout[str_con_qty] = command_c["#{tblnamechop}_#{str_con_qty}"]
-			stkinout = shp_inoutlotstk("out",stkinout)
+			###stkinout = shp_inoutlotstk("out",stkinout)
+		  case stkinout["srctblname"]
+		  when "lotstkhists"
+		 	  stkinout = proc_lotstkhists_in_out("out",stkinout)
+		  when "supplierwhs"
+		 	  stkinout = proc_mk_supplierwhs_rec("out",stkinout)   ###マイナス在庫の入り
+		  end
 		else
 			strsql = %Q&
 						select trngantts_id,sum(qty_src) qty_src from linktbls where tblname = '#{yield}'
@@ -1030,7 +1045,13 @@ module Shipment
 				skinout[str_con_qty] = CtlFields.proc_cal_qty_sch(parent[str_pare_qty],
 												child["chilnum"],child["parenum"],child["consumunitqty"],
 												child["consumminqty"],child["consumchgoverqty"])
-				stkinout = shp_inoutlotstk("out",stkinout)
+				###stkinout = shp_inoutlotstk("out",stkinout)
+		    case stkinout["srctblname"]
+		    when "lotstkhists"
+		 	    stkinout = proc_lotstkhists_in_out("out",stkinout)
+		    when "supplierwhs"
+		 	    stkinout = proc_mk_supplierwhs_rec("out",stkinout)   ###マイナス在庫の入り
+		    end
 			end
 		end
 		####
@@ -1080,7 +1101,13 @@ module Shipment
 			stkinout["qty_sch"] = stkinout["qty"] = stkinout["qty_stk"] = 0
 			stkinout[str_con_qty] = prev_consume[str_con_qty].to_f - bal_qty
 			stkinout["remark"] =  "  #{self} line:#{__LINE__}"
-			shp_inoutlotstk("in",stkinout)
+			###shp_inoutlotstk("in",stkinout)
+      case stkinout["srctblname"]
+		    when "lotstkhists"
+		 	    stkinout = proc_lotstkhists_in_out("in",stkinout)
+		    when "supplierwhs"
+		 	    stkinout = proc_mk_supplierwhs_rec("in",stkinout)   ###マイナス在庫の入り
+		  end
 		end
 	end	
 	
@@ -1149,16 +1176,40 @@ module Shipment
 			case tblnamechop
 			when "shpsch"
 				stkinout["qty_sch"] = qty_sch - shp["qty_sch"].to_f
-				shp_inoutlotstk("out",stkinout)
+				###shp_inoutlotstk("out",stkinout)
+		    case stkinout["srctblname"]
+		      when "lotstkhists"
+		 	      stkinout = proc_lotstkhists_in_out("out",stkinout)
+		      when "supplierwhs"
+		 	      stkinout = proc_mk_supplierwhs_rec("out",stkinout)   ###マイナス在庫の入り
+		    end
 				stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
 				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]   ###入り
-				shp_inoutlotstk("in",stkinout)
+				###shp_inoutlotstk("in",stkinout)
+		    case stkinout["srctblname"]
+		    when "lotstkhists"
+		 	    stkinout = proc_lotstkhists_in_out("in",stkinout)
+		    when "supplierwhs"
+		 	    stkinout = proc_mk_supplierwhs_rec("in",stkinout)   ###マイナス在庫の入り
+		    end
 			when "shpord"
 				stkinout["qty"] = qty - shp["qty"].to_f
-				shp_inoutlotstk("out",stkinout)
+				###shp_inoutlotstk("out",stkinout)
+		    case stkinout["srctblname"]
+		    when "lotstkhists"
+		 	    stkinout = proc_lotstkhists_in_out("out",stkinout)
+		    when "supplierwhs"
+		 	    stkinout = proc_mk_supplierwhs_rec("out",stkinout)   ###マイナス在庫の入り
+		    end
 				stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
 				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]
-				shp_inoutlotstk("in",stkinout)
+				##shp_inoutlotstk("in",stkinout)
+		    case stkinout["srctblname"]
+		    when "lotstkhists"
+		 	    stkinout = proc_lotstkhists_in_out("in",stkinout)
+		    when "supplierwhs"
+		 	    stkinout = proc_mk_supplierwhs_rec("in",stkinout)   ###マイナス在庫の入り
+		    end
 			end
 
 			###
@@ -1176,7 +1227,8 @@ module Shipment
 				stkinout["shelfnos_id"] = shp["shelfnos_id_fm"] 
 				stkinout["starttime"] = shp["depdate"]
 				stkinout["remark"] =  "  #{self} line:#{__LINE__}"
-				shp_inoutlotstk("in",stkinout)
+				###shp_inoutlotstk("in",stkinout)
+		 	  stkinout = proc_lotstkhists_in_out("in",stkinout)
 			end
 			sql_check_supplier = %Q&
 				select s.id from suppliers s  
@@ -1190,7 +1242,8 @@ module Shipment
 				stkinout["remark"] = "  #{self} line:#{__LINE__}"
 				stkinout["starttime"] = command_c[tblnamechop+"_duedate"]
 				stkinout["shelfnos_id"] = command_c[tblnamechop+"_shelfno_id_to"]
-				shp_inoutlotstk("in",stkinout)
+				###shp_inoutlotstk("in",stkinout)
+        stkinout = proc_mk_supplierwhs_rec("in",stkinout)   ###マイナス在庫の入り
 			end	
 		####
 	end		
@@ -1202,7 +1255,8 @@ module Shipment
 			plusminus = -1
 		else  ### in update
 			plusminus = 1
-		end	
+		end
+    Rails.logger.debug"  class: #{self} , line:#{__LINE__} ,stkinout:#{stkinout}" 
 		new_stkinout = stkinout.dup
 		stkinout["qty_sch"] = stkinout["qty_sch"].to_f * plusminus  
 		stkinout["qty"] = stkinout["qty"].to_f * plusminus  
@@ -1231,19 +1285,21 @@ module Shipment
 										packno = '#{stkinout["packno"]}' and  lotno = '#{stkinout["lotno"]}'
 									order by starttime desc limit 1 for update
 					%
-			last_lot =  ActiveRecord::Base.connection.select_one(last_strsql)
-			if last_lot.nil?
-				last_lot = {"qty_sch" =>0,"qty" => 0,"qty_stk" => 0,"qty_real" => 0,"packno" => "","lotno" => ""}
+			last_lotstk =  ActiveRecord::Base.connection.select_one(last_strsql)
+			if last_lotstk.nil?
+				last_lotstk = {"qty_sch" =>0,"qty" => 0,"qty_stk" => 0,"qty_real" => 0,"packno" => "","lotno" => ""}
 			end
 			new_stkinout = stkinout.dup	
-			new_stkinout["qty_sch"] = stkinout["qty_sch"] + last_lot["qty_sch"].to_f 
-			new_stkinout["qty"]     = stkinout["qty"] + last_lot["qty"].to_f
-			new_stkinout["qty_stk"] = stkinout["qty_stk"] +  last_lot["qty_stk"].to_f
-			new_stkinout["qty_real"] = stkinout["qty_real"] +  last_lot["qty_real"].to_f
+			new_stkinout["qty_sch"] = stkinout["qty_sch"] + last_lotstk["qty_sch"].to_f 
+			new_stkinout["qty"]     = stkinout["qty"] + last_lotstk["qty"].to_f
+			new_stkinout["qty_stk"] = stkinout["qty_stk"] +  last_lotstk["qty_stk"].to_f
+			new_stkinout["qty_real"] = stkinout["qty_real"] +  last_lotstk["qty_real"].to_f
 			new_stkinout["lotstkhists_id"] = stkinout["lotstkhists_id"] = stkinout["srctblid"] = ArelCtl.proc_get_nextval("lotstkhists_seq") 
 			ActiveRecord::Base.connection.insert(insert_lotstkhists_sql(new_stkinout)) 
 			###
 		else
+      Rails.logger.debug"  class: #{self} , line:#{__LINE__} ,stkinout:#{stkinout}" 
+      Rails.logger.debug"  class: #{self} , line:#{__LINE__} ,lotstkhists:#{lotstkhists}" 
 			stkinout["lotstkhists_id"] =  stkinout["srctblid"] = lotstkhists["id"]
 			###
 			new_stkinout["qty_sch"] = stkinout["qty_sch"] + lotstkhists["qty_sch"].to_f
@@ -1291,69 +1347,68 @@ module Shipment
 	end
 
 	def check_inoutlotstk(stkinout)   ###
-		strsql = %Q&
-			select   * from inoutlotstks  
-						where 	 tblid = #{stkinout["tblid"]} and tblname = '#{stkinout["tblname"]}'
-						and trngantts_id = #{stkinout["trngantts_id"]}
-		&
-		inoutlotstk = ActiveRecord::Base.connection.select_one(strsql)
-		if inoutlotstk
-				stkinout["remark"] = "  #{self} line:#{__LINE__}"
-				update_sql = %Q&
-					update inoutlotstks set qty_sch = #{stkinout["qty_sch"]},
-										qty = #{stkinout["qty"]},
-										qty_stk =  #{stkinout["qty_stk"]},
-										updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-										remark = '#{stkinout["remark"]}'||remark
-						where id = #{inoutlotstk["id"]}				 
-				& 
-				ActiveRecord::Base.connection.update(update_sql)
-		else
-				stkinout["remark"] = "  #{self} line:#{__LINE__}" + stkinout["remark"] 
-				proc_insert_inoutlotstk_sql(stkinout)
-		end
+		# strsql = %Q&
+		# 	select   * from inoutlotstks  
+		# 				where 	 tblid = #{stkinout["tblid"]} and tblname = '#{stkinout["tblname"]}'
+		# 				and trngantts_id = #{stkinout["trngantts_id"]}
+		# &
+		# inoutlotstk = ActiveRecord::Base.connection.select_one(strsql)
+		# if inoutlotstk
+		# 		stkinout["remark"] = "  #{self} line:#{__LINE__}"
+		# 		update_sql = %Q&
+		# 			update inoutlotstks set qty_sch = #{stkinout["qty_sch"]},
+		# 								qty = #{stkinout["qty"]},
+		# 								qty_stk =  #{stkinout["qty_stk"]},
+		# 								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+		# 								remark = '#{stkinout["remark"]}'||remark
+		# 				where id = #{inoutlotstk["id"]}				 
+		# 		& 
+		# 		ActiveRecord::Base.connection.update(update_sql)
+		# else
+		# 		stkinout["remark"] = "  #{self} line:#{__LINE__}" + (stkinout["remark"]||="") 
+		# 		proc_insert_inoutlotstk_sql(stkinout)
+		# end
 	end
 
 	def shp_inoutlotstk(inout,stkinout)   ##
-		case stkinout["srctblname"]
-		when "lotstkhists"
-			stkinout = proc_lotstkhists_in_out(inout,stkinout)
-		when "supplierwhs"
-			stkinout = proc_mk_supplierwhs_rec(inout,stkinout)   ###マイナス在庫の入り
-		end
-		###
-		#   qty_sch,qty,qty_stkはproc_lotstkhists_in_outで調整済
-		###
-		strsql = %Q&
-			select   * from inoutlotstks  
-						where 	 tblid = #{stkinout["tblid"]} and tblname = '#{stkinout["tblname"]}'
-						and trngantts_id = #{stkinout["trngantts_id"]}
-		&
-		inoutlotstk = ActiveRecord::Base.connection.select_one(strsql)
-		stk = stkinout.dup
-		stk["qty_sch"]  = stkinout["qty_sch"] 
-		stk["qty"]  = stkinout["qty"] 
-		stk["qty_stk"]  = stkinout["qty_stk"]
-		if inoutlotstk
-				stk["remark"] = "  #{self} line:#{__LINE__}"
-				update_sql = %Q&
-					update inoutlotstks set qty_sch = #{stk["qty_sch"]},
-										qty =  #{stk["qty"]},
-										qty_stk =  #{stk["qty_stk"]},
-										updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-										remark = '#{stk["remark"]}'||remark
-						where id = #{inoutlotstk["id"]}				 
-				& 
-				ActiveRecord::Base.connection.update(update_sql)
-		else
-				stk["remark"] = "  #{self} line:#{__LINE__}," + stkinout["remark"] 
-				proc_insert_inoutlotstk_sql(stk)
-		end
-		return stkinout
+		# case stkinout["srctblname"]
+		# when "lotstkhists"
+		# 	stkinout = proc_lotstkhists_in_out(inout,stkinout)
+		# when "supplierwhs"
+		# 	stkinout = proc_mk_supplierwhs_rec(inout,stkinout)   ###マイナス在庫の入り
+		# end
+		# ###
+		# #   qty_sch,qty,qty_stkはproc_lotstkhists_in_outで調整済
+		# ###
+		# strsql = %Q&
+		# 	select   * from inoutlotstks  
+		# 				where 	 tblid = #{stkinout["tblid"]} and tblname = '#{stkinout["tblname"]}'
+		# 				and trngantts_id = #{stkinout["trngantts_id"]}
+		# &
+		# inoutlotstk = ActiveRecord::Base.connection.select_one(strsql)
+		# stk = stkinout.dup
+		# stk["qty_sch"]  = stkinout["qty_sch"] 
+		# stk["qty"]  = stkinout["qty"] 
+		# stk["qty_stk"]  = stkinout["qty_stk"]
+		# if inoutlotstk
+		# 		stk["remark"] = "  #{self} line:#{__LINE__}"
+		# 		update_sql = %Q&
+		# 			update inoutlotstks set qty_sch = #{stk["qty_sch"]},
+		# 								qty =  #{stk["qty"]},
+		# 								qty_stk =  #{stk["qty_stk"]},
+		# 								updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+		# 								remark = '#{stk["remark"]}'||remark
+		# 				where id = #{inoutlotstk["id"]}				 
+		# 		& 
+		# 		ActiveRecord::Base.connection.update(update_sql)
+		# else
+		# 		stk["remark"] = "  #{self} line:#{__LINE__}," + (stkinout["remark"]||="") 
+		# 		proc_insert_inoutlotstk_sql(stk)
+		# end
+		# return stkinout
 	end
 
 	def proc_alloc_change_inoutlotstk(stkinout)  ###  alloctbls,linktblsは更新済
-		Rails.logger.debug " calss:#{self},line:#{__LINE__},stkinout:#{stkinout}"
 		###
 		#  現在のinout
 		###
@@ -1390,8 +1445,7 @@ module Shipment
 				stkinout["qty_sch"] = 0
 			end
 			stkinout["trngantts_id"] = inoutlotstk["trngantts_id"]
-			stkinout["remark"] = "#{self} line:#{__LINE__}," + stkinout["remark"] 
-			Rails.logger.debug " calss:#{self},line:#{__LINE__},stkinout:#{stkinout}"
+			stkinout["remark"] = "#{self} line:#{__LINE__}," + (stkinout["remark"]||="") 
 			check_inoutlotstk(stkinout)
 		end
 		###
@@ -1435,34 +1489,6 @@ module Shipment
 						where id = #{prev["id"]}	----srctblid lotstkhists_id,・・・S			 
 				& 
 			ActiveRecord::Base.connection.update(update_sql)
-			update_sql = %Q&
-					update #{prev["srctblname"]} set qty_sch = qty_sch - #{qty_sch},   ---inoutlotstk["srctblname"]-->lotstkhists,supplierwhs,custwhs
-										qty = qty - #{qty},
-										qty_stk =  qty_stk - #{qty_stk},
-										updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-										remark = '#{stkinout["remark"]}'||remark
-						where id = #{prev["srctblid"]}				 
-				& 
-			ActiveRecord::Base.connection.update(update_sql)
-			strsql = %Q& select a.*
-										from #{prev["srctblname"]} b
-										inner join #{prev["srctblname"]} a on a.itms_id = b.itms_id and a.processseq = b.processseq
-																and  a.shelfnos_id = b.shelfnos_id and a.prjnos_id = b.prjnos_id
-																and a.lotno = b.lotno and a.packno = b.packno
-										where  b.id = #{prev["srctblid"]} and b.starttime < a.starttime
-						&
-			ActiveRecord::Base.connection.select_all(strsql).each do |futrec|
-				strsql = %Q& update #{prev["srctblname"]} set  
-											updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-											persons_id_upd = #{stkinout["persons_id_upd"]||=0},
-											qty_stk =  qty_stk - #{ qty_stk },
-											qty = qty - #{ qty },
-											qty_sch = qty_sch - #{ qty_sch } ,
-											remark = '#{self} line:#{__LINE__}'
-											where id = #{futrec["id"]}					
-								&
-				ActiveRecord::Base.connection.update(strsql) 
-			end
 		end 
 	end
 
@@ -1711,7 +1737,13 @@ module Shipment
 			stkinout["persons_id_upd"] = command_c["shpord_person_id_upd"]
 			stkinout["srctblname"] = "lotstkhists"
 		end
-		stkinout = shp_inoutlotstk("out",stkinout)
+		##stkinout = shp_inoutlotstk("out",stkinout)
+		case stkinout["srctblname"]
+		when "lotstkhists"
+		 	stkinout = proc_lotstkhists_in_out("out",stkinout)
+		when "supplierwhs"
+		 	stkinout = proc_mk_supplierwhs_rec("out",stkinout)   ###マイナス在庫の入り
+		end
 		sql_check_supplier = %Q&
 					select s.id from suppliers s  
 							inner join shelfnos s2  on s.locas_id_supplier = s2.locas_id_shelfno  
@@ -1725,10 +1757,17 @@ module Shipment
 			stkinout["starttime"] = command_c["shpord_duedate"]
 			stkinout["shelfnos_id"] =  command_c["shpord_shelfno_id_to"]
 		end
-		stkinout = shp_inoutlotstk("in",stkinout)
+		###stkinout = shp_inoutlotstk("in",stkinout)
+		case stkinout["srctblname"]
+		when "lotstkhists"
+		 	stkinout = proc_lotstkhists_in_out("in",stkinout)
+		when "supplierwhs"
+		 	stkinout = proc_mk_supplierwhs_rec("in",stkinout)   ###マイナス在庫の入り
+		end
 	end	
 
 	def update_mold_IToll_shp_link(shp,aud)
+    last_lotstk = []
 		case yield
 		when "shpest"
 			if aud == "add"
@@ -1775,12 +1814,11 @@ module Shipment
 								where    id = #{shplink["id"]}
 					& 
 					ActiveRecord::Base.connection.update(link_update_sql)
-					alloc_update_sql = %Q&
-							update alloctbls set qty_linkto_alloctbl = 0 ,remark = '#{self} #{__LINE__} #{Time.now}'||remark
-								where srctblname = '#{shplink["srctblname"]}' and srctblid = #{shplink["srctblid"]} 
-								and trngantts_id = #{shplink["trngantts_id"]}
-						& 
-					ActiveRecord::Base.connection.update(alloc_update_sql)
+          alloc = {trngantts_id => shplink["trngantts_id"] ,srctblname => shplink["srctblname"],srctblid => shplink["srctblname"],
+                  "qty_linkto_alloctbl" => 0,
+                  "remark" => "#{self} line #{__LINE__} #{Time.now}"}
+          alloctbl_id,last_lotstk = ArelCtl.proc_aud_alloctbls(alloc,"update")
+          last_lotstks << last_lotstk
 
 					src = {"tblname" => prevshp,"tblid" => shplink["tblid"],"trngantts_id" => shplink["trngantts_id"]}
 					base = {"tblname" =>currshp,"tblid" => shp["id"],"qty_src" => 1,"amt_src" => 0,
@@ -1790,8 +1828,8 @@ module Shipment
 						"qty_linkto_alloctbl" => 1,
 						"remark" => "#{self} line #{__LINE__} #{Time.now}","persons_id_upd" => shp["persons_id_upd"],
 						"allocfree" => 	"alloc"}
-					linktbl_id = proc_insert_linktbls(src,base)
-					alloctbl_id = proc_insert_alloctbls(alloc)
+					linktbl_id = ArelCtl.proc_insert_linktbls(src,base)
+					alloctbl_id,last_lotstk = ArelCtl.proc_aud_alloctbls(alloc,nil)
 				end
 			end 
 		when /shpinst|shpact/  ###paretblname,paretblidはshpordsから引き継ぐ
@@ -1810,24 +1848,23 @@ module Shipment
 							where    id = #{shplink["id"]}
 				& 
 				ActiveRecord::Base.connection.update(link_update_sql)
-				alloc_update_sql = %Q&
-						update alloctbls set qty_linkto_alloctbl = 0 ,remark = '#{self} #{__LINE__} #{Time.now}'||remark
-							where srctblname = '#{shplink["tblname"]}' and srctblid = #{shplink["tblid"]} 
-							and trngantts_id = #{shplink["trngantts_id"]}
-					& 
-				ActiveRecord::Base.connection.update(alloc_update_sql)
+        alloc = {trngantts_id => shplink["trngantts_id"] ,srctblname => shplink["tblname"],srctblid => shplink["tblname"],
+                "qty_linkto_alloctbl" => 0, "remark" => "#{self} line #{__LINE__} #{Time.now}"}
+        alloctbl_id,last_lotstk = ArelCtl.proc_aud_alloctbls(alloc,"update")
+        last_lotstks << last_lotstk
+
 
 				src = {"tblname" => prevshp,"tblid" => shplink["tblid"],"trngantts_id" => shplink["trngantts_id"]}
 				base = {"tblname" =>currshp,"tblid" => shp["id"],"qty_src" => 1,"amt_src" => 0,
-					"remark" => "#{self} line #{__LINE__}", 
-					"persons_id_upd" => setParams["person_id_upd"]}
+					      "remark" => "#{self} line #{__LINE__}"}
 				alloc = {"srctblname" => currshp,"srctblid" => shp["id"],"trngantts_id" => shplink["trngantts_id"],
 					"qty_linkto_alloctbl" => 1,
 					"remark" => "#{self} line #{__LINE__} #{Time.now}","persons_id_upd" => shp["persons_id_upd"],
 					"allocfree" => 	"alloc"}
-				linktbl_id = proc_insert_linktbls(src,base)
-				alloctbl_id = proc_insert_alloctbls(alloc)
+				alloctbl_id,last_lotstk = ArelCtl.proc_aud_alloctbls(alloc,nil)
+				linktbl_id = ArelCtl.proc_insert_linktbls(src,base)
 			end
 		end
+    return last_lotstk
 	end 
 end

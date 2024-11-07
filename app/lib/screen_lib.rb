@@ -1019,14 +1019,13 @@ module ScreenLib
 			blk =  RorBlkCtl::BlkClass.new(screenCode)
 			command_c = blk.command_init
 			parse_linedata.each do |field,val|
-			  	if yup_fetch_code[field] 
-				# 	##setParams["fetchCode"] = %Q%{"#{field}":"#{val}"}%  ###clientのreq='fetch_request'で利用
+			  if yup_fetch_code[field] 
+				 	##setParams["fetchCode"] = %Q%{"#{field}":"#{val}"}%  ###clientのreq='fetch_request'で利用
 				 	if setParams[:parse_linedata][:id] == "" or setParams[:parse_linedata][:id].nil? ###tableのユニークid
 				 		setParams[:parse_linedata][:aud]= "add" ###
 				 	end  
 				 	setParams[:fetchview] = yup_fetch_code[field]
 				 	setParams = CtlFields.proc_chk_fetch_rec setParams  
-					Rails.logger.debug " class:#{self} ,line:#{__LINE__},parse_linedata:#{setParams[:parse_linedata]} " if field =~ /custrcv/
 				 	if setParams[:err] 
 						command_c[:confirm_gridmessage] = setParams[:err] 
 						command_c[:confirm] = false 
@@ -1150,7 +1149,6 @@ module ScreenLib
 								src["alloctbls_id"]  = params[:parse_linedata][:alloctbl_id_src]
 								####src["qty_linkto_alloctbl"]  = parse_linedata[:trngantt_qty_sch]
 								base["trngantts_id"] = params[:parse_linedata][:alloctbl_trngantt_id_free]
-								base["srctblname"] = "lotstkhists"
 								base["tblname"] = params[:parse_linedata][:alloctbl_srctblname_free]
 								base["tblid"] = params[:parse_linedata][:alloctbl_srctblid_free]
 								base["qty_src"] = params[:parse_linedata][:dummy_qty_alloc]
@@ -1160,8 +1158,8 @@ module ScreenLib
 											where tblname = '#{base["tblname"]}' and tblid = #{base["tblid"]}
 											and trngantts_id = #{base["trngantts_id"]} and srctblname = 'lotstkhists'  &
 								base["srctblid"] = ActiveRecord::Base.connection.select_value(strsql)
-								ArelCtl.proc_add_linktbls_update_alloctbls(src,base)
-								Shipment.proc_alloc_change_inoutlotstk(base)
+								last_lotstks = ArelCtl.proc_add_linktbls_update_alloctbls(src,base)
+								# Shipment.proc_alloc_change_inoutlotstk(base)
 								###ArelCtl.proc_src_trn_stk_update(src,base)
 								###ArelCtl.proc_src_base_trn_stk_update(src,base)
 							rescue
@@ -1207,7 +1205,7 @@ module ScreenLib
 								gantt["qty_sch"] = CtlFields.proc_cal_qty_sch(gantt["qty_sch_pare"].to_f,gantt["chilnum"].to_f,gantt["parenum"].to_f,
 															gantt["consumunitqty"],gantt["consumminqty"].to_f,gantt["consumchgoverqty"].to_f)
 								gantt["persons_id_upd"] = params["person_id_upd"]
-								ArelCtl.proc_insert_trngantts(gantt)   ###子。孫への展開はない
+								last_lotstks = ArelCtl.proc_insert_trngantts(gantt)   ###子。孫への展開はない
 							rescue
 								command_c[:confirm] = false
 								command_c["sio_result_f"] = "9"  ##9:error
@@ -1217,8 +1215,15 @@ module ScreenLib
 							else
 								setParams = ok_confirm(setParams,command_c,tblnamechop)
 								ActiveRecord::Base.connection.commit_db_transaction()
+                setParams["last_lotstks"] = last_lotstks.dup
 							end
-						end					
+						end			
+            if setParams["las_lotstks"] 
+              setParams["segment"]  = "link_lotstkhists_update"
+              setParams["tbldata"] = {}
+              setParams["gantt"] = {}
+              processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+            end
 					return setParams
 				#when /custactheads/
 					# case setParams[:buttonflg]
@@ -1307,7 +1312,7 @@ module ScreenLib
 				end
 			else
 				command_c[:confirm] = false
-            	command_c["sio_result_f"] = "9"  ##9:error
+        command_c["sio_result_f"] = "9"  ##9:error
 				setParams[:err] = setParams[:err]
 				setParams[:parse_linedata][:confirm] = false  
 			end
@@ -1484,7 +1489,7 @@ module ScreenLib
 				command_custact["sio_classname"] = "detail_add_custacts"
 				command_custact["custact_created_at"] = Time.now
 				command_custact["id"] = ArelCtl.proc_get_nextval("custacts_seq")
-			  	command_custact["custact_person_id_upd"] = params["person_id_upd"]
+			  command_custact["custact_person_id_upd"] = params["person_id_upd"]
 				prev.each do |key,val|
 					next if key == "id"
 					next if key == "tblname"
@@ -1526,9 +1531,6 @@ module ScreenLib
 				###
 				#
 				###
-				setParams["linktbl_ids"] = linktbl_ids.dup
-				setParams["segment"]  = "link_lotstkhists_update"   ### alloctbl inoutlotstksも作成
-				processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
 			end
 			return amtTaxRate ,err
 		end

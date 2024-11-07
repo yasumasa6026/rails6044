@@ -26,8 +26,8 @@ BEGIN
 						gantt.update_ip,gantt.updated_at	
 	 	 				from trngantts gantt
 	 	 				inner join alloctbls alloc on gantt.id = alloc.trngantts_id
-	 	 				inner join inoutlotstks  inout on inout.tblname = gantt.tblname and inout.tblid = gantt.tblid 
-									and inout.srctblname = '||'''lotstkhists'''||' and gantt.id = inout.trngantts_id 
+	 	 				---inner join inoutlotstks  inout on inout.tblname = gantt.tblname and inout.tblid = gantt.tblid 
+						---			and inout.srctblname = '||'''lotstkhists'''||' and gantt.id = inout.trngantts_id 
 	 	 				where gantt.prjnos_id =  $2 and  
 	 	 						 gantt.orgtblname = gantt.paretblname and gantt.paretblname = gantt.tblname
 	 	 					and gantt.orgtblid = gantt.paretblid  and gantt.paretblid = gantt.tblid

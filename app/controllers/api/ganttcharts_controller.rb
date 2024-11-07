@@ -1,11 +1,11 @@
 module Api
-    class GanttchartsController < ApplicationController
-        before_action :authenticate_api_user!
-            def index
-            end
-            def create
-                case  params[:buttonflg] 
-                when /ganttchart|reversechart/
+  class GanttchartsController < ApplicationController
+    before_action :authenticate_api_user!
+    def index
+    end
+    def create
+      case  params[:buttonflg] 
+      when /ganttchart|reversechart/
                     tasks = []
                     tblcode = params[:screenCode].split("_")[1]
                     line = JSON.parse(params[:linedata])   ###最後にclickされた行のみ有効
@@ -288,9 +288,9 @@ module Api
                 else
                      raise
                 end
-            end
-            def show
-            end  
     end
+    def show
+    end  
   end
+end
     

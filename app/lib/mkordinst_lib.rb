@@ -189,13 +189,15 @@ module MkordinstLib
 						where 	table_catalog='#{env}' 
 						and 	table_name = 'r_purords'  and column_name like 'opeitm_%' &
 		fields_opeitm["purord"] = ActiveRecord::Base.connection.select_values(field_check_sql)	
+    last_lotstks = []
 		ActiveRecord::Base.connection.select_all(req_ord_sql(mkprdpurords_id)).each do |sumSchs|  ### xxxordsの元schs
 					line_data = {}
-					incnt += sumSchs["incnt"].to_f
-					inqty += sumSchs["qty_require"].to_f
+					incnt = sumSchs["incnt"].to_f
+					inqty = sumSchs["qty_require"].to_f
 					sumSchs["persons_id_upd"] = params["person_id_upd"]
 					### freeの確認
-					sumSchs = sch_trn_alloc_to_freetrn(sumSchs)  ###schsをfreeのordsに引き当てる。shselfnosごとに引き当てている。
+					sumSchs,last_lotstks_part = sch_trn_alloc_to_freetrn(sumSchs)  ###schsをfreeのordsに引き当てる。shselfnosごとに引き当てている。
+          last_lotstks.concat last_lotstks_part
 					# ###
 					if sumSchs["qty_require"] > 0   ###sumSchs["qty_require"].to_f free　qty引当済
 						qty_handover = ((sumSchs["qty_require"].to_f + sumSchs["consumchgoverqty"].to_f) / sumSchs["packqty"].to_f).ceil  * sumSchs["packqty"].to_f
@@ -305,16 +307,10 @@ module MkordinstLib
 						stkinout = {"tblname"=> tblord + "s" ,"tblid" => command_c["id"],
 							"itms_id"=>sumSchs["itms_id"],"processseq" => sumSchs["processseq"],
 							"prjnos_id" => sumSchs["prjnos_id"],"starttime" => command_c["#{tblord}_duedate"] ,
-							"shelfnos_id" => command_c["#{tblord}_shelfno_id_to"],
-							"persons_id_upd" => setParams["person_id_upd"],"srctblname" => "lotstkhists",
+							"shelfnos_id" => command_c["#{tblord}_shelfno_id_to"],"trngantts_id" => setParams["gantt"]["trngantts_id"],
+							"persons_id_upd" => setParams["person_id_upd"],
 							"qty_sch" => 0,"qty" => command_c[symqty] ,"qty_stk" => 0,
-							"alloctbls_id" => setParams["alloctbl_ids"][0],
 							"lotno" => "","packno" => "","qty_src" => command_c[symqty] , "amt_src"=> 0}
-						stkinout = Shipment.proc_lotstkhists_in_out("in",stkinout)  ###在庫の更新
-						# stkinout["persons_id_upd"] = setParams["person_id_upd"]
-						# stkinout["trngantts_id"] = setParams["gantt"]["trngantts_id"]
-                    	# ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
-						# ope.proc_update_inoutlot_and_src_stk("in","lotstkhists",stkinout)
 						outcnt += 1
 						outqty +=  command_c[symqty].to_f
 						gantt = setParams["gantt"].dup
@@ -323,67 +319,27 @@ module MkordinstLib
 							if free_qty > 0 
 								stkinout["qty_src"] = free_qty  
 								stkinout["remark"] = " #{self} line:(#{__LINE__}) "
-							 	ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,stkinout)  ###
-								Shipment.proc_alloc_change_inoutlotstk(stkinout) ### xxxordsの在庫明細変更
-								free_qty = stkinout["qty_src"].to_f
+                last_lotstks_parts = ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,stkinout)  ###
+                last_lotstks.concat last_lotstks_parts 
+								###Shipment.proc_alloc_change_inoutlotstk(stkinout) ### xxxordsの在庫明細変更
+								free_qty = stkinout["qty_src"].to_f ###qty_stkはproc_lotstkhists_in_outで調整済
 							else
 								break
 							end
 						end
 						# ord = ActiveRecord::Base.connection.select_one("select * from #{sumSchs["tblname"]} where id = #{sumSchs["tblid"]}")
-						# ###
-						# ###
-						# ###
 						# if ord["remark"] =~ /create by mkord/ or sumSchs["qty_stk"].to_f <= 0
 						# 	###子部品を持たないfree ordsに引きあった時 
 					else
 						qty_handover = 0
-					end
-					# update_sql = %Q&
-					#  				 update mkordorgs set qty_handover = #{qty_handover} where id = #{sumSchs["mkordorgs_id"]}
-					#  				&
-					# ActiveRecord::Base.connection.update(update_sql)
-					 	# pare_trns = []
-						# pare = {}
-					 	# pare["qty_sch"] = qty_handover
-					 	# pare["itms_id_trn"] = sumSchs["itms_id"]
-					 	# pare["locas_id_trn"] = sumSchs["locas_id"]
-					 	# pare["processseq_trn"] = sumSchs["processseq"]
-					 	# pare["shelfnos_id_to_trn"] = sumSchs["shelfnos_id_to"]
-					 	# pare_trns << pare
-					 	# until pare_trns.size == 0
-					 	# 	pare = pare_trns.shift
-					 	# 	strsql = %Q&
-					 	# 		select gantt.id trngantts_id,gantt.*,alloc.id alloctbls_id							
-					 	# 			from trngantts gantt
-					 	# 				inner join alloctbls alloc on gantt.id = alloc.trngantts_id
-					 	# 				where gantt.mkprdpurords_id_trngantt = #{mkprdpurords_id}
-					 	# 					and gantt.itms_id_pare = #{pare["itms_id_trn"]} 
-					 	# 					and gantt.processseq_pare = #{pare["processseq_trn"]} and gantt.shelfnos_id_to_pare = #{pare["shelfnos_id_to_trn"]}
-					 	# 					and alloc.qty_linkto_alloctbl > 0 and alloc.srctblname like '%schs'
-					 	# 		&
-					 	# 	ActiveRecord::Base.connection.select_all(strsql).each do |sch|   ###trngantts.qty_schの変更
-					 	# 		sch["new_qty_sch"] = CtlFields.proc_cal_qty_sch(pare["new_qty_sch"],pare["chilnum"],pare["parenum"],
-					 	# 												pare["consumunitqty"],pare["consumminqty"],pare["consumchgoverqty"])
-					 	# 		sch["persons_id_upd"] = params["person_id_upd"]
-					 	# 		ArelCtl.proc_update_linktbls_alloctbls_inoutlotstks(sch)
-					 	# 		strsql = %Q&
-					 	# 			update trngantts set qty_sch = #{sch["new_qty_sch"]} ,qty_require = #{sch["new_qty_sch"]} ,
-					 	# 					remark = ' #{self} line:#{__LINE__}'|| remark,	updated_at = current_timestamp  
-					 	# 					where id = #{sch[["trngantts_id"]]}
-					 	# 			& 
-					 	# 		ActiveRecord::Base.connection.update(strsql)
-					 	# 		pare_trns << sch
-					 	# 	end
-					 	# end
-					# end 
+					end 
 		end
 		mkordparams[:incnt] = incnt
 		mkordparams[:inqty] = inqty
 		mkordparams[:outcnt] = outcnt
 		mkordparams[:outqty] = outqty
 		# ###未処理－－＞最大発注量の分割
-		return mkordparams
+		return mkordparams,last_lotstks
 	end	
 	###
 	#
@@ -421,39 +377,38 @@ module MkordinstLib
 		
 		
 		begin
-		strsql = strsql + strjoin + strwhere[0..-7] + strgroupby
-		blk =  RorBlkCtl::BlkClass.new("r_#{tblname}")
-		command_c =blk.command_init
-		command_c["sio_classname"] = "_add_billinst_by_mkbillinsts"
-		ActiveRecord::Base.connection.select_all(strsql).each do |inst|
-			command_c["billinst_id"] = command_c["id"] = ArelCtl.proc_get_nextval("billinsts_seq")
-			command_c["billinst_isudate"] = Time.now 
-			command_c["billinst_duedate"] = inst["duedate"] 
-			command_c["billinst_bill_id"] = inst["bills_id"] 
-			command_c["billinst_amt"] = inst["sum_amt"].to_f  -  inst["sum_amt_src"].to_f 
-			command_c["billinst_tax"] = inst["sum_tax"].to_f 
-			command_c["billinst_sno"] = inst["duedate"].to_date.year.to_s[2..3] +  sprintf("%6.6d",command_c["id"])
-			command_c["billinst_gno"] = "" ### 
-			gantt = {}
-			gantt["orgtblname"] = gantt["paretblname"] = gantt["tblname"] = "billinsts"
-			gantt["orgtblid"] = gantt["paretblid"] =  gantt["tblid"] = command_c["id"]
-			setParams["gantt"] = gantt.dup		
-			command_c["billinst_person_id_upd"] = setParams["person_id_upd"]
-			command_c["id"] = ArelCtl.proc_get_nextval("billinsts_seq")
-			command_c["billinst_created_at"] = Time.now
-			blk.proc_create_tbldata(command_c)
-			blk.proc_private_aud_rec({},command_c)
-			###CreateOtherTableRecordJob.perform_later(setParams["seqno"][0])			
-			mkinstarams[:incnt] += inst["incnt"].to_f
-			mkinstparams[:outcnt] += 1
-			billordsql = "select ord.id,ord.amt from billords ord  " +  strjoin + strwhere[0..-7]
-			ActiveRecord::Base.connection.select_all(billordsql).each do |billord|
-				src = {"tblname" => "billords","tblid" => billord["id"]}
-				base = {"tblname"=>"billinsts","tblid"=>command_c["id"],"qty_src" => 0,"amt_src"=>billord["amt_src"],
-						"remark" => "#{self} line:#{__LINE__}","persons_id_upd" => gantt["persons_id_upd"]}
-				ArelCtl.proc_insert_srctbllinks(src,base)
-			end
-		end
+		  strsql = strsql + strjoin + strwhere[0..-7] + strgroupby
+		  blk =  RorBlkCtl::BlkClass.new("r_#{tblname}")
+		  command_c =blk.command_init
+		  command_c["sio_classname"] = "_add_billinst_by_mkbillinsts"
+		  ActiveRecord::Base.connection.select_all(strsql).each do |inst|
+			  command_c["billinst_id"] = command_c["id"] = ArelCtl.proc_get_nextval("billinsts_seq")
+			  command_c["billinst_isudate"] = Time.now 
+			  command_c["billinst_duedate"] = inst["duedate"] 
+			  command_c["billinst_bill_id"] = inst["bills_id"] 
+			  command_c["billinst_amt"] = inst["sum_amt"].to_f  -  inst["sum_amt_src"].to_f 
+			  command_c["billinst_tax"] = inst["sum_tax"].to_f 
+			  command_c["billinst_sno"] = inst["duedate"].to_date.year.to_s[2..3] +  sprintf("%6.6d",command_c["id"])
+			  command_c["billinst_gno"] = "" ### 
+			  gantt = {}
+			  gantt["orgtblname"] = gantt["paretblname"] = gantt["tblname"] = "billinsts"
+			  gantt["orgtblid"] = gantt["paretblid"] =  gantt["tblid"] = command_c["id"]
+			  setParams["gantt"] = gantt.dup		
+			  command_c["billinst_person_id_upd"] = setParams["person_id_upd"]
+			  command_c["id"] = ArelCtl.proc_get_nextval("billinsts_seq")
+			  command_c["billinst_created_at"] = Time.now
+			  blk.proc_create_tbldata(command_c)
+			  blk.proc_private_aud_rec({},command_c)
+			  mkinstarams[:incnt] += inst["incnt"].to_f
+			  mkinstparams[:outcnt] += 1
+			  billordsql = "select ord.id,ord.amt from billords ord  " +  strjoin + strwhere[0..-7]
+			  ActiveRecord::Base.connection.select_all(billordsql).each do |billord|
+				  src = {"tblname" => "billords","tblid" => billord["id"]}
+				  base = {"tblname"=>"billinsts","tblid"=>command_c["id"],"qty_src" => 0,"amt_src"=>billord["amt_src"],
+					      	"remark" => "#{self} line:#{__LINE__}","persons_id_upd" => gantt["persons_id_upd"]}
+				  ArelCtl.proc_insert_srctbllinks(src,base)
+			  end
+		  end
 		rescue
 			ActiveRecord::Base.connection.rollback_db_transaction()
 			command_c["sio_result_f"] = "9"  ##9:error
@@ -473,7 +428,7 @@ module MkordinstLib
 					end
 				end
 			end	
-  		end ##begin
+  	end ##begin
 		return mkordparams
 	end	
 
@@ -483,6 +438,7 @@ module MkordinstLib
 		###freeのxxxordsは子部品を既に手配済が条件
 		free_qty =  sch_qty = 0
 		base = {"qty_src" => 0 }
+    last_lotstks = []
 			####
 			###	個別にひきあてるのでfreeは過剰に消費される
 			####
@@ -491,17 +447,20 @@ module MkordinstLib
 			if free_qty <= 0
 				strsql = %Q&select * from func_get_free_ord_stk('#{sumSchs["duedate"]}',#{sumSchs["prjnos_id"] },#{sumSchs["itms_id"]},#{sumSchs["processseq"]})&
 				ActiveRecord::Base.connection.select_all(strsql).each do |free|   ### 
-		   			free.each do |k,v|
+		   		free.each do |k,v|
 						base[k] = v
 					end
-		   			base["persons_id_upd"] = sumSchs["persons_id_upd"]
+		   		base["persons_id_upd"] = sumSchs["persons_id_upd"]
 					base["amt_src"] = 0
 					base["qty_src"] = free_qty = free["qty_linkto_alloctbl"].to_f   ###free_qty
-		   			base["srctblname"] = "lotstkhists"
-		   			strsql = %Q&select srctblid from inoutlotstks 
-						   where tblname = '#{free["tblname"]}' and tblid = #{free["tblid"]}
-					   	and trngantts_id = #{free["trngantts_id"]} and srctblname = 'lotstkhists'  &
-		   			base["srctblid"] = ActiveRecord::Base.connection.select_value(strsql)
+		   			# base["srctblname"] = "lotstkhists"
+		   			# strsql = %Q&select srctblid from inoutlotstks 
+						#    where tblname = '#{free["tblname"]}' and tblid = #{free["tblid"]}
+					  #  	and trngantts_id = #{free["trngantts_id"]} and srctblname = 'lotstkhists'  &
+		   			# base["srctblid"] = ActiveRecord::Base.connection.select_value(strsql)
+          base["tblname"] = free["tblname"]
+          base["tblid"] = free["tblid"]
+          base["trnganttd_id"] = free["trngantts_id"]
 					if sch_qty > base["qty_src"]
 						sch_qty  -= base["qty_src"]
 						free_qty = 0
@@ -510,8 +469,8 @@ module MkordinstLib
 						free_qty = base["qty_src"] - sch_qty 
 					end
 					base["remark"] = "#{self} line:(#{__LINE__})"
-					base = ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base)  ###freeの引当
-					Shipment.proc_alloc_change_inoutlotstk(base) ### xxxordsの在庫明細変更
+					last_lotstks = ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base)  ###freeの引当
+					###Shipment.proc_alloc_change_inoutlotstk(base) ### xxxordsの在庫明細変更
 					base["qty_src"] = free_qty
 					sch_trn["qty_linkto_alloctbl"] = sch_qty
 					break if free_qty > 0
@@ -527,10 +486,10 @@ module MkordinstLib
 						free_qty -= sch_qty
 					end
 					base["remark"] = "#{self} line:(#{__LINE__})"
-					base = ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base)  ###freeの引当
-					Shipment.proc_alloc_change_inoutlotstk(base) ### xxxordsの在庫明細変更
+					last_lotstks = ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base)  ###freeの引当
+					###Shipment.proc_alloc_change_inoutlotstk(base) ### xxxordsの在庫明細変更
 					base["qty_src"] = free_qty
-				end
+        end
 			end
 		end
 		if free_qty > 0
@@ -538,7 +497,7 @@ module MkordinstLib
 		else
 			sumSchs["qty_require"] = qty_require  ###不足時は全数手配
 		end
-	 	return sumSchs
+	 	return sumSchs,last_lotstks
 	end	
 	
 	

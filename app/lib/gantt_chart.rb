@@ -5,7 +5,7 @@ module GanttChart
 	class GanttClass
 		def initialize(buttonflg,tbl)
 			@bgantts = {}  ###全体のtree構造　keyは階層レベル
-        	@ngantts = []  ###親直下の子ども処理用
+      @ngantts = []  ###親直下の子ども処理用
 			@level = tbl  ###itm or trn:gantt(reverse)
 			@err = false
 			@base = @level
@@ -599,7 +599,7 @@ module GanttChart
 			start = n0[:start]
 			###ActiveRecord::Base.connection.select_all(strsql).each_with_index  do |rec,idx|  ###子部品
 			ActiveRecord::Base.connection.select_all(ArelCtl.proc_nditmSql(n0[:opeitms_id])).each_with_index  do |rec,idx|  ###子部品
-				ope = get_opeitms_id_from_itm_by_processseq(rec["itms_id_nditm"],rec["processseq"])
+				ope = get_opeitms_id_from_itm_by_processseq(rec["itms_id"],rec["processseq"])
 					###new_start = (duedate.to_time - (rec["opeitm_duration"].to_i) * 24 * 60 * 60).strftime("%Y-%m-%d %H:%M:%S") 
 				new_qty = n0[:qty].to_f * rec["chilnum"].to_f / rec["parenum"].to_f
 				child = {}
@@ -634,7 +634,7 @@ module GanttChart
 								select s.code loca_code_shelfno,s.name loca_name_shelfno
 									from lotstkhists l
 									inner join shelfnos s on s.id = l.shelfnos_id
-									where l.itms_id = #{rec["itms_id_nditm"]} and processseq = #{rec["processseq"]}
+									where l.itms_id = #{rec["itms_id"]} and processseq = #{rec["processseq"]}
 									and l.qty_stk > 0
 									and not exists(select 1 from lotstkhists xx where l.itms_id = xx.itms_id and l.processseq = xx.processseq
 														and xx.qty_stk <= 0 and xx.starttime > l.starttime)
@@ -658,7 +658,7 @@ module GanttChart
 						:start=>start,:duedate=>duedate,  ###startはget_item_loca_contentsでset
 						:duration=>rec["duration"],:units_lttime=>rec["units_lttime"],:id=>nlevel,:type=>"task",
 						:parenum=>rec["parenum"],:chilnum=>rec["chilnum"],:qty=>new_qty,
-						:itms_id=>rec["itms_id_nditm"],:itm_code=>rec["itm_code_nditm"],:itm_name=>rec["itm_name_nditm"],
+						:itms_id=>rec["itms_id"],:itm_code=>rec["itm_code_nditm"],:itm_name=>rec["itm_name_nditm"],
    						:classlist_code=>rec["classlist_code"],
 						:changeoverlt=>rec["changeoverlt"],
 						:locas_id=>child["shelfno_loca_id_shelfno"],:loca_code=>child["loca_code_shelfno"],
@@ -707,7 +707,7 @@ module GanttChart
 						:start=>start,:duedate=>duedate,  ###startはget_item_loca_contentsでset
 						:duration=>rec["duration"],:units_lttime=>rec["units_lttime"],:id=>nlevel,:type=>"task",
 						:parenum=>rec["parenum"],:chilnum=>rec["chilnum"],:qty=>new_qty,
-						:itms_id=>rec["itms_id"],:itm_code=>rec["itm_code"],:itm_name=>rec["itm_name"],
+						:itms_id=>rec["itms_id"],:itm_code=>rec["itm_code_nditm"],:itm_name=>rec["itm_name"],
    						:classlist_code=>"",:changeoverlt=>0,
 						:locas_id=>pare["shelfno_loca_id_shelfno"],:loca_code=>pare["loca_code_shelfno"],
 						:loca_name=>pare["loca_name_shelfno"]}
@@ -731,8 +731,7 @@ module GanttChart
 		
 	def field_starttime startEnd,nd,reverse
 		###if tblnamechop =~ /dvs|erc/
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},parent:#{parent} "
+			Rails.logger.debug " class:#{self} ,line:#{__LINE__},startEnd:#{startEnd} "
 			Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
 		###end
 		if reverse == "reverse"
@@ -760,7 +759,7 @@ module GanttChart
 	
 		def get_opeitms_id_from_itm_by_processseq itms_id,processseq  ###
 				strsql = %Q& select * from r_opeitms where opeitm_itm_id = #{itms_id} 
-						 	and opeitm_processseq =#{processseq} and opeitm_priority = 999 and opeitm_expiredate > current_date &
+						 	and opeitm_processseq = #{processseq} and opeitm_priority = 999 and opeitm_expiredate > current_date &
 				ope = ActiveRecord::Base.connection.select_one(strsql)
 			return ope
 		end

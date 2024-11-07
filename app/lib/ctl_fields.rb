@@ -16,7 +16,7 @@ module CtlFields
 		params[:err] = nil 
 		line_data,keys,findstatus,mainviewflg,missing = get_fetch_rec(params,fetchview,delm)
 		params[:parse_linedata] = line_data.dup
-	  	if findstatus
+	  if findstatus
 			if mainviewflg   ##mainviewflg = true 自分自身の登録
 				if 	params[:parse_linedata]["aud"] == "add" or params["aud"] =~ /add/
 					params[:err] = "error 1 duplicate code:#{keys},line:#{params[:index]} "
@@ -38,7 +38,7 @@ module CtlFields
 					params[:parse_linedata][key.split(":")[0]+"_gridmessage"] = "deteted" 
 				end  
 			end  
-	  	else
+	  else
 			if mainviewflg   ###自身の登録の時 
 				###
 				### r_tblfieldsの登録でr_blktbsがdetectできなかった時エラーにならない。!!!!!!!!!
@@ -64,8 +64,8 @@ module CtlFields
 					end  
 				end	  
 			end  
-	  	end 
-	  	return params 
+	  end 
+	  return params 
 	end  
 
 	def get_fetch_rec(params,fetchview,delm)
@@ -82,6 +82,10 @@ module CtlFields
 			else
 				if delm != ""   ###自身のテーブルを参照しいるとき
 					mainviewflg = false
+        else
+          if 	params[:parse_linedata]["aud"] =~ /^update|^edit/ or params["aud"] =~ /update|edit/
+			        return line_data,keys,findstatus,mainviewflg,missing
+          end
 				end	
 			end
 			flgfetchview = fetchview + if delm == "" then "" else ":#{delm}" end	  
@@ -101,7 +105,7 @@ module CtlFields
 						next
 					end
 				end
-				paragraphs.each do |fetch|
+				paragraphs.each do |fetch|  ###viewの複数keyの入力確認
 					cnt += 1 
 					valOfField = params[:parse_linedata][fetch.to_sym]
 					prefix,xno,srctblnamechop = fetch.split("_") ###xxx_sno_yyyy,xxx_cno_yyy用
@@ -218,7 +222,7 @@ module CtlFields
 								end
 							end
 						end
-						if fetch 	=~ /_sno_/
+						if fetch 	=~ /_sno_/ and (params[:parse_linedata]["aud"] == "add" or params["aud"] =~ /add/)
 							org = nil
 							case screentblnamechop
 							when /prd|pur/
@@ -275,7 +279,7 @@ module CtlFields
 								end
 							end
 						end
-						if fetch 	=~ /_cno_/
+						if fetch 	=~ /_cno_/ and (params[:parse_linedata]["aud"] == "add" or params["aud"] =~ /add/)
 							org = nil					
 							str_loca_code = ""
 							str_srctbl_qty = ""
@@ -1106,25 +1110,25 @@ module CtlFields
 					&
 				price = ActiveRecord::Base.connection.select_one(strsql)
 				if price
-			   	decimal = line_data[:crr_decimal].to_i
-					line_data[:custact_amt] = line_data[:custact_qty].to_f * price["price"].to_f
-				   	case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
-				   	when "1"
-						line_data[:custact_amt] = line_data[:custact_amt].floor(decimal + 1)
+			    decimal = line_data[:crr_decimal].to_i
+				  line_data[:custact_amt] = line_data[:custact_qty].to_f * price["price"].to_f
+				 	case line_data[:cust_amtround]  ###1:切り捨て　2:四捨五入 3:切り上げ
+				 	when "1"
+				  	line_data[:custact_amt] = line_data[:custact_amt].floor(decimal + 1)
 						line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate].to_f / 100).floor(decimal )
-			   		when "2"
+			   	when "2"
 						line_data[:custact_amt] = line_data[:custact_amt].round(decimal + 1)
 						line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate].to_f / 100).round(decimal )
-			   		when "3"
+			   	when "3"
 						line_data[:custact_amt] = line_data[:custact_amt].ceil(decimal + 1)
 						line_data[:custact_tax] = (line_data[:custact_amt] * line_data[:custact_taxrate].to_f / 100).ceil(decimal)
-			   		end
+			   	end
 				else
-					line_data[:custord_price] = line_data[:custord_masterprice] = 0
-					line_data[:custord_amt] = 0
-					line_data[:custact_contractprice] = "C"  ###C:マスター単価無
+				  line_data[:custord_price] = line_data[:custord_masterprice] = 0
+				  line_data[:custord_amt] = 0
+				  line_data[:custact_contractprice] = "C"  ###C:マスター単価無
 				end
-		   	end
+		  end
 		end
 		return line_data,err
 	end
@@ -1165,6 +1169,30 @@ module CtlFields
 		return line_data,err
 	end
 
+	def proc_judge_check_contractprice line_data,item,index,screenCode  ###M       
+    err = nil
+    case screenCode
+    when /purords/
+      if line_data["purord_confirm"] == "1"
+        if linedata["purprd_contractprice"]  == "C"  ###単価未決
+						err =  "error price  --->  price not decide"
+        end
+      end
+    when /custords/
+      if line_data["purprd_contractprice"]  == "C"  ###単価未決
+						err =  "error price  --->  price not decide"
+      end
+    when /puracts/
+      if line_data["puract_contractprice"]  == "C" or line_data["puract_contractprice"]  == "Z"  ###仮単価
+						err =  "error price  --->  price not decide"
+      end
+    when /custacts/
+      if line_data["custact_contractprice"]  == "C" or line_data["custact_contractprice"]  == "Z"  ###仮単価
+          err =  "error price  --->  price not decide"
+      end
+    end 
+		return line_data,err
+  end
 
 	def proc_judge_check_taxrate line_data,item,index,screenCode  ###MkInvoiveNoの時のみ
 		err = nil
@@ -1531,7 +1559,7 @@ module CtlFields
 			when "chrgs_id"
 				command_x = field_chrgs_id(tblnamechop,command_x,nd) 
 			when "fcoperators_id"
-				command_x = field_fcoperators_id(tblnamechop,command_x,parent) 
+				command_x = proc_field_fcoperators_id(tblnamechop,command_x,parent) 
 			when "duedate"  ###稼働日計算
 				command_x = field_duedate(tblnamechop,command_x,nd,parent)
 			when "endtime"  
@@ -1893,8 +1921,8 @@ module CtlFields
 		return command_x
 	end	
 
-	def field_fcoperators_id(tblnamechop,command_x,parent) 
-		strsql = %Q&
+	def proc_field_fcoperators_id(tblnamechop,command_x,parent) 
+		strsql = %Q&  ---予定されている担当者
 				select fc.id ,fc.itms_id_fcoperator from fcoperators fc
 						inner join facilities fa on fa.itms_id = fc.itms_id_fcoperator
 						left join ercschs es1 on fc.id = es1.fcoperators_id and es1.starttime  < to_timestamp('#{command_x["ercsch_starttime"]}','yyyy-mm-dd hh24:mi:ss') 
@@ -1921,6 +1949,7 @@ module CtlFields
 				select fc.id from fcoperators fc
 						where fc.id not in (#{str.chop}) and fc.itms_id_fcoperator = #{ids[0]["itms_id_fcoperator"]} order by fc.priority desc&
 			fcoperators_id = ActiveRecord::Base.connection.select_value(strsql)
+      ###　安芸がなければ主担当を採用
 			if fcoperators_id.nil?
 				strsql = %Q&
 					select fc.id from fcoperators fc

@@ -91,6 +91,19 @@ truncate table sio.sio_r_ercords cascade;
 truncate table sio.sio_r_ercinsts cascade;
 truncate table sio.sio_r_ercacts cascade;
 
+
+truncate table sio.sio_r_custschs cascade;
+truncate table sio.sio_r_custords cascade;
+truncate table sio.sio_r_custordheads cascade;
+truncate table sio.sio_r_custinsts cascade;
+truncate table sio.sio_r_custacts cascade;
+truncate table sio.sio_r_custdlvs cascade;
+
+
+truncate table sio.sio_r_screenfields cascade;
+
+truncate table sio.sio_r_tblfields cascade;
+
 --insert into lotstkhists(id,
 --									itms_id,shelfnos_id,
 --									prjnos_id,

@@ -51,9 +51,8 @@ class CreateOtherTableRecordJob < ApplicationJob
                     case params["segment"]
                         when "skip" 
                         when "link_lotstkhists_update" ###/insts$|acts$|dlvs$|rets$/のとき
-                            ###parent：在庫移送を発生させたprd,pur
-                            opeLotStk = Operation::OpeClass.new(params)  ###xxxschs,xxxords
-                            opeLotStk.proc_link_lotstkhists_update()  
+                            # ###parent：在庫移送を発生させたprd,pur
+                          add_update_lotstkhists(params["last_lotstks"],params["person_id_upd"])
                         when "sumrequest" 
                         when "splitrequest"  
 
@@ -78,7 +77,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             mkordparams[:outcnt] = 0
                             mkordparams[:outqty] = 0
                             mkordparams[:outamt] = 0
-                            mkordparams = MkordinstLib.proc_mkprdpurords params,mkordparams
+                            mkordparams,last_lotstks = MkordinstLib.proc_mkprdpurords params,mkordparams
                             mkordparams[:message_code] = ""
                             mkordparams[:remark] = "  #{self} line:#{__LINE__} "
                             strsql = %Q%update mkprdpurords set incnt = #{mkordparams[:incnt]},inqty = #{mkordparams[:inqty]},
@@ -88,6 +87,11 @@ class CreateOtherTableRecordJob < ApplicationJob
                                                 where id = #{params["mkprdpurords_id"]}
                                 %
                             ActiveRecord::Base.connection.update(strsql)
+                            if !last_lotstks.empty?
+                              params["last_lotstks"] = last_lotstks
+                              opeLotStk = Operation::OpeClass.new(params)  ###xxxschs,xxxords
+                              opeLotStk.proc_link_lotstkhists_update()
+                            end
                         when "mkpayords"
                             ### 　parent 未使用
                             if params["last_amt"] and (params["last_amt"].to_f != params["amt"].to_f or params["last_tax"].to_f != params["tax"].to_f )
@@ -636,9 +640,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                             ###
                             #
                             ###
-                            ###
-                            #
-                            ###
                             qty_sch = gantt["qty_sch"]
                             gantt["qty"] = 0
                             gantt["qty_require"] = tbldata["qty_require"] = gantt["qty_handover"] 
@@ -660,7 +661,9 @@ class CreateOtherTableRecordJob < ApplicationJob
                             setParams["gantt"] = gantt.dup
                             setParams = blk.proc_private_aud_rec(setParams,command_c)   
                             result_f = '1'
-                            setParams["segment"]  = "link_lotstkhists_update"   ### inoutlotstksも作成
+                            setParams["segment"]  = "link_lotstkhists_update"   ###
+                            setParams["tbldata"] = {}
+                            setParams["gantt"] = {}
                             processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
                     else  
                         result_f = '6'
@@ -729,9 +732,9 @@ class CreateOtherTableRecordJob < ApplicationJob
             end
 		    command_c,qty_require,err = CtlFields.proc_schs_fields_making(nd,parent,"r_"+ nd["prdpur"]+"schs",command_init)
 		    return command_c,qty_require,err
-    end
+  end
 
-    def create_paybillschs(src,sch,billpay)
+  def create_paybillschs(src,sch,billpay)
         ###check billscks exists or not
         case sch["tblname"]
         when "custords"
@@ -823,37 +826,11 @@ class CreateOtherTableRecordJob < ApplicationJob
         command_c["person_sect_id_chrg_#{mst}"] =  chrg["person_sect_id_chrg"]
         command_c = blk.proc_create_tbldata(command_c) ##
         billParams = blk.proc_private_aud_rec({},command_c)
-
-        # ###old_custords check
-        # if sch["last_duedate"]
-        #     strsql = %Q&
-        #                 select b.*,l.id linktbl_id from #{paybillsch}s b
-        #                     inner join srctbllinks l on b.id = l.tblid
-        #                     where srctblname = '#{paybillsch}s' 
-        #                             and srctblid = #{sch["tblid"]}
-        #                             and tblname = '#{paybillsch}s' and tblid != #{command_c["id"]}
-        #     &
-        #     last_rec = ActiveRecord::Base.connection.select_one(strsql)
-        #     if last_rec
-        #         strsql = %Q&
-        #                     update #{paybillsch}s set amt_sch = amt_sch + (#{sch["amt_src"].to_f - sch["last_amt"].to_f}),
-        #                         updated_at = #{Time.now}
-        #                         where id = #{last_rec["id"]}
-        #         &
-        #         ActiveRecord::Base.connection.update(strsql)
-        #         strsql = %Q&
-        #                     update srctbllinks set amt_src = #{sch["amt_src"].to_f} ,
-        #                         updated_at = #{Time.now}
-        #                         where id = #{last_rec["linktbl_id"]}
-        #         &
-        #         ActiveRecord::Base.connection.update(strsql)
-        #     end
-        # end
-    end
+  end
 
     
 
-    def delete_paybillschs(segment,params)
+  def delete_paybillschs(segment,params)
         ###check billscks exists or not
         case segment
         when "updatebillords"
@@ -897,18 +874,15 @@ class CreateOtherTableRecordJob < ApplicationJob
                     select * from srctbllinks where srctblname = '#{params["srctblname"]}' and srctblid = #{params["srctblid"]} 
                 &
         link =  ActiveRecord::Base.connection.select_one(strsql)
-        #last_rec = ActiveRecord::Base.connection.select_one(%Q&select * from r_#{link["tblname"]} where  id = #{link["tblid"]}&)
-        # command_c.merge!(last_rec)
-
 
         update_sql = %Q&
                     update srctbllinks set amt_src = amt_src - #{params["last_amt"]} where id = #{link["id"]}
         &
 
         ActiveRecord::Base.connection.update(update_sql)
-    end
+  end
 
-    def  create_payords(src,payord,payment)  ###src:puracts puracts_id
+  def  create_payords(src,payord,payment)  ###src:puracts puracts_id
         blk = RorBlkCtl::BlkClass.new("r_payords")
         command_c = blk.command_init
         command_c["payord_person_id_upd"] = payord["persons_id_upd"]
@@ -1016,10 +990,10 @@ class CreateOtherTableRecordJob < ApplicationJob
                 last_amt -=  rec["amt_src"].to_f
             end
         end
-    end
+  end
 
     
-    def  create_billords(src,billord,billmst)
+  def  create_billords(src,billord,billmst)
         blk = RorBlkCtl::BlkClass.new("r_billords")
         command_c = blk.command_init
         command_c["billord_person_id_upd"] = billord["persons_id_upd"]
@@ -1091,12 +1065,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                 &
                 last_rec = ActiveRecord::Base.connection.select_one(strsql)
                 if last_rec
-                    # strsql = %Q&
-                    #             update billords set am = amt + (#{billord["amt_src"].to_f - billord["last_amt"].to_f}),
-                    #                 updated_at = current_timestamp
-                    #                 where id = #{last_rec["id"]}
-                    # &
-                    # ActiveRecord::Base.connection.update(strsql)
                     strsql = %Q&
                                 update srctbllinks set amt_src = #{billord["amt_src"].to_f} ,
                                     updated_at = current_timestamp
@@ -1110,7 +1078,7 @@ class CreateOtherTableRecordJob < ApplicationJob
     ###  
     #
     ###
-    def getprdpurord_from_linktbls(tblname,tblid,prdpur)  ### xxxactsからxxxordsを求める
+  def getprdpurord_from_linktbls(tblname,tblid,prdpur)  ### xxxactsからxxxordsを求める
         ords = []
         notords = []
         strsql = %Q&
@@ -1125,11 +1093,11 @@ class CreateOtherTableRecordJob < ApplicationJob
             end
         end
         return ords,notords
-    end    
+  end    
     ###  
     #
     ###
-    def updatepaybillschs(tblid,paybill,amt)
+  def updatepaybillschs(tblid,paybill,amt)
         purcust = case paybill
                     when "pay"
                         "pur"
@@ -1147,17 +1115,11 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 where id = #{rec["id"]}
         &
         ActiveRecord::Base.connection.update(updatelinktblsql)
-        # updatepaybilllsql = %Q& 
-        #                     update #{paybill}schs set amt_sch = amt_sch - #{amt},
-        #                         updated_at = current_timestamp,remark = '#{self} line:#{__LINE__}'||remark
-        #                         where id = #{rec["tblid"]}
-        # &
-        # ActiveRecord::Base.connection.update(updatepaybilllsql)
-    end
+  end
     ###
     #
     ###     
-    def proc_mk_ercschs(nd,setParams,erctblname)
+  def proc_mk_ercschs(nd,setParams,erctblname)
         prdtblname = erctblname.sub("erc","prd")
         dvstblname = erctblname.sub("erc","dvs")
         gantt = setParams["gantt"].dup
@@ -1251,5 +1213,107 @@ class CreateOtherTableRecordJob < ApplicationJob
                 setParams = blk.proc_private_aud_rec(setParams,command_c) ###
             end
         end
-    end
+  end
+  def add_update_lotstkhists(last_lotstks,persons_id_upd)
+      tmptbls = []
+      save_tblbame = save_tblid = ""
+      last_lotstks.each do |last_lotstk|
+        if last_lotstk["starttime"].nil? or last_lotstk["shelfnos_id"].nil? or last_lotstk["prjnos_id"]
+          strsql = %Q& select rec.*,ope.itms_id,ope.processseq from #{last_lotstk["tblname"]} rec 
+                          inner join opeitms ope on ope.id = rec.opeitms_id
+                          where rec.id = #{last_lotstk["tblid"]}&
+          rec = ActiveRecord::Base.connection.select_one(strsql)
+          temp = {"shelfnos_id" => rec["shelfnos_id_to"],"itms_id" => rec["itms_id"],"processseq" => rec["processseq"],
+                  "prjnos_id" => rec["prjnos_id"],"lotno" => rec["lotno"],"packno" => rec["packno"]}
+          case last_lotstk["tblname"]
+          when /purschs|prdschs/
+            temp.merge!({"starttime" => rec["duedate"],
+                        "qty_sch" => last_lotstk["qty_src"],"qty" => 0,"qty_stk" => 0, "qty_real" => 0,
+                      "lotno" => "","packno" => ""})
+          when /purords|purinsts|prdords|prdinsts/
+            temp.merge!({"starttime" => rec["duedate"],
+                        "qty_sch" => 0,"qty" => last_lotstk["qty_src"],"qty_stk" => 0, "qty_real" => 0,
+                      "lotno" => "","packno" => ""})
+          when /purreplyinputs/
+            temp.merge!({"starttime" => rec["replaydate"],
+                        "qty_sch" => 0,"qty" => last_lotstk["qty_src"],"qty_stk" => 0, "qty_real" => 0,
+                      "lotno" => "","packno" => ""})
+          when /purdlvs/
+            temp.merge!({"starttime" => rec["depdate"],
+                        "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"], "qty_real" => 0,
+                      "lotno" => "","packno" => ""})
+            temp.merge!({"starttime" => (rec["depdate"].to_date + 1).strftime("%-%m-%d"),
+                         "qty_sch" => 0,"qty" => 0,"qty_stk" => -last_lotstk["qty_src"], "qty_real" => 0,
+                         "lotno" => "","packno" => ""})
+          when /puracts/
+            temp.merge!({"starttime" => rec["rcptdate"],
+                      "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"], "qty_real" => last_lotstk["qty_src"],
+                      "lotno" => rec["lotno"],"packno" => rec["packno"]})
+          when /puracts|prdacts/
+            temp.merge!({"starttime" => rec["depdate"],
+                       "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"], "qty_real" => last_lotstk["qty_src"],
+                       "lotno" => rec["lotno"],"packno" => rec["packno"]})
+          end 
+          tmptbls << temp
+        else
+          tmptbls << last_lotstk
+        end
+      end
+      ###data.sort_by { |h| h.values_at(:k1, :k2, :k3, :k4) }else
+      Rails.logger.debug" error class:#{self} , line:#{__LINE__} ,tmptbls:#{tmptbls}"
+      tmplotstktbls = tmptbls.sort_by {|h| [h["itms_id"],h["processseq"],h["shelfnos_id"],h["lotno"],h["packno"],h["prjnos_id"],h["starttime"]]}
+      lotstktbls = []
+      save_itms_id = save_processseq = save_shelfnos_id = save_lotno = save_packno = save_prjnos_id = save_starttime = ""
+      save_qty_sch = save_qty = save_qty_stk = save_qty_real = 0
+      tmplotstktbls.each do |lotstktbl|
+        if save_itms_id == lotstktbl["itms_id"] and save_processseq == lotstktbl["processseq"] and 
+              save_shelfnos_id == lotstktbl["shelfnos_id"] and
+                 save_lotno == lotstktbl["lotno"] and save_packno == lotstktbl["packno"]  and 
+                  save_prjnos_id == lotstktbl["prjnos_id"]  and save_starttime == lotstktbl["starttime"]
+          save_qty_sch += lotstktbl["qty_sch"].to_f
+          save_qty += lotstktbl["qty"].to_f
+          save_qty_stk += lotstktbl["qty_stk"].to_f
+          save_qty_real += lotstktbl["qty_real"].to_f
+        else
+          if save_itms_id == "" and save_processseq == "" and 
+                save_shelfnos_id == "" and save_lotno == "" and save_packno == ""  and 
+                    save_prjnos_id == ""  and save_starttime == ""
+            save_qty_sch = lotstktbl["qty_sch"].to_f
+            save_qty = lotstktbl["qty"].to_f
+            save_qty_stk = lotstktbl["qty_stk"].to_f
+            save_qty_real = lotstktbl["qty_real"].to_f
+            save_itms_id = lotstktbl["itms_id"] 
+            save_processseq = lotstktbl["processseq"] 
+            save_shelfnos_id = lotstktbl["shelfnos_id"] 
+            save_lotno = lotstktbl["lotno"] 
+            save_packno = lotstktbl["packno"]  
+            save_prjnos_id = lotstktbl["prjnos_id"]  
+            save_starttime = lotstktbl["starttime"]
+          else
+            lotstktbls << {"itms_id" => save_itms_id ,"processseq" => save_processseq ,"shelfnos_id" => save_shelfnos_id , 
+                          "lotno" => save_lotno ,"packno" => save_packno, 
+                           "prjnos_id" => save_prjnos_id ,"starttime" => save_starttime ,
+                          "qty_sch" => save_qty_sch ,"qty" => save_qty ,"qty_stk" => save_qty_stk ,"qty_real" => save_qty_real}
+            save_itms_id = lotstktbl["itms_id"] 
+            save_processseq = lotstktbl["processseq"] 
+            save_shelfnos_id = lotstktbl["shelfnos_id"] 
+            save_lotno = lotstktbl["lotno"] 
+            save_packno = lotstktbl["packno"]  
+            save_prjnos_id = lotstktbl["prjnos_id"]  
+            save_starttime = lotstktbl["starttime"]
+            save_qty_sch = lotstktbl["qty_sch"].to_f
+            save_qty = lotstktbl["qty"].to_f
+            save_qty_stk = lotstktbl["qty_stk"].to_f
+            save_qty_real = lotstktbl["qty_real"].to_f
+          end
+        end
+      end
+      lotstktbls << {"itms_id" =>save_itms_id ,"processseq" => save_processseq ,"shelfnos_id" => save_shelfnos_id ,
+                      "lotno" => save_lotno ,"packno" => save_packno , 
+                      "prjnos_id" => save_prjnos_id ,"starttime" => save_starttime , "persons_id_upd" => persons_id_upd,
+                      "qty_sch" => save_qty_sch ,"qty" => save_qty ,"qty_stk" => save_qty_stk ,"qty_real" => save_qty_real}
+      lotstktbls.each do |lotstktbl|
+        Shipment.proc_lotstkhists_in_out('in',lotstktbl)
+      end
+  end
 end

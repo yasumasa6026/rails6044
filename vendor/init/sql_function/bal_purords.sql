@@ -109,7 +109,10 @@ CREATE VIEW public.bal_purords AS
     public.r_suppliers supplier,
     public.r_shelfnos shelfno_to,
     public.crrs crr
-  WHERE ((purord.persons_id_upd = person_upd.id) AND (purord.opeitms_id = opeitm.id) AND (purord.prjnos_id = prjno.id) AND (purord.chrgs_id = chrg.id) AND (purord.suppliers_id = supplier.id) AND (purord.shelfnos_id_to = shelfno_to.id) AND (purord.crrs_id = crr.id) );
+  WHERE ((purord.persons_id_upd = person_upd.id) AND (purord.opeitms_id = opeitm.id) AND (purord.prjnos_id = prjno.id) AND (purord.chrgs_id = chrg.id) 
+ AND (purord.suppliers_id = supplier.id) AND (purord.shelfnos_id_to = shelfno_to.id) AND (purord.crrs_id = crr.id) )
+ and public.func_get_purprd_qty_bal('purords'::text, purord.id)  > 0;
+
 
  
  DROP TABLE sio.sio_bal_purords;
