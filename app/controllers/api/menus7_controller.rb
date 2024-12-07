@@ -348,7 +348,14 @@ module Api
             when 'mkShpords'  ###shpschsは作成済が条件。shpschsはpurords,prdords時に自動作成
                 if params[:clickIndex]
                     screen = ScreenLib::ScreenClass.new(params)
-                    outcnt,shortcnt,err = Shipment.proc_mkShpords(screen.screenCode,params)
+                    outcnt,shortcnt,err,last_lotstks = Shipment.proc_mkShpords(screen.screenCode,params)      
+                    if last_lotstks.size > 0
+                      setParams["segment"]  = "link_lotstkhists_update"   ###
+                      setParams["tbldata"] = {}
+                      setParams["gantt"] = {}
+                      setParams["last_lotstks"] = last_lotstks.dup
+                      processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+                    end        
                     render json:{:outcnt=>outcnt,:shortcnt=>shortcnt,:err=>err,:params=>{:buttonflg=>"mkShpords"}}
                 else
                     render json:{:outcnt=>0,:shortcnt=>0,:err=>" please select",:params=>{:buttonflg=>"mkShpords"}}
@@ -390,6 +397,7 @@ module Api
                     reqparams[:buttonflg] = "inlineedit7"
                     reqparams[:aud] = "edit"
                     reqparams[:screenCode] = "foract_shpinsts"   ###shpordsがshpinstsに変わるため
+                    reqparams[:screenFlg] = "second"
                     reqparams["gantt"] ||= {}
                     reqparams["gantt"]["paretblname"] = params[:screenCode].split("_",2)[1]
                     secondScreen = ScreenLib::ScreenClass.new(reqparams)
@@ -427,15 +435,40 @@ module Api
                     reqparams[:pageSize] ||= 100
                     reqparams[:buttonflg] = 'viewtablereq7'
                     reqparams[:screenCode] = "r_shpacts"   ###shpordsがshpinstsに変わるため
+                    reqparams[:screenFlg] = "second"
                     reqparams["gantt"] ||= {}
                     reqparams["gantt"]["paretblname"] = params[:screenCode].split("_",2)[1]
                     secondScreen = ScreenLib::ScreenClass.new(reqparams)
                     grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
-                    pagedata,reqparams = secondScreen.proc_second_view reqparams  ###共通lib
+                    pagedata,reqparams = secondScreen.proc_second_shpview reqparams  ###共通lib
                     render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
                 else
                     render json:{:err=>"please  select Order",:params=>params}    
                 end
+
+              when /^prdDvs|^prdErc/
+                  if params["clickIndex"]
+                      reqparams = params.dup   ### 
+                      reqparams[:where_str] ||= ""
+                      reqparams[:filtered] ||= []
+                      reqparams[:pageIndex] ||= 0
+                      reqparams[:pageSize] ||= 10
+                      reqparams[:buttonflg] = 'inlineedit7'
+                      reqparams[:screenFlg] = "second"
+                      reqparams[:aud] = "update"
+                      reqparams[:screenCode] =  params[:buttonflg].sub("D","_d").sub("E","_e")
+                      reqparams[:view] =  reqparams[:screenCode].sub("prd_","r_")
+                      if reqparams[:gantt]
+                        reqparams[:gantt] = JSON.parse(reqparams[:gantt])
+                      elsereqparams[:gantt] = {}
+                      end
+                      secondScreen = ScreenLib::ScreenClass.new(reqparams)
+                      grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
+                      pagedata,reqparams = secondScreen.proc_second_dvserc reqparams  ###共通lib
+                      render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
+                  else
+                      render json:{:err=>"please  select Order",:params=>params}    
+                  end
 
             when 'confirmShpinsts'
                 reqparams = params.dup   ### 

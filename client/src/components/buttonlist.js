@@ -177,20 +177,17 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
               return  //画面表示のみ
 
           case "mkShpords":
-              params= {...params,linedata:{},buttonflg:"mkShpords",disableFilters:false,screenFlg:ownProps.screenFlg}
-              return  dispatch(ScreenRequest(params,null)) //
           case "refShpords": //第一画面で選択された親より第二画面表示
-              params= {...params,buttonflg:"refShpords",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
-              return  dispatch(ScreenRequest(params,null)) //   
-
           case "refShpinsts": //第一画面で選択された親より第二画面表示
-                params= {...params,buttonflg:"refShpinsts",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
-                return  dispatch(ScreenRequest(params,null)) //
-
           case "refShpacts":  //第一画面で選択された親より第二画面表示
-                params= {...params,buttonflg:"refShpacts",disableFilters:true,screenFlg:"second",pareScreenCode:pareScreenCode}
-                return  dispatch(ScreenRequest(params,null)) // 
-
+          case "prdDvsords":  //第一画面で選択された親より第二画面表示
+          case "prdDvsinsts":  //第一画面で選択された親より第二画面表示
+          case "prdDvsacts":  //第一画面で選択された親より第二画面表示
+          case "prdErcords":  //第一画面で選択された親より第二画面表示
+          case "prdErcinsts":  //第一画面で選択された親より第二画面表示
+          case "prdErcacts":  //第一画面で選択された親より第二画面表示
+              params= {...params,linedata:{},buttonflg:buttonflg,disableFilters:false,screenFlg:ownProps.screenFlg}
+              return  dispatch(ScreenRequest(params,null)) //
           case "crt_tbl_view_screen":
                 data.map((row,index)=>{Object.keys(row).map((field,idx)=>
                         {
@@ -221,8 +218,8 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
       
               
           default:
-            console.log(`not Supported ${buttonflg}`)
-            return 
+            console.log(` button not Supported ${buttonflg}`)
+            return dispatch(ScreenFailure(` button not Supported ${buttonflg}`))
         }   
       } 
   })    

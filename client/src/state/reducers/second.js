@@ -3,10 +3,10 @@ import {LOGIN_REQUEST,LOGOUT_REQUEST,LOGIN_SUCCESS,  //SECONDSCREEN_REQUEST,
         SECOND_CONFIRMALL_REQUEST,SECOND_CONFIRMALL_SUCCESS,SECOND_SUCCESS7,SECOND_DATASET,
         SECOND_CONFIRM7,SECOND_CONFIRM7_SUCCESS,
         SECOND_FAILURE, SECONDFETCH_REQUEST,SECOND_SUBFORM,
-        SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT, CHANGE_SHOW_SCREEN,
+        SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT,
         GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
         TBLFIELD_REQUEST,TBLFIELD_SUCCESS, UPLOADEXCEL_INIT,
-        SECONDTBLFIELD_REQUEST,SECONDTBLFIELD_SUCCESS, 
+        SECONDTBLFIELD_REQUEST,SECONDTBLFIELD_SUCCESS, SCREEN_FAILURE,SCREEN_CONFIRM7_SUCCESS,
         SCREENINIT_REQUEST, SCREEN_SUCCESS7,SCREEN_REQUEST,} from '../../actions'
 
         const initialValues = {data:[],
@@ -35,6 +35,7 @@ const secondreducer =  (state = initialValues , actions) =>{
             data:actions.payload.data,
             screenFlg:"second",
             loading:true,
+            baseData:actions.payload.data,
              // editableflg:actions.payload.editableflg
          }
 
@@ -60,6 +61,7 @@ const secondreducer =  (state = initialValues , actions) =>{
             loading:false,
             disabled:false,
             data: actions.payload.data.data,
+            baseData: actions.payload.data.data,
             params: actions.payload.params,
             status: actions.payload.data.status,
             grid_columns_info:actions.payload.data.grid_columns_info,
@@ -71,6 +73,7 @@ const secondreducer =  (state = initialValues , actions) =>{
                                               return row }) 
         return {...state,
             data:data,
+            baseData:data,
             params:actions.payload.params,
             loading:false,
             message:data[actions.payload.index].confirm_message&&`${date.toJSON()} confirmed line ${actions.payload.index}`,
@@ -80,7 +83,7 @@ const secondreducer =  (state = initialValues , actions) =>{
         data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
                                               return row }) 
         return {...state,
-            message: actions.payload.message,
+            hostError: actions.payload.message,
             data: data,
             loading:false,
         }
@@ -89,6 +92,7 @@ const secondreducer =  (state = initialValues , actions) =>{
         return {...state,
             params:actions.payload.params, 
             loading:true,
+            hostError: null,  
           //editableflg:false
         }
         
@@ -97,8 +101,10 @@ const secondreducer =  (state = initialValues , actions) =>{
                                               return row })
         return {...state,
             data:data,
+            baseData:data,
             params:actions.payload.params, 
             loading:false,
+            hostError: actions.payload.params.err,  
         }
         
     case SECONDFETCH_RESULT:
@@ -107,6 +113,7 @@ const secondreducer =  (state = initialValues , actions) =>{
         return {...state,
             params:actions.payload.params,  
             data:data,
+            baseData:data,
             loading:false,
         }
 
@@ -126,10 +133,11 @@ const secondreducer =  (state = initialValues , actions) =>{
     case SCREENINIT_REQUEST:
     case SCREEN_SUCCESS7:
     case SCREEN_REQUEST:
-    case CHANGE_SHOW_SCREEN:
+    case SCREEN_CONFIRM7_SUCCESS:
         return {data:[],
             params:{screenCode:"",
                     parse_linedata:{},buttonflg:"viewtablereq7",
+                    hostError: null,
                     filtered:[],where_str:"",sortBy:[],screenFlg:"second",
                     screenCode:"",pageIndex:0,pageSize:20,totalCount:0,
                     index:0,clickIndex:[],err:null,},
@@ -138,6 +146,13 @@ const secondreducer =  (state = initialValues , actions) =>{
                     creenwidth:0,
                     dropDownList:[],
                     hiddenColumns:[]},}
+
+    case SCREEN_FAILURE:
+          return {...state,
+                  loading:false,
+                  hostError: null,  
+                 }
+                    
 
     
     case GANTTCHART_REQUEST:

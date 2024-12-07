@@ -96,8 +96,8 @@ module CtlFields
 			where_strsql = ""
 			fetchs = ActiveRecord::Base.connection.select_all(fetcfieldgetsql)
 			cnt = 0
+      paragraphs = []
 			fetchs.each do |prefetch|
-				paragraphs = []
 				prefetch["screenfield_paragraph"].split(",").each do |paragraph|
 					if paragraph == flgfetchview   
 						paragraphs << prefetch["pobject_code_sfd"]
@@ -105,6 +105,7 @@ module CtlFields
 						next
 					end
 				end
+			end	
 				paragraphs.each do |fetch|  ###viewの複数keyの入力確認
 					cnt += 1 
 					valOfField = params[:parse_linedata][fetch.to_sym]
@@ -131,9 +132,10 @@ module CtlFields
 									where_strsql << "  #{fetch.split(delm)[0]} = '#{params[:parse_linedata][fetch.to_sym]}'       and"
 								end
 							end
-							missing = false
+							missing = false 
 						end
 					end
+			    Rails.logger.debug " class:#{self} ,line:#{__LINE__},paragraphs:#{paragraphs},cnt:#{cnt},fetch:#{fetch} "
 					if missing == false  ###検索のための入力項目はすべて入力されている。
 						if cnt >= paragraphs.to_a.size
 							case fetch
@@ -402,8 +404,7 @@ module CtlFields
 						else
 						end
 					end
-				end
-			end	
+        end
 			return line_data,keys,findstatus,mainviewflg,missing
 	end		
 
@@ -789,8 +790,8 @@ module CtlFields
 	def proc_judge_check_duedate line_data,item,index,screenCode  ###
 		tblnamechop = screenCode.split("_")[1].chop
 		parent = {"starttime"  => line_data[(tblnamechop+"_duedate").to_sym]}
-		nd = {"duration" => line_data["opeitm_duration".to_sym],"units_lttime" => line_data[:opeitm_units_lttime] }
-		line_data = proc_field_starttime(parent,nd,tblnamechop,line_data.stringify_keys)
+		nd = {"duration" => line_data["opeitm_duration".to_sym],"unitofduration" => line_data[:opeitm_unitofduration] }
+		line_data = proc_field_starttime(tblnamechop,line_data.stringify_keys,parent,nd)
 		err = nil
 		return line_data.symbolize_keys,err
 	end
@@ -1512,7 +1513,7 @@ module CtlFields
 	###
 	#
 	### prd,pur ・・・schs,ords,insts,acts,retsのレコード作成　	
-	def proc_schs_fields_making nd,parent,screenCode ,command_x  ###xxxschsの作成のみ
+	def proc_schs_fields_making nd,parent,command_x  ###xxxschsの作成のみ
 		err = false
 		qty_require = 0
 		nd["packqty"] =  if nd["packqty"].to_f == 0
@@ -1547,11 +1548,11 @@ module CtlFields
 			# when "shelfnos_id"  ###payments_idを含む
 			# 	command_x = field_shelfnos_id(tblnamechop,command_x,nd)
 			when "starttime"  ###稼働日計算  seqno.starttime > seqno.duedate
-				command_x = proc_field_starttime(parent,nd,tblnamechop,command_x)  ###qty_schで計算でする為
+				command_x = proc_field_starttime(tblnamechop,command_x,parent,nd)  ###qty_schで計算でする為
 			when "depdate"  ###稼働日計算  seqno.starttime > seqno.duedate   ##shpxxxはmold,ITool以外は作成しない
 				case tblnamechop
 				when "shpest"
-					command_x = proc_field_starttime(parent,nd,tblnamechop,command_x)  ###qty_schで計算でする為
+					command_x = proc_field_starttime(tblnamechop,command_x,parent,nd)  ###qty_schで計算でする為
 				else
 				end
 			when "shelfnos_id_to"
@@ -1559,17 +1560,17 @@ module CtlFields
 			when "chrgs_id"
 				command_x = field_chrgs_id(tblnamechop,command_x,nd) 
 			when "fcoperators_id"
-				command_x = proc_field_fcoperators_id(tblnamechop,command_x,parent) 
+				command_x = proc_field_fcoperators_id(tblnamechop,command_x,parent,nd) 
 			when "duedate"  ###稼働日計算
-				command_x = field_duedate(tblnamechop,command_x,nd,parent)
+				command_x = proc_field_duedate(tblnamechop,command_x,parent,nd)
 			when "endtime"  
 				###command_x = field_endtime(tblnamechop,command_x,nd,parent)
 			when "toduedate"  ###稼働日計算
-				command_x = field_toduedate(tblnamechop,command_x,nd,parent)
+				command_x = field_toduedate(tblnamechop,command_x,parent,nd)
 			when "facilities_id"  
-				command_x,err = proc_field_facilities_id(tblnamechop,command_x,nd)
+				command_x = proc_field_facilities_id(tblnamechop,command_x,parent,nd)
 			when "qty_sch"   ### 
-				command_x,qty_require = field_qty_sch(tblnamechop,command_x,nd,parent)
+				command_x,qty_require = field_qty_sch(tblnamechop,command_x,parent,nd)
 			### tblfield_seqnoは qty,duedateより大きいと	
 			when "price"  ###保留 amt tax  itm_code_client crrs_idを含む
 				command_x = field_price_amt_tax_contractprice(tblnamechop,command_x) 
@@ -1581,9 +1582,9 @@ module CtlFields
 				command_x["#{tblnamechop}_sno"]  = proc_field_sno(tblnamechop,command_x["#{tblnamechop}_isudate"] ,command_x["id"])
 			when "cno"  ###画面の時用にror_blkctl.crete_src_tblでもsetしてる
 			when "prjnos_id"
-				command_x = field_prjnos_id(tblnamechop,command_x,nd,parent)
+				command_x = field_prjnos_id(tblnamechop,command_x,parent,nd)
 			when "expiredate"
-				command_x = field_expiredate(tblnamechop,command_x,nd,parent)
+				command_x = field_expiredate(tblnamechop,command_x,parent,nd)
 			when "tax"
 				### field_price_amt_tax_contractprice
 			end	
@@ -1689,49 +1690,66 @@ module CtlFields
 		return command_x
 	end	 
 
-	def field_duedate tblnamechop,command_x,nd,parent
-		if tblnamechop =~ /dvs|erc/
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},parent:#{parent} "
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
-		end
+	def proc_field_duedate tblnamechop,command_x,parent,nd
 		pstarttime =  parent["starttime"].to_time  ###ercschsの親はdvsschs
-		pduedate =  parent["duedate"].to_time
-		case nd["units_lttime"]  ###char(4)
-		when "Day "
-			dayHour = 24*3600   ###  duedate 16:00   starttime 10:00
-		when "Hour"
-			dayHour = 3600
-		else 
-			dayHour = 1
-			starttime = Time.now
-		end
+    case tblnamechop
+    when /prdact/
+		  pduedate =  parent["cmpldate"].to_time
+    when /puract/
+		  pduedate =  parent["rcptdate"].to_time
+    else
+      pduedate =  parent["duedate"].to_time
+    end
 		case tblnamechop
-		when /prd|pur|dym/
-			if nd["shelfnos_id_to_opeitm"] == parent["shelfnos_id_trn"]
+		when /^dvs|^erc/
+		  case nd["
+        "]  ###char(4)
+		  when "Day "
+			  dayHour = 24*3600   ###  duedate 16:00   starttime 10:00
+		  when "Hour"
+			  dayHour = 3600
+      else 
+			  dayHour = 1
+			  starttime = Time.now
+		  end
+    else
+		  case nd["unitofduration"]  ###char(4)
+		  when "Day "
+			  dayHour = 24*3600   ###  duedate 16:00   starttime 10:00
+		  when "Hour"
+			  dayHour = 3600
+      else 
+			  dayHour = 1
+			  starttime = Time.now
+		  end
+    end
+		case tblnamechop
+		when /prd|dym/
+			if nd["shelfnos_id_to_opeitm"] == parent["shelfnos_id"]
 				duedate = pstarttime - 1*3600  ###稼働日
 			else
-				if nd["locas_id_to_shelfno"] == parent["shelfnos_id_trn"]
-					duedate = pstarttime - 4*3600  ###稼働日
-				else
 					duedate = pstarttime - 24*3600  ###稼働日 出庫作業考慮
-				end
 			end
-		when /dvssch/
+		when /pur/
+				duedate = pstarttime - 1*3600  ###稼働日
+		when /^dvs/
 			duedate =  pduedate + ((nd["postprocessinglt"]||=0).to_f)*dayHour ###後処理
 		when /shpest/  ###duedate 工具返還日
 			duedate =  pduedate + ((nd["postprocessinglt"]||=0).to_f)*dayHour ###後処理
-		when /ercsch/
-			case command_x["ercsch_processname"]   ###親はdvsschs
+		when /^erc/
+			case command_x["#{tblnamechop}_processname"]   ###
 			when "changeover"
 				duedate =  pstarttime  + (nd["changeoverlt"]||=0).to_f*dayHour 
 			when "require"
 				duedate =  	pduedate  - ((nd["postprocessinglt"]||=0).to_f)*dayHour  
 			when "postprocess"
 				duedate = pduedate 
+      else
+			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},processname error ,command_x:#{command_x},nd:#{nd} "
+        raise
 			end
 		end
-		if nd["units_lttime"] == "Day "
+		if dayHour == 24*3600    ###day = "Day"
 			if duedate.strftime("%H") < "08"
 				duedate = duedate - 24*3600   ###前日
 				command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 16:00:00")
@@ -1759,30 +1777,27 @@ module CtlFields
 	end
 
 	
-	def field_toduedate tblnamechop,command_x,nd,parent  ###先行納品可能納期
+	def field_toduedate tblnamechop,command_x,parent,nd  ###先行納品可能納期
 		command_x["#{tblnamechop}_toduedate"] = command_x["#{tblnamechop}_toduedate"] = command_x["#{tblnamechop}_duedate"]
 		return command_x
 	end
 
-	def proc_field_facilities_id tblnamechop,command_x,nd
-		strsql = %Q& select id from facilities  where itms_id = #{nd["itms_id"]}&
-		facilitie_id = ActiveRecord::Base.connection.select_value(strsql)
-		if facilitie_id
-			command_x["#{tblnamechop}_facilitie_id"] = facilitie_id
-			err = false
+	def proc_field_facilities_id tblnamechop,command_x,parent,nd
+		strsql = %Q& select id,chrgs_id from facilities  where itms_id = #{nd["itms_id"]}&
+		facilitie = ActiveRecord::Base.connection.select_one(strsql)
+		if facilitie
+			command_x["#{tblnamechop}_facilitie_id"] = facilitie["id"]
+			command_x["#{tblnamechop}_chrg_id"] = facilitie["chrgs_id"]
 		else
-			err = true
+			Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
+			Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
+      raise
 		end
-		return command_x,err
+		return command_x
 	end
 
-	def proc_field_starttime parent,nd,tblnamechop,command_x
-		###if tblnamechop =~ /dvs|erc/
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},parent:#{parent} "
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
-		###end
-		case nd["units_lttime"]  ###char(4)
+	def proc_field_starttime tblnamechop,command_x,parent,nd
+		case nd["unitofduration"]  ###char(4)
 		when "Day "
 			dayHour = 24*3600   ###  duedate 16:00   starttime 10:00
 		when "Hour"
@@ -1825,26 +1840,29 @@ module CtlFields
 			else
 					 starttime =  cduedate - (nd["duration"]||=1).to_f*dayHour  ###nd["duration"].nil? --> tbl=dymschs&opeitms無,cal=-1 --> reverse
 			end
-		when "dvssch"  ###親はprdschs
+		when /^dvs/  ###親はprdschs
 			starttime =  pstarttime - (nd["changeoverlt"]||=0).to_f*dayHour 
 		when "shpest" ###親はprdschs 工具・金型
 			starttime =  pstarttime - (nd["changeoverlt"]||=0).to_f*dayHour 
 		when "ercsch" ###親はdvsschs
-			case command_x["ercsch_processname"]   ###親はdvsschs
+			case command_x["#{tblnamechop}_processname"]   ###親はdvsschs
 			when "changeover"
 				starttime = pstarttime
 			when "require"
 				starttime =  pstarttime + (nd["changeoverlt"]||=0).to_f*dayHour 
 			when "postprocess"
 				starttime = pduedate - ((nd["postprocessinglt"]||=0).to_f)*dayHour 
+      else
+        Rails.logger.debug " class:#{self} ,line:#{__LINE__},tblnamechop error command_x:#{command_x} "
+        raise
 			end
 		end
 		
-		if nd["units_lttime"] == "Day "
+		if nd["unitofduration"] == "Day "
 			if starttime.strftime("%M") < "13"
 				case tblnamechop
 				when /prdord/
-		 			command_x["prdsch_starttime"] = command_x["prdsch_commencementdate"] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
+		 			command_x["prdord_starttime"] = (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
 				when /shpest/
 		 			command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
 				else
@@ -1854,7 +1872,7 @@ module CtlFields
 				if starttime.strftime("%M") < "16"
 					case tblnamechop
 					when /prdord/
-						command_x["prdsch_starttime"] = command_x["prdsch_commencementdate"] =  (starttime.strftime("%Y-%m-%d") + " 13:00:00" )
+						command_x["prdord_starttime"] =  (starttime.strftime("%Y-%m-%d") + " 13:00:00" )
 					when /shpest/
 						command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d") + " 13:00:00" )
 					else
@@ -1865,7 +1883,7 @@ module CtlFields
 					starttime = starttime - 24*3600
 					case tblnamechop
 					when /prdord/
-		 				command_x["prdord_starttime"] = command_x["prdord_commencementdate"] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
+		 				command_x["prdord_starttime"] =   (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
 					when /shpest/
 		 				command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
 					else
@@ -1877,7 +1895,7 @@ module CtlFields
 		else
 			case tblnamechop
 			when /prdord/
-		 		command_x["prdsch_starttime"] = command_x["prdsch_commencementdate"] =  (starttime.strftime("%Y-%m-%d %H:%M:%S") )
+		 		command_x["prdord_starttime"] =   (starttime.strftime("%Y-%m-%d %H:%M:%S") )
 			when /shpest/
 		 		command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d %H:%M:%S") )
 			else
@@ -1902,17 +1920,22 @@ module CtlFields
 				 			select chrgs_id_supplier chrgs_id from suppliers 
 									where locas_id_supplier = #{nd["locas_id_shelfno"]}
 				 	&
-				 when /^prd/
+				 when /^prd|^dvs/
 				 	strsql = %Q&
 				 			select chrgs_id_workplace chrgs_id from workplaces 
 							 		where locas_id_workplace = #{nd["locas_id_shelfno"]}
 				 	&
-				when /dymsch/
+				when /^erc/
+				 	strsql = %Q&
+				 			select chrgs_id_fcoperator from fcoperators
+									where itms_id_fcoperator = #{nd["itms_id"]} order by priority desc
+				 	&
+				when /^dymsch/
 					strsql = %Q&
 							select 0 chrgs_id 
 					&
 				else
-					Rails.logger.debug"get chrgs_id error D LINE:#{__LINE__} "
+					Rails.logger.debug"get chrgs_id error  class:#{self}, line:#{__LINE__} ,tblnamechop:#{tblnamechop}"
 					raise
 				end
 				command_x["#{tblnamechop}_chrg_id"] = ActiveRecord::Base.connection.select_value(strsql)
@@ -1921,10 +1944,12 @@ module CtlFields
 		return command_x
 	end	
 
-	def proc_field_fcoperators_id(tblnamechop,command_x,parent) 
-		strsql = %Q&  ---予定されている担当者
-				select fc.id ,fc.itms_id_fcoperator from fcoperators fc
-						inner join facilities fa on fa.itms_id = fc.itms_id_fcoperator
+	def proc_field_fcoperators_id(tblnamechop,command_x,parent,nd) 
+		Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
+    case tblnamechop
+    when "ercsch"
+		  strsql = %Q&  ---予定されている担当者
+				select fc.id ,fc.itms_id_fcoperator  ,fc.chrgs_id_fcoperator from fcoperators fc
 						left join ercschs es1 on fc.id = es1.fcoperators_id and es1.starttime  < to_timestamp('#{command_x["ercsch_starttime"]}','yyyy-mm-dd hh24:mi:ss') 
 																			and es1.duedate  > to_timestamp('#{command_x["ercsch_starttime"]}','yyyy-mm-dd hh24:mi:ss')
 						left join ercschs es2 on fc.id = es2.fcoperators_id and es2.starttime  < to_timestamp('#{command_x["ercsch_duedate"]}','yyyy-mm-dd hh24:mi:ss')
@@ -1937,45 +1962,64 @@ module CtlFields
 																			and ei1.duedate  > to_timestamp('#{command_x["ercsch_starttime"]}','yyyy-mm-dd hh24:mi:ss')
 						left join ercinsts ei2 on fc.id = ei2.fcoperators_id and ei2.starttime  < to_timestamp('#{command_x["ercsch_duedate"]}','yyyy-mm-dd hh24:mi:ss')
 																			and ei2.duedate > to_timestamp('#{command_x["ercsch_duedate"]}','yyyy-mm-dd hh24:mi:ss')
-						where fa.id = #{parent["facilities_id"]}
-		&
-		ids = ActiveRecord::Base.connection.select_all(strsql)
-		if ids.to_ary.size > 0
-			str = ""
-			ids.each do |id|
+						where fc.itms_id_fcoperator = #{nd["itms_id"]} and fc.expiredate > current_date
+		    &
+		  ids = ActiveRecord::Base.connection.select_all(strsql)
+		  if ids.to_ary.size > 0
+			  str = ""
+			  ids.each do |id|
 				str << "'" + id["id"] + "',"
-			end
+			  end
+			  strsql = %Q&
+				  select fc.id  ,fc.chrgs_id_fcoperator from fcoperators fc
+						where fc.id not in (#{str.chop}) and fc.itms_id_fcoperator = #{ids[0]["itms_id_fcoperator"]} 
+            and expiredate > current_date                     order by fc.priority desc&
+			  fcoperator = ActiveRecord::Base.connection.select_one(strsql)
+        ###　空きがなければ主担当を採用
+			  if fcoperator.nil?
+          strsql = %Q&
+            select fc.id ,fc.chrgs_id_fcoperator from fcoperators fc
+						where fc.itms_id_fcoperator = #{nd["itms_id"] } and fc.expiredate > current_date
+              order by fc.priority desc&
+          fcoperator = ActiveRecord::Base.connection.select_one(strsql)
+			  end
+		  else
+			  strsql = %Q&
+				  select fc.id ,fc.chrgs_id_fcoperator from fcoperators fc
+						where f.itms_id_fcoperator = #{nd["itms_id"] } and fc.expiredate > current_date
+            order by fc.priority desc&
+			  fcoperator = ActiveRecord::Base.connection.select_one(strsql)
+		  end
+		  if fcoperator
+			  command_x["#{tblnamechop}_fcoperator_id"] = fcoperator["id"]
+		  else
+			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
+			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
+			  Rails.logger.debug " class:#{self} ,line:#{__LINE__}, can not get fcoperators_id"
+			  raise
+		  end
+    when "ercord"
 			strsql = %Q&
-				select fc.id from fcoperators fc
-						where fc.id not in (#{str.chop}) and fc.itms_id_fcoperator = #{ids[0]["itms_id_fcoperator"]} order by fc.priority desc&
-			fcoperators_id = ActiveRecord::Base.connection.select_value(strsql)
-      ###　安芸がなければ主担当を採用
-			if fcoperators_id.nil?
-				strsql = %Q&
-					select fc.id from fcoperators fc
-							inner join facilities fa on fa.itms_id = fc.itms_id_fcoperator
-							where fa.id = #{parent["facilities_id"] } order by fc.priority desc&
-				fcoperators_id = ActiveRecord::Base.connection.select_value(strsql)
-			end
-		else
-			strsql = %Q&
-				select fc.id from fcoperators fc
-						inner join facilities fa on fa.itms_id = fc.itms_id_fcoperator
-						where fa.id = #{parent["facilities_id"] } order by fc.priority desc&
-			fcoperators_id = ActiveRecord::Base.connection.select_value(strsql)
-		end
-		if fcoperators_id
-			command_x["#{tblnamechop}_fcoperator_id"] = fcoperators_id
-		else
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},parent:#{parent} "
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__}, can not get fcoperators_id"
-			raise
-		end
+				  select fc.id  ,fc.chrgs_id_fcoperator from fcoperators fc
+						where fc.itms_id_fcoperator = #{nd["itms_id"] } and fc.expiredate > current_date 
+            order by fc.priority desc&
+			fcoperator = ActiveRecord::Base.connection.select_one(strsql)
+		  if fcoperator
+			  command_x["#{tblnamechop}_fcoperator_id"] = fcoperator["id"]
+		  else
+			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
+			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
+			  Rails.logger.debug " class:#{self} ,line:#{__LINE__}, can not get fcoperators_id"
+			  raise
+		  end
+    else
+      Rails.logger.debug " class:#{self} ,line:#{__LINE__},tblnamechop:#{tblnamechop} "
+      Rails.logger.debug " class:#{self} ,line:#{__LINE__}, tblnamechop error"
+    end
 		return command_x
 	end
 
-	def field_qty_sch tblnamechop,command_x,nd,parent
+	def field_qty_sch tblnamechop,command_x,parent,nd
 		qty_require = proc_cal_qty_sch(parent["qty_handover"],
 										nd["chilnum"],nd["parenum"],
 										nd["consumunitqty"],nd["consumminqty"],nd["consumchgoverqty"])
@@ -2012,7 +2056,7 @@ module CtlFields
 					["0","1","2","3","4","5","6","7","8","9","A","B","C"][(isudate||=Time.now).to_time.strftime("%m").to_i]  + format('%04d', id) 
 	end
 
-	def proc_field_cno id 
+	def proc_field_cno tblnamechop,id 
 		 format('%07d', id)
 	end
 
@@ -2020,7 +2064,7 @@ module CtlFields
 		(proc_gnolist["#{tblnamechop}s"]||="") + format('%07d', id) 
 	end	
 
-	def field_prjnos_id tblnamechop,command_x,nd,parent
+	def field_prjnos_id tblnamechop,command_x,parent,nd
 		command_x["#{tblnamechop}_prjno_id"] = parent["prjnos_id"] 
 		return command_x
 	end	
@@ -2035,7 +2079,7 @@ module CtlFields
 		return command_x
 	end		
 	
-	def field_expiredate tblnamechop,command_x,nd,parent
+	def field_expiredate tblnamechop,command_x,parent,nd
 		if command_x["#{tblnamechop}_expiredate"].nil? or command_x["#{tblnamechop}_expiredate"] == ""
 			command_x["#{tblnamechop}_expiredate"] = "2099/12/31" 
 		end

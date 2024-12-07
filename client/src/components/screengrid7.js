@@ -324,8 +324,7 @@ const ScreenGrid7 = ({
     //buttonflg 下段のボタン：request params[:buttonflg] MenusControllerでの実行ケース
     loadingOrg,  pageSizeList, 
     handleScreenRequest, handleFetchRequest,handleSubForm,toggleSubForm,
-    handleAreaChart,toggleAreaChart,
-    message,handleDataSetRequest,
+    handleAreaChart,toggleAreaChart,handleDataSetRequest,
     }) => {
         const data = useMemo(
                 () => (dataOrg),[dataOrg])
@@ -600,7 +599,6 @@ const ScreenGrid7 = ({
       {toggleAreaChart&&<AreaChartScreen/>} 
             
       {screenCode==="r_fieldcodes"&&<p> 修正時には、再起動が必要</p>}
-      <p>{message}</p>
     </div>
     )
 }
@@ -846,7 +844,6 @@ const mapStateToProps = (state,ownProps) => {
           dropDownList: state.second.grid_columns_info.dropDownList,
           hiddenColumns: state.second.grid_columns_info.hiddenColumns,
           toggleSubForm:state.second.toggleSubForm,
-          message:state.second.message,
           screenFlg:ownProps.screenFlg,
           toggleAreaChart:false,
        }
@@ -865,7 +862,6 @@ const mapStateToProps = (state,ownProps) => {
           dropDownList: state.screen.grid_columns_info.dropDownList,
           hiddenColumns: state.screen.grid_columns_info.hiddenColumns,
           toggleSubForm:state.screen.toggleSubForm,
-          message:state.screen.message,
           screenFlg:ownProps.screenFlg,
           toggleAreaChart:state.screen.toggleAreaChart,
         }

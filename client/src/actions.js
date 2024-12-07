@@ -91,7 +91,6 @@ export const SCREEN_DATASET = 'SCREEN_DATASET'
 export const SECOND_DATASET = 'SECOND_DATASET'
 
 export const RESET_REQUEST = 'RESET_REQUEST'
-export const CHANGE_SHOW_SCREEN = 'CHANGE_SHOW_SCREEN'
 
 // LOGIN
 // Attach our Formik actions as meta-data to our action.
@@ -136,11 +135,13 @@ export const MenuFailure = (errors) => ({
   errors: { errors }  //
 })
 
+//画面変更request
 export const ScreenInitRequest = (params) => ({
   type:  SCREENINIT_REQUEST,
   payload: { params}  //AuthenticatorResponse
 })
 
+//画面内 check等のrequest
 export const ScreenRequest = (params) => ({
   type:  SCREEN_REQUEST,
   payload: { params}  //
@@ -250,9 +251,9 @@ export const SecondFetchResult = (params) => ({
   payload: {params}
 })
 
-export const SecondFetchFailure = (data,params) => ({
+export const SecondFetchFailure = (params) => ({
   type: SECONDFETCH_FAILURE,
-  payload: { data,params}
+  payload: { params}
 })
 
 export const SecondFailure = (errors) => ({
@@ -323,20 +324,14 @@ export const UploadExcelFailure = (payload) => ({
   payload: {uploadError:payload.uploadError}
 })
 
-
-export const changeShowScreen = (showScreen) => ({
-  type: CHANGE_SHOW_SCREEN,  // 
-  payload: {showScreen:showScreen}
-})
-
 export const ScreenDataSet = (data,params) => ({
   type: SCREEN_DATASET,  // 
   payload: {data:data,params:params}
 })
 
-export const SecondDataSet = (data) => ({
+export const SecondDataSet = (data,params) => ({
   type: SECOND_DATASET,  // 
-  payload: {data:data}
+  payload: {data:data,params:params}
 })
 
 

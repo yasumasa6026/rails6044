@@ -75,12 +75,14 @@ module Api
                                                 when /dlvs$/
                                                     90
                                                 when /acts$/
-                                                    100
+                                                    0
                                                 else
                                                     0
                                                 end,
                                        "styles"=>if ganttdata[:delay] then {"backgroundColor"=>"#FF0000"} else 
                                                                                                             case ganttdata[:tblname]
+                                                                                                            when /acts$/
+                                                                                                                {"backgroundColor"=>"#000000"}
                                                                                                             when /^dvs/
                                                                                                                 {"backgroundColor"=>"#03CC03"}
                                                                                                             when /^shp/

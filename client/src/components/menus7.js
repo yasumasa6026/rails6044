@@ -9,7 +9,7 @@ import "../index.css"
 
 import  SignUp  from './signup'
 import  Login  from './login'
-import {ScreenInitRequest,changeShowScreen} from '../actions'
+import {ScreenInitRequest,} from '../actions'
 import ScreenGrid7 from './screengrid7'
 import ButtonList from './buttonlist'
 
@@ -18,9 +18,10 @@ const titleNameSet = (screenName) =>{ return (
 )
 }
 
-const Menus7 = ({ isAuthenticated ,menuListData,getScreen, hostError,loadingOrg,loadingOrgSecond,
-          toggleSubForm,toggleSubFormSecond,showScreen,changeShowScreen,screenNameSecond,
-            isSignUp,screenFlg,auth}) =>{
+const Menus7 = ({ isAuthenticated ,menuListData,getScreen,loadingOrg,loadingOrgSecond,
+          toggleSubForm,toggleSubFormSecond,screenNameSecond,
+          hostError, hostError2,message,message2,
+            isSignUp,firstView,secondView,auth}) =>{
     const [tabIndex, setTabIndex] = useState(0)
     const [subTabIndex, setSubTabIndex] = useState(0)
     const loading = useMemo(()=>loadingOrg,[loadingOrg])
@@ -42,7 +43,7 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, hostError,loadingOrg,
         return (
           <div>
             <Tabs  selectedIndex={tabIndex}  onSelect={(changeTabIndex) => {setTabIndex(changeTabIndex)
-                                                                            changeShowScreen(false) //別のメニューの残存を消去する。
+                                                                             //別のメニューの残存を消去する。
                                                                             setSubTabIndex(-1)}}
                     selectedTabClassName="react-tabs--selected_custom_head">
               <TabList>
@@ -80,28 +81,34 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen, hostError,loadingOrg,
                       {val.contents?val.contents:" "}
                     </TabPanel>)}
                 </Tabs>
-              {showScreen&&screenFlg=="first"&&<div> <ScreenGrid7 screenFlg = "first" /></div>}
+              {firstView&&<div> <ScreenGrid7 screenFlg = "first" /></div>}
               { 
                   //  第一画面  
                }  
-              {showScreen&&!toggleSubForm&&<div> <ButtonList screenFlg = "first" /></div>}
-              {loading && ( <div colSpan="10000">
+              {!toggleSubForm&&<div> <ButtonList screenFlg = "first" /></div>}
+              {firstView&&loading && ( <div colSpan="10000">
             	              Loading...
           	              </div>)}
-              {screenFlg==="first"&&hostError&& ( <div colSpan="10000">
+              {firstView&&message&& ( <div colSpan="10000">
+                                  {message}
+          	              </div>)}
+              {firstView&&hostError&& ( <div colSpan="10000">
                                   {hostError}
           	              </div>)}
               {  
                   //第二画 
               }
-              {showScreen&&screenFlg==="second"&&<p> {screenNameSecond} </p>  }
-              <div> {showScreen&&screenFlg==="second"?<ScreenGrid7 screenFlg = "second" />:""}</div>
-              {showScreen&&screenFlg==="second"&&!toggleSubFormSecond&&<div> <ButtonList screenFlg = "second" /></div>}
+              {secondView&&<p> {screenNameSecond} </p>  }
+              <div> {secondView?<ScreenGrid7 screenFlg = "second" />:""}</div>
+              {secondView&&!toggleSubFormSecond&&<div> <ButtonList screenFlg = "second" /></div>}
               {loadingSecond && ( <div colSpan="10000">
             	              Loading.....
           	              </div>)}
-              {screenFlg==="second"&&hostError&& ( <div colSpan="10000">
-                                  {hostError}
+              {secondView&&message2&& ( <div colSpan="10000">
+                                  {message2}
+                                  </div>)}
+              {secondView&&hostError2&& ( <div colSpan="10000">
+                                  {hostError2}
           	              </div>)}
           </div>
         )
@@ -130,17 +137,22 @@ const  mapStateToProps = (state,ownProps) =>({
   isSignUp:state.auth.isSignUp ,
   isAuthenticated:state.auth.isAuthenticated ,
   auth:state.auth ,
-  showScreen:state.menu.showScreen,//screen bottunが押された時
   menuListData:state.menu.menuListData ,
   screenNameSecond:state.second.params.screenName,
   grid_columns_info:state.screen.grid_columns_info,
   hostError: state.menu.hostError,
   second_columns_info:state.screen.second_columns_info,
   screenFlg:state.menu.screenFlg,
+  firstView:state.menu.firstView,
+  secondView:state.menu.secondView,
   loadingOrg:state.screen.loading,
   loadingOrgSecond:state.second.loading,
   toggleSubForm:state.screen.toggleSubForm,
   toggleSubFormSecond:state.second.toggleSubForm,
+  hostError: state.screen.hostError,
+  hostError2: state.second.hostError,
+  message: state.screen.message,
+  message2: state.second.message,
 })
 
 const mapDispatchToProps = (dispatch,ownProps ) => ({
@@ -176,6 +188,5 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
          }
         dispatch(ScreenInitRequest(params,auth))}   //data:null
         ,
-      changeShowScreen:(showScreen)=>{dispatch(changeShowScreen(showScreen))}
           })    
 export default connect(mapStateToProps,mapDispatchToProps)(Menus7)

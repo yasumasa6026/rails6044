@@ -297,6 +297,7 @@ module MkordinstLib
 						setParams = {}  ###mkprdpurordsをリセット
 						setParams["seqno"] = seqno.dup
 						setParams["mkprdpurords_id"] = mkprdpurords_id 
+            setParams["person_id_upd"] = params["person_id_upd"] 
 						###
 						###  xxxords作成
 						###
@@ -311,10 +312,14 @@ module MkordinstLib
 							"persons_id_upd" => setParams["person_id_upd"],
 							"qty_sch" => 0,"qty" => command_c[symqty] ,"qty_stk" => 0,
 							"lotno" => "","packno" => "","qty_src" => command_c[symqty] , "amt_src"=> 0}
+            last_lotstks  << {"tblname"=> tblord + "s" ,"tblid" => command_c["id"],"qty_src" => command_c[symqty]}
 						outcnt += 1
 						outqty +=  command_c[symqty].to_f
 						gantt = setParams["gantt"].dup
 						free_qty = command_c[symqty].to_f
+            ###
+            #
+            ###
 						ActiveRecord::Base.connection.select_all(sch_trn_strsql(sumSchs)).each do |sch_trn|   ###trngantts.qty_schの変更
 							if free_qty > 0 
 								stkinout["qty_src"] = free_qty  
@@ -417,7 +422,7 @@ module MkordinstLib
 			Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
 		  	Rails.logger.debug"error class #{self} : $!: #{$!} "
 		  	Rails.logger.debug"  command_c: #{command_c} "
-  		else
+  	else
 			ActiveRecord::Base.connection.commit_db_transaction()
 			if setParams.size > 0   ###画面からの時はperform_later(setParams["seqno"][0])　seqnoは一つのみ。次の処理がないときはsetParams["seqno"][0].nil
 				if setParams["seqno"].size > 0
@@ -469,7 +474,7 @@ module MkordinstLib
 						free_qty = base["qty_src"] - sch_qty 
 					end
 					base["remark"] = "#{self} line:(#{__LINE__})"
-					last_lotstks = ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base)  ###freeの引当
+					last_lotstks << ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base)  ###freeの引当
 					###Shipment.proc_alloc_change_inoutlotstk(base) ### xxxordsの在庫明細変更
 					base["qty_src"] = free_qty
 					sch_trn["qty_linkto_alloctbl"] = sch_qty
@@ -486,7 +491,7 @@ module MkordinstLib
 						free_qty -= sch_qty
 					end
 					base["remark"] = "#{self} line:(#{__LINE__})"
-					last_lotstks = ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base)  ###freeの引当
+					last_lotstks << ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base)  ###freeの引当
 					###Shipment.proc_alloc_change_inoutlotstk(base) ### xxxordsの在庫明細変更
 					base["qty_src"] = free_qty
         end
@@ -549,7 +554,8 @@ module MkordinstLib
 			insert into mkordterms(id,prjnos_id,
 				mlevel, itms_id,processseq,locas_id,
 							shelfnos_id,shelfnos_id_to,
-							duedate,optfixodate,persons_id_upd,created_at,updated_at,
+							duedate,optfixodate,packqty,prdpurordauto,
+              persons_id_upd,created_at,updated_at,
 							mkprdpurords_id)	
 			select nextval('mkordterms_seq'),prjnos_id ,
 				max(gantt.mlevel), gantt.itms_id_trn,gantt.processseq_trn, s.locas_id_shelfno,
@@ -560,7 +566,9 @@ module MkordinstLib
 					cast('2099/12/31 23:59:59' as timestamp)
 				else
 					(cast(min(gantt.duedate_trn) as date) + cast(max(opeitm.optfixoterm) as integer)) 
-				end optfixodate,0,current_timestamp,current_timestamp,
+				end optfixodate,
+        max(packqty),max(prdpurordauto),
+        0,current_timestamp,current_timestamp,
 				#{mkprdpurords_id}  ---xxx
 			from trngantts gantt
 			inner join opeitms opeitm on gantt.itms_id_trn = opeitm.itms_id
@@ -600,7 +608,7 @@ module MkordinstLib
 						max(gantt.shelfnos_id_to_pare) shelfnos_id_to_pare,
 						sum(gantt.qty_sch) qty_sch,sum(gantt.qty) qty,sum(gantt.qty_stk) qty_stk,
 						min(gantt.duedate_trn),	max(gantt.toduedate_trn),	min(gantt.starttime_trn),
-						1 packqty,
+						max(term.packqty) packqty,
 						max(gantt.consumchgoverqty),max(gantt.consumminqty),
 						max(gantt.consumunitqty) consumunitqty,
 						1 parenum,1 chilnum,
@@ -653,7 +661,7 @@ module MkordinstLib
 						coalesce(sum(alloc.qty_linkto_alloctbl),0) qty_sch,coalesce(sum(ord.qty_linkto_alloctbl),0) qty,
 						coalesce(sum(stk.qty_linkto_alloctbl),0) qty_stk,
 						min(gantt.duedate_trn) duedate,	min(gantt.toduedate_trn) toduedate,	min(gantt.starttime_trn) starttime,
-						max(opeitm.packqty)  packqty,
+						max(term.packqty)  packqty,
 						max(gantt.consumchgoverqty) consumchgoverqty,max(gantt.consumminqty) consumminqty,
 						max(gantt.consumunitqty)  consumunitqty,
 						gantt.parenum,gantt.chilnum,
@@ -662,8 +670,8 @@ module MkordinstLib
 						max(gantt.tblname) tblname,min(gantt.tblid) tblid,count(gantt.tblid),
 						'2099/12/31',current_timestamp,current_timestamp 
 						from trngantts gantt 
-						inner join opeitms opeitm on gantt.itms_id_trn = opeitm.itms_id  and gantt.processseq_trn = opeitm.processseq 
-													and gantt.shelfnos_id_trn = opeitm.shelfnos_id_opeitm  
+						---inner join opeitms opeitm on gantt.itms_id_trn = opeitm.itms_id  and gantt.processseq_trn = opeitm.processseq 
+						----							and gantt.shelfnos_id_trn = opeitm.shelfnos_id_opeitm  
 						inner join mkordterms term on gantt.itms_id_trn = term.itms_id  and gantt.processseq_trn = term.processseq 
 													and gantt.shelfnos_id_trn = term.shelfnos_id and gantt.shelfnos_id_to_trn = term.shelfnos_id_to 
 													and gantt.prjnos_id = term.prjnos_id  

@@ -46,7 +46,7 @@ pursch.prjnos_id   pursch_prjno_id,
 pursch.chrgs_id   pursch_chrg_id,
 pursch.starttime  pursch_starttime,
   prjno.prjno_code_chil  prjno_code_chil ,
-  opeitm.opeitm_units_lttime  opeitm_units_lttime ,
+  opeitm.opeitm_unitofduration  opeitm_unitofduration ,
   supplier.supplier_loca_id_supplier  supplier_loca_id_supplier ,
   supplier.supplier_chrg_id_supplier  supplier_chrg_id_supplier ,
   supplier.supplier_crr_id_supplier  supplier_crr_id_supplier ,
@@ -165,7 +165,7 @@ pursch.contractprice  pursch_contractprice
 ,person_code_chrg_supplier  varchar (50) 
 ,loca_code_supplier  varchar (50) 
 ,crr_code_payment_supplier  varchar (50) 
-,opeitm_units_lttime  varchar (4) 
+,opeitm_unitofduration  varchar (4) 
 ,prjno_code_chil  varchar (50) 
 ,person_code_chrg  varchar (50) 
 ,unit_code_case_prdpur  varchar (50) 

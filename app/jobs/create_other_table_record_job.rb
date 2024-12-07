@@ -52,6 +52,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                         when "skip" 
                         when "link_lotstkhists_update" ###/insts$|acts$|dlvs$|rets$/のとき
                             # ###parent：在庫移送を発生させたprd,pur
+                          Rails.logger.debug "class #{self},line:#{__LINE__} ,last_lotstks:#{params["last_lotstks"]}"
                           add_update_lotstkhists(params["last_lotstks"],params["person_id_upd"])
                         when "sumrequest" 
                         when "splitrequest"  
@@ -88,9 +89,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 %
                             ActiveRecord::Base.connection.update(strsql)
                             if !last_lotstks.empty?
-                              params["last_lotstks"] = last_lotstks
-                              opeLotStk = Operation::OpeClass.new(params)  ###xxxschs,xxxords
-                              opeLotStk.proc_link_lotstkhists_update()
+                              add_update_lotstkhists(last_lotstks,params["person_id_upd"])
                             end
                         when "mkpayords"
                             ### 　parent 未使用
@@ -155,7 +154,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         end
                                     end
                                 end      
-                                payord = {"amt_src" =>amt_src,"isudate"=>isudate,"duedate" =>duedate,
+                                payord = {"isudate"=>isudate,"duedate" =>duedate,
                                             "amt_src" => params["amt_src"],"last_amt" => params["last_amt"],"denomination" => denomination,
                                             "tax" => tbldata["tax"],"taxrate" => tbldata["taxrate"],"crrs_id" => tbldata["crrs_id"],
                                             "payments_id" =>payment["id"],"persons_id_upd" => person["id"] ,"trngantts_id" => params["trngantts_id"],
@@ -292,7 +291,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                                 end
                             else
                                 3.times{Rails.logger.debug" error class:#{self} , line:#{__LINE__} ,paybillschs:#{paybillschs}" }
-                                3.times{Rails.logger.debug" error period not support class:#{self} , line:#{__LINE__} " }
                                 raise
                             end 
                         when /mkbillords/
@@ -357,8 +355,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     create_billords(src,billords,billmst)
                                 end
                             else
-                                3.times{Rails.logger.debug" error class:#{self} , line:#{__LINE__} ,paybillschs:#{paybillschs}" }
-                                3.times{Rails.logger.debug" error period not support class:#{self} , line:#{__LINE__} " }
+                                3.times{Rails.logger.debug" error period not support class:#{self} , line:#{__LINE__} ,paybillschs:#{paybillschs}" }
                                 raise
                             end 
                         
@@ -383,6 +380,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             parent["shelfnos_id_trn"] = gantt["shelfnos_id_trn"]
                             parent["trngantts_id"] = gantt["trngantts_id"]   ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
                             setParams["parent"] = parent.dup
+                            last_lotstks = []
                             ActiveRecord::Base.connection.select_all(ArelCtl.proc_nditmSql(tbldata["opeitms_id"])).each do |nd|
                                 trnganttkey += 1
                                 gantt["key"] = gantt_key + format('%05d', trnganttkey)
@@ -415,14 +413,16 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     gantt["consumchgoverqty"] = nd["consumchgoverqty"]
                                     gantt["consumauto"] =  (nd["consumauto"]||="")
                                     command_c["#{gantt["tblname"].chop}_person_id_upd"] = gantt["persons_id_upd"] = setParams["person_id_upd"]
-                                    setParams["child"] =  nd.dup
                                     setParams["gantt"] =  gantt.dup
                                     command_c = blk.proc_create_tbldata(command_c)
                                     setParams = blk.proc_private_aud_rec(setParams,command_c) ###create pur,prdschs
                                     if gantt["consumtype"] == "CON"  ###出庫 消費と金型・設備の使用
-                                        Shipment.proc_create_consume(setParams) do   
+                                      setParams["child"] =  nd.dup
+                                      last_lotstk = Shipment.proc_create_consume(setParams) do   
                                             "conschs"
                                         end
+                                        last_lotstks << last_lotstk
+                                        3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
                                     end
                                 else  ###
                                     nd["opeitms_id"] = 0
@@ -436,8 +436,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         command_c = blk.command_init
                                         nd["prdpur"] = "dvs"
                                         gantt["tblname"] = "dvsschs"
-                                        blk = RorBlkCtl::BlkClass.new("r_dvsschs")
-                                        command_c = blk.command_init
                                         command_c,qty_require,err = add_update_prdpur_table_from_nditm(nd,parent,tblname,command_c)  ###tblname = paretblname
                                         next if err
                                         gantt["duedate_trn"] = command_c["#{gantt["tblname"].chop}_duedate"]
@@ -457,7 +455,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         ###
                                         # 人のリソース
                                         ###
-                                        proc_mk_ercschs(nd,setParams,"ercschs")
+                                        mk_ercschsords(nd,setParams,"ercschs")
                                         ###
                                     when "mold","ITool"       ###金型 ###工具
                                         setParams["mkprdpurords_id"] = 0
@@ -474,9 +472,11 @@ class CreateOtherTableRecordJob < ApplicationJob
                                             &
                                         shelfnos_id = ActiveRecord::Base.connection.select_value(strsql)
                                         setParams["child"]["shelfnos_id_to"] = (shelfnos_id ||= "0")
-                                        Shipment.proc_create_shpxxxs(setParams) do  ###
+                                        last_lotstks_part = Shipment.proc_create_shpxxxs(setParams) do  ###
                                             "shpest"
                                         end
+                                        last_lotstks.concat last_lotstks_part
+                                        3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
                                     when "installationCharge"   ###設置
                                         next
                                     else
@@ -514,17 +514,22 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         setParams["mkprdpurords_id"] = 0
                                         setParams["gantt"] = gantt.dup
                                         setParams["child"] = nd.dup
-                                        setParams["gantt"] = gantt.dup
                                         command_c = blk.proc_create_tbldata(command_c)
                                         setParams = blk.proc_private_aud_rec(setParams,command_c) ###create pur,prdschs
                                         if gantt["consumtype"] == "CON"  ###出庫 消費と金型・設備の使用
-                                            Shipment.proc_create_consume(setParams) do   
+                                          last_lotstk = Shipment.proc_create_consume(setParams) do   
                                                 "conschs"
-                                            end
+                                          end
+                                          last_lotstks << last_lotstk
+                                          3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
                                         end
                                     end
                                 end
-                            end                     
+                            end       
+                            if !last_lotstks.empty?
+                              Rails.logger.debug"class #{self},line:#{__LINE__} ,last_lotstks:#{last_lotstks}" 
+                              add_update_lotstkhists(last_lotstks,params["person_id_upd"])
+                            end
                         when "mkShpschConord"  ### prd,purordsの時shpschs,conordsを作成
                             ### purords,prdordsでshpordsを作成しないのは xxxinsts等でshpordsを作成したいため
                             parent = tbldata.dup
@@ -534,6 +539,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             parent["tblid"] = gantt["tblid"]
                             parent["trngantts_id"] = gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
                             child = {}
+                            last_lotstks = []
                             ActiveRecord::Base.connection.select_all(ArelCtl.proc_pareChildTrnsSqlGroupByChildItem(parent)).each do |nd|
                                 setParams["mkprdpurords_id"] = 0
                                 child = nd.dup
@@ -545,13 +551,16 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     setParams["parent"] = parent.dup
                                     setParams["child"] = child.dup
                                     if opeitm["shpordauto"] != "M"
-                                        Shipment.proc_create_shpxxxs(setParams) do  ###prd,purordsによる自動作成 
+                                      last_lotstks_part =  Shipment.proc_create_shpxxxs(setParams) do  ###prd,purordsによる自動作成 
                                             "shpsch"
-                                        end
+                                      end
+                                      last_lotstks.concat last_lotstks_part
                                     end    
-                                    Shipment.proc_create_consume(setParams) do   
+                                    last_lotstk = Shipment.proc_create_consume(setParams) do   
                                         "conords"
                                     end
+                                    last_lotstks << last_lotstk
+                                    3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
                                 when "mold","ITool"  ###出庫 金型・工具の使用
                                     child["consumauto"] = (nd["consumauto"]||="")  ###子の保管場所からの出庫
                                     child["packno"] = ""
@@ -559,9 +568,10 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     setParams["parent"] = parent.dup
                                     setParams["child"] = child.dup
                                     if opeitm["shpordauto"] != "M"
-                                        Shipment.proc_create_shpxxxs(setParams) do  ###prd,purordsによる自動作成 
+                                      last_lotstks_part =  Shipment.proc_create_shpxxxs(setParams) do  ###prd,purordsによる自動作成 
                                             "shpsch"
                                         end
+                                      last_lotstks.concat last_lotstks_part
                                     end    
                                 when "BYP"   ###副産物
                                     ###
@@ -569,12 +579,16 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     next
                                 end
                             end    
+                            if !last_lotstks.empty?
+                              add_update_lotstkhists(last_lotstks,params["person_id_upd"])
+                            end
                         when "mkprdpurchildFromCustxxxs"  ### custxxxsからpur,purschsに変更"custord_crr_id_custord" 
                             ###　parent 未使用
                             gantt = params["gantt"].dup
                             gantt["mlevel"] = 1
                             gantt["key"] = "00000000"
                             gantt["qty_sch_pare"] = 0 
+                            last_lotstks = []
                             case gantt["orgtblname"] ###parent = orgtbl
                             when "custords"
                                 qty =  gantt["qty"].to_f
@@ -616,12 +630,10 @@ class CreateOtherTableRecordJob < ApplicationJob
                                                     where id = #{sch["link_id"]}
                                             &
                                     ActiveRecord::Base.connection.update(update_sql) ###引き当ったcustschsの減gantt = setParams["gantt"].dup
-                                    # command_c["custsch_qty_sch"] = sch["qty_src"].to_f
-                                    # command_c = custsch_blk.proc_create_tbldata(command_c)
-                                    # setParams = custsch_blk.proc_private_aud_rec(setParams,command_c)
                                     src = {"tblname" => "custschs","tblid" => sch["srctblid"],"trngantts_id" => sch["trngantts_id"]}
                                     base = {"tblname" => "custords","tblid" => gantt["orgtblid"],"qty_src" => qty_src,"amt_src" => 0,"persons_id_upd" => setParams["person_id_upd"]}
                                     ArelCtl.proc_insert_linkcusts(src,base)  ###
+                                    last_lotstks << {"tblname" => "custschs","tblid" => sch["srctblid"],"qty_src" => qty_src}
                                 end
                                 gantt["qty_handover"] = tbldata["qty_handover"] =  gantt["qty_sch"] = qty
                                 update_sql = %Q&  --- custords free 引当後
@@ -652,7 +664,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                             child.merge!(setParams["opeitm"])
                             blk = RorBlkCtl::BlkClass.new("r_"+ setParams["opeitm"]["prdpur"]+"schs")
                             command_c = blk.command_init
-                            Rails.logger.debug"debugg class #{self},line:#{__LINE__} . command_c: #{command_c} "
                             command_c["#{setParams["opeitm"]["prdpur"]}sch_person_id_upd"] = setParams["person_id_upd"]
                             command_c["#{setParams["opeitm"]["prdpur"]}sch_duedate"] = tbldata["starttime"].to_time.strftime("%Y-%m-%d") + " 16:00:00"
                             command_c,qty_require = add_update_prdpur_table_from_nditm(child,tbldata,paretblname,command_c)  ###tbldata--->parent
@@ -661,10 +672,10 @@ class CreateOtherTableRecordJob < ApplicationJob
                             setParams["gantt"] = gantt.dup
                             setParams = blk.proc_private_aud_rec(setParams,command_c)   
                             result_f = '1'
-                            setParams["segment"]  = "link_lotstkhists_update"   ###
-                            setParams["tbldata"] = {}
-                            setParams["gantt"] = {}
-                            processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+                            if !last_lotstks.empty?
+                              Rails.logger.debug"class #{self},line:#{__LINE__} , last_lotstks: #{last_lotstks} "
+                              add_update_lotstkhists(last_lotstks,params["person_id_upd"])
+                            end
                     else  
                         result_f = '6'
                         remark = "    #{self} line:#{__LINE__}  program nothing for #{setParams["segment"]} "  
@@ -730,7 +741,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                 parent.delete("qty") 
                 parent.delete("amt") 
             end
-		    command_c,qty_require,err = CtlFields.proc_schs_fields_making(nd,parent,"r_"+ nd["prdpur"]+"schs",command_init)
+		    command_c,qty_require,err = CtlFields.proc_schs_fields_making(nd,parent,command_init)
 		    return command_c,qty_require,err
   end
 
@@ -811,7 +822,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                                         end } &
 		    command_c["#{paybillsch}_remark"] = "auto add "
 		    command_c["id"] = command_c["#{paybillsch}_id"] = ArelCtl.proc_get_nextval("#{paybillsch}s_seq")
-		    command_c["#{paybillsch}_created_at"] = Time.now  ###proc_field_sno(tblnamechop,isudate,id)
+		    command_c["#{paybillsch}_created_at"] = Time.now  ###
 		    command_c["#{paybillsch}_sno"] = CtlFields.proc_field_sno(paybillsch,sch["isudate"],command_c["id"]) 
 		    command_c["#{paybillsch}_#{str_amt}"] = sch["amt_src"] 
             base = {"tblname" => "#{paybillsch}s","tblid" => command_c["id"],"qty_src" => 0,"amt_src" => sch["amt_src"],
@@ -1119,7 +1130,7 @@ class CreateOtherTableRecordJob < ApplicationJob
     ###
     #
     ###     
-  def proc_mk_ercschs(nd,setParams,erctblname)
+  def mk_ercschsords(nd,setParams,erctblname)
         prdtblname = erctblname.sub("erc","prd")
         dvstblname = erctblname.sub("erc","dvs")
         gantt = setParams["gantt"].dup
@@ -1133,20 +1144,17 @@ class CreateOtherTableRecordJob < ApplicationJob
             gantt["qty_sch"] = 1 
             gantt["qty"] = 0 
             gantt["qty_stk"] = 0 
-        when /acts/
-            gantt["qty_sch"] = 0
-            gantt["qty"] = 0 
-            gantt["qty_stk"] = 1 
-        else
+        when /ords/
             gantt["qty_sch"] = 0
             gantt["qty"] = 1 
             gantt["qty_stk"] = 0 
+        else
+            3.times{Rails.logger.debug"  erctbl not suppurt:#{erctblname},class: #{self} , line:#{__LINE__} "}
+            raise 
         end
         gantt["consumtype"] = "apparatus"
         gantt_key = gantt["key"]
         trnganttkey = 0
-        Rails.logger.debug" class:#{self} , line:#{__LINE__} ,nd:#{nd}" 
-        Rails.logger.debug" class:#{self} , line:#{__LINE__} ,setParams:#{setParams}" 
         if nd["changeoverlt"].to_f > 0 and nd["changeoverop"].to_i > 0
             nd["prdpur"] = "erc"
             nd["changeoverop"].to_i.times do
@@ -1208,112 +1216,309 @@ class CreateOtherTableRecordJob < ApplicationJob
                 gantt["duedate_trn"] = command_c["#{erctblname.chop}_duedate"]
                 setParams["gantt"] = gantt.dup
                 setParams["child"] = nd.dup
-                setParams["gantt"] = gantt.dup
                 command_c = blk.proc_create_tbldata(command_c)
                 setParams = blk.proc_private_aud_rec(setParams,command_c) ###
             end
         end
   end
+  ###
   def add_update_lotstkhists(last_lotstks,persons_id_upd)
       tmptbls = []
       save_tblbame = save_tblid = ""
       last_lotstks.each do |last_lotstk|
-        if last_lotstk["starttime"].nil? or last_lotstk["shelfnos_id"].nil? or last_lotstk["prjnos_id"]
-          strsql = %Q& select rec.*,ope.itms_id,ope.processseq from #{last_lotstk["tblname"]} rec 
-                          inner join opeitms ope on ope.id = rec.opeitms_id
-                          where rec.id = #{last_lotstk["tblid"]}&
-          rec = ActiveRecord::Base.connection.select_one(strsql)
-          temp = {"shelfnos_id" => rec["shelfnos_id_to"],"itms_id" => rec["itms_id"],"processseq" => rec["processseq"],
-                  "prjnos_id" => rec["prjnos_id"],"lotno" => rec["lotno"],"packno" => rec["packno"]}
-          case last_lotstk["tblname"]
-          when /purschs|prdschs/
-            temp.merge!({"starttime" => rec["duedate"],
+        case last_lotstk["tblname"]
+        when /^sio/
+          if last_lotstk["starttime"].nil? or last_lotstk["shelfnos_id"].nil? or last_lotstk["prjnos_id"].nil? or
+                  last_lotstk["starttime"] == "" or last_lotstk["shelfnos_id"] == "" or last_lotstk["prjnos_id"] == ""
+            strsql = %Q& select rec.* from #{last_lotstk["tblname"]} rec 
+                          where rec.sio_id = #{last_lotstk["tblid"]}&
+            rec = ActiveRecord::Base.connection.select_one(strsql)
+            tblnamechop = last_lotstk["tblname"].split("_")[-1].chop
+            if last_lotstk["tblname"] =~ /shp|con/
+                temp = {"shelfnos_id" => rec["#{tblnamechop}_shelfno_id_to"],"itms_id" => rec["#{tblnamechop}_itm_id"],
+                    "processseq" => rec["#{tblnamechop}_processseq"],"prjnos_id" => rec["#{tblnamechop}_prjno_id"]}
+            else
+              temp = {"shelfnos_id" => rec["#{tblnamechop}_shelfno_id_to"],"itms_id" => rec["opeitm_itm_id"],
+                  "processseq" => rec["opeitm_processseq"],"prjnos_id" => rec["#{tblnamechop}_prjno_id"]}
+            end
+            case last_lotstk["tblname"]
+            when /schs$|ests$/
+              temp.merge!({"starttime" => rec["#{tblnamechop}_duedate"],
                         "qty_sch" => last_lotstk["qty_src"],"qty" => 0,"qty_stk" => 0, "qty_real" => 0,
                       "lotno" => "","packno" => ""})
-          when /purords|purinsts|prdords|prdinsts/
-            temp.merge!({"starttime" => rec["duedate"],
+              tmptbls << temp
+            when /shpinsts/
+              temp.merge!({"starttime" => rec["#{tblnamechop}_duedate"],
+                        "qty_sch" => 0,"qty_stk" => last_lotstk["qty_src"],"qty" => 0, "qty_real" => 0,
+                      "lotno" => "","packno" => ""})
+              tmptbls << temp
+            when /ords$|insts$/
+              temp.merge!({"starttime" => rec["#{tblnamechop}_duedate"],
                         "qty_sch" => 0,"qty" => last_lotstk["qty_src"],"qty_stk" => 0, "qty_real" => 0,
                       "lotno" => "","packno" => ""})
-          when /purreplyinputs/
-            temp.merge!({"starttime" => rec["replaydate"],
+              tmptbls << temp
+            when /purreplyinputs/
+              temp.merge!({"starttime" => rec["#{tblnamechop}_replaydate"],
                         "qty_sch" => 0,"qty" => last_lotstk["qty_src"],"qty_stk" => 0, "qty_real" => 0,
                       "lotno" => "","packno" => ""})
-          when /purdlvs/
-            temp.merge!({"starttime" => rec["depdate"],
+              tmptbls << temp
+            when /purdlvs|custdlvs/
+              temp.merge!({"starttime" => rec["#{tblnamechop}_depdate"],
                         "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"], "qty_real" => 0,
                       "lotno" => "","packno" => ""})
-            temp.merge!({"starttime" => (rec["depdate"].to_date + 1).strftime("%-%m-%d"),
-                         "qty_sch" => 0,"qty" => 0,"qty_stk" => -last_lotstk["qty_src"], "qty_real" => 0,
-                         "lotno" => "","packno" => ""})
-          when /puracts/
-            temp.merge!({"starttime" => rec["rcptdate"],
+              tmptbls << temp
+              # temp.merge!({"starttime" => (rec["depdate"].to_date + 1).strftime("%-%m-%d"),
+              #            "qty_sch" => 0,"qty" => 0,"qty_stk" => -last_lotstk["qty_src"], "qty_real" => 0,
+              #            "lotno" => "","packno" => ""})
+            when /puracts/
+              temp.merge!({"starttime" => rec["#{tblnamechop}_rcptdate"],
+                      "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"], "qty_real" => last_lotstk["qty_src"],
+                      "lotno" => rec["#{tblnamechop}_lotno"],"packno" => rec["#{tblnamechop}_packno"]})
+              tmptbls << temp
+            when /prdacts/
+              temp.merge!({"starttime" => rec["#{tblnamechop}_cmpldate"],
+                        "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"], "qty_real" => last_lotstk["qty_src"],
+                        "lotno" => rec["#{tblnamechop}_lotno"],"packno" => rec["#{tblnamechop}_packno"]})
+              tmptbls << temp
+            end 
+          else
+            3.times{Rails.logger.debug" error class:#{self} , line:#{__LINE__} ,tblname not support last_lotstk:#{last_lotstk}"}
+            raise
+          end
+        else
+          if last_lotstk["starttime"].nil? or last_lotstk["shelfnos_id"].nil? or last_lotstk["prjnos_id"].nil? or
+                  last_lotstk["starttime"] == "" or last_lotstk["shelfnos_id"] == "" or last_lotstk["prjnos_id"] == ""
+            case last_lotstk["tblname"]
+            when /^prd|^pur|^cust/
+                  strsql = %Q& select rec.*,ope.itms_id,ope.processseq from #{last_lotstk["tblname"]} rec 
+                          inner join opeitms ope on ope.id = rec.opeitms_id
+                          where rec.id = #{last_lotstk["tblid"]}&
+                  rec = ActiveRecord::Base.connection.select_one(strsql)
+            when /^con/
+                      strsql = %Q& select rec.* from #{last_lotstk["tblname"]} rec where rec.id = #{last_lotstk["tblid"]}&
+                      rec = ActiveRecord::Base.connection.select_one(strsql)
+                      supp_str = %Q&
+                              select supp.id from suppliers supp
+                                            inner join shelfnos shelf on shelf.locas_id_shelfno = supp.locas_id_supplier
+                                            where shelf.id = #{rec["shelfnos_id_fm"]}
+                      &
+                      supplier_id_fm = ActiveRecord::Base.connection.select_value(strsql)
+            when /^shp/
+                  strsql = %Q& select rec.* from #{last_lotstk["tblname"]} rec where rec.id = #{last_lotstk["tblid"]}&
+                  rec = ActiveRecord::Base.connection.select_one(strsql)
+                  supp_str = %Q&
+                          select supp.id from suppliers supp
+                                        inner join shelfnos shelf on shelf.locas_id_shelfno = supp.locas_id_supplier
+                                        where shelf.id = #{rec["shelfnos_id_to"]}
+                  &
+                  suppliers_id_to = ActiveRecord::Base.connection.select_value(supp_str)
+                  supp_str = %Q&
+                          select supp.id from suppliers supp
+                                        inner join shelfnos shelf on shelf.locas_id_shelfno = supp.locas_id_supplier
+                                        where shelf.id = #{rec["shelfnos_id_fm"]}
+                  &
+                  suppliers_id_fm = ActiveRecord::Base.connection.select_value(supp_str)
+            else
+              3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"}
+              raise
+            end
+            temp = {"itms_id" => rec["itms_id"],"processseq" => rec["processseq"],"prjnos_id" => rec["prjnos_id"],
+                    "shelfnos_id" => "","suppliers_id_fm" => "","suppliers_id_to" => "" ,"custrcvplcs_id" => "" }
+            case last_lotstk["tblname"]
+            when /purschs|prdschs/
+              temp.merge!({"starttime" => rec["duedate"],"shelfnos_id" => rec["shelfnos_id_to"],"suppliers_id_to" => suppliers_id_to,
+                        "qty_sch" => last_lotstk["qty_src"],"qty" => 0,"qty_stk" => 0, "qty_real" => 0,
+                      "lotno" => "","packno" => ""})
+              tmptbls << temp
+            when /custschs/
+              temp.merge!({"starttime" => rec["starttime"],"shelfnos_id" => rec["shelfnos_id_fm"],
+                                "qty_sch" => last_lotstk["qty_src"]*-1,"qty" => 0,"qty_stk" => 0, "qty_real" => 0,
+                              "lotno" => "","packno" => ""})
+              tmptbls << temp
+              temp = {"shelfnos_id" => rec["#{tblnamechop}_shelfno_id_to"],"itms_id" => rec["#{tblnamechop}_itm_id"],
+                      "processseq" => rec["#{tblnamechop}_processseq"],"prjnos_id" => rec["#{tblnamechop}_prjno_id"]}
+              temp.merge!({"starttime" => rec["duedate"],"custrcvplcs_id" => rec["custrcvplcs_id"],
+                                "qty_sch" => last_lotstk["qty_src"]*-1,"qty" => 0,"qty_stk" => 0, "qty_real" => 0,
+                                "lotno" => "","packno" => ""})
+              tmptbls << temp
+            when /purords|purinsts|prdords|prdinsts/
+              temp.merge!({"starttime" => rec["duedate"],"shelfnos_id" => rec["shelfnos_id_to"],"suppliers_id_to" => suppliers_id_to,
+                      "qty_sch" => 0,"qty" => last_lotstk["qty_src"],"qty_stk" => 0, "qty_real" => 0,
+                      "lotno" => "","packno" => ""})
+              tmptbls << temp
+            when /custords/
+              temp.merge!({"starttime" => rec["starttime"],"shelfnos_id" => rec["shelfnos_id_fm"],"custrcvplcs_id" => "",
+                                "qty" => last_lotstk["qty_src"]*-1,"qty_sch" => 0,"qty_stk" => 0, "qty_real" => 0,
+                              "lotno" => "","packno" => ""})
+              tmptbls << temp
+              temp = {"itms_id" => rec["itms_id"],"processseq" => rec["processseq"],"prjnos_id" => rec["prjnos_id"],
+                      "shelfnos_id" => "","suppliers_id_fm" => "","suppliers_id_to" => "" ,"custrcvplcs_id" => "" }
+              temp.merge!({"starttime" => rec["duedate"],"shelfnos_id" => "","custrcvplcs_id" => rec["custrcvplcs_id"],
+                      "qty_sch" => 0,"qty" => last_lotstk["qty_src"],"qty_stk" => 0, "qty_real" => 0,
+                      "lotno" => "","packno" => ""})
+              tmptbls << temp
+            when /purreplyinputs/
+              temp.merge!({"starttime" => rec["replaydate"],"shelfnos_id" => rec["shelfnos_id_to"],
+                        "qty_sch" => 0,"qty" => last_lotstk["qty_src"],"qty_stk" => 0, "qty_real" => 0,
+                      "lotno" => "","packno" => ""})
+              tmptbls << temp
+            when /purdlvs|custdlvs/
+              temp.merge!({"starttime" => rec["depdate"],"shelfnos_id" => rec["shelfnos_id_fm"],"custrcvplcs_id" => "",
+                        "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"], "qty_real" => 0,
+                      "lotno" => "","packno" => ""})
+              tmptbls << temp
+            when /puracts/
+              temp.merge!({"starttime" => rec["rcptdate"],"shelfnos_id" => rec["shelfnos_id_to"],
                       "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"], "qty_real" => last_lotstk["qty_src"],
                       "lotno" => rec["lotno"],"packno" => rec["packno"]})
-          when /puracts|prdacts/
-            temp.merge!({"starttime" => rec["depdate"],
-                       "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"], "qty_real" => last_lotstk["qty_src"],
-                       "lotno" => rec["lotno"],"packno" => rec["packno"]})
-          end 
-          tmptbls << temp
-        else
-          tmptbls << last_lotstk
-        end
-      end
-      ###data.sort_by { |h| h.values_at(:k1, :k2, :k3, :k4) }else
-      Rails.logger.debug" error class:#{self} , line:#{__LINE__} ,tmptbls:#{tmptbls}"
-      tmplotstktbls = tmptbls.sort_by {|h| [h["itms_id"],h["processseq"],h["shelfnos_id"],h["lotno"],h["packno"],h["prjnos_id"],h["starttime"]]}
-      lotstktbls = []
-      save_itms_id = save_processseq = save_shelfnos_id = save_lotno = save_packno = save_prjnos_id = save_starttime = ""
-      save_qty_sch = save_qty = save_qty_stk = save_qty_real = 0
-      tmplotstktbls.each do |lotstktbl|
-        if save_itms_id == lotstktbl["itms_id"] and save_processseq == lotstktbl["processseq"] and 
-              save_shelfnos_id == lotstktbl["shelfnos_id"] and
-                 save_lotno == lotstktbl["lotno"] and save_packno == lotstktbl["packno"]  and 
-                  save_prjnos_id == lotstktbl["prjnos_id"]  and save_starttime == lotstktbl["starttime"]
-          save_qty_sch += lotstktbl["qty_sch"].to_f
-          save_qty += lotstktbl["qty"].to_f
-          save_qty_stk += lotstktbl["qty_stk"].to_f
-          save_qty_real += lotstktbl["qty_real"].to_f
-        else
-          if save_itms_id == "" and save_processseq == "" and 
-                save_shelfnos_id == "" and save_lotno == "" and save_packno == ""  and 
-                    save_prjnos_id == ""  and save_starttime == ""
-            save_qty_sch = lotstktbl["qty_sch"].to_f
-            save_qty = lotstktbl["qty"].to_f
-            save_qty_stk = lotstktbl["qty_stk"].to_f
-            save_qty_real = lotstktbl["qty_real"].to_f
-            save_itms_id = lotstktbl["itms_id"] 
-            save_processseq = lotstktbl["processseq"] 
-            save_shelfnos_id = lotstktbl["shelfnos_id"] 
-            save_lotno = lotstktbl["lotno"] 
-            save_packno = lotstktbl["packno"]  
-            save_prjnos_id = lotstktbl["prjnos_id"]  
-            save_starttime = lotstktbl["starttime"]
+              tmptbls << temp
+            when /prdacts/
+              temp.merge!({"starttime" => rec["rcptdate"],
+                            "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"], "qty_real" => last_lotstk["qty_src"],
+                              "lotno" => rec["lotno"],"packno" => rec["packno"]})
+              tmptbls << temp
+            when /custacts/
+              temp.merge!({"starttime" => rec["cmpldate"],"shelfnos_id" => "","custrcvplcs_id" => rec["custrcvplcs_id"],
+                        "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"], "qty_real" => last_lotstk["qty_src"],
+                        "lotno" => rec["lotno"],"packno" => rec["packno"]})
+              tmptbls << temp
+            when /shpests/
+              temp.merge!({"starttime" => rec["depdate"],"shelfnos_id" => rec["shelfnos_id_fm"],"suppliers_id_fm" => suppliers_id_fm,
+                        "qty_sch" => last_lotstk["qty_src"] * -1,"qty" => 0,"qty_stk" => 0, "qty_real" => 0,
+                        "lotno" => "","packno" => ""})
+              tmptbls << temp
+              temp.merge!({"starttime" => rec["duedate"],"shelfnos_id" => rec["shelfnos_id_to"],"suppliers_id_fm" => suppliers_id_fm,
+                         "qty_sch" => last_lotstk["qty_src"],"qty" => 0,"qty_stk" => 0, "qty_real" => 0,
+                         "lotno" => "","packno" => ""})
+               tmptbls << temp
+            when /shpschs/
+              temp.merge!({"starttime" => rec["depdate"],"shelfnos_id" => rec["shelfnos_id_fm"],"suppliers_id_fm" => suppliers_id_fm,
+                                    "qty_sch" => last_lotstk["qty_src"] * -1,"qty" => 0,"qty_stk" => 0, "qty_real" => 0,
+                                    "lotno" => "","packno" => ""})
+               tmptbls << temp
+              temp.merge!({"starttime" => rec["duedate"],"shelfnos_id" => rec["shelfnos_id_to"],"suppliers_id_to" => suppliers_id_to,
+                                     "qty_sch" => last_lotstk["qty_src"],"qty" => 0,"qty_stk" => 0, "qty_real" => 0,
+                                     "lotno" => "","packno" => ""})
+              tmptbls << temp
+            when /shpords/
+              temp.merge!({"starttime" => rec["depdate"],"shelfnos_id" => rec["shelfnos_id_fm"],"suppliers_id_fm" => suppliers_id_fm,
+                               "qty_sch" => 0,"qty" => last_lotstk["qty_src"] * -1,"qty_stk" => 0, "qty_real" => 0,
+                                    "lotno" => "","packno" => ""})
+              tmptbls << temp
+              temp.merge!({"starttime" => rec["duedate"],"shelfnos_id" => rec["shelfnos_id_to"],"suppliers_id_to" => suppliers_id_to,
+                                     "qty_sch" => 0,"qty" => last_lotstk["qty_src"],"qty_stk" => 0, "qty_real" => 0,
+                                     "lotno" => "","packno" => ""})
+               tmptbls << temp
+            when /shpinsts/
+              temp.merge!({"starttime" => rec["depdate"],"shelfnos_id" => rec["shelfnos_id_fm"],"suppliers_id_fm" => suppliers_id_fm,
+                      "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"] * -1, "qty_real" => last_lotstk["qty_src"] * -1,
+                                    "lotno" =>rec["lotno"],"packno" => rec["packno"]})
+              tmptbls << temp
+            when /shpacts/
+              temp.merge!({"starttime" => rec["rcptdate"],"shelfnos_id" => rec["shelfnos_id_to"],"suppliers_id_to" => suppliers_id_to,
+                      "qty_sch" => 0,"qty" => 0,"qty_stk" => last_lotstk["qty_src"], "qty_real" => last_lotstk["qty_src"],
+                      "lotno" => rec["lotno"],"packno" => rec["packno"]})
+              tmptbls << temp
+            when /conschs/
+              temp.merge!({"starttime" => rec["duedate"],"shelfnos_id" => rec["shelfnos_id_fm"],"suppliers_id_fm" => suppliers_id_fm,
+                     "qty_sch" => last_lotstk["qty_src"] * -1,"qty" => 0,"qty_stk" => 0, "qty_real" => 0,
+                     "lotno" => "","packno" => ""})
+              tmptbls << temp
+            when /conords|coninsts/
+                temp.merge!({"starttime" => rec["duedate"],"shelfnos_id" => rec["shelfnos_id_fm"],"suppliers_id_fm" => suppliers_id_fm,
+                     "qty_sch" => 0,"qty" => last_lotstk["qty_src"] * -1,"qty_stk" => 0, "qty_real" => 0,
+                     "lotno" => "","packno" => ""})
+              tmptbls << temp
+            when /conacts/
+                      temp.merge!({"starttime" => rec["duedate"],"shelfnos_id" => rec["shelfnos_id_fm"],"suppliers_id_fm" => suppliers_id_fm,
+                              "qty_sch" => 0,"qty" => 0 ,
+                              "qty_stk" => last_lotstk["qty_src"] * -1, "qty_real" => last_lotstk["qty_src"] * -1,
+                              "lotno" => rec["lotno"],"packno" => rec["packno"]})
+              tmptbls << temp
+            else
+              3.times{Rails.logger.debug" error class:#{self} , line:#{__LINE__} ,tblname not support last_lotstk:#{last_lotstk}"}
+              raise
+            end 
           else
-            lotstktbls << {"itms_id" => save_itms_id ,"processseq" => save_processseq ,"shelfnos_id" => save_shelfnos_id , 
-                          "lotno" => save_lotno ,"packno" => save_packno, 
-                           "prjnos_id" => save_prjnos_id ,"starttime" => save_starttime ,
-                          "qty_sch" => save_qty_sch ,"qty" => save_qty ,"qty_stk" => save_qty_stk ,"qty_real" => save_qty_real}
-            save_itms_id = lotstktbl["itms_id"] 
-            save_processseq = lotstktbl["processseq"] 
-            save_shelfnos_id = lotstktbl["shelfnos_id"] 
-            save_lotno = lotstktbl["lotno"] 
-            save_packno = lotstktbl["packno"]  
-            save_prjnos_id = lotstktbl["prjnos_id"]  
-            save_starttime = lotstktbl["starttime"]
-            save_qty_sch = lotstktbl["qty_sch"].to_f
-            save_qty = lotstktbl["qty"].to_f
-            save_qty_stk = lotstktbl["qty_stk"].to_f
-            save_qty_real = lotstktbl["qty_real"].to_f
+            3.times{Rails.logger.debug" error class:#{self} , line:#{__LINE__} ,tblname not support last_lotstk:#{last_lotstk}"}
+            raise
           end
         end
       end
-      lotstktbls << {"itms_id" =>save_itms_id ,"processseq" => save_processseq ,"shelfnos_id" => save_shelfnos_id ,
-                      "lotno" => save_lotno ,"packno" => save_packno , 
+      ###data.sort_by { |h| h.values_at(:k1, :k2, :k3, :k4) }else
+      tmplotstktbls = tmptbls.sort_by {|h| [h["itms_id"],h["processseq"],h["prjnos_id"],h["starttime"],h["lotno"],h["packno"],
+                        h["shelfnos_id"],h["suppliers_id_fm"],h["suppliers_id_to"],h["custrcvplcs_id"]]}
+      lotstktbls = []
+      save_itms_id = save_processseq = save_shelfnos_id = save_lotno = save_packno = save_prjnos_id = save_starttime = ""
+      save_suppliers_id_fm = save_suppliers_id_to = save_custrcvplcs_id = ""
+      save_qty_sch = save_qty = save_qty_stk = save_qty_real = 0
+      tmplotstktbls.each do |tmpl|
+        if save_itms_id == tmpl["itms_id"] and save_processseq == tmpl["processseq"] and 
+              save_shelfnos_id == tmpl["shelfnos_id"] and
+                 save_lotno == tmpl["lotno"] and save_packno == tmpl["packno"]  and 
+                  save_prjnos_id == tmpl["prjnos_id"]  and save_starttime == tmpl["starttime"] and 
+                     save_suppliers_id_fm == tmpl["suppliers_id_fm"]  and save_suppliers_id_to == tmpl["suppliers_id_to"] and 
+                          save_custrcvplcs_id == tmpl["custrcvplcs_id"]
+          save_qty_sch += tmpl["qty_sch"].to_f
+          save_qty += tmpl["qty"].to_f
+          save_qty_stk += tmpl["qty_stk"].to_f
+          save_qty_real += tmpl["qty_real"].to_f
+        else
+          if save_itms_id == "" and save_processseq == "" and 
+                save_shelfnos_id == "" and save_lotno == "" and save_packno == ""  and 
+                    save_prjnos_id == ""  and save_starttime == "" and 
+                      save_suppliers_id_fm == "" and  save_suppliers_id_to == "" and  save_custrcvplcs_id == ""
+          else
+            lotstktbls << {"itms_id" => save_itms_id ,"processseq" => save_processseq ,
+                          "shelfnos_id" => save_shelfnos_id ,
+                          "suppliers_id_fm" => save_suppliers_id_fm ,"suppliers_id_to" => save_suppliers_id_to , 
+                          "custrcvplcs_id" => save_custrcvplcs_id,
+                          "lotno" => save_lotno ,"packno" => save_packno,  "persons_id_upd" => persons_id_upd,
+                           "prjnos_id" => save_prjnos_id ,"starttime" => save_starttime ,
+                          "qty_sch" => save_qty_sch ,"qty" => save_qty ,"qty_stk" => save_qty_stk ,"qty_real" => save_qty_real}
+          end
+            save_itms_id = tmpl["itms_id"] 
+            save_processseq = tmpl["processseq"] 
+            save_shelfnos_id = tmpl["shelfnos_id"] 
+            save_suppliers_id_fm = tmpl["suppliers_id_fm"] 
+            save_suppliers_id_to = tmpl["suppliers_id_to"] 
+            save_custrcvplcs_id = tmpl["custrcvplcs_id"] 
+            save_lotno = tmpl["lotno"] 
+            save_packno = tmpl["packno"]  
+            save_prjnos_id = tmpl["prjnos_id"]  
+            save_starttime = tmpl["starttime"]
+            save_qty_sch = tmpl["qty_sch"].to_f
+            save_qty = tmpl["qty"].to_f
+            save_qty_stk = tmpl["qty_stk"].to_f
+            save_qty_real = tmpl["qty_real"].to_f
+        end
+      end
+      lotstktbls << {"itms_id" =>save_itms_id ,"processseq" => save_processseq ,
+                      "shelfnos_id" => save_shelfnos_id ,"suppliers_id_fm" => save_suppliers_id_fm,"suppliers_id_to" => save_suppliers_id_to,
+                      "custrcvplcs_id" => save_custrcvplcs_id,"lotno" => save_lotno ,"packno" => save_packno , 
                       "prjnos_id" => save_prjnos_id ,"starttime" => save_starttime , "persons_id_upd" => persons_id_upd,
                       "qty_sch" => save_qty_sch ,"qty" => save_qty ,"qty_stk" => save_qty_stk ,"qty_real" => save_qty_real}
       lotstktbls.each do |lotstktbl|
-        Shipment.proc_lotstkhists_in_out('in',lotstktbl)
+        if lotstktbl["suppliers_id_fm"] and lotstktbl["suppliers_id_fm"] != ""
+            lotstktbl["suppliers_id"] = lotstktbl["suppliers_id_fm"] 
+            Shipment.proc_mk_supplierwhs_rec "in",lotstktbl
+        else  
+          if lotstktbl["suppliers_id_to"] and lotstktbl["suppliers_id_to"] != ""
+              lotstktbl["suppliers_id"] = lotstktbl["suppliers_id_to"] 
+              Shipment.proc_mk_supplierwhs_rec "in",lotstktbl
+          else
+            if lotstktbl["custrcvplcs_id"] and lotstktbl["custrcvplcs_id"] != "" 
+              Shipment.proc_mk_custwhs_rec "in",lotstktbl
+            else
+              if lotstktbl["shelfnos_id"].nil? or lotstktbl["shelfnos_id"] == ""
+                  3.times{Rails.logger.debug" error shelfnos_id missing class:#{self} , line:#{__LINE__} ,lotstktbl:#{lotstktbl}"}
+                  raise
+              else
+                Shipment.proc_lotstkhists_in_out('in',lotstktbl)
+              end
+            end
+          end
+        end
       end
   end
 end

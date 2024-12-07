@@ -37,7 +37,7 @@
   ''  boxe_depth_custdlv ,
   0  custdlv_boxe_id_custdlv ,
   ''  custdlv_dimension ,
-  opeitm.opeitm_units_lttime  opeitm_units_lttime ,
+  opeitm.opeitm_unitofduration  opeitm_unitofduration ,
   cust.bill_chrg_id_bill  bill_chrg_id_bill ,
   cust.person_code_chrg_bill  person_code_chrg_bill ,
   cust.person_name_chrg_bill  person_name_chrg_bill ,
@@ -196,7 +196,7 @@ link.packno  custdlv_packno
 ,custdlv_itm_code_client  varchar (50) 
 ,custdlv_cno  varchar (40) 
 ,custdlv_packno  varchar (10) 
-,opeitm_units_lttime  varchar (4) 
+,opeitm_unitofduration  varchar (4) 
 ,custdlv_id  numeric (38,0)
 ,custdlv_sno_custinst  varchar (50) 
 ,custdlv_cno_custinst  varchar (50) 

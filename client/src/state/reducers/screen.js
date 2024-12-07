@@ -3,7 +3,7 @@ import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
   FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,
   INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
   SECOND_SUCCESS7,SECOND_CONFIRM7_SUCCESS,
-  MKSHPORDS_SUCCESS,SCREEN_DATASET,CHANGE_SHOW_SCREEN,
+  MKSHPORDS_SUCCESS,SCREEN_DATASET,
   TBLFIELD_REQUEST,TBLFIELD_SUCCESS,
   GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
   AREACHART_REQUEST,
@@ -30,6 +30,7 @@ case SCREENINIT_REQUEST:
           data: [],
           status: {},
           message:null,
+          hostError: null,  
           grid_columns_info:{columns_info:[],pageSizeList:[],dropDownList:[]},
           // editableflg:actions.payload.editableflg
 }
@@ -52,6 +53,7 @@ case SCREEN_REQUEST:
 return {...state,
         loading:true,
         screenFlg:"first",
+        hostError: null,  
         // editableflg:actions.payload.editableflg
 }
 
@@ -63,6 +65,7 @@ return {...state,
         data:actions.payload.data,
         baseData:actions.payload.data,
         screenFlg:"first",
+        hostError: null,  
         // editableflg:actions.payload.editableflg
 }
 
@@ -78,6 +81,7 @@ return {...state,
   screenFlg:"first",
   message:"",
   toggleSubForm:false,
+  hostError: null,  
 }
 
 case SCREEN_CONFIRM7_SUCCESS:
@@ -89,6 +93,7 @@ case SCREEN_CONFIRM7_SUCCESS:
     baseData:data,
     loading:false,
     screenFlg:"first",
+    hostError: null,  
     message:actions.payload.message + data[actions.payload.index].confirm_message&&`${date.toJSON()} confirmed line ${actions.payload.params.index}`,
   }
 
@@ -119,6 +124,7 @@ case CONFIRMALL_SUCCESS:
 case SCREEN_FAILURE:
   return {...state,
     loading:false,
+    hostError: actions.payload.message,  
   }
 
 
@@ -145,6 +151,7 @@ case FETCH_REQUEST:
 return {...state,
   params:actions.payload.params, 
   loading:true,
+  hostError: null,  
   //editableflg:false
 }
 
@@ -156,7 +163,7 @@ case FETCH_FAILURE:
       data:data,
       baseData:data,
       loading:false,
-      message: actions.payload.params.err,  
+      hostError: actions.payload.params.err,  
     }
 
 case FETCH_RESULT:
@@ -247,9 +254,6 @@ case TBLFIELD_SUCCESS:
       return {
       }
       
-
-  case CHANGE_SHOW_SCREEN:
-      return {}
 
     //  ※Uncaught Error: Reducer "screen" returned undefined during initialization. 
     //  If the state passed to the reducer is undefined, you must explicitly return the initial state. 

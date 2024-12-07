@@ -49,7 +49,7 @@ CREATE VIEW public.bal_purords AS
     purord.chrgs_id AS purord_chrg_id,
     purord.starttime AS purord_starttime,
     prjno.prjno_code_chil,
-    opeitm.opeitm_units_lttime,
+    opeitm.opeitm_unitofduration,
     supplier.supplier_loca_id_supplier,
     supplier.supplier_chrg_id_supplier,
     supplier.supplier_crr_id_supplier,
@@ -111,7 +111,8 @@ CREATE VIEW public.bal_purords AS
     public.crrs crr
   WHERE ((purord.persons_id_upd = person_upd.id) AND (purord.opeitms_id = opeitm.id) AND (purord.prjnos_id = prjno.id) AND (purord.chrgs_id = chrg.id) 
  AND (purord.suppliers_id = supplier.id) AND (purord.shelfnos_id_to = shelfno_to.id) AND (purord.crrs_id = crr.id) )
- and public.func_get_purprd_qty_bal('purords'::text, purord.id)  > 0;
+--- and public.func_get_purprd_qty_bal('purords'::text, purord.id)  > 0
+;
 
 
  
@@ -194,7 +195,7 @@ CREATE TABLE sio.sio_bal_purords (
 	person_name_chrg_payment_supplier varchar(100) NULL,
 	crr_name_payment_supplier varchar(100) NULL,
 	purord_gno varchar(40) NULL,
-	opeitm_units_lttime varchar(4) NULL,
+	opeitm_unitofduration varchar(4) NULL,
 	purord_cmplflg varchar(1) NULL,
 	purord_crr_id numeric(22) NULL,
 	purord_supplier_id numeric(22) NULL,

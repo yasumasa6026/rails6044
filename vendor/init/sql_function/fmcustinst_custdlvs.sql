@@ -34,7 +34,7 @@
     0 boxe_unit_id_box_custdlv,
     '' unit_code_box_custdlv,
     '' unit_name_box_custdlv,
-  opeitm.opeitm_units_lttime  opeitm_units_lttime ,
+  opeitm.opeitm_unitofduration  opeitm_unitofduration ,
   opeitm.itm_classlist_id  itm_classlist_id ,
   shelfno_fm.shelfno_code  shelfno_code_fm ,
   shelfno_fm.shelfno_name  shelfno_name_fm ,
@@ -178,7 +178,7 @@ custinst.packno custdlv_packno,
 ,custdlv_itm_code_client  varchar (50) 
 ,custdlv_cno  varchar (40) 
 ,custdlv_packno  varchar (10) 
-,opeitm_units_lttime  varchar (4) 
+,opeitm_unitofduration  varchar (4) 
 ,custdlv_id  numeric (38,0)
 ,custdlv_sno_custinst  varchar (50) 
 ,custdlv_cno_custinst  varchar (50) 

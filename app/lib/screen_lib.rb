@@ -660,35 +660,6 @@ module ScreenLib
 			return pagedata,setParams 
 		end	
 
-		# def proc_linechart(params)
-		# 	setParams = create_filteredstr(params)
-		# 	str_func = %Q&select * from func_get_name('screen','#{params[:screenCode]}','#{params["email"]}')&
-		# 	setParams[:screenName] = ActiveRecord::Base.connection.select_value(str_func)
-		# 	if setParams[:screenName].nil?
-		# 		setParams[:screenName] = params[:screenCode]
-		# 	end
-		# 	setParams[:clickIndex] = []
-		# 	strsorting = ""
-		# 	strsql = "select #{grid_columns_info[:select_fields]} 
-		# 					from (SELECT ROW_NUMBER() OVER (#{strsorting}) ,#{grid_columns_info[:select_row_fields]}
-		# 							 FROM #{params[:view]} #{if where_str == '' then '' else where_str end } ) x
-		# 												where ROW_NUMBER > #{(setParams[:pageIndex])*setParams[:pageSize] } 
-		# 												and ROW_NUMBER <= #{(setParams[:pageIndex] + 1)*setParams[:pageSize] } 
-		# 														  "
-		# 	pagedata = ActiveRecord::Base.connection.select_all(strsql)
-		# 	if where_str =~ /where/ or params[:screenCode] !~ /^r_/
-		# 		strsql = "SELECT count(*) FROM #{params[:view]} #{where_str}"
-		# 	else
-		# 		strsql = "SELECT count(*) FROM #{params[:view].split("_")[1]} "
-		# 	end  ###fillterがあるので、table名は抽出条件に合わず使用できない。
-		# 	totalCount = ActiveRecord::Base.connection.select_value(strsql)
-		# 	setParams[:pageCount] = (totalCount.to_f/setParams[:pageSize]).ceil
-		# 	setParams[:totalCount] = totalCount.to_f
-		# 	if params[:parse_linedata]
-		# 		setParams[:parse_linedata] = params[:parse_linedata].dup
-		# 	end
-		# 	return pagedata,setParams 
-		# end	
 
 		def proc_add_empty_data(params) ###新規追加画面の画面の初期値
 			num = params[:pageSize].to_f
@@ -1205,7 +1176,7 @@ module ScreenLib
 								gantt["qty_sch"] = CtlFields.proc_cal_qty_sch(gantt["qty_sch_pare"].to_f,gantt["chilnum"].to_f,gantt["parenum"].to_f,
 															gantt["consumunitqty"],gantt["consumminqty"].to_f,gantt["consumchgoverqty"].to_f)
 								gantt["persons_id_upd"] = params["person_id_upd"]
-								last_lotstks = ArelCtl.proc_insert_trngantts(gantt)   ###子。孫への展開はない
+								last_lotstks = ArelCtl.proc_insert_trngantts(gantt,{})   ###子。孫への展開はない
 							rescue
 								command_c[:confirm] = false
 								command_c["sio_result_f"] = "9"  ##9:error
@@ -1218,7 +1189,7 @@ module ScreenLib
                 setParams["last_lotstks"] = last_lotstks.dup
 							end
 						end			
-            if setParams["las_lotstks"] 
+            if setParams["last_lotstks"] 
               setParams["segment"]  = "link_lotstkhists_update"
               setParams["tbldata"] = {}
               setParams["gantt"] = {}
@@ -1327,7 +1298,7 @@ module ScreenLib
 			return setParams
 		end
 
-		def proc_second_view params
+		def proc_second_shpview params
 			tmp = []
 			err = ""
 			innerjoinTblName = ""
@@ -1342,22 +1313,15 @@ module ScreenLib
 				strselects << selected["id"]+ ","
 			end
 			strselects = strselects.chop + ")"
-
-			case innerjoinTblName
-			when  /prdords|prdinsts|purords|purinsts/
-				case mainTblName
-				when /shpords|shpinsts|shpacts/
-					str_innerjoin = %Q&
+			str_innerjoin = %Q&
 							inner join (select id second_id from  #{innerjoinTblName} 
 									where id in #{strselects}
 									) second on main.#{mainTblName.chop}_paretblid = second.second_id
 							where main.#{mainTblName.chop}_paretblname = '#{innerjoinTblName}'
 					& 
-					str_orderby = %Q&order by #{mainTblName.chop}_paretblid,id desc &
-					params[:sortBy] = params[:groupBy] = []
-					params[:aggregations] = {}
-				end
-			end
+			str_orderby = %Q&order by #{mainTblName.chop}_paretblid,id desc &
+      params[:sortBy] = params[:groupBy] = []
+      params[:aggregations] = {}
 			
 			strsql = %Q&select   #{grid_columns_info[:select_fields]} 
 						from (SELECT ROW_NUMBER() OVER (#{str_orderby}) ,#{grid_columns_info[:select_row_fields]} 
@@ -1369,6 +1333,53 @@ module ScreenLib
 			pagedata = ActiveRecord::Base.connection.select_all(strsql)
 		
 			strsql = %Q& select count(*) FROM #{screenCode} main 
+								#{str_innerjoin}
+				&
+		 	###fillterがあるので、table名は抽出条件に合わず使用できない。
+			totalCount = ActiveRecord::Base.connection.select_value(strsql)
+			params[:pageCount] = (totalCount.to_f/params[:pageSize].to_f).ceil
+			params[:totalCount] = totalCount.to_f
+			params[:parse_linedata] = {}
+			return pagedata,params 
+		end
+    ###
+    #   dvs erc
+    ###
+		def proc_second_dvserc params
+			tmp = []
+			err = ""
+			innerjoinTblName = ""
+      mainTblName = screenCode.split("_")[1]
+			strselects = "("
+
+			(params["clickIndex"]).each_with_index  do |selected,idx|  ###-次のフェーズに進んでないこと。
+				selected = JSON.parse(selected)
+				if idx == 0
+					innerjoinTblName = selected["screenCode"].split("_",2)[1]
+				end
+				strselects << selected["id"]+ ","
+			end
+			strselects = strselects.chop
+      strselects << ")"
+			str_innerjoin = %Q&
+							inner join (select id second_id from  #{innerjoinTblName} 
+									where id in #{strselects}
+									) second on main.#{mainTblName.chop}_#{innerjoinTblName.chop}_id_#{mainTblName.chop} = second.second_id
+					& 
+			str_orderby = ""
+      params[:sortBy] = params[:groupBy] = []
+      params[:aggregations] = {}
+			
+			strsql = %Q&select   #{grid_columns_info[:select_fields]} 
+						from (SELECT ROW_NUMBER() OVER (#{str_orderby}) ,#{grid_columns_info[:select_row_fields]} 
+								FROM #{params[:view]} main
+						#{str_innerjoin}) x
+							where ROW_NUMBER > #{(params[:pageIndex].to_f)*params[:pageSize].to_f} 
+							and ROW_NUMBER <= #{(params[:pageIndex].to_f + 1)*params[:pageSize].to_f} 
+					&
+			pagedata = ActiveRecord::Base.connection.select_all(strsql)
+		
+			strsql = %Q& select count(*) FROM #{params[:view]} main 
 								#{str_innerjoin}
 				&
 		 	###fillterがあるので、table名は抽出条件に合わず使用できない。

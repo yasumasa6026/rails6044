@@ -37,7 +37,8 @@ module Api
 					                strsql = %Q%REFRESH MATERIALIZED VIEW #{view} %
 					                ActiveRecord::Base.connection.execute(strsql)
 				            else
-					                3.times{p "materiallized error :#{view}"}
+                      3.times{Rails.logger.debug" error class:#{self} , line:#{__LINE__} ,materiallized error :#{view}"}
+                      raise
 				            end
 		            end
                 foo = File.open("#{Rails.root}/vendor/postgresql/tblviewupdate#{(Time.now).strftime("%Y%m%d%H%M%S")}.sql", "w:UTF-8") # 書き込みモード
