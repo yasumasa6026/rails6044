@@ -84,7 +84,7 @@ module CtlFields
 					mainviewflg = false
         else
           if 	params[:parse_linedata]["aud"] =~ /^update|^edit/ or params["aud"] =~ /update|edit/
-			        return line_data,keys,findstatus,mainviewflg,missing
+			        return line_data,keys,findstatus,mainviewflg,missing=true
           end
 				end	
 			end

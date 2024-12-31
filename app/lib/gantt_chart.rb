@@ -11,7 +11,7 @@ module GanttChart
 			@base = @level
 		end
 
-    	def proc_get_ganttchart_data(mst_code,id,buttonflg)   ###opeims_idはある。
+    def proc_get_ganttchart_data(mst_code,id,buttonflg)   ###opeims_idはある。
         	time_now =  Time.now
 			case mst_code
 			when /itms/
@@ -96,8 +96,8 @@ module GanttChart
 												:start => "2099-12-31",:duedate => "2000-01-01",
 												:type=>"project",:depend => [""],:id=>@level}
 				trget = ActiveRecord::Base.connection.select_one(%Q&select * from #{mst_code} where id = #{id}&)
-				@bgantts[@base] [:tblname] = mst_code
-				@bgantts[@base] [:sno] = trget["sno"]
+				@bgantts[@base][:tblname] = mst_code
+				@bgantts[@base][:sno] = trget["sno"]
 					###一度登録した trnganttsのtblname,tblidに変更はない。
 				@max_time = trget["duedate"]
 				@min_time = trget["starttime"]
@@ -215,17 +215,92 @@ module GanttChart
 										where  trn.tblid = #{id} and trn.tblname = '#{mst_code}' --- -->画面でclickされたtableのid
 							&
 					trn = ActiveRecord::Base.connection.select_one(strsql)
-					n0 = 	{:itms_id=>trn["itms_id_trn"],:locas_id=>trn["locas_id_trn"],:type=>"task",
-								:depend => [],
-								:tblname=>trn["tblname"],:tblid=>trn["tblid"],:trngantts_id=>trn["id"],
-								:linktblname=>trn["tblname"],:linktblid=>trn["tblid"],
-								:orgtblname=>trn["orgtblname"],:orgtblid=>trn["orgtblid"],
-								:paretblname=>trn["paretblname"],:paretblid=>trn["paretblid"],
-								:parenum=>1,:chilnum=>1,:processseq=>trn["processseq_trn"],
-								:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],
-								:qty_sch =>trn["qty_sch"].to_f ,:qty =>trn["qty"].to_f ,:qty_stk=>trn["qty_stk"].to_f,
-								:id=>@level + "000" } 
-					
+          if  mst_code =~ /custords$/   ### #{parse_linedata["custord_id"]} 
+            strsql = %Q&
+                      select ord.qty_src ord_qty,0 inst_qty,0 dlv_qty,0 act_qty ,'custords' targettbl,ord.tblid targetid from linkcusts ord
+                        where ord.tblname = 'custords' and  ord.srctblname = 'custords'
+                       and ord.tblid = #{id}  
+                    union
+                      select 0 ord_qty,inst.qty_src inst_qty,0 dlv_qty,0 act_qtyv,'custinsts' targettbl,inst.tblid targetid from linkcusts ord
+                        inner join linkcusts inst on ord.tblid = inst.srctblid and ord.tblname = inst.srctblname 
+                        where ord.tblname = 'custords' and inst.tblname = 'custinsts' and inst.srctblname = 'custords'
+                       and ord.tblid = #{id}  
+                    union --- custords =>custdlvs custinsts 無
+                      select 0 ord_qty,0 inst_qty,dlv.qty_src dlv_qty,0 act_qty,'custdlvs' targettbl,dlv.tblid targetid from linkcusts ord
+                        inner join linkcusts dlv on ord.tblid = dlv.srctblid and ord.tblname = dlv.srctblname 
+                        where ord.tblname = 'custords' and dlv.tblname = 'custdlvs' and dlv.srctblname = 'custords'
+                       and ord.tblid = #{id} 
+                    union --- custords =>custacts 　custinsts,custdlvs 無
+                      select 0 ord_qty,0 inst_qty,0 dlv_qty,act.qty_src act_qty,'custacts' targettbl,act.tblid targetid from linkcusts ord
+                        inner join linkcusts act on ord.tblid = act.srctblid and ord.tblname = act.srctblname 
+                        where ord.tblname = 'custords' and act.tblname = 'custacts' and act.srctblname = 'custords'
+                       and ord.tblid = #{id}  
+                    union
+                      select 0 ord_qty,0 inst_qty,dlv.qty_src dlv_qty,0 act_qty,'custdlvs' targettbl,dlv.tblid targetid from linkcusts ord
+                        inner join linkcusts dlv on ord.tblid = dlv.srctblid and ord.tblname = dlv.srctblname 
+                        where ord.srctblname = 'custords' and ord.tblname = 'custinsts' 
+                         and dlv.srctblname = 'custinsts' and dlv.tblname = 'custdlvs'  
+                         and ord.srctblid = #{id} 
+                    union --- custords=>custinsts=>custacts   custdlvs 無
+                      select 0 ord_qty,0 inst_qty,0 dlv_qty,act.qty_src act_qty,'custacts' ,act.tblid targetid from linkcusts ord
+                        inner join linkcusts act on ord.tblid = act.srctblid and  ord.tblname = act.srctblname
+                        where ord.srctblname = 'custords'and ord.tblname = 'custinsts' 
+                            and act.tblname = 'custacts'  and act.srctblname = 'custinsts' 
+                            and ord.srctblid = #{id} 
+                    union
+                      select 0 ord_qty,0 inst_qty,0 dlv_qty,dlv.act_qty_src act_qty,'custacts' targettbl,dlv.tblid targetid from linkcusts ord
+                            inner join (select dlv.srctblname,dlv.srctblid,act.qty_src act_qty_src,dlv.qty_src ,act.tblid from  linkcusts dlv 
+                                              inner  join linkcusts act on dlv.tblid = act.srctblid and act.srctblname = 'custdlvs' and act.tblname = 'custacts' ) 
+                                        dlv on dlv.srctblid = ord.tblid and ord.tblname =  dlv.srctblname
+                        where ord.srctblname = 'custords' and ord.tblname = 'custinsts'
+                         and ord.srctblid = #{id}
+            &
+            ord_qty = inst_qty = dlv_qty = act_qty = 0
+            target = {}
+            recs = ActiveRecord::Base.connection.select_all(strsql)
+            recs.each do |rec|
+              ord_qty += rec["ord_qty"].to_f
+              inst_qty += rec["inst_qty"].to_f 
+              dlv_qty += rec["dlv_qty"].to_f
+              act_qty += rec["act_qty"].to_f  
+              target[rec["targettbl"]] = rec["targetid"]                          
+            end
+            if act_qty >= ord_qty
+              top = {"tblname" => "custacts","tblid" => target["custacts"]}
+            else
+              if dlv_qty >= ord_qty
+                top = {"tblname" => "custdlvs","tblid" => target["custdlvs"]}
+              else
+                if inst_qty >= ord_qty
+                  top = {"tblname" => "custinsts","tblid" => target["custinsts"]}
+                else
+                  top = {"tblname" => "custords","tblid" => target["custords"]}
+                end
+              end
+            end
+            ###custords
+            n0 = 	{:itms_id=>trn["itms_id_trn"],:locas_id=>trn["locas_id_trn"],:type=>"task",
+                  :depend => [],
+                  :tblname=>top["tblname"],:tblid=>top["tblid"],:trngantts_id=>trn["id"],
+                  :linktblname=>trn["tblname"],:linktblid=>trn["tblid"],
+                  :orgtblname=>trn["orgtblname"],:orgtblid=>trn["orgtblid"],
+                  :paretblname=>trn["paretblname"],:paretblid=>trn["paretblid"],
+                  :parenum=>1,:chilnum=>1,:processseq=>trn["processseq_trn"],
+                  :start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],
+                  :qty_sch =>trn["qty_sch"].to_f ,:qty =>ord_qty + inst_qty ,:qty_stk=>dlv_qty + act_qty,
+                  :id=>@level + "000" } 
+          else
+            n0 = 	{:itms_id=>trn["itms_id_trn"],:locas_id=>trn["locas_id_trn"],:type=>"task",
+                  :depend => [],
+                  :tblname=>trn["tblname"],:tblid=>trn["tblid"],:trngantts_id=>trn["id"],
+                  :linktblname=>trn["tblname"],:linktblid=>trn["tblid"],
+                  :orgtblname=>trn["orgtblname"],:orgtblid=>trn["orgtblid"],
+                  :paretblname=>trn["paretblname"],:paretblid=>trn["paretblid"],
+                  :parenum=>1,:chilnum=>1,:processseq=>trn["processseq_trn"],
+                  :start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],
+                  :qty_sch =>trn["qty_sch"].to_f ,:qty =>trn["qty"].to_f ,:qty_stk=>trn["qty_stk"].to_f,
+                  :id=>@level + "000" } 
+          end   					
 					strsql =	%Q&
 							  	---  custordsがcustschsを引き当てた時
 								--- org=pare=tblの子供org=pareの時　pare:tblは1:1
@@ -472,9 +547,9 @@ module GanttChart
 					end
 				end
 			end
-        	@bgantts[@base][:duedate] = @max_time
-        	@bgantts[@base][:start] = @min_time
-        	## opeitmのsubtblidのopeitmは子のinsert用
+      @bgantts[@base][:duedate] = @max_time
+    	@bgantts[@base][:start] = @min_time
+     	## opeitmのsubtblidのopeitmは子のinsert用
 			return @bgantts
     	end
 
@@ -537,6 +612,16 @@ module GanttChart
 					tbl =  ActiveRecord::Base.connection.select_one(strsql)
 					n0[:loca_code] = tbl["code"]
 					n0[:loca_name] = tbl["name"]
+				when /^cust/ 
+					strsql = %Q&
+						select * from #{n0[:linktblname]} tbl
+							inner join (select l.code ,l.name,c.id custs_id from locas l 
+												inner join custs c on c.locas_id_cust = l.id) cust on tbl.custs_id = cust.custs_id 
+							where tbl.id = #{n0[:linktblid]}
+					&
+					tbl =  ActiveRecord::Base.connection.select_one(strsql)
+					n0[:loca_code] = tbl["code"]
+					n0[:loca_name] = tbl["name"]
 				else
 					if n0[:loca_code].nil?
 					  	loca = ActiveRecord::Base.connection.select_one("select * from locas where id = #{n0[:locas_id]}  ")
@@ -556,7 +641,7 @@ module GanttChart
               strsql =  %Q& select * from #{prevtbl["srctblname"]} where id = #{prevtbl["srctblid"]} &
               prevtbldata = ActiveRecord::Base.connection.select_one(strsql)
 							rec = ActiveRecord::Base.connection.select_one("select * from #{n0[:tblname]} where id = #{n0[:tblid]}")
-						when  /^cust|^dym|^dvs|^shp|^erc/ 
+						when  /^custdlvs|^custacts|^dym|^dvs|^shp|^erc/ 
 							rec = ActiveRecord::Base.connection.select_one("select * from #{n0[:tblname]} where id = #{n0[:tblid]}")
 						else
 							rec = tbl.dup  ###prd/purの時
@@ -572,12 +657,32 @@ module GanttChart
 						when /^shp/  
 							n0[:duedate] = rec["depdate"]
 							n0[:start] = rec["depdate"] 
+            when /purdlvs$/
+							n0[:duedate] = rec["depdate"]
+							n0[:start] = prevtbldata["isudate"] 
             when /^puracts/
 							n0[:duedate] = rec["rcptdate"]
 							n0[:start] = prevtbldata["isudate"] 
-						when /^prdacts|^dvsacts|^ercacts/
+            when /^custacts/
+							n0[:duedate] = rec["saledate"]
+							n0[:start] = tbl["isudate"] 
+            when /^custdlvs/
+							n0[:duedate] = rec["depdate"]
+							n0[:start] = tbl["isudate"] 
+						when /^prdacts|^dvsacts/
 							n0[:duedate] = rec["cmpldate"]
-							n0[:start] = (prevtbldata["commencementdate"]||=prevtbldata["starttime"])
+              strsql = %Q&
+                          select commencementdate from dvs#{prevtbl["srctblname"][3..-1]} 
+                                  where #{prevtbl["srctblname"]}_id_dvs#{prevtbl["srctblname"][3..-2]} = #{n0[:tblid]}
+              & 
+              commencementdate = ActiveRecord::Base.connection.select_value(strsql)
+							n0[:start] = (prevtbldata["commencementdate"]||=rec["cmpldate"])
+            when /^ercacts|^dvsacts/
+							n0[:duedate] = (rec["cmpldate"]||=rec["duedate"])  ###duedate? rcptdate? cmpldate?
+							n0[:start] = (rec["commencementdate"]||=rec["starttime"])
+            when /^ercords|^dvsords|^ercinsts|^dvsinsts/
+							n0[:duedate] = rec["duedate"]  ###duedate? rcptdate? cmpldate?
+							n0[:start] = (rec["commencementdate"]||=rec["starttime"])
 						else
 							n0[:duedate] = rec["duedate"]  ###duedate? rcptdate? cmpldate?
 							n0[:start] = rec["starttime"]

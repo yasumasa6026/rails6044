@@ -97,6 +97,7 @@ module Operation
         @last_rec = {}
 		  end
 		  @chng_flg = "" 
+      ### 登録　変更用にファイルをわける
       check_shelfnos_duedate_qty() if params["aud"] =~ /edit|update|purge|delete/  ###
 	  end
 
@@ -327,251 +328,7 @@ module Operation
 		###qty_linkto_alloctbl > 0 の時はlocas_idの変更は不可(オンライン、入り口でチェック)
 		###shelfnos_id_fmの変更はinsts,reply,dlvs,acts,retsでは不可
 	  def proc_link_lotstkhists_update()  ###
-		  # return if @gantt["stktaking_proc"] != "1"
-			#   cust_base = {}
-			#   ###supp_base = {}
-			#   base["itms_id"] = @gantt["itms_id_trn"]
-		  # 	base["processseq"]  = @gantt["processseq_trn"]
-			#   base["prjnos_id"]  = @gantt["prjnos_id"]
-			#   base["tblname"]  = @gantt["tblname"]
-			#   base["tblid"]  = @gantt["tblid"]
-		  # 	base["persons_id_upd"]  = @gantt["persons_id_upd"]
-			#   base["qty_sch"] = base["qty"] = base["qty_stk"] = 0
-			#   inout = "in"
-			#   base["srctblname"] = "lotstkhists"
-			#   base["trngantts_id"] = @gantt["trngantts_id"]
-			#   case @tblname
-			#   when /^cust/
-			# 	  ###社内倉庫の更新
-			# 	  base["shelfnos_id"] =  @tbldata["shelfnos_id_fm"]
-			# 	  inout = "out" 
-			# 	  ###客先倉庫の更新
-			# 	  cust_base = base.dup
-			# 	  cust_base["custrcvplcs_id"] = @tbldata["custrcvplcs_id"]
-			# 	  cust_base["srctblname"] = "custwhs"
-			# 	  cust_inout = "in" 
-			# 	  case @tblname 
-			# 	  when  "custacts"
-			# 		  base["starttime"] = (@tbldata["saledate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		  base["qty_stk"] = @tbldata["qty_stk"]
-			# 		  cust_base["starttime"] = (@tbldata["saledate"].to_time ).strftime("%Y-%m-%d %H:%M:%S")  #
-			# 		  cust_base["remark"] = "Operation line #{__LINE__}"
-			# 	  when "custrets"
-			# 		  base["starttime"] = (@tbldata["retdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  
-			# 		  ### 例外
-			# 		  inout = "in"
-			# 		  base["qty_stk"] = @tbldata["qty_stk"]
-			# 		  cust_base["starttime"] = (@tbldata["retdate"].to_time - 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		  cust_base["remark"] = "Operation line #{__LINE__}"
-			# 		  ###例外
-			# 		  cust_inout = "out" 
-			# 	  when "custdlvs"  
-			# 		  base["starttime"] = (@tbldata["depdate"].to_time ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		  base["qty_stk"] =  @tbldata["qty_stk"]
-			# 		  cust_base["starttime"] = (@tbldata["dlvdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		  base["qty"] = @tbldata["qty_stk"]   ###客先は未だ予定
-			# 		  cust_base["remark"] = "Operation line #{__LINE__}"
-			# 	  when /^custinsts/  
-			# 		  base["starttime"] = (@tbldata["duedate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		  base["qty_stk"] =  @tbldata["qty_stk"]
-			# 		  cust_base["starttime"] = (@tbldata["duedate"].to_time).strftime("%Y-%m-%d %H:%M:%S")  
-			# 		  cust_base["remark"] = "#{self}  line #{__LINE__}"
-			# 	  when /^custords/  
-			# 		  base["starttime"] = (@tbldata["duedate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		  base["qty"] =  @tbldata["qty"]
-			# 		  cust_base["starttime"] = (@tbldata["duedate"].to_time).strftime("%Y-%m-%d %H:%M:%S")  
-			# 		  cust_base["remark"] = "#{self}  line #{__LINE__}"
-			# 	  when /^custschs/  
-			# 		  base["starttime"] = (@tbldata["duedate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		  base["qty_sch"] =  @tbldata["qty_sch"]
-			# 		  cust_base["starttime"] = (@tbldata["duedate"].to_time).strftime("%Y-%m-%d %H:%M:%S")  
-			# 		  cust_base["remark"] = "#{self}  line #{__LINE__}"
-			# 	  end
-			# 	  cust_base["srctblname"] = "custwhs"
-			# 	  cust_base = Shipment.proc_mk_custwhs_rec(inout,cust_base)  ###在庫の更新
-			# 	  # Shipment.proc_alloc_change_inoutlotstk(cust_base)
-			# 	  # base = Shipment.proc_lotstkhists_in_out(inout,base)  ###在庫の更新
-			# 	  # Shipment.proc_alloc_change_inoutlotstk(base)
-      #   end
-			# # if !supp_base.empty?
-			# #  	supp_base["wh"] = "supplierwhs"		
-			# #  	cust_base = Shipment.proc_mk_supplierwhs_rec(inout,supp_base)  ###在庫の更新
-			# # end
-			# ###
-			# # 明細(inoutlotstks)と前状態の数量変更
-			# ###
-			# # strsql = %Q&
-			# # 		select srctblname tblname,srctblid tblid,trngantts_id,qty_src,
-			# # 				tblname savetblname,tblid savetblid
-			# # 			from #{if @tblname =~ /^cust/  then "linkcusts" else "linktbls" end}
-			# # 			where id in(#{@reqparams["linktbl_ids"].join(",")})
-			# # 			and  qty_src > 0
-			# # &
-			# # ActiveRecord::Base.connection.select_all(strsql).each do |src|
-			# # 	case @tblname
-			# # 	when /schs$/
-			# # 	 	src["qty_sch"] = base["qty_sch"] = src["qty_src"]
-			# # 	when /ords$|insts$|reply/
-			# # 		src["qty"] = base["qty"] = src["qty_src"]
-			# # 	when /acts$|dlvs$/
-			# # 		src["qty_stk"] = base["qty_stk"] = src["qty_src"]
-			# # 	end
-			# # 	base["trngantts_id"] = src["trngantts_id"]
-			# # 	plusminus = if inout == "in"
-			# # 					1
-			# # 				else
-			# # 					-1
-			# # 				end
-			# # 	# Shipment.proc_insert_inoutlotstk_sql(plusminus,base)  ###新規明細
-			# # 	# if src["savetblname"] != src["tblname"] or src["savetblid"] != src["tblid"]
-			# # 	ArelCtl.proc_src_trn_stk_update(src,base)
-			# # 	# end
-			# # 	if !cust_base.empty?	
-			# # 		cust_base["trngantts_id"] = src["trngantts_id"]
-			# # 		plusminus = if cust_inout == "in"
-			# # 						1
-			# # 					else
-			# # 						-1
-			# # 					end
-			# # 		# Shipment.proc_insert_inoutlotstk_sql(plusminus,cust_base)	
-			# # 		# if src["savetblname"] != src["tblname"] or src["savetblid"] != src["tblid"]
-			# # 		ArelCtl.proc_src_trn_stk_update(src,cust_base)
-			# # 		# end
-			# # 	end
-			# # 	if !supp_base.empty?	
-			# # 		supp_base["trngantts_id"] = src["trngantts_id"]
-			# # 		plusminus = if cust_inout == "in"
-			# # 						1
-			# # 					else
-			# # 						-1
-			# # 					end
-			# # 		# Shipment.proc_insert_inoutlotstk_sql(plusminus,supp_base)	
-			# # 		# if src["savetblname"] != src["tblname"] or src["savetblid"] != src["tblid"]
-			# # 		ArelCtl.proc_src_trn_stk_update(src,supp_base)
-			# # 		# end
-			# # 	end
-			# # end	
-			#   lastStkinout = {"tblname" => @tblname,"tblid" => @tblid,
-      #                 "srctblname" => @tblname,"srctblid" => @tblid,
-      #                 "itms_id" => @last_rec["itms_id"] ,"processseq" => @last_rec["processseq"] ,
-      #                 "shelfnos_id" => @last_rec["shelfnos_id_to"],  ###shpxxx,custxxxでは個別の設定が必要
-      #                 "prjnos_id" => @last_rec["prjnos_id"] ,
-      #                 "starttime" => @last_rec["duedate"],"packno" => (@last_rec["packno"]||=""),"lotno" => (@last_rec["lotno"]||=""),
-      #                 "lotstkhists_id" => "","trngantts_id" => "","alloctbls_id" => "",
-      #                 "qty_src" => 0,"amt_src" => 0,"qty_linkto_alloctbl" => 0,	"person_id_upd" => @gantt["persons_id_upd"],
-      #                 "qty_sch" => @last_rec["qty_sch"].to_f,"qty" =>@last_rec["qty"].to_f,"qty_stk" => @last_rec["qty_stk"].to_f,
-      #                 "qty_real" => @last_rec["qty_stk"].to_f}	  ###last_rec:view type
-			#   stkinout = {}
-			#   lastStkinout["persons_id_upd"] = @tbldata["persons_id_upd"]
-			#   stkinout = @tbldata.dup
-			#   lastStkinout["trngantts_id"] = stkinout["trngantts_id"] = @gantt["trngantts_id"]
-			#   case @tblname
-			#   when /^cust/
-			# 	  ###社内倉庫の更新
-			# 	  lastStkinout["shelfnos_id"] =  @last_rec["#{@tblname.chop}_shelfno_id_fm"]
-			# 	  lastStkinout["prjnos_id"] =  @last_rec["#{@tblname.chop}_prjno_id"]
-
-			# 	  stkinout["srctblname"] = lastStkinout["srctblname"] = "lotstkhists"
-			# 	  case @tblname 
-			# 	  when  "custacts" 
-			# 		  lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_saledate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		  lastStkinout = Shipment.proc_lotstkhists_in_out("in",lastStkinout)  ###前の在庫の更新　一旦全数削除
-			# 		  stkinout["shelfnos_id"] = @tbldata["shelfnos_id_fm"]
-			# 		  stkinout["starttime"] = (@tbldata["saledate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 	  when "custrets"
-			# 		  lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_retdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  
-			# 		  lastStkinout[@str_qty] = lastStkinout[@str_qty] * -1   ###retのみ例外
-			# 		  lastStkinout = Shipment.proc_lotstkhists_in_out("in",lastStkinout)  ###前の在庫の更新　
-			# 		  stkinout["starttime"] = (@tbldata["retdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  
-			# 		  ### 例外
-			# 		  inout = "in"
-			# 	  when "custdlvs"  
-			# 		  lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_depdate"].to_time ).strftime("%Y-%m-%d %H:%M:%S")  
-			# 		  lastStkinout = Shipment.proc_lotstkhists_in_out("in",lastStkinout)  ###前の在庫の更新　
-			# 		  stkinout["starttime"] = (@tbldata["depdate"].to_time ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 	  else  
-			# 		  lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_duedate"].to_time - 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  
-			# 		  lastStkinout = Shipment.proc_lotstkhists_in_out("in",lastStkinout)  ###前の在庫の更新　
-			# 		  stkinout["starttime"] = (@tbldata["duedate"].to_time - 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 	  end
-			# 	  if stkinout[@str_qty].to_f > 0
-			# 		  stkinout["shelfnos_id"] =  @tbldata["shelfnos_id_fm"]
-			# 		  stkinout = Shipment.proc_lotstkhists_in_out("out",stkinout)  ###在庫の更新
-			# 	  end
-			# 	  # Shipment.proc_alloc_change_inoutlotstk(stkinout)
-			# 	  ###客先倉庫の更新
-			# 	  stkinout["custrcvplcs_id"] = @tbldata["custrcvplcs_id"]
-			# 	  lastStkinout["custrcvplcs_id"] = @last_rec["#{@tblname.chop}_custrcvplc_id"]  
-			# 	  stkinout["remark"] = " #{self}  line #{__LINE__} "
-			# 	  stkinout["srctblname"] = "custwhs"
-			# 	  inout = "in" 
-			# 	  case @tblname 
-			# 	  when  "custacts"
-			# 		  lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_saledate"].to_time ).strftime("%Y-%m-%d %H:%M:%S")  #
-			# 		  stkinout["starttime"] = (@tbldata["saledate"].to_time ).strftime("%Y-%m-%d %H:%M:%S")  #
-			# 	  when "custrets"  ###packnoはない
-			# 		  lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_retdate"].to_time - 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		  lastStkinout[@str_qty] = lastStkinout[@str_qty] * -1   ###retのみ例外
-			# 		  stkinout["starttime"] = (@tbldata["retdate"].to_time - 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		  ###例外
-			# 		  inout = "out" 
-			# 	  when "custdlvs"  ###packnoはない
-			# 		  lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_dlvdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		  stkinout["starttime"] = (@tbldata["dlvdate"].to_time + 24*3600 ).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 	  else
-			# 		  stkinout["starttime"] = (@tbldata["duedate"].to_time).strftime("%Y-%m-%d %H:%M:%S")  
-			# 	  end
-			# 	  if stkinout[@str_qty].to_f > 0
-			# 	 	  stkinout["shelfnos_id"] =  @tbldata["shelfnos_id_fm"]
-			# 		  lastStkinout = Shipment.proc_mk_custwhs_rec(inout,stkinout)
-			# 	  end
-			# 	  lastStkinout = Shipment.proc_mk_custwhs_rec("out",lastStkinout)
-			#   when /^purdlvs/  ###packnoはない
-			# 	  lastStkinout["starttime"] = (@last_rec["#{@tblname.chop}_depdate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 	  lastStkinout = Shipment.proc_lotstkhists_in_out("out",lastStkinout)  ###在庫の更新
-			# 	  lastStkinout["shelfnos_id"] =  @last_rec["#{@tblname.chop}_shelfno_id_fm"]
-			# 	  lastStkinout["starttime"] = @last_rec["#{@tblname.chop}_depdate"] ###カレンダー考慮要
-			# 	  lastStkinout["suppliers_id"] = @last_rec["#{@tblname.chop}_suppler_id"]
-			# 	  Shipment.proc_mk_supplierwhs_rec("in",lastStkinout)
-			# 	  if stkinout[@str_qty].to_f > 0
-			# 		  stkinout["starttime"] = (@tbldata["depdate"].to_time + 24*3600).strftime("%Y-%m-%d %H:%M:%S")  ###カレンダー考慮要
-			# 		  stkinout = Shipment.proc_lotstkhists_in_out("in",stkinout)  ###在庫の更新
-			# 		  stkinout["shelfnos_id"] =  @tbldata["shelfnos_id_fm"]
-			# 		  stkinout["starttime"] = @tbldata["depdate"] ###カレンダー考慮要
-			# 		  stkinout["suppliers_id"] = @tbldata["supplers_id"]
-			# 		  Shipment.proc_mk_supplierwhs_rec("out",stkinout)
-			# 	    # Shipment.proc_alloc_change_inoutlotstk(stkinout)
-			# 	  end
-			#   when /^prdords|^purords/
-			# 	  # stkinout = Shipment.proc_lotstkhists_in_out("out",lastStkinout)  ###在庫の更新
-			# 	  # if stkinout[@str_qty].to_f > 0
-			# 		#   stkinout = Shipment.proc_lotstkhists_in_out("in",stkinout)  ###在庫の更新
-			# 	  # end
-      #     ###
-      #     # 数量減の時元の引当在庫に戻す
-      #     ###
-      #     de_qty = lastStkinout[@str_qty].to_f - stkinout[@str_qty].to_f
-      #     if de_qty > 0
-      #       strsql = %Q&
-      #               select a.srctblname,a.srctblid,min(t.duedate_trn),a.qty_linkto_alloctbl qty_alloc from alloctbls a 
-      #                     inner join trngantts t on t.id = a.trngantts_id
-      #                     inner join linktbls l on l.tblname = a.srctblname and l.tblid = a.srctblid
-      #                                           and a.trngantts_id = l.trngantts_id  
-      #                   where l.tblname = '#{@tblname}' and l.tblid = #{@tblid}
-      #                   and l.qty_src > 0 and a.qty_linkto_alloctbl > 0
-      #                   group by a.srctblname,a.srctblid order by min(t.duedate_trn)
-      #             &
-			# 	    ActiveRecord::Base.connection.select_all(strsql).each do |link|
-      #       end
-			#     end
-			#   when /^prschs|^purschs/
-			# 	  # stkinout = Shipment.proc_lotstkhists_in_out("out",lastStkinout)  ###在庫の更新
-			# 	  # if stkinout[@str_qty].to_f > 0
-			# 		#   stkinout = Shipment.proc_lotstkhists_in_out("in",stkinout)  ###在庫の更新
-			# 	  # end
-      #     ###
-		  #   end
-		  # return 		
+	
 	  end
     ###
     # consume schs,ords,insts,acts
@@ -617,16 +374,13 @@ module Operation
 				case @tblname
 				when /^prdacts|^purdlvs/
 					  ActiveRecord::Base.connection.select_all(ArelCtl.proc_ChildConSql(@tbldata)).each do |conact|
-						  next if conord["consumauto"] == "M"  ### qty_stk確定時の消費手動は除く
+						  next if conact["consumauto"] == "M"  ### qty_stk確定時の消費手動は除く
 						  dupParams = @reqparams.dup
 						  dupParams["child"] = conact.dup
 						  dupParams["parent"] = @tbldata.dup
 						  dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
-						  last_lotstk = Shipment.proc_create_consume(dupParams) do
-							  "conacts"
-						  end
-              last_lotstks << last_lotstk
-              3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
+              dupParams["screenCode"] = "r_conacts"
+						  last_lotstks << Shipment.proc_create_consume(dupParams)
 					  end
 				when /^puracts/
 					  strsql = %Q&
@@ -640,11 +394,8 @@ module Operation
 							  dupParams["child"] = conord.dup
 							  dupParams["parent"] = @tbldata.dup
 							  dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
-							  last_lotstk = Shipment.proc_create_consume(dupParams) do
-								  "conacts"
-							  end
-                last_lotstks << last_lotstk
-                3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
+                dupParams["screenCode"] = "r_conacts"
+							  last_lotstks << Shipment.proc_create_consume(dupParams)
 						  end
 					  end
 				when /purinsts$|purreplyinputs$|prdinsts$/
@@ -653,11 +404,8 @@ module Operation
 						  dupParams["child"] = conord.dup
 						  dupParams["parent"] = @tbldata.dup
 						  dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
-						  last_lotstk = Shipment.proc_create_consume(dupParams) do
-							  "conords"
-						  end
-              last_lotstks << last_lotstk
-              3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
+              dupParams["screenCode"] = "r_conords"
+						  last_lotstks << Shipment.proc_create_consume(dupParams)
 					  end
 					  strsql = %Q%
 						  select srctblname,srctblid,qty_src from linktbls where tblname = '#{@tblname}' and tblid = #{@tblid}
@@ -677,11 +425,8 @@ module Operation
 							  prevParams["parent"] = prevparetbl.dup
 							  prevParams["child"] = prevchildtbl.dup
 							  dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
-							  last_lotstk = Shipment.proc_create_consume(prevParams) do
-								  "conords"
-							  end
-                last_lotstks << last_lotstk
-                3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
+                dupParams["screenCode"] = "r_conords"
+							  last_lotstks << Shipment.proc_create_consume(prevParams)
 						  end
 					  end
 				when /purords$|prdords$/
@@ -690,11 +435,8 @@ module Operation
 						  dupParams["child"] = conord.dup
 						  dupParams["parent"] = @tbldata.dup
 						  dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
-						  last_lotstk = Shipment.proc_create_consume(dupParams) do
-							  "conords"
-						  end
-              last_lotstks << last_lotstk
-              3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
+              dupParams["screenCode"] = "r_conords"
+						  last_lotstks <<  Shipment.proc_create_consume(dupParams)
 					  end
 				end
 		  else ###変更　(削除 qty_sch=qty=qty_stk=0 　を含む) 
@@ -819,7 +561,7 @@ module Operation
           ###
 		    end
       end
-		  return 		
+		  return 	last_lotstks
 	  end
       
 	  def update_prdpur_child(trn)
@@ -1102,7 +844,7 @@ module Operation
 			  val_qty = 0
 			  val_qty_stk = 1
 		  else
-			  return 
+			  raise 
 		  end 
 
 		  gantt = @reqparams["gantt"].dup

@@ -66,6 +66,7 @@ custinst.opeitms_id   custdlv_opeitm_id,
 custinst.crrs_id   custdlv_crr_id,
 custinst.sno  custdlv_sno_custinst,
 custinst.cno  custdlv_cno_custinst,
+custinst.duedate  custdlv_duedate_custord,
 current_date  custdlv_depdate,
 ''  custdlv_cartonno,
 custinst.qty_stk  custdlv_qty_stk,
@@ -98,6 +99,8 @@ custinst.packno custdlv_packno,
  	and custinst.opeitms_id = opeitm.id      and custinst.crrs_id = crr.id      and custinst.chrgs_id = chrg.id  
  	and custinst.shelfnos_id_fm = shelfno_fm.id
  	and exists(select 1 from linkcusts link where tblname = 'custinsts' and tblid = custinst.id and qty_src > 0)
+ 	AND not exists(select 1 from linkcusts link where srctblname = 'custinsts' and srctblid = custinst.id and qty_src >= custinst.qty AND 
+ 								(tblname = 'custdlvs' OR tblname = 'custacts' ))
 	  
 ;
  DROP TABLE IF EXISTS sio.sio_fmcustinst_custdlvs;
@@ -182,6 +185,7 @@ custinst.packno custdlv_packno,
 ,custdlv_id  numeric (38,0)
 ,custdlv_sno_custinst  varchar (50) 
 ,custdlv_cno_custinst  varchar (50) 
+,custdlv_duedate_custord   timestamp(6) 
 ,custdlv_depdate   timestamp(6) 
 ,custdlv_cartonno  varchar (50) 
 ,custdlv_qty_stk  numeric (22,6)

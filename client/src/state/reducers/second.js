@@ -3,10 +3,10 @@ import {LOGIN_REQUEST,LOGOUT_REQUEST,LOGIN_SUCCESS,  //SECONDSCREEN_REQUEST,
         SECOND_CONFIRMALL_REQUEST,SECOND_CONFIRMALL_SUCCESS,SECOND_SUCCESS7,SECOND_DATASET,
         SECOND_CONFIRM7,SECOND_CONFIRM7_SUCCESS,
         SECOND_FAILURE, SECONDFETCH_REQUEST,SECOND_SUBFORM,
-        SECOND_REQUEST,SECONDFETCH_FAILURE,SECONDFETCH_RESULT,
+        SECOND_REQUEST,SECONDFETCH_RESULT,
         GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
         TBLFIELD_REQUEST,TBLFIELD_SUCCESS, UPLOADEXCEL_INIT,
-        SECONDTBLFIELD_REQUEST,SECONDTBLFIELD_SUCCESS, SCREEN_FAILURE,SCREEN_CONFIRM7_SUCCESS,
+        SECONDTBLFIELD_REQUEST,SECONDTBLFIELD_SUCCESS,SCREEN_CONFIRM7_SUCCESS,
         SCREENINIT_REQUEST, SCREEN_SUCCESS7,SCREEN_REQUEST,} from '../../actions'
 
         const initialValues = {data:[],
@@ -83,7 +83,6 @@ const secondreducer =  (state = initialValues , actions) =>{
         data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
                                               return row }) 
         return {...state,
-            hostError: actions.payload.message,
             data: data,
             loading:false,
         }
@@ -92,20 +91,9 @@ const secondreducer =  (state = initialValues , actions) =>{
         return {...state,
             params:actions.payload.params, 
             loading:true,
-            hostError: null,  
           //editableflg:false
         }
         
-    case SECONDFETCH_FAILURE:
-        data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
-                                              return row })
-        return {...state,
-            data:data,
-            baseData:data,
-            params:actions.payload.params, 
-            loading:false,
-            hostError: actions.payload.params.err,  
-        }
         
     case SECONDFETCH_RESULT:
         data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
@@ -137,7 +125,6 @@ const secondreducer =  (state = initialValues , actions) =>{
         return {data:[],
             params:{screenCode:"",
                     parse_linedata:{},buttonflg:"viewtablereq7",
-                    hostError: null,
                     filtered:[],where_str:"",sortBy:[],screenFlg:"second",
                     screenCode:"",pageIndex:0,pageSize:20,totalCount:0,
                     index:0,clickIndex:[],err:null,},
@@ -146,14 +133,6 @@ const secondreducer =  (state = initialValues , actions) =>{
                     creenwidth:0,
                     dropDownList:[],
                     hiddenColumns:[]},}
-
-    case SCREEN_FAILURE:
-          return {...state,
-                  loading:false,
-                  hostError: null,  
-                 }
-                    
-
     
     case GANTTCHART_REQUEST:
     case SECONDTBLFIELD_REQUEST:

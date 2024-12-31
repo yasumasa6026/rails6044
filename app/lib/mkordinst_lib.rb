@@ -196,8 +196,8 @@ module MkordinstLib
 					inqty = sumSchs["qty_require"].to_f
 					sumSchs["persons_id_upd"] = params["person_id_upd"]
 					### freeの確認
-					sumSchs,last_lotstks_part = sch_trn_alloc_to_freetrn(sumSchs)  ###schsをfreeのordsに引き当てる。shselfnosごとに引き当てている。
-          last_lotstks.concat last_lotstks_part
+					sumSchs,last_lotstks_parts = sch_trn_alloc_to_freetrn(sumSchs)  ###schsをfreeのordsに引き当てる。shselfnosごとに引き当てている。
+          last_lotstks.concat last_lotstks_parts
 					# ###
 					if sumSchs["qty_require"] > 0   ###sumSchs["qty_require"].to_f free　qty引当済
 						qty_handover = ((sumSchs["qty_require"].to_f + sumSchs["consumchgoverqty"].to_f) / sumSchs["packqty"].to_f).ceil  * sumSchs["packqty"].to_f
@@ -295,6 +295,7 @@ module MkordinstLib
 						command_c["#{tblord}_id"] = command_c["id"] = ArelCtl.proc_get_nextval("#{tblord}s_seq")
 						command_c["sio_classname"] = "_add_proc_mkprdpurord_"
 						setParams = {}  ###mkprdpurordsをリセット
+            setParams["screenCode"] = "r_#{tblord}s"
 						setParams["seqno"] = seqno.dup
 						setParams["mkprdpurords_id"] = mkprdpurords_id 
             setParams["person_id_upd"] = params["person_id_upd"] 
@@ -323,10 +324,16 @@ module MkordinstLib
 						ActiveRecord::Base.connection.select_all(sch_trn_strsql(sumSchs)).each do |sch_trn|   ###trngantts.qty_schの変更
 							if free_qty > 0 
 								stkinout["qty_src"] = free_qty  
+                save_sch_qty = sch_trn["qty_linkto_alloctbl"]
 								stkinout["remark"] = " #{self} line:(#{__LINE__}) "
                 last_lotstks_parts = ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,stkinout)  ###
                 last_lotstks.concat last_lotstks_parts 
 								###Shipment.proc_alloc_change_inoutlotstk(stkinout) ### xxxordsの在庫明細変更
+                ###schsの消費の取り消し
+                prev = {"id" => sch_trn["tblid"],"qty_src" => save_sch_qty}
+                new_prev = {"id" => sch_trn["tblid"],"qty_src" => last_lotstks_parts[0]["qty_src"],"persons_id_upd" => params["person_id_upd"]}
+                last_lotstks_parts = Shipment.proc_update_consume(sch_trn["tblname"],new_prev,prev,true)  ###:true 消費の取り消し
+                last_lotstks.concat last_lotstks_parts
 								free_qty = stkinout["qty_src"].to_f ###qty_stkはproc_lotstkhists_in_outで調整済
 							else
 								break
@@ -350,91 +357,248 @@ module MkordinstLib
 	#
 	###
 	###
-	def proc_mkbillinsts params,mkinstparams  ###xxxschsからxxxordsを作成する。 trngantts:xxxschs= 1:1
-		### mkprdpurordsではxno_xxxschはセットしない。schsをまとめたり分割したりする機能のため
+	def proc_mkbillinsts params,mkbillinstparams   
 		setParams = params.dup
-		tbldata = params["tbldata"].dup  ###tbldata -->テーブル項目　　viewではない。
-		mkbillinsts_id = params["mkbillinsts_id"]   
-		strsql = "select ord.bills_id,ord.duedate,
-								sum(ord.amt) sum_amt,sum(ord.tax) sum_tax,ord.id ord_id,
-								sum(case link.amt_src when null then 0 else link.amt_src end) sum_amt_src,
-								count(cast(bills_id as character varying)||to_char(duedate,'yymmdd') incnt from billords ord "
-		strjoin = " left join srctbllinks link on ord.id = link.srctblid "
-		strwhere = %Q&  where link.srctblname = "billords" and (link.amt_src is null or ord.amt > link.amt_src )   and &
-		strgroupby = " group by bills_id,duedate "
+		tbldata = params["tbldata"].dup  ###tbldata -->
+    str_cust_join = str_bill_join = str_chrg_join = ""
 		tbldata.each do |field,val|  ### mkbillinsts
 			next if val == "" or val.nil?
 			case field
-			when /sno_billord/
-				strwhere << %Q% sno = '#{val}'    and %
-			when /custs_id/
-				strjoin << %Q%
-								inner join (select bill.id bills_id from bills bill
-												inner join custs cust on bill.id = cust.bills_id ) custbill
-												on ord.bills_id = custbill.bills_id
-				%
-			when /bills_id/
-				strwhere << %Q% bills_id = #{val}    and %
-			when /gno_billord/
-				strwhere << %Q% gno = '#{val}'    and %
+			when /loca_code_cust/
+        str_cust_join = %Q& where l.code = '#{val}' &     
+			when /loca_code_bill/
+        str_bill_join = %Q& where l.code = '#{val}'&
+			when /person_code_chrg/
+        str_chrg_join = %Q& where per.code = '#{val}'&
 			end
 		end  ###fields.each
-		
-		
-		begin
-		  strsql = strsql + strjoin + strwhere[0..-7] + strgroupby
-		  blk =  RorBlkCtl::BlkClass.new("r_#{tblname}")
-		  command_c =blk.command_init
-		  command_c["sio_classname"] = "_add_billinst_by_mkbillinsts"
-		  ActiveRecord::Base.connection.select_all(strsql).each do |inst|
-			  command_c["billinst_id"] = command_c["id"] = ArelCtl.proc_get_nextval("billinsts_seq")
-			  command_c["billinst_isudate"] = Time.now 
-			  command_c["billinst_duedate"] = inst["duedate"] 
-			  command_c["billinst_bill_id"] = inst["bills_id"] 
-			  command_c["billinst_amt"] = inst["sum_amt"].to_f  -  inst["sum_amt_src"].to_f 
-			  command_c["billinst_tax"] = inst["sum_tax"].to_f 
-			  command_c["billinst_sno"] = inst["duedate"].to_date.year.to_s[2..3] +  sprintf("%6.6d",command_c["id"])
-			  command_c["billinst_gno"] = "" ### 
-			  gantt = {}
-			  gantt["orgtblname"] = gantt["paretblname"] = gantt["tblname"] = "billinsts"
-			  gantt["orgtblid"] = gantt["paretblid"] =  gantt["tblid"] = command_c["id"]
-			  setParams["gantt"] = gantt.dup		
-			  command_c["billinst_person_id_upd"] = setParams["person_id_upd"]
-			  command_c["id"] = ArelCtl.proc_get_nextval("billinsts_seq")
-			  command_c["billinst_created_at"] = Time.now
-			  blk.proc_create_tbldata(command_c)
-			  blk.proc_private_aud_rec({},command_c)
-			  mkinstarams[:incnt] += inst["incnt"].to_f
-			  mkinstparams[:outcnt] += 1
-			  billordsql = "select ord.id,ord.amt from billords ord  " +  strjoin + strwhere[0..-7]
-			  ActiveRecord::Base.connection.select_all(billordsql).each do |billord|
-				  src = {"tblname" => "billords","tblid" => billord["id"]}
-				  base = {"tblname"=>"billinsts","tblid"=>command_c["id"],"qty_src" => 0,"amt_src"=>billord["amt_src"],
-					      	"remark" => "#{self} line:#{__LINE__}","persons_id_upd" => gantt["persons_id_upd"]}
-				  ArelCtl.proc_insert_srctbllinks(src,base)
-			  end
+    str_joinsql = %Q& inner join (select s.id custs_id,bill.termof,bill.bills_id,bill.ratejson,chrgs_id_bill
+                                             from custs s 
+                                              inner join ( select p.id bills_id ,p.termof,p.ratejson,p.chrgs_id_bill from bills p 
+                                                            inner join  (select c.id from chrgs c 
+                                                                          inner join persons per on per.id = c.persons_id_chrg
+                                                                            #{str_chrg_join} ) chrg
+                                                                on chrg.id = p.chrgs_id_bill
+                                                            inner join locas lp on lp.id = p.locas_id_bill     
+                                                                #{str_bill_join}
+                                                                ) bill                                                                           
+                                                on bills_id = s.bills_id_bill
+                                              inner join locas ls on ls.id = s.locas_id_cust
+                                                    #{str_cust_join}
+                                              ) billcust
+                       on act.custs_id = billcust.custs_id &
+
+    strsql = %Q&
+                select act.id custacts_id,act.amt amt_src,act.saledate,act.crrs_id,billcust.* from custacts act
+                      #{str_joinsql}
+                      where not exists(select 1 from  srctbllinks link where act.id = link.srctblid
+                                        and link.srctblname = 'custacts' and link.tblname = 'billinsts')
+                      order by bills_id,act.saledate
+              &
+      billinst_isudate = Time.now
+      last_manth = (Time.now.strftime("%Y") + "-" +Time.now.strftime("%m") + "-" + "01").to_date.since(-1.day)  
+      ActiveRecord::Base.connection.select_all(strsql).each do |inst|
+        mkbillinstparams[:incnt] += 1
+        billinst_tbldata = {"isudate"=>billinst_isudate,"bills_id" => inst["bills_id"],
+                      "last_amt" => nil,"last_duedate" => nil,
+                      "termofs" => inst["termof"],"payment" => inst["ratejson"],
+                      "persons_id_upd" => params["person_id_upd"] ,"trngantts_id" => nil,
+                      "chrgs_id" => inst["chrgs_id_bill"],"crrs_id" => inst["crrs_id"],
+                      "srctblname" => "custacts","srctblid" => inst["custacts_id"]}
+        
+        inst["termof"].split(",").each do |termof|
+          case termof
+          when "0","00"   ###随時
+            JSON.parse(inst["ratejson"]).each do |rate|   ###rate["duration"] 0:同月　1:翌月
+                duedate =  inst["saledate"].to_date.since(rate["duration"].to_i.month)
+                if rate["day"].to_i >= 28
+                  duedate =  duedate.since(1.month)
+                  duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
+                  duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
+                else
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
+                end
+                billinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
+                            "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
+                            "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
+                proc_create_paybilltbl("payinsts",billinst_tbldata)
+                mkbillinstparams[:outcnt] += 1
+                mkbillinstparams[:inamt] += billinst_tbldata["amt_src"]
+                mkbillinstparams[:outamt] += billinst_tbldata["amt_src"]
+            end
+            break
+          when "28","29","30","31"
+            if inst["saledate"].to_date > last_month
+              break
+            else
+              JSON.parse(inst["ratejson"]).each do |rate|
+                  duedate =  inst["saledate"].to_date.since(rate["duration"].to_i.month)
+                  if rate["day"].to_i >= 28
+                    duedate =  duedate.since(1.month)
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
+                  else
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
+                  end
+                  billinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
+                              "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
+                              "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
+                  proc_create_paybilltbl("billinsts",billinst_tbldata)
+                  mkbillinstparams[:outcnt] += 1
+                  mkbillinstparams[:inamt] += billinst_tbldata["amt_src"]
+                  mkbillinstparams[:outamt] += billinst_tbldata["amt_src"]
+              end
+              break
+            end
+          else
+            if inst["saledate"].to_date > (Time.now.strftime("%Y") + "-" +Time.now.strftime("%m") + "-" + termof).to_date
+              next
+            else
+              JSON.parse(inst["ratejson"]).each do |rate|
+                  duedate =  inst["saledate"].to_date.since(rate["duration"].to_i.month)
+                  if rate["day"].to_i >= 28
+                    duedate =  duedate.since(1.month)
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
+                  else
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
+                  end
+                  billinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
+                              "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
+                              "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
+                  proc_create_paybilltbl("billinsts",billinst_tbldata)
+                  mkbillinstparams[:outcnt] += 1
+                  mkbillinstparams[:inamt] += billinst_tbldata["amt_src"]
+                  mkbillinstparams[:outamt] += billinst_tbldata["amt_src"]
+              end
+              break ### 重複しないように
+            end
+          end
+        end
 		  end
-		rescue
-			ActiveRecord::Base.connection.rollback_db_transaction()
-			command_c["sio_result_f"] = "9"  ##9:error
-			command_c["sio_message_contents"] =  "class #{self} : LINE #{__LINE__} $!: #{$!} "[0..3999]    ###evar not defined
-			command_c["sio_errline"] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
-			Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
-		  	Rails.logger.debug"error class #{self} : $!: #{$!} "
-		  	Rails.logger.debug"  command_c: #{command_c} "
-  	else
-			ActiveRecord::Base.connection.commit_db_transaction()
-			if setParams.size > 0   ###画面からの時はperform_later(setParams["seqno"][0])　seqnoは一つのみ。次の処理がないときはsetParams["seqno"][0].nil
-				if setParams["seqno"].size > 0
-					if command_c["mkord_runtime"] 
-						CreateOtherTableRecordJob.set(wait: command_c["mkord_runtime"].to_f.hours).perform_later(setParams["seqno"][0])
-					else	
-						CreateOtherTableRecordJob.perform_later(setParams["seqno"][0])
-					end
-				end
-			end	
-  	end ##begin
-		return mkordparams
+		return mkbillinstparams  
+	end	
+	###
+	def proc_mkpayinsts params,mkpayinstparams  
+		setParams = params.dup
+		tbldata = params["tbldata"].dup  ###tbldata -->
+    str_supplier_join = str_payment_join = str_chrg_join = ""
+		tbldata.each do |field,val|  ### mkbillinsts
+			next if val == "" or val.nil?
+			case field
+			when /loca_code_supplier/
+        str_supplier_join = %Q& where l.code = '#{val}' &     
+			when /loca_code_payment/
+        str_payment_join = %Q& where l.code = '#{val}'&
+			when /person_code_chrg/
+        str_chrg_join = %Q& where per.code = '#{val}'&
+			end
+		end  ###fields.each
+    str_joinsql = %Q& inner join (select s.id suppliers_id,payment.termof,payment.payments_id,payment.ratejson,chrgs_id_payment
+                                             from suppliers s 
+                                              inner join ( select p.id payments_id ,p.termof,p.ratejson,p.chrgs_id_payment from payments p 
+                                                            inner join  (select c.id from chrgs c 
+                                                                          inner join persons per on per.id = c.persons_id_chrg
+                                                                            #{str_chrg_join} ) chrg
+                                                                on chrg.id = p.chrgs_id_payment
+                                                            inner join locas lp on lp.id = p.locas_id_payment      
+                                                                #{str_payment_join}
+                                                                ) payment                                                                             
+                                                on payments_id = s.payments_id_supplier
+                                              inner join locas ls on ls.id = s.locas_id_supplier
+                                                    #{str_supplier_join}
+                                              ) paysupp
+                       on act.suppliers_id = paysupp.suppliers_id &
+
+    strsql = %Q&
+                select act.id puracts_id,act.amt amt_src,act.rcptdate,act.crrs_id,paysupp.* from puracts act
+                      #{str_joinsql}
+                      where not exists(select 1 from  srctbllinks link where act.id = link.srctblid
+                                        and link.srctblname = 'puracts' and link.tblname = 'payinsts')
+                      order by payments_id,act.rcptdate
+              &
+      payinst_isudate = Time.now
+      last_manth = (Time.now.strftime("%Y") + "-" +Time.now.strftime("%m") + "-" + "01").to_date.since(-1.day)  
+      ActiveRecord::Base.connection.select_all(strsql).each do |inst|
+        mkpayinstparams[:incnt] += 1
+        payinst_tbldata = {"isudate"=>payinst_isudate,"payments_id" => inst["payments_id"],
+                      "last_amt" => nil,"last_duedate" => nil,
+                      "termofs" => inst["termof"],"payment" => inst["ratejson"],
+                      "persons_id_upd" => params["person_id_upd"] ,"trngantts_id" => nil,
+                      "chrgs_id" => inst["chrgs_id_payment"],"crrs_id" => inst["crrs_id"],
+                      "srctblname" => "puracts","srctblid" => inst["puracts_id"]}
+        
+        inst["termof"].split(",").each do |termof|
+          case termof
+          when "0","00"   ###随時
+            JSON.parse(inst["ratejson"]).each do |rate|   ###rate["duration"] 0:同月　1:翌月
+                duedate =  inst["rcptdate"].to_date.since(rate["duration"].to_i.month)
+                if rate["day"].to_i >= 28
+                  duedate =  duedate.since(1.month)
+                  duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
+                  duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
+                else
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
+                end
+                payinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
+                            "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
+                            "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
+                proc_create_paybilltbl("payinsts",payinst_tbldata)
+                mkpayinstparams[:outcnt] += 1
+                mkpayinstparams[:inamt] += payinst_tbldata["amt_src"]
+                mkpayinstparams[:outamt] += payinst_tbldata["amt_src"]
+            end
+            break
+          when "28","29","30","31"
+            if inst["saledate"].to_date > last_month
+              break
+            else
+              JSON.parse(inst["ratejson"]).each do |rate|
+                  duedate =  inst["rcptdate"].to_date.since(rate["duration"].to_i.month)
+                  if rate["day"].to_i >= 28
+                    duedate =  duedate.since(1.month)
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
+                  else
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
+                  end
+                  payinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
+                              "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
+                              "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
+                  proc_create_paybilltbl("payinsts",payinst_tbldata)
+                  mkpayinstparams[:outcnt] += 1
+                  mkpayinstparams[:inamt] += payinst_tbldata["amt_src"]
+                  mkpayinstparams[:outamt] += payinst_tbldata["amt_src"]
+              end
+              break
+            end
+          else
+            if inst["rcptdate"].to_date > (Time.now.strftime("%Y") + "-" +Time.now.strftime("%m") + "-" + termof).to_date
+              next
+            else
+              JSON.parse(inst["ratejson"]).each do |rate|
+                  duedate =  inst["rcptdate"].to_date.since(rate["duration"].to_i.month)
+                  if rate["day"].to_i >= 28
+                    duedate =  duedate.since(1.month)
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
+                  else
+                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
+                  end
+                  payinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
+                              "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
+                              "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
+                  proc_create_paybilltbl("payinsts",payinst_tbldata)
+                  mkpayinstparams[:outcnt] += 1
+                  mkpayinstparams[:inamt] += payinst_tbldata["amt_src"]
+                  mkpayinstparams[:outamt] += payinst_tbldata["amt_src"]
+              end
+              break ### 重複しないように
+            end
+          end
+        end
+		  end
+		return mkpayinstparams  
 	end	
 
 	def sch_trn_alloc_to_freetrn(sumSchs)   ###xxxschsをまとめて消費量を決めているので
@@ -474,27 +638,20 @@ module MkordinstLib
 						free_qty = base["qty_src"] - sch_qty 
 					end
 					base["remark"] = "#{self} line:(#{__LINE__})"
-					last_lotstks << ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base)  ###freeの引当
 					###Shipment.proc_alloc_change_inoutlotstk(base) ### xxxordsの在庫明細変更
+					last_lotstks_parts =  ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base)  ###freeの引当
+          last_lotstks.concat last_lotstks_parts
+          ###schsの消費の取り消し
+          prev = {"id" => sch_trn["tblid"],"qty_src" => sch_trn["qty_linkto_alloctbl"]}
+          new_prev = {"id" => sch_trn["tblid"],"qty_src" => sch_qty,"persons_id_upd" => 0}
+          last_lotstks_parts = Shipment.proc_update_consume(sch_trn["tblname"],new_prev,prev,true)  ###:true 消費の取り消し
+          last_lotstks.concat last_lotstks_parts
+          ###
 					base["qty_src"] = free_qty
 					sch_trn["qty_linkto_alloctbl"] = sch_qty
 					break if free_qty > 0
 					break if sch_qty <=0
 				end
-			else 
-				if sch_qty > 0
-					if sch_qty > free_qty
-						sch_qty -=  free_qty
-						free_qty = 0
-					else
-						sch_qty = 0
-						free_qty -= sch_qty
-					end
-					base["remark"] = "#{self} line:(#{__LINE__})"
-					last_lotstks << ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base)  ###freeの引当
-					###Shipment.proc_alloc_change_inoutlotstk(base) ### xxxordsの在庫明細変更
-					base["qty_src"] = free_qty
-        end
 			end
 		end
 		if free_qty > 0
@@ -819,4 +976,179 @@ module MkordinstLib
 				&
 	end	
 
+  ###前払い　前受け金を含む
+  def proc_create_paybilltbl(tblname,tbldata)  ###src:puracts puracts_id
+        blk = RorBlkCtl::BlkClass.new("r_#{tblname}")
+        command_c = blk.command_init
+        command_c["#{tblname.chop}_person_id_upd"] = tbldata["persons_id_upd"]
+        command_c["#{tblname.chop}_chrg_id"] = tbldata["chrgs_id"]
+        command_c["#{tblname.chop}_duedate"] = tbldata["duedate"]
+        command_c["#{tblname.chop}_isudate"] = tbldata["isudate"]
+        command_c["#{tblname.chop}_expiredate"] = "2099/12/31"
+        command_c["#{tblname.chop}_updated_at"] = Time.now
+        case tblname
+        when /^pay/
+          command_c["#{tblname.chop}_payment_id"] = tbldata["payments_id"]
+          command_c["#{tblname.chop}_accounttitle"] = "1"  ###仕入
+        when /^bill/
+          command_c["#{tblname.chop}_bill_id"] = tbldata["bill_id"]
+        end
+        command_c["#{tblname.chop}_amt"] = tbldata["amt_src"]
+        command_c["#{tblname.chop}_denomination"] = tbldata["denomination"]
+        command_c["#{tblname.chop}_remark"] = "class:#{self},line:#{__LINE__},srctblname:#{tbldata["srctblname"]},srctblid:#{tbldata["srctblid"]}"
+        case tblname 
+        when /acts$/
+          str_amt = "cash"
+        when /schs$/
+          str_amt = 'amt_sch'
+        else
+          str_amt = "amt"
+        end
+        strsql = %Q&
+                    select * from #{tblname} 
+                                  where #{if  tbldata["payments_id"] 
+                                               "payments_id = " +  tbldata["payments_id"]
+                                          else
+                                              if tbldata["bills_id"] 
+                                                 "bills_id = " + tbldata["bills_id"] 
+                                              end
+                                          end}
+                                  and duedate = '#{tbldata["duedate"].to_date}' 
+                &
+        actrec = ActiveRecord::Base.connection.select_one(strsql)
+        if actrec
+                command_c["sio_classname"] = "_update_from_#{tbldata["srctblname"]}"
+                command_c["id"] = command_c["#{tblname.chop}_id"] = actrec["id"]
+                command_c["#{tblname.chop}_#{str_amt}"] = actrec[str_amt].to_f + tbldata["amt_src"].to_f
+                command_c = blk.proc_create_tbldata(command_c) ##
+                blk.proc_private_aud_rec({},command_c)
+        else
+                command_c["sio_classname"] = "_add_from_#{tbldata["srctblname"]}"
+                command_c["id"] = command_c["#{tblname.chop}_id"] = ArelCtl.proc_get_nextval("#{tblname}_seq")
+                command_c["#{tblname.chop}_created_at"] = Time.now
+                command_c["#{tblname.chop}_sno"] = CtlFields.proc_field_sno("#{tblname.chop}",tbldata["isudate"],command_c["id"])
+                command_c["#{tblname.chop}_#{str_amt}"] = tbldata["amt_src"]
+                command_c["#{tblname.chop}_sno"] = CtlFields.proc_field_sno(tblname.chop,tbldata["isudate"],command_c["id"])
+                command_c = blk.proc_create_tbldata(command_c) ##
+                blk.proc_private_aud_rec({},command_c)
+        end
+        src = {"tblname" => tbldata["srctblname"],"tblid" => tbldata["srctblid"]}
+        base = {"tblname" => "#{tblname}","tblid" => command_c["id"],"amt_src" => command_c["#{tblname.chop}_#{str_amt}"]}
+        ArelCtl.proc_insert_srctbllinks(src,base)
+            ###
+            # 前の状態の削除
+            ##
+        case tblname
+        when /acts$/  ##patinsts,billinsts からｓｎｏでの消込
+              strsql = %Q&
+                        select * from #{src["srctblname"]} where id = #{tbldata["srctblid"]}             
+              &
+              prevtbldata = ActiveRecord::Base.connection.select_one(strsql)
+              blk = RorBlkCtl::BlkClass.new("r_#{prevtblname}")
+              command_c = blk.command_init
+              command_c["sio_classname"] = "_update_from_#{tblname}"
+              command_c["#{prevtblname.chop}_person_id_upd"] = tbldata["persons_id_upd"]
+              command_c["id"] = command_c["#{prevtblname.chop}_id"]= tbldata["srctblid"]
+              command_c["#{prevtblname.chop}_amt"] = prevtbldata["amt"].to_f 
+              command_c = blk.proc_create_tbldata(command_c) ##
+              blk.proc_private_aud_rec({},command_c)
+        when /insts$/
+              prevtblname = tblname.sub("inst","ord")  ###tbldata["srctblname"]--> puracts custacts
+              strsql = %Q&
+                    select * from #{prevtblname} where id = (
+                        select tblid from srctbllinks 
+                         where srctblid = #{tbldata["srctblid"]}  and srctblname = '#{tbldata["srctblname"]}'
+                         and tblname = '#{prevtblname}' )       
+              &
+              prevtbldata = ActiveRecord::Base.connection.select_one(strsql)
+              blk = RorBlkCtl::BlkClass.new("r_#{prevtblname}")
+              command_c = blk.command_init
+              command_c["sio_classname"] = "_update_from_#{tblname}"
+              command_c["#{prevtblname.chop}_person_id_upd"] = tbldata["persons_id_upd"]
+              command_c["id"] = command_c["#{prevtblname.chop}_id"]= prevtbldata["id"]
+              command_c["#{prevtblname.chop}_amt"] = prevtbldata["amt"].to_f - tbldata["amt_src"].to_f
+              command_c = blk.proc_create_tbldata(command_c) ##
+              blk.proc_private_aud_rec({},command_c)
+        when /ords$/
+              case tbldata["srctblname"] 
+              when  /puracts/ #
+                    strsql = %Q&
+                        select ord.srctblname,ord.srctblid from linktbls ord 
+                              where ord.tblname = 'puracts' and ord.id =  #{tbldata["srctblid"]}
+                              and ord.srctblname = 'purords'
+                      union
+                        select ord.srctblname,ord.srctblid from linktbls ord 
+                              inner join linktbls inst on ord.tblname = inst.srctblname and ord.tblid = inst.srctblid
+                              where inst.tblname = 'puracts' and inst.id =  #{tbldata["srctblid"]}
+                              and (ord.tblname = 'purinsts' or ord.tblname = 'purreplyinputs' or ord.tblname = 'purdlvs') 
+                              and ord.srctblname = 'purords'
+                      union
+                        select ord.srctblname,ord.srctblid from linktbls ord 
+                              inner join (select i.* from linktbls i 
+                                                inner join linktbls j on i.tblname = j.srctblname and i.tblid = j.srctblid
+                                                where j.tblname = 'puracts' and j.id =  #{tbldata["srctblid"]}
+                                                and (i.tblname != j.srctblname or i.tblid != j.srctblid)
+                                                and ( j.srctblname = 'purreplyinputs' or j.srctblname = 'purdlvs') ) inst
+                                on ord.tblname = inst.srctblname and ord.tblid = inst.srctblid
+                              where (ord.tblname = 'purinsts' or ord.tblname = 'purreplyinputs') 
+                              and ord.srctblname = 'purords'
+                      union
+                        select ord.srctblname,ord.srctblid from linktbls ord 
+                              inner join (select i.* from linktbls i 
+                                                inner join (select x.* from linktbls x
+                                                                  inner join linktbls y  on x.tblname = y.srctblname and x.tblid = y.srctblid
+                                                              where x.tblname = 'puracts' and x.id =  #{tbldata["srctblid"]}
+                                                              and  y.srctblname = 'purdlvs') j
+                                                on i.tblname = j.srctblname and i.tblid = j.srctblid
+                                                where   j.srctblname = 'purreplyinputs' or j.srctblname = 'purinsts' ) inst
+                                on ord.tblname = inst.srctblname and ord.tblid = inst.srctblid
+                              where (ord.tblname = 'purinsts' or ord.tblname = 'purreplyinputs') 
+                              and ord.srctblname = 'purords'
+                          &
+              when /custacts/
+                        strsql = %Q&
+                            select ord.srctblname,ord.srctblid from linkcusts ord 
+                                where ord.tblname = 'custacts' and ord.id =  #{tbldata["srctblid"]}
+                                and ord.srctblname = 'custords'
+                          union
+                            select ord.srctblname,ord.srctblid from linkcusts ord 
+                                inner join linkcusts inst on ord.tblname = inst.srctblname and ord.tblid = inst.srctblid
+                                where inst.tblname = 'custacts' and inst.id =  #{tbldata["srctblid"]}
+                                and (ord.tblname = 'custinsts' or ord.tblname = 'custdlvs') 
+                                and ord.srctblname = 'custords'
+                          union
+                            select ord.srctblname,ord.srctblid from linkcusts ord 
+                                inner join (select i.* from linkcusts i 
+                                                inner join linkcusts j on i.tblname = j.srctblname and i.tblid = j.srctblid
+                                                where j.tblname = 'custacts' and j.id =  #{tbldata["srctblid"]}
+                                                and j.srctblname = 'custdlvs') ) inst
+                                  on ord.tblname = inst.srctblname and ord.tblid = inst.srctblid
+                                where ord.tblname = 'custinsts'   and ord.srctblname = 'custords'
+                            &
+              end
+              rnord = ActiveRecord::Base.connection.select_one(strsql)
+              prevtblname = tblname.sub("ord","sch")  ###tbldata["srctblname"]--> puracts custacts
+              strsql = %Q&
+                      select * from #{prevtblname} where id in(
+                                      select tblid from srctbllinks where srctblid = #{trnord["id"]}
+                                                  and srctblname = '#{case tblname 
+                                                                        when /payords/
+                                                                              "purords"
+                                                                        when  /billords/
+                                                                              "custords"
+                                                                        end}' and tblname = '#{prevtblname}'
+                                    )
+              &
+              prevtbldata = ActiveRecord::Base.connection.select_one(strsql)
+              blk = RorBlkCtl::BlkClass.new("r_#{prevtblname}")
+              command_c = blk.command_init
+              command_c["sio_classname"] = "_update_from_#{tblname}"
+              command_c["#{prevtblname.chop}_person_id_upd"] = tbldata["persons_id_upd"]
+              command_c["id"] = command_c["#{prevtblname.chop}_id"]= prevtbldata["id"]
+              command_c["#{prevtblname.chop}_amt_sch"] = prevtbldata["amt_sch"].to_f - tbldata["amt_src"].to_f
+              command_c = blk.proc_create_tbldata(command_c) ##
+              blk.proc_private_aud_rec({},command_c)
+        end
+        return  
+  end
 end

@@ -20,7 +20,7 @@ const titleNameSet = (screenName) =>{ return (
 
 const Menus7 = ({ isAuthenticated ,menuListData,getScreen,loadingOrg,loadingOrgSecond,
           toggleSubForm,toggleSubFormSecond,screenNameSecond,
-          hostError, hostError2,message,message2,
+          hostError,message,
             isSignUp,firstView,secondView,auth}) =>{
     const [tabIndex, setTabIndex] = useState(0)
     const [subTabIndex, setSubTabIndex] = useState(0)
@@ -92,7 +92,7 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen,loadingOrg,loadingOrgS
               {firstView&&message&& ( <div colSpan="10000">
                                   {message}
           	              </div>)}
-              {firstView&&hostError&& ( <div colSpan="10000">
+              {hostError&& ( <div colSpan="10000">
                                   {hostError}
           	              </div>)}
               {  
@@ -104,11 +104,11 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen,loadingOrg,loadingOrgS
               {loadingSecond && ( <div colSpan="10000">
             	              Loading.....
           	              </div>)}
-              {secondView&&message2&& ( <div colSpan="10000">
-                                  {message2}
+              {secondView&&message&& ( <div colSpan="10000">
+                                  {message}
                                   </div>)}
-              {secondView&&hostError2&& ( <div colSpan="10000">
-                                  {hostError2}
+              {hostError&& ( <div colSpan="10000">
+                                  {hostError}
           	              </div>)}
           </div>
         )
@@ -140,7 +140,6 @@ const  mapStateToProps = (state,ownProps) =>({
   menuListData:state.menu.menuListData ,
   screenNameSecond:state.second.params.screenName,
   grid_columns_info:state.screen.grid_columns_info,
-  hostError: state.menu.hostError,
   second_columns_info:state.screen.second_columns_info,
   screenFlg:state.menu.screenFlg,
   firstView:state.menu.firstView,
@@ -149,10 +148,8 @@ const  mapStateToProps = (state,ownProps) =>({
   loadingOrgSecond:state.second.loading,
   toggleSubForm:state.screen.toggleSubForm,
   toggleSubFormSecond:state.second.toggleSubForm,
-  hostError: state.screen.hostError,
-  hostError2: state.second.hostError,
-  message: state.screen.message,
-  message2: state.second.message,
+  hostError: state.menu.hostError,
+  message: state.menu.message,
 })
 
 const mapDispatchToProps = (dispatch,ownProps ) => ({

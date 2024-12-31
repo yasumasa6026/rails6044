@@ -8,13 +8,13 @@ module Api
       when /ganttchart|reversechart/
                     tasks = []
                     tblcode = params[:screenCode].split("_")[1]
-                    line = JSON.parse(params[:linedata])   ###最後にclickされた行のみ有効
+                    parse_linedata = JSON.parse(params[:linedata])   ###最後にclickされた行のみ有効
                     case params[:screenCode]
                     when /itms|opeitms|nditms/
                         ### 第三パラメータ　gantt_xxx-->順方向　reverse-->逆方向
                         ###　　　　　　　　　xxx_mst-->mater系  xxx-trn--->trn系
                             gantt =  GanttChart::GanttClass.new(params[:buttonflg],"itms")
-                            ganttData =  gantt.proc_get_ganttchart_data(tblcode,line["id"],params[:buttonflg])  
+                            ganttData =  gantt.proc_get_ganttchart_data(tblcode,parse_linedata["id"],params[:buttonflg])  
                             ganttData.sort.each do |level,ganttdata|
                                 tasks << {"id"=>ganttdata[:id],
                                      "name"=>ganttdata[:itm_code]+":#{ganttdata[:itm_name]},#{ganttdata[:processseq]},#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]},QTY:#{ganttdata[:qty]},"  +
@@ -44,7 +44,7 @@ module Api
                         case  params[:buttonflg] 
                         when "ganttchart"
                             gantt =  GanttChart::GanttClass.new(params[:buttonflg],"trns")
-                            ganttData =  gantt.proc_get_ganttchart_data(tblcode,line["id"],params[:buttonflg])
+                            ganttData =  gantt.proc_get_ganttchart_data(tblcode,parse_linedata["id"],params[:buttonflg])
                             ganttData.sort.each do |level,ganttdata|
                                 str_qty =  case ganttdata[:tblname]
                                             when /^dvs|^erc/
@@ -83,6 +83,10 @@ module Api
                                                                                                             case ganttdata[:tblname]
                                                                                                             when /acts$/
                                                                                                                 {"backgroundColor"=>"#000000"}
+                                                                                                            when /dlvs$/
+                                                                                                                  {"backgroundColor"=>"#330000"}
+                                                                                                            when /insts$/
+                                                                                                                  {"backgroundColor"=>"#660000"}
                                                                                                             when /^dvs/
                                                                                                                 {"backgroundColor"=>"#03CC03"}
                                                                                                             when /^shp/
@@ -90,7 +94,7 @@ module Api
                                                                                                             when /^erc/
                                                                                                                 {"backgroundColor"=>"#00bfff"}
                                                                                                             else
-                                                                                                                {"backgroundColor"=>"#9C6E41"} 
+                                                                                                                {"backgroundColor"=>"#9C6E41"}
                                                                                                             end 
                                                     end,
                                       "dependencies"=>ganttdata[:depend]
@@ -98,7 +102,7 @@ module Api
                             end
                         when "reversechart"
                             gantt =  GanttChart::GanttClass.new(params[:buttonflg],"trns")
-                            ganttData =  gantt.proc_get_ganttchart_data(tblcode,line["id"],params[:buttonflg])
+                            ganttData =  gantt.proc_get_ganttchart_data(tblcode,parse_linedata["id"],params[:buttonflg])
                             ganttData.sort.each do |level,ganttdata|
                                 str_qty =  case ganttdata[:tblname]
                                             when /schs/
@@ -139,7 +143,7 @@ module Api
                              raise
                         end
                     end 
-		            Rails.logger.debug " class:#{self} ,line:#{__LINE__},tasks:#{tasks} "
+		                Rails.logger.debug " class:#{self} ,line:#{__LINE__},tasks:#{tasks} "
                     render json: {:tasks=>tasks}   
                 when "updateNditm"
                     reqparams = params.dup
@@ -147,9 +151,8 @@ module Api
                     strsql = "select code,id from persons where email = '#{reqparams["email"]}'"
                     person = ActiveRecord::Base.connection.select_one(strsql)
                     if person.nil?
-						reqparams["status"] = 403
-						reqparams[:err] = "Forbidden charge_paerson not detect"
-
+						            reqparams["status"] = 403
+						            reqparams[:err] = "Forbidden charge_paerson not detect"
                         render json: {:params => reqparams}
                         return   
                     end
@@ -206,8 +209,8 @@ module Api
                     strsql = "select code,id from persons  where email = '#{reqparams["email"]}'"
                     person = ActiveRecord::Base.connection.select_one(strsql)
                     if person.nil?
-						reqparams["status"] = 403
-						reqparams[:err] = "Forbidden paerson code  not detect"
+						            reqparams["status"] = 403
+						            reqparams[:err] = "Forbidden paerson code  not detect"
                         render json: {:params => reqparams}
                         return   
                     end

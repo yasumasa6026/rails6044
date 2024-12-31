@@ -1,13 +1,13 @@
 import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
-  LOGOUT_REQUEST,SCREEN_CONFIRM7,SCREEN_CONFIRM7_SUCCESS,SCREEN_FAILURE,
-  FETCH_REQUEST,FETCH_RESULT,FETCH_FAILURE,
+  LOGOUT_REQUEST,SCREEN_CONFIRM7,SCREEN_CONFIRM7_SUCCESS,
+  FETCH_REQUEST,FETCH_RESULT,
   INPUTFIELDPROTECT_REQUEST,INPUTPROTECT_RESULT,
   SECOND_SUCCESS7,SECOND_CONFIRM7_SUCCESS,
   MKSHPORDS_SUCCESS,SCREEN_DATASET,
-  TBLFIELD_REQUEST,TBLFIELD_SUCCESS,
-  GANTTCHART_REQUEST,GANTTCHART_SUCCESS,
+  TBLFIELD_REQUEST,
+  GANTTCHART_REQUEST,GANTTCHART_SUCCESS,TBLFIELD_SUCCESS,
   AREACHART_REQUEST,
-  UPLOADEXCEL_INIT, DROPDOWNVALUE_SET,
+  UPLOADEXCEL_INIT, DROPDOWNVALUE_SET,SCREEN_FAILURE,
   SCREEN_SUBFORM,LOGIN_SUCCESS,LOGOUT_SUCCESS} 
   from '../../actions'
 
@@ -19,7 +19,6 @@ const screenreducer =  ( state = initialValues , actions) =>{
 let data
 let date = new Date()
 switch (actions.type) {
-// Set the requesting flag and append a message to be shown
 
 case SCREENINIT_REQUEST:
   return {...state,
@@ -29,8 +28,6 @@ case SCREENINIT_REQUEST:
           toggleAreaChart:false,
           data: [],
           status: {},
-          message:null,
-          hostError: null,  
           grid_columns_info:{columns_info:[],pageSizeList:[],dropDownList:[]},
           // editableflg:actions.payload.editableflg
 }
@@ -53,7 +50,6 @@ case SCREEN_REQUEST:
 return {...state,
         loading:true,
         screenFlg:"first",
-        hostError: null,  
         // editableflg:actions.payload.editableflg
 }
 
@@ -65,7 +61,6 @@ return {...state,
         data:actions.payload.data,
         baseData:actions.payload.data,
         screenFlg:"first",
-        hostError: null,  
         // editableflg:actions.payload.editableflg
 }
 
@@ -79,24 +74,20 @@ return {...state,
   status: actions.payload.data.status,
   grid_columns_info:actions.payload.data.grid_columns_info,
   screenFlg:"first",
-  message:"",
   toggleSubForm:false,
-  hostError: null,  
 }
 
 case SCREEN_CONFIRM7_SUCCESS:
   data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
                                         return row }) 
   return {...state,
-    params:actions.payload.params,
-    data:data,
-    baseData:data,
-    loading:false,
-    screenFlg:"first",
-    hostError: null,  
-    message:actions.payload.message + data[actions.payload.index].confirm_message&&`${date.toJSON()} confirmed line ${actions.payload.params.index}`,
-  }
-
+        params:actions.payload.params,
+        data:data,
+        baseData:data,
+        loading:false,
+        screenFlg:"first",
+      }
+  
 
 case SECOND_CONFIRM7_SUCCESS:
     if(/heads$/.test(actions.payload.params.head.pareScreenCode)){
@@ -117,17 +108,7 @@ case CONFIRMALL_SUCCESS:
   return {...state,
    loading:false,
    disabled:false,
-   message:actions.payload.message,
 }
-
-
-case SCREEN_FAILURE:
-  return {...state,
-    loading:false,
-    hostError: actions.payload.message,  
-  }
-
-
 
 case  DROPDOWNVALUE_SET:
     let {index,field,val} = {...actions.payload.dropDownValue}
@@ -151,20 +132,8 @@ case FETCH_REQUEST:
 return {...state,
   params:actions.payload.params, 
   loading:true,
-  hostError: null,  
   //editableflg:false
 }
-
-case FETCH_FAILURE:
-  data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
-                                        return row }) 
-    return {...state, 
-      params:actions.payload.params,  
-      data:data,
-      baseData:data,
-      loading:false,
-      hostError: actions.payload.params.err,  
-    }
 
 case FETCH_RESULT:
   data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
@@ -192,7 +161,6 @@ case SCREEN_DATASET:
 
 case MKSHPORDS_SUCCESS:
   return {...state,
-      message:actions.payload.message, 
       loading:false,
   }    
 
@@ -200,7 +168,6 @@ case MKSHPORDS_SUCCESS:
   return {...state,
     loading:false,
     disabled:false,
-    message:"",
     toggleSubForm:false,
   }
 
@@ -217,27 +184,26 @@ case GANTTCHART_SUCCESS:
       {return {...state,
                 params:{...state.params,buttonflg:actions.payload.buttonflg,},
                 loading:false,
-                  message:null,}
+                  }
       }else{return {...state,
           loading:false,
-          message:null,}}
+          }}
 
-
-case TBLFIELD_SUCCESS:
+  case TBLFIELD_SUCCESS:
             return {...state,
-            params: {...state.params},
-            message:actions.payload.message,
-            disabled:false,
             loading:false,
+            }  
+        
+  
+  case SCREEN_FAILURE:
+          return {...state,
+              loading:false,
             }
-            
-
 
   case  LOGIN_SUCCESS:
   return {
       toggleSubForm:true,
       disabled:false,
-      message:null,
       params:{},
   }
 
@@ -246,7 +212,6 @@ case TBLFIELD_SUCCESS:
         ...state,
         loading:false,
         disabled:false,
-        message:null,
     }
 
   

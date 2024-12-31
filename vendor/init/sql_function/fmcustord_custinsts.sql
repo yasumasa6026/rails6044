@@ -15,7 +15,7 @@ custord.update_ip  custinst_update_ip,
 custord.duedate  custinst_duedate,
 custord.updated_at  custinst_updated_at,
 custord.price  custinst_price,
-''  custinst_id,
+null  custinst_id,
 custord.persons_id_upd   custinst_person_id_upd,
 custord.created_at  custinst_created_at,
 custord.expiredate  custinst_expiredate,
@@ -23,8 +23,10 @@ custord.expiredate  custinst_expiredate,
   cust.loca_name_cust  loca_name_cust ,
 custord.amt  custinst_amt,
 custord.qty  custord_qty,
-(case when func_get_custxxxs_qty_bal('custords',custord.id) is null then 0 else
-					func_get_custxxxs_qty_bal('custords',custord.id) end) custord_qty_bal ,
+(case when func_get_custxxxs_qty_bal('custords',custord.id) is null then custord.qty else
+					func_get_custxxxs_qty_bal('custords',custord.id) - custord.qty  end) custinst_qty,
+(case when func_get_custxxxs_qty_bal('custords',custord.id) is null then custord.qty else
+					func_get_custxxxs_qty_bal('custords',custord.id) - custord.qty  end) custord_qty_bal ,
 lotpackno.lotno custinst_lotno,
 lotpackno.packno custinst_packno,
 lotpackno.qty_stk  custinst_qty_stk,
@@ -34,7 +36,7 @@ current_date  custinst_isudate,
   cust.loca_code_cust  loca_code_cust ,
   custrcvplc.loca_code_custrcvplc  loca_code_custrcvplc ,
   custrcvplc.loca_name_custrcvplc  loca_name_custrcvplc ,
-'' id,
+null id,
 custord.custs_id   custinst_cust_id,
 custord.sno  custinst_sno_custord,
 custord.id  custord_id,
@@ -65,11 +67,11 @@ custord.contents  custinst_contents,
   cust.person_code_chrg_bill_cust  person_code_chrg_bill_cust ,
   cust.person_name_chrg_bill_cust  person_name_chrg_bill_cust ,
   opeitm.itm_classlist_id  itm_classlist_id ,
-  shelfno_fm.shelfno_code  shelfno_code_fm ,
-  shelfno_fm.shelfno_name  shelfno_name_fm ,
-  shelfno_fm.loca_code_shelfno  loca_code_shelfno_fm ,
-  shelfno_fm.loca_name_shelfno  loca_name_shelfno_fm ,
-  shelfno_fm.shelfno_loca_id_shelfno  shelfno_loca_id_shelfno_fm ,
+  lotpackno.shelfno_code  shelfno_code_fm ,
+  lotpackno.shelfno_name  shelfno_name_fm ,
+  lotpackno.loca_code  loca_code_shelfno_fm ,
+  lotpackno.loca_name  loca_name_shelfno_fm ,
+  lotpackno.locas_id  shelfno_loca_id_shelfno_fm ,
 custord.opeitms_id   custinst_opeitm_id,
   cust.crr_code_bill_cust  crr_code_bill_cust ,
   cust.crr_name_bill_cust  crr_name_bill_cust ,
@@ -87,14 +89,16 @@ custord.crrs_id   custinst_crr_id,
   opeitm.opeitm_prdpurordauto  opeitm_prdpurordauto ,
   opeitm.opeitm_itmtype  opeitm_itmtype ,
   '' custinst_packingListNo
- from custords   custord,public.func_get_custord_lotno_packno(custord.id) lotpackno,
+ from custords   custord,func_get_custord_stk_qty(custord.id) lotpackno,
   persons  person_upd ,  r_custs  cust ,  r_prjnos  prjno ,  r_chrgs  chrg ,  r_custrcvplcs  custrcvplc ,
-  r_opeitms  opeitm ,  r_shelfnos  shelfno_fm ,  r_crrs  crr 
+  r_opeitms  opeitm ,   r_crrs  crr 
   where       custord.persons_id_upd = person_upd.id      and custord.custs_id = cust.id      
   	and custord.prjnos_id = prjno.id      and custord.chrgs_id = chrg.id      
  	and custord.custrcvplcs_id = custrcvplc.id      and custord.opeitms_id = opeitm.id      
- 	and lotpackno.shelfnos_id = shelfno_fm.id      and custord.crrs_id = crr.id 
- 	and exists(select 1 from linkcusts link where qty_src > 0 and tblname = 'custords' and tblid = custord.id) ;
+ 	and custord.crrs_id = crr.id 
+ 	and exists(select 1 from linkcusts link where qty_src > 0 and tblname = 'custords' and tblid = custord.id)
+ 	and not exists(select 1 from linkcusts link where qty_src >= custord.qty and srctblname = 'custords' and srctblid = custord.id AND 
+ 								(tblname = 'custinsts' or tblname = 'custdlvs' OR tblname = 'custacts' )) ;
  DROP TABLE IF EXISTS sio.sio_fmcustord_custinsts;
  CREATE TABLE sio.sio_fmcustord_custinsts (
           sio_id numeric(22,0)  CONSTRAINT SIO_fmcustord_custinsts_id_pk PRIMARY KEY           ,sio_user_code numeric(22,0)

@@ -4,6 +4,7 @@ truncate table purords cascade;
 truncate table purinsts cascade;
 truncate table purdlvs cascade;
 truncate table puracts cascade;
+truncate table  srctbllinks cascade;
 
 truncate table alloctbls cascade;
 truncate table lotstkhists cascade;
@@ -66,6 +67,7 @@ truncate table mkordorgs cascade;
  truncate table  mnfords cascade;
  truncate table  mnfschs cascade;
 
+truncate  table billests cascade;
 truncate  table billschs cascade;
 truncate  table billords cascade;
 truncate  table billinsts cascade;
@@ -98,6 +100,7 @@ truncate table sio.sio_r_custordheads cascade;
 truncate table sio.sio_r_custinsts cascade;
 truncate table sio.sio_r_custacts cascade;
 truncate table sio.sio_r_custdlvs cascade;
+truncate table  sio.sio_r_srctbllinks cascade;
 
 
 truncate table sio.sio_r_screenfields cascade;
@@ -205,6 +208,7 @@ truncate table sio.sio_r_mkordterms  cascade;
 truncate table sio.sio_r_mkordorgs cascade;
 
 
+truncate  table sio.sio_r_billests cascade;
 truncate  table sio.sio_r_billschs cascade;
 truncate  table sio.sio_r_billords cascade;
 truncate  table sio.sio_r_billinsts cascade;

@@ -6,7 +6,7 @@ AS $function$
 BEGIN	
   EXECUTE 'select 	sum(qty_src)  qty_bal
  from linkcusts
-	where  tblname = $1 and tblid = $2
+	where  tblname = $1 and tblid = $2 and (srctblname != tblname or srctblid != tblid)
 	group by tblname,tblid '
    INTO qty_bal
    USING  tblname,id;

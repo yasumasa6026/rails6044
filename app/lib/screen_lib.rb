@@ -75,11 +75,15 @@ module ScreenLib
 											when "date" 
 												%Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd ') #{i["pobject_code_sfd"]}% + " ,"
 											when "numeric"
-												if i["screenfield_datascale"].to_i > 0
-													%Q% to_char(#{i["pobject_code_sfd"]}, 'FM999999999999.#{i["screenfield_datascale"]}') #{i["pobject_code_sfd"]}% + ","
-												else
-													%Q% to_char(#{i["pobject_code_sfd"]}, 'FM999999999999') #{i["pobject_code_sfd"]}% + ","
-												end
+                        if i["pobject_code_sfd"] != "id" and i["pobject_code_sfd"] !~ /_id/
+												  if i["screenfield_datascale"].to_i > 0
+													  %Q% to_char(#{i["pobject_code_sfd"]}, 'FM999999999999.#{i["screenfield_datascale"]}') #{i["pobject_code_sfd"]}% + ","
+												  else
+													  %Q% to_char(#{i["pobject_code_sfd"]}, 'FM999999999999') #{i["pobject_code_sfd"]}% + ","
+												  end
+                        else								
+												  i["pobject_code_sfd"] + " ,"
+                        end
 											else 												
 												i["pobject_code_sfd"] + " ,"
 											end		
@@ -137,15 +141,11 @@ module ScreenLib
 							if i["screenfield_edoptvalue"] =~ /\:/
 								dropDownList[i["pobject_code_sfd"].to_sym] = i["screenfield_edoptvalue"]
 							else
-								Rails.logger.debug " screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
-								Rails.logger.debug " screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
-								p " selectではedoptvalueにxxx:yyy,aaa:bbbは必須  "
+								Rails.logger.debug " class:#{self} ,line:#{__LINE__},screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
 								raise
 							end
 						else
-							Rails.logger.debug "  screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
-							Rails.logger.debug "  screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
-							p " selectではedoptvalueにxxx:yyy,aaa:bbbは必須  "
+							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
 							raise
 						end
 					end	
@@ -727,10 +727,12 @@ module ScreenLib
 						if cell[:className] =~ /Numeric/
 							temp[cell[:accessor]] = "0" ###初期表示
 						end
-					when "r_mkpayinsts"  ###オーダー作成時の抽出条件初期値
+					when /mkpayinsts|mkbillinsts/  ###オーダー作成時の抽出条件初期値
 						case cell[:accessor]
 						when /loca_code_|person_code_chrg/	
 							temp[cell[:accessor]] = "dummy"
+						when /_incnt|_inqty|_inamt|_outcnt|_outqty|_outamt|_skipcnt|_skipqty|skipamt/	
+							temp[cell[:accessor]] = "0"
 						end
 					when /fieldcodes/
 						case cell[:accessor]
@@ -986,6 +988,8 @@ module ScreenLib
 			addfield = {}
 			setParams = params.dup
 			setParams[:err] = nil
+      setParams[:outqty] = 0
+      setParams[:outamt] = 0
 			parse_linedata = params[:parse_linedata].dup  ###(can't add a new key into hash during iteration)	
 			blk =  RorBlkCtl::BlkClass.new(screenCode)
 			command_c = blk.command_init
@@ -1011,20 +1015,18 @@ module ScreenLib
 					if yup_check_code[field] 
 				  		setParams = CtlFields.proc_judge_check_code setParams,field,yup_check_code[field]  
 				  		if setParams[:err]
-							command_c[:confirm_gridmessage] = setParams[:err] 
-							command_c[:confirm] = false 
-							command_c[(field+"_gridmessage").to_sym] = setParams[:err] 
-							if command_c[:errPath].nil? 
-								command_c[:errPath] = command_c[(field+"_gridmessage").to_sym]
-							end
-							break
+							  command_c[:confirm_gridmessage] = setParams[:err] 
+							  command_c[:confirm] = false 
+							  command_c[(field+"_gridmessage").to_sym] = setParams[:err] 
+							  if command_c[:errPath].nil? 
+								  command_c[:errPath] = command_c[(field+"_gridmessage").to_sym]
+						  	end
+							  break
 				  		end
 					end
-			  	end 
+			  end 
 				###setParams[:parse_linedata][field] = val    
 			end	
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},parse_linedata:#{setParams[:parse_linedata]} "
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_c:#{command_c} "
 			### cannot use parse_linedata
 			if  setParams[:err].nil?
 				setParams[:parse_linedata].each do |key,val|
@@ -1039,6 +1041,12 @@ module ScreenLib
 							break
 					else
 				  		command_c[key.to_s] = val  
+              case key.to_s
+              when /_amt$|amt_sch$|_cash$/
+                setParams[:outamt] += val.to_f 
+              when /_qty_sch$|_qty$|_qty_stk$/
+                setParams[:outqty] = val.to_f
+              end
 					end
 				end
 				### セカンドkeyのユニークチェック
@@ -1056,7 +1064,6 @@ module ScreenLib
 					end	
 				end
 			end	
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_c:#{command_c} "
 			if  setParams[:err].nil?
 				if command_c["id"] == "" or  command_c["id"].nil?   ### add画面で同一lineで二度"enter"を押されたとき errorにしない
 					###  追加後エラーに気づいたときエラーしないほうが，操作性がよい
@@ -1284,7 +1291,6 @@ module ScreenLib
 			else
 				command_c[:confirm] = false
         command_c["sio_result_f"] = "9"  ##9:error
-				setParams[:err] = setParams[:err]
 				setParams[:parse_linedata][:confirm] = false  
 			end
 			return setParams
@@ -1501,12 +1507,19 @@ module ScreenLib
 				command_custact["custact_created_at"] = Time.now
 				command_custact["id"] = ArelCtl.proc_get_nextval("custacts_seq")
 			  command_custact["custact_person_id_upd"] = params["person_id_upd"]
+			  command_custact["custact_saledate"] = tbldata["saledate"]
 				prev.each do |key,val|
 					next if key == "id"
 					next if key == "tblname"
 					next if key =~ /#{prev["tblname"]}_id$|#{prev["tblname"]}_sno$|#{prev["tblname"]}_cno$|#{prev["tblname"]}_gno$/
-					next if fields.grep(key.sub("#{prev["tblname"].chop}","custact")).empty?
-					command_custact[key.sub("#{prev["tblname"].chop}","custact")] = val
+					if fields.grep(key.sub("#{prev["tblname"].chop}","custact")).empty?
+            case key
+            when /#{prev["tblname"].chop}_duedate_custord/
+					    command_custact["custact_duedate_custord"] = val  ##custact_duedate_custord
+            end
+          else
+					  command_custact[key.sub("#{prev["tblname"].chop}","custact")] = val
+          end
 					outqty += val.to_f if key =~ /qty$|qty_stk$/
 					totalAmt += val.to_f if key =~ /amt$/
 				end

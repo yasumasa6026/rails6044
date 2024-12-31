@@ -378,14 +378,14 @@ module ArelCtl
 		return linkcust_id
 	end
 
-	def proc_aud_alloctbls(rec_alloc,aud)
+	def proc_aud_alloctbls(rec_alloc,aud)   ### alloctbls.id又は(alloctbls.srctblname,srctblid,trngantts_id)は必須
     strwhere  = if rec_alloc["trngantts_id"]
                   " and trngantts_id = #{rec_alloc["trngantts_id"]} "
                 else
                   ""
                 end
     case aud
-    when nil
+    when nil  ###recordが存在するときは数量の追加
       if rec_alloc["srctblname"] and rec_alloc["srctblid"]
 		    strsql = %Q&
 					select * from alloctbls 
@@ -509,6 +509,7 @@ module ArelCtl
       end
     when "delete"
     end
+				Rails.logger.debug" class #{self} ,line:#{__LINE__} last_lotstk:#{last_lotstk} "
 		return alloctbl["id"],last_lotstk
 	end
 
@@ -601,22 +602,22 @@ module ArelCtl
         last_lotstks << last_lotstk
         3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
         setParams = {"tbldata" => tbldata,"gantt" => gantt,"opeitm" => {}}
-        if  gantt["tblname"] =~ /^prd/
-          strsql = %Q&
-                select n.itms_id_nditm itms_id ,n.processseq_nditm processseq, ic.code classlist_code,n.unitofdvs, 
-                  n.duration_facility,n.changeoverlt,n.postprocessinglt
-                      from nditms n 
-                      inner join (select i.id itms_id ,c.code from itms i
-                                inner join classlists c on c.id = i.classlists_id ) ic
-                          on ic.itms_id = n.itms_id_nditm
-                      where ic.code = 'apparatus' and n.opeitms_id = #{tbldata["opeitms_id"]}
-              &
-          ActiveRecord::Base.connection.select_all(strsql).each do |apparatus|
-              ope = Operation::OpeClass.new(setParams)  ###prdinsts,prdacts
-              ope.proc_add_dvs_data(apparatus)
-              ope.proc_add_erc_data(apparatus)
-          end
-        end
+        # if  gantt["tblname"] =~ /^prd/
+        #   strsql = %Q&
+        #         select n.itms_id_nditm itms_id ,n.processseq_nditm processseq, ic.code classlist_code,n.unitofdvs, 
+        #           n.duration_facility,n.changeoverlt,n.postprocessinglt
+        #               from nditms n 
+        #               inner join (select i.id itms_id ,c.code from itms i
+        #                         inner join classlists c on c.id = i.classlists_id ) ic
+        #                   on ic.itms_id = n.itms_id_nditm
+        #               where ic.code = 'apparatus' and n.opeitms_id = #{tbldata["opeitms_id"]}
+        #       &
+        #   ActiveRecord::Base.connection.select_all(strsql).each do |apparatus|
+        #       ope = Operation::OpeClass.new(setParams)  ###prdinsts,prdacts
+        #       ope.proc_add_dvs_data(apparatus)
+        #       ope.proc_add_erc_data(apparatus)
+        #   end
+        # end
 			when /^dymschs|^shp/   ### shp itmclass,code=mold,ITollの時
 				linktbl_id = proc_insert_linktbls(src,base)
 				alloctbl_id,last_lotstk = proc_aud_alloctbls(alloc,"insert")
@@ -656,10 +657,12 @@ module ArelCtl
 		if src["qty_linkto_alloctbl"].to_f > base["qty_src"].to_f
 			base["remark"] = "#{self} line:(#{__LINE__})" + base["remark"]
       src["qty_linkto_alloctbl"] = src["qty_linkto_alloctbl"].to_f - base["qty_src"].to_f
+      src["qty_src"] =  base["qty_src"] ### 新たに引き合った 
       base["qty_src"] = 0
 	  else
 			base["remark"] = "#{self} line:(#{__LINE__})" +  base["remark"]
       base["qty_src"] = base["qty_src"].to_f - src["qty_linkto_alloctbl"].to_f
+      src["qty_src"] =  src["qty_linkto_alloctbl"] 
       src["qty_linkto_alloctbl"] = 0
 		end
     proc_insert_linktbls(src,base)  ###linktbls.qty_src作成後free_qty=base["qty_src"] = 0
@@ -670,7 +673,6 @@ module ArelCtl
         "remark" => "#{self} line #{__LINE__} #{Time.now}","persons_id_upd" => 0}
     alloctbl_id,last_lotstk = proc_aud_alloctbls(alloc,"update")
     last_lotstks << last_lotstk
-    3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
 		str_qty = case src["tblname"]
 		 			when /schs$/
 						"qty_sch"
@@ -709,16 +711,16 @@ module ArelCtl
       ActiveRecord::Base.connection.update(strsql)
     end
 
-		alloc = {"srctblname" => base["tblname"],"srctblid" => base["tblid"],"trngantts_id" => src["trngantts_id"],
+		alloc = {"srctblname" => base["tblname"],"srctblid" => base["tblid"],"trngantts_id" => base["trngantts_id"],
         ###"alloc_id" => base["alloctbls_id"],
          "qty_linkto_alloctbl" => base["qty_src"],
         "remark" => "#{self} line #{__LINE__} #{Time.now}" + (base["remark"]||=""),"persons_id_upd" => 0}
-    alloctbl_id,last_lotstk_tmp = proc_aud_alloctbls(alloc,nil)  ###引当の変更はあるが在庫の辺法はない
+    alloctbl_id,last_lotstk_tmp = proc_aud_alloctbls(alloc,"update")  ###引当の変更はあるが在庫数の変更はない
 
-		alloc = {"trngantts_id" => base["trngantts_id"],"srctblname" => base["tblname"] ,"srctblid" => base["tblid"],
+		alloc = {"trngantts_id" => src["trngantts_id"],"srctblname" => base["tblname"] ,"srctblid" => base["tblid"],
               "allocfree" => "alloc",
-			        "qty_linkto_alloctbl" => - base["qty_src"] ,"remark" => "#{self} (line: #{__LINE__} #{Time.now})" + (base["remark"]||="")}
-    alloctbl_id,last_lotstk_tmp = proc_aud_alloctbls(alloc,"update+")
+			        "qty_linkto_alloctbl" => src["qty_src"] ,"remark" => "#{self} (line: #{__LINE__} #{Time.now})" + (base["remark"]||="")}
+    alloctbl_id,last_lotstk_tmp = proc_aud_alloctbls(alloc,nil)
 		# ###在庫の修正はproc_src_base_trn_stk_update
 		return  last_lotstks
 	end
@@ -748,11 +750,11 @@ module ArelCtl
 				end duration
            from nditms nditm 
 				inner join opeitms pare on pare.id = nditm.opeitms_id
-               	inner join (select i.id,i.taxflg,i.units_id,c.code classlist_code,i.code itm_code_nditm,i.name itm_name_nditm,
+        inner join (select i.id,i.taxflg,i.units_id,c.code classlist_code,i.code itm_code_nditm,i.name itm_name_nditm,
 								i.units_id itm_unit_id
 			   					from itms i 
-								inner join classlists c on i.classlists_id = c.id ) itm on itm.id = nditm.itms_id_nditm 
-               	left join (select o.*,s.locas_id_shelfno locas_id_shelfno,xto.locas_id_shelfno locas_id_shelfno_to
+				          inner join classlists c on i.classlists_id = c.id ) itm on itm.id = nditm.itms_id_nditm 
+        left join (select o.*,s.locas_id_shelfno locas_id_shelfno,xto.locas_id_shelfno locas_id_shelfno_to
                            from opeitms o 
                            inner join shelfnos s on o.shelfnos_id_opeitm = s.id
                            inner join shelfnos xto on o.shelfnos_id_to_opeitm = xto.id
@@ -801,7 +803,7 @@ module ArelCtl
              select pare.id pare_trngantts_id,trn.itms_id_trn itms_id, trn.processseq_trn processseq,
                 max(trn.consumtype) consumtype,max(trn.parenum) parenum,max(trn.chilnum) chilnum,
                 max(trn.consumunitqty) consumunitqty,max(trn.consumminqty) consumminqty,max(trn.consumchgoverqty) consumchgoverqty,
-                pare.shelfnos_id_trn,   ---親作業場所
+                pare.shelfnos_id_trn pare_shelfnos_id,   ---親作業場所
                 trn.shelfnos_id_to_trn shelfnos_id_to,   ---子の保管先
 	 		   max(ope.units_id_case_shp) units_id_case_shp,
 	 		   sum(pare.qty_linkto_alloctbl) qty_sch,max(ope.consumauto) consumauto,max(ope.shpordauto) shpordauto

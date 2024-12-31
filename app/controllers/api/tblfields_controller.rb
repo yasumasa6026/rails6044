@@ -1,5 +1,5 @@
 module Api
-    class TblfieldsController < ApplicationController
+    class TblfieldsController < ApplicationController  ###devepoment 環境のみ
         before_action :authenticate_api_user!
           def index
           end

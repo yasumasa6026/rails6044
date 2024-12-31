@@ -45,9 +45,15 @@ module Api
                 render json:  screenList , status: :ok
             
             when 'viewtablereq7'
+							begin
                 screen = ScreenLib::ScreenClass.new(params)
                 pagedata,reqparams = screen.proc_search_blk(params)   ###:pageInfo  -->menu7から未使用
+							rescue
+								reqparams[:err] = "  #{$@}"
+                render json:{:grid_columns_info=>{},:data=>{},:params=>reqparams},:status =>500
+							else
                 render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
+							end
             
             # when 'linechart'
             #     screen = ScreenLib::ScreenClass.new(params)
@@ -84,7 +90,7 @@ module Api
                 reqparams[:head] = JSON.parse(params[:head])
                 secondScreen = ScreenLib::ScreenClass.new(reqparams)
                 grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)
-                pagedata,reqparams = secondScreen.proc_showdetail reqparams,grid_columns_info  ###共通lib
+                pagedata,reqparams = secondScreen.proc_showdetail reqparams ###共通lib
                 render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}             
                 
             when "fetch_request"
@@ -114,7 +120,7 @@ module Api
                 reqparams[:head] = JSON.parse(params[:head]||="{}")
                 reqparams = screen.proc_confirm_screen(reqparams)
                 if reqparams[:err]
-                    render json: {:params=>reqparams},:status=>202
+                    render json: {:params=>reqparams}
                 else
                     if  params[:screenCode] =~ /heads$/
                         render json: {:params=>reqparams,:outcnt =>reqparams["count"] ,:outamt =>reqparams["amt"],:outqty =>reqparams["qty"]}
@@ -131,7 +137,7 @@ module Api
 
             when 'confirmAll'   ###purords,prdordsからshpordsを表示
                 if params["clickIndex"]
-                    outcnt = 0
+                    outcnt = outqty = outamt = 0
                     reqparams = params.dup
                     ActiveRecord::Base.connection.begin_db_transaction()
                     params["clickIndex"].each_with_index do |strselected,idx|
@@ -157,16 +163,18 @@ module Api
                                                     where id = #{strselected["id"]} & 
                             end
                             reqparams[:parse_linedata] = ActiveRecord::Base.connection.select_one(strsql)
-                            if params[:changeData]
-                                JSON.parse(params[:changeData][idx]).each do |k,v|
-                                    if reqparams[:parse_linedata][k]
-                                        reqparams[:parse_linedata][k] = v
-                                    end
-                                end
-                            end
+                            # if params[:changeData]
+                            #     JSON.parse(params[:changeData][idx]).each do |k,v|
+                            #         if reqparams[:parse_linedata][k]
+                            #             reqparams[:parse_linedata][k] = v
+                            #         end
+                            #     end
+                            # end
                             reqparams = screen.proc_confirm_screen(reqparams)
                             if reqparams[:err].nil?
                                 outcnt += 1
+                                outamt += reqparams[:outamt]
+                                outqty += reqparams[:outqty]
                             else
                                 ActiveRecord::Base.connection.rollback_db_transaction()
                                 command_c["sio_result_f"] = "9"  ##9:error
@@ -185,7 +193,7 @@ module Api
                     end
                     if  outcnt > 0
                         ActiveRecord::Base.connection.commit_db_transaction()
-                        render json:{:outcnt => outcnt,:err => "",:params => {:buttonflg => params[:buttonflg]}}
+                        render json:{:outcnt => outcnt,:outqty => outqty,:outamt => outamt,:err => "",:params => {:buttonflg => params[:buttonflg]}}
                     else
                         render json:{:err=>"please  select Order"}    
                     end
@@ -223,13 +231,13 @@ module Api
                                                     where id = #{selected["id"]} & 
                             end
                             reqparams[:parse_linedata] = ActiveRecord::Base.connection.select_one(strsql)
-                            if params[:changeData]
-                                JSON.parse(params[:changeData][idx]).each do |k,v|
-                                    if reqparams[:parse_linedata][k]
-                                        reqparams[:parse_linedata][k] = v
-                                    end
-                                end
-                            end
+                            # if params[:changeData]
+                            #     JSON.parse(params[:changeData][idx]).each do |k,v|
+                            #         if reqparams[:parse_linedata][k]
+                            #             reqparams[:parse_linedata][k] = v
+                            #         end
+                            #     end
+                            # end
                             reqparams[:parse_linedata][strPackingListNo] =  packingListNo
                             reqparams = screen.proc_confirm_screen(reqparams)
                             if reqparams[:err].nil?
@@ -347,17 +355,24 @@ module Api
 
             when 'mkShpords'  ###shpschsは作成済が条件。shpschsはpurords,prdords時に自動作成
                 if params[:clickIndex]
-                    screen = ScreenLib::ScreenClass.new(params)
-                    outcnt,shortcnt,err,last_lotstks = Shipment.proc_mkShpords(screen.screenCode,params)      
-                    if last_lotstks.size > 0
+                    outcnt,shortcnt,err,last_lotstks = Shipment.proc_mkShpords(params)      
+                    if last_lotstks.size > 0 and err == ""
+                      setParams = {}
                       setParams["segment"]  = "link_lotstkhists_update"   ###
                       setParams["tbldata"] = {}
                       setParams["gantt"] = {}
+                      setParams["person_id_upd"] = params["person_id_upd"]
                       setParams["last_lotstks"] = last_lotstks.dup
                       processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
+                      CreateOtherTableRecordJob.perform_later(setParams["seqno"][0])
+                      ActiveRecord::Base.connection.commit_db_transaction()
+                      render json:{:outcnt=>outcnt,:shortcnt=>shortcnt,:err=>err,:params=>{:buttonflg=>"mkShpords"}}
+                    else
+                      ActiveRecord::Base.connection.rollback_db_transaction()
+                      render json:{:outcnt=>0,:shortcnt=>0,:err=>err,:params=>{:buttonflg=>"mkShpords"}}
                     end        
-                    render json:{:outcnt=>outcnt,:shortcnt=>shortcnt,:err=>err,:params=>{:buttonflg=>"mkShpords"}}
                 else
+                    reqparams[:err] = " please select"
                     render json:{:outcnt=>0,:shortcnt=>0,:err=>" please select",:params=>{:buttonflg=>"mkShpords"}}
                 end
             
@@ -378,13 +393,15 @@ module Api
                     pagedata,reqparams = Shipment.proc_second_shp reqparams,grid_columns_info
                     if pagedata == []
                         params[:screenFlg] = "first"
-                        render json:{:err=>"no shpords ",:params=>params},:status=>202  
+                    reqparams[:err] = "no shpords "
+                        render json:{:err=>"no shpords ",:params=>params}
                     else
                         render json:{:grid_columns_info=>grid_columns_info,:data=>pagedata,:params=>reqparams}
                     end
                 else
                     params[:screenFlg] = "first"
-                    render json:{:err=>"please  select ",:params=>params},:status=>202    
+                    reqparams[:err] = " please select"
+                    render json:{:err=>"please  select ",:params=>params}   
                 end
             
             when 'refShpinsts'  ###purords,prdordsからshpinstsを表示
@@ -460,7 +477,8 @@ module Api
                       reqparams[:view] =  reqparams[:screenCode].sub("prd_","r_")
                       if reqparams[:gantt]
                         reqparams[:gantt] = JSON.parse(reqparams[:gantt])
-                      elsereqparams[:gantt] = {}
+                      else
+                        reqparams[:gantt] = {}
                       end
                       secondScreen = ScreenLib::ScreenClass.new(reqparams)
                       grid_columns_info = secondScreen.proc_create_grid_editable_columns_info(reqparams)

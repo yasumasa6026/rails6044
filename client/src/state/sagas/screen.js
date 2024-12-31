@@ -1,9 +1,9 @@
 import { call, put, select } from 'redux-saga/effects'
 import axios         from 'axios'
-import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_CONFIRM7_SUCCESS, FETCH_RESULT, FETCH_FAILURE,
+import {SCREEN_SUCCESS7,SCREEN_FAILURE,SCREEN_CONFIRM7_SUCCESS, FETCH_RESULT, 
         SECOND_SUCCESS7,SECOND_FAILURE,SECOND_CONFIRM7_SUCCESS, 
         SECONDFETCH_RESULT,LOGIN_FAILURE,
-        SECONDFETCH_FAILURE,MKSHPORDS_SUCCESS,CONFIRMALL_SUCCESS,SECOND_CONFIRMALL_SUCCESS,
+        MKSHPORDS_SUCCESS,CONFIRMALL_SUCCESS,SECOND_CONFIRMALL_SUCCESS,
         //MKSHPACTS_RESULT,
         }
          from '../../actions'
@@ -69,20 +69,12 @@ export function* ScreenSaga({ payload: {params}  }) {
                     lineData = response.data.params.parse_linedata
                      params = {...params,...response.data.params,screenFlg:response.data.params.screenFlg,
                                  screenCode:response.data.params.screenCode,err:response.data.params.err} 
-                     if(response.data.params.err){
-                                 if(params.screenFlg==="second"){
-                                    yield put({ type: SECONDFETCH_FAILURE,payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
-                                 }else{
-                                    yield put({ type: FETCH_FAILURE, payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
-                                 }
-                     }else{
                                  if(params.screenFlg==="second"){
                                      yield put({type: SECONDFETCH_RESULT, payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
                                  }else{
                                       console.log(lineData)
                                      yield put({type: FETCH_RESULT, payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
                                  }  
-                               }
                     return  
             case "delete":
                   data[parseInt(params.index)] = {...response.data.params.parse_linedata}
@@ -106,7 +98,7 @@ export function* ScreenSaga({ payload: {params}  }) {
            //case "adddetail":  //
                 message = "out count : " + response.data.outcnt
                 message = message + ",out qty : " + response.data.outqty
-                message = message + ",out amt : " + response.data.totalAmt
+                message = message + ",out amt : " + response.data.outamt
                 return yield put({ type: CONFIRMALL_SUCCESS, payload:{message:message}})     
            case "MkPackingListNo":  //
                message = "out count : " + response.data.outcnt
@@ -124,22 +116,32 @@ export function* ScreenSaga({ payload: {params}  }) {
               
             case "confirmAllSecond":  //second画面専用
               message = "out count : " + response.data.outcnt
-              message = message + " " + response.data.err
               return yield put({ type: SECOND_CONFIRMALL_SUCCESS, payload:{message:message}})     
             default:
                             }
             break       
        
-        case 500: message = `error ${response.status}: Internal Server Error ${response.statusText}`
-                    break
+        case 500: message = `error ${response.status}: Internal Server Error`
+                  params = response.data.params
+                  if(params.screenFlg==="second"){
+                      return  yield put({type:SECOND_FAILURE,payload:{message: params.err,}})   //cannot display grid table
+                    }else{  
+                      return  yield put({type:SCREEN_FAILURE,payload:{message: params.err,}})   
+                    }
         case 401: message = `error ${response.status}: Invalid credentials or Login TimeOut ${response.statusText}`
+                  params = response.data.params
+                  if(params.screenFlg==="second"){
+                      return  yield put({type:SECOND_FAILURE,payload:{message: params.err,}})   
+                    }else{  
+                      return  yield put({type:SCREEN_FAILURE,payload:{message: params.err,}})   
+                    }
                     break
         case 202:
               params = response.data.params
               if(params.screenFlg==="second"){
-                  return  yield put({type:SECOND_FAILURE,payload:{message: response.data.err + params.err,}})   
+                  return  yield put({type:SECOND_FAILURE,payload:{message: params.err,}})   
               }else{  
-                  return  yield put({type:SCREEN_FAILURE,payload:{message:response.data.err + params.err,}})   
+                  return  yield put({type:SCREEN_FAILURE,payload:{message: params.err,}})   
               }
         default:
                   message = `error ${response.status}: Screen Something went wrong ${response.statusText} `
