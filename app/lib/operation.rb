@@ -945,6 +945,7 @@ module Operation
 		   
 	    command_erc["sio_classname"] = "_add_erc_link"
       command_erc["#{currerctbl.chop}_#{@tblname.chop}_id_#{currerctbl.chop}"] = @tbldata["id"]
+      cnt = 0
       ["changeover","require","postprocess"].each do |processname|   ###前処理、処理、後処理
             command_erc["id"] = ArelCtl.proc_get_nextval("#{currerctbl}_seq")
             command_erc["#{currerctbl.chop}_sno"] = CtlFields.proc_field_sno(currerctbl.chop,Time.now,command_erc["id"])
@@ -982,7 +983,10 @@ module Operation
               command_erc["#{currerctbl.chop}_fcoperator_id"] = fcop["id"]
             end
 		        command_erc = erc.proc_create_tbldata(command_erc)
+            gantt["key"] = gantt["key"] +  format('%04d', cnt) 
+            @reqparams["gantt"] = gantt.dup
 		        erc.proc_private_aud_rec(@reqparams,command_erc) ###create pur,prdschs
+            cnt += 1
       end
 	  end 
 

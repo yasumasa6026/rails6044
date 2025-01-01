@@ -1702,8 +1702,7 @@ module CtlFields
     end
 		case tblnamechop
 		when /^dvs|^erc/
-		  case nd["
-        "]  ###char(4)
+		  case nd["unitofdvs"]  ###char(4)
 		  when "Day "
 			  dayHour = 24*3600   ###  duedate 16:00   starttime 10:00
 		  when "Hour"

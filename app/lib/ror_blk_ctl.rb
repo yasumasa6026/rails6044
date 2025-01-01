@@ -152,7 +152,6 @@ module RorBlkCtl
       ###
       proc_insert_sio_r(command_c)   ###sioxxxxの追加
       ###
-			setParams["tbldata"] = @tbldata.dup
 			last_lotstks = []
 			
 			setParams["seqno"] ||= []
@@ -213,28 +212,28 @@ module RorBlkCtl
 				ope = Operation::OpeClass.new(setParams)  ###xxxschs,xxxords
 				last_lotstks = ope.proc_trngantts()  ###xxxschs,xxxordsのtrngannts,linktbls,alloctblsを作成
         setParams = ope.proc_opeParams.dup
-        strsql = %Q&
-                 select n.itms_id_nditm itms_id ,n.processseq_nditm processseq, ic.code classlist_code,n.unitofdvs, 
-                   n.duration_facility,n.changeoverlt,n.postprocessinglt
-                       from nditms n 
-                       inner join (select i.id itms_id ,c.code from itms i
-                                 inner join classlists c on c.id = i.classlists_id ) ic
-                           on ic.itms_id = n.itms_id_nditm
-                       where ic.code = 'apparatus' and n.opeitms_id = #{@tbldata["opeitms_id"]}
-               &
         case command_c["sio_classname"]
 			  when /_add_|_insert_/
-           ActiveRecord::Base.connection.select_all(strsql).each do |apparatus|
-               ope = Operation::OpeClass.new(setParams)  ###prdinsts,prdacts
-               ope.proc_add_dvs_data(apparatus)
-               ope.proc_add_erc_data(apparatus)
-           end
+          #  ActiveRecord::Base.connection.select_all(strsql).each do |apparatus|
+          #      dvs = Operation::OpeClass.new(setParams)  ###prdinsts,prdacts
+          #      dvs.proc_add_dvs_data(apparatus)
+          #      dvs.proc_add_erc_data(apparatus)
+          #  end
         else
-            if @tbldata["qty_sch"]  == 0
+            if @tbldata["qty_sch"]  == 0 
+              strsql = %Q&
+              select n.itms_id_nditm itms_id ,n.processseq_nditm processseq, ic.code classlist_code,n.unitofdvs, 
+                n.duration_facility,n.changeoverlt,n.postprocessinglt
+                    from nditms n 
+                    inner join (select i.id itms_id ,c.code from itms i
+                              inner join classlists c on c.id = i.classlists_id ) ic
+                        on ic.itms_id = n.itms_id_nditm
+                    where ic.code = 'apparatus' and n.opeitms_id = #{@tbldata["opeitms_id"]}
+            &
               ActiveRecord::Base.connection.select_all(strsql).each do |apparatus|
-                  ope = Operation::OpeClass.new(setParams)  ###prdinsts,prdacts
-                  ope.proc_delete_dvs_data
-                  ope.proc_delete_erc_data
+                  dvs = Operation::OpeClass.new(setParams)  ###prdinsts,prdacts
+                  dvs.proc_delete_dvs_data
+                  dvs.proc_delete_erc_data
               end
             end
         end

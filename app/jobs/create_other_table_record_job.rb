@@ -52,7 +52,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                         when "skip" 
                         when "link_lotstkhists_update" ###/insts$|acts$|dlvs$|rets$/のとき
                             # ###parent：在庫移送を発生させたprd,pur
-                          Rails.logger.debug "class #{self},line:#{__LINE__} ,last_lotstks:#{params["last_lotstks"]}"
                           add_update_lotstkhists(params["last_lotstks"],params["person_id_upd"])
                         when "sumrequest" 
                         when "splitrequest"  
@@ -252,7 +251,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                             when "mkbillschs","mkbillests"
                                 strsql = %Q%select b.* from bills b
                                                 inner join custs c on c.bills_id_cust = b.id   
-                                            where c.id = #{params["custs_id"]} and c.crrs_id_cust = b.crrs_id_bill
+                                            where c.id = #{params["custs_id"]} 
                                     %
                             end
                             paybill = ActiveRecord::Base.connection.select_one(strsql)
@@ -477,6 +476,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     setParams = blk.proc_private_aud_rec(setParams,command_c) ###create pur,prdschs
                                     if gantt["consumtype"] == "CON"  ###出庫 消費と金型・設備の使用
                                       setParams["child"] =  nd.dup
+                                      setParams["screenCode"] = "r_conschs"
                                       last_lotstks <<  Shipment.proc_create_consume(setParams)   ###自身の消費を作成
                                     end
                                 else  ###
@@ -487,11 +487,14 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     nd["locas_id_shelfno"] = 0
                                     case nd["classlist_code"]
                                     when "apparatus"  ###
-                                        dvsParams = setParams
-                                        dvsParams["screenCode"] = "r_prdschs"
-                                        dvs = Operation::OpeClass.new(dvsParams)  ###prdinsts,prdacts
-                                        dvs.proc_add_dvs_data(nd)
-                                        dvs.proc_add_erc_data(nd)
+                                         dvsParams = setParams
+                                         dvsParams["gantt"] = gantt.dup
+                                         dvsParams["child"] = nd.dup
+                                         dvsParams["gantt"] = gantt.dup
+                                         dvsParams["screenCode"] = "r_prdschs"
+                                         dvs = Operation::OpeClass.new(dvsParams)  ###prdinsts,prdacts
+                                         dvs.proc_add_dvs_data(nd)
+                                         dvs.proc_add_erc_data(nd)
                                         # blk = RorBlkCtl::BlkClass.new("r_dvsschs")
                                         # command_c = blk.command_init
                                         # nd["prdpur"] = "dvs"
@@ -536,7 +539,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                                             "shpest"
                                         end
                                         last_lotstks.concat last_lotstks_parts
-                                        3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
                                     when "installationCharge"   ###設置
                                         next
                                     else
@@ -577,6 +579,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         command_c = blk.proc_create_tbldata(command_c)
                                         setParams = blk.proc_private_aud_rec(setParams,command_c) ###create pur,prdschs
                                         if gantt["consumtype"] == "CON"  ###出庫 消費と金型・設備の使用
+                                          setParams["screenCode"] = "r_conschs"
                                           last_lotstks << Shipment.proc_create_consume(setParams)
                                         end
                                     end
@@ -1249,6 +1252,8 @@ class CreateOtherTableRecordJob < ApplicationJob
                   &
                   suppliers_id_fm = ActiveRecord::Base.connection.select_value(supp_str)
                   suppliers_id_fm ||= ""
+            when /dymschs/
+              next
             else
               3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"}
               raise
@@ -1466,8 +1471,12 @@ class CreateOtherTableRecordJob < ApplicationJob
               Shipment.proc_mk_custwhs_rec "in",lotstktbl
             else
               if lotstktbl["shelfnos_id"].nil? or lotstktbl["shelfnos_id"] == ""
+                if lotstktbl["qty_sch"] == 0 and lotstktbl["qty"] == 0 and lotstktbl["qty_stk"] == 0 ###dymschs
+                    next
+                else
                   3.times{Rails.logger.debug" error shelfnos_id missing class:#{self} , line:#{__LINE__} ,lotstktbl:#{lotstktbl}"}
                   raise
+                end
               else
                 Shipment.proc_lotstkhists_in_out('in',lotstktbl)
               end
