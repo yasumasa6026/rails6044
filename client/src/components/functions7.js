@@ -38,6 +38,7 @@ export function  setProtectFunc(id,values){
          default:  
          }
         }else{
+            /*1:発注日ベース　2:納期ベース　5:検収ベース A:マター単価を変更 B:マスター無確定単価 C:マスター単価無 Z:仮単価 */
             if (/_amt$|purord_price|purdlv_price|custord_price|custdlv_price|puract_price|custact_price/.test(id)) {
                 switch(values.purord_contractprice){
                 case "1":

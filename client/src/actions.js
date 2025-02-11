@@ -192,9 +192,9 @@ export const DropDownValueSet = (dropDownValue) => ({
   payload: {dropDownValue}  //
 })
 
-export const ScreenFailure = (message) => ({
+export const ScreenFailure = (message,hosterror) => ({
   type: SCREEN_FAILURE,
-  payload: { message }  //
+  payload: { message,hosterror }  //
 })
 
 export const DownloadRequest = (params,auth) => ({
@@ -256,9 +256,9 @@ export const SecondFetchFailure = (params) => ({
   payload: { params}
 })
 
-export const SecondFailure = (errors) => ({
+export const SecondFailure = (message,hostError) => ({
   type: SECOND_FAILURE,
-  errors: { errors }  //
+  errors: { message,hostError }  //
 })
 
 export const MkShpordsResult = (data,params) => ({

@@ -20,7 +20,7 @@ export  function yupErrCheck (schema,field,linedata) {
   catch(err){
     linedata.confirm = false
               linedata[mfield] = err.errors.join(",")
-              linedata["confuem_gridmessage"] = " error " + err.errors.join(",")
+              linedata["confirm_gridmessage"] = " error " + err.errors.join(",")
               return linedata
   }
 } 

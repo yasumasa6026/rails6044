@@ -102,6 +102,8 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
         dispatch(ButtonFlgRequest(buttonflg,params)) // upload download 画面用
         let screenData = []
         let newRow = {}
+        let clickIndex = []
+        let clickcnt = 0
         switch (buttonflg) {  //buttonflg ==button_code
 
           case "search":
@@ -118,20 +120,26 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
 
           case "showdetail":
           //case "adddetail":
-                let clickcnt = 0
-                params["clickIndex"].map((click)=>{if(click.id){clickcnt = clickcnt + 1
+                params["clickIndex"]&&params["clickIndex"].map((click)=>{if(click.id){clickcnt = clickcnt + 1
                                                                 params["head"] = {lineId:click["lineId"],id:click["id"],pareScreenCode:click["screenCode"]}}
                                                   }
                                         )
                 if(clickcnt === 1){
                       params= { ...params,buttonflg:buttonflg,disableFilters:false,screenFlg:"second",aud:"view"}
                       return dispatch(ScreenRequest(params,null))}
-                  else{return dispatch(ScreenFailure({message:"no select or duplicated select"}))}
+                  else{return dispatch(ScreenFailure("no select or duplicated select"))}
                   //break
       
           case "confirmAll"://
-              params= {...params,buttonflg:"confirmAll",disableFilters:true,screenFlg:ownProps.screenFlg}
-              return  dispatch(ScreenRequest(params,null)) //
+              params["clickIndex"]&&params["clickIndex"].map((click)=>{if(click.id){clickcnt = clickcnt + 1}
+                                            }
+                                  )
+              if(clickcnt>0){
+                  params= {...params,buttonflg:"confirmAll",disableFilters:true,screenFlg:ownProps.screenFlg}
+                  return  dispatch(ScreenRequest(params,null)) //
+              }else{
+                return dispatch(ScreenFailure("please select and confirmall "))
+              }
  
           case "confirmShpacts"://第二画面専用
                     params= {...params,buttonflg:"confirmShpacts",disableFilters:true,screenFlg:ownProps.screenFlg}
@@ -160,9 +168,15 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                     else{alert("please select")}
                     
           case "MkPackingListNo"://
-              params= {...params,buttonflg:"MkPackingListNo",disableFilters:true,screenFlg:ownProps.screenFlg}
-              return  dispatch(ScreenRequest(params,null)) //
-
+                  params["clickIndex"]&&params["clickIndex"].map((click)=>{if(click.sNo){clickcnt = clickcnt + 1}
+                                                  }
+                                        )
+                    if(clickcnt>0){
+                      params= {...params,buttonflg:"MkPackingListNo",disableFilters:true,screenFlg:ownProps.screenFlg}
+                        return  dispatch(ScreenRequest(params,null)) //
+                    }else{
+                      return dispatch(ScreenFailure("please select and push MkPackingListNo_button"))
+                    }
           case "MkInvoiceNo"://
               params= {...params,buttonflg:"MkInvoiceNo",disableFilters:true,screenFlg:ownProps.screenFlg}
               return  dispatch(ScreenRequest(params,null)) //
@@ -174,7 +188,6 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           case "upload":
             params = {...params,buttonflg:"upload",disableFilters:false,screenFlg:ownProps.screenFlg}
             return  dispatch(UploadExcelInit(params)) //
-              return  //画面表示のみ
 
           case "mkShpords":
           case "refShpords": //第一画面で選択された親より第二画面表示
@@ -186,8 +199,23 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           case "prdErcords":  //第一画面で選択された親より第二画面表示
           case "prdErcinsts":  //第一画面で選択された親より第二画面表示
           case "prdErcacts":  //第一画面で選択された親より第二画面表示
-              params= {...params,linedata:{},buttonflg:buttonflg,disableFilters:false,screenFlg:ownProps.screenFlg}
-              return  dispatch(ScreenRequest(params,null)) //
+              clickIndex = params.clickIndex
+              if(clickIndex.length > 0){    //if(params.clickIndex.length===0)  ---> error
+                  params= {...params,linedata:{},buttonflg:buttonflg,disableFilters:false,screenFlg:ownProps.screenFlg}
+                  return  dispatch(ScreenRequest(params,null))
+                }
+              else{
+                  return  dispatch(ScreenFailure( "please  select Order ",""))    
+                }//
+          case "rejections":  //第一画面で選択された親より第二画面表示
+              clickIndex = params.clickIndex
+              if(clickIndex.length===1){    //if(params.clickIndex.length===0)  ---> error
+                  params= {...params,linedata:{},buttonflg:buttonflg,disableFilters:false,screenFlg:ownProps.screenFlg}
+                  return  dispatch(ScreenRequest(params,null))
+                }
+              else{
+                return  dispatch(ScreenFailure( "please  select Order or please  select only one record",""))    
+              }//
           case "crt_tbl_view_screen":
                 data.map((row,index)=>{Object.keys(row).map((field,idx)=>
                         {

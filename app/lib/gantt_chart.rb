@@ -41,7 +41,7 @@ module GanttChart
 										:prdpur=>rec["opeitm_prdpur"],
 										:processseq=>"#{if mst_code =~ /^itms/ then '999' else  rec["opeitm_processseq"] end}",
 										:priority=>"#{if mst_code =~ /^itms/ then '999' else rec["opeitm_priority"] end}",
-										:start=>@min_time,:duedate=>@max_time,:id=>@level+ format('%07d',id.to_i)}  ###:id=>ganttのkey
+										:start=>@min_time,:duedate=>@max_time,:id=>@level+ format('%03d',id.to_i)}  ###:id=>ganttのkey
 					when "nditms"
 						case buttonflg
 						when /gantt/
@@ -51,7 +51,7 @@ module GanttChart
 										:parenum=>1,:chilnum=>1,:prdpur=>rec["opeitm_prdpur"],
 										:duration=>rec["opeitm_duration"],:unitofduration=>rec["opeitm_unitofduration"],
 										:processseq=>rec["opeitm_processseq"],:priority=>rec["opeitm_priority"],
-										:start=>@min_time,:duedate=>@max_time,:id=>@level+format('%07d',id.to_i)}  ###:id=>
+										:start=>@min_time,:duedate=>@max_time,:id=>@level+format('%03d',id.to_i)}  ###:id=>
 						when /reverse/
 								ope = ActiveRecord::Base.connection.select_one("select ope.*,shelf.locas_id_shelfno locas_id from opeitms ope
 																	inner join shelfnos shelf on shelf.id = ope.shelfnos_id_opeitm 
@@ -65,14 +65,14 @@ module GanttChart
 										:duration=>ope["duration"],:unitofduration=>ope["unitofduration"],
 										:prdpur=>ope["prdpur"],
 										:processseq=>ope["processseq"],:priority=>ope["priority"],
-										:start=>@max_time,:duedate=>@min_time,:id=>@level+format('%07d',ope["id"].to_i)}  ###:
+										:start=>@max_time,:duedate=>@min_time,:id=>@level+format('%03d',ope["id"].to_i)}  ###:
 								else
 									@ngantts << {:itms_id=>rec["nditm_itm_id_nditm"],:locas_id=>"0",:type=>"task",
 										:opeitms_id=>"0",:qty=>1,:depend => [],:parenum=>1,:chilnum=>1,
 										:duration=>1,:unitofduration=>"DAY ",
 										:prdpur=>"dummy",
 										:processseq=>999,:priority=>999,
-										:start=>@max_time,:duedate=>@min_time,:id=>@level+format('%07d',0)}  ###:
+										:start=>@max_time,:duedate=>@min_time,:id=>@level+format('%03d',0)}  ###:
 								end
 						end
 					end
@@ -120,49 +120,9 @@ module GanttChart
 									group by a.srctblname ,a.srctblid 
 								& 
 					if trget["remark"] =~ /create by mkord/  and buttonflg =~ /gantt/ ###mkprdpurordsで作成
-						# ### gantxxxx
-						# ### @ngantts はからのまま
-						# @bgantts[@base][:itm_name] = " 下記のtop item の子部品として引き当っています。"
-						# @bgantts[@base][:qty] = trget["qty"]
-						# @bgantts[@base][:type] = "task"
-						# ActiveRecord::Base.connection.select_all(strsql).each_with_index do |trn,idx|
-						# 	n0 = 	{:itms_id=>trn["itms_id_org"],:locas_id=>trn["locas_id_org"],:type=>"task",
-						# 					:linktblname=>trn["linktblname"],:linktblid=>trn["linktblid"],
-						# 					:tblname=>trn["orgtblname"],:tblid=>trn["orgtblid"],:trngantts_id=>trn["id"],
-						# 					:orgtblname=>trn["orgtblname"],:orgtblid=>trn["orgtblid"],
-						# 					:paretblname=>trn["paretblname"],:paretblid=>trn["paretblid"],
-						# 					:parenum=>1,:chilnum=>1,:processseq=>trn["processseq_org"],
-						# 					:start=>trn["starttime_org"],:duedate=>trn["duedate_org"],
-						# 					:depend => [@level],				
-						# 					:qty =>case  trn["srctblname"]
-						# 						when  /acts|dlvs|schs/
-						# 							0
-						# 						else	 
-						# 							 trn["qty_src"].to_f
-						# 						end,
-						# 					:qty_sch =>case  trn["srctblname"]
-						# 						when  /schs/
-						# 							trn["qty_src"].to_f
-						# 						else	 
-						# 							0
-						# 						end,
-						# 					:qty_stk =>case  trn["srctblname"]
-						# 						when  /acts/
-						# 							trn["qty_src"].to_f
-						# 						else	 
-						# 							0
-						# 						end,
-						# 					:id=>@level +  format('%03d',idx) } 
-						# 	n0 = get_item_loca_contents(n0,buttonflg) 
-						# 	n0[:itm_code] = "top item " + n0[:itm_code] 
-						# 	@bgantts[n0[:id]] = n0
-						# 	if @max_time < n0[:duedate]
-						# 		@max_time = n0[:duedate]
-						# 	end
-						# 	if @min_time > n0[:start]
-						# 		@min_time = n0[:start]
-						# 	end
-						# end
+					  ###
+            #
+            ###
 					else
 						ActiveRecord::Base.connection.select_all(strsql).each_with_index do |trn,idx|
 							n0 = {:itms_id=>trn["itms_id_trn"],:locas_id=>trn["locas_id_trn"],:type=>"task",
@@ -426,13 +386,15 @@ module GanttChart
 														from trngantts t 
 													inner join alloctbls a on a.trngantts_id  = t.id  
 													where  a.srctblname = '#{ngantt[:linktblname]}' and a.srctblid = #{ngantt[:linktblid]}
-															and a.qty_linkto_alloctbl > 0 ) pare 
+															and a.qty_linkto_alloctbl > 0 
+                              and t.orgtblname = '#{mst_code}' and t.orgtblid = #{id}) pare 
 										on trn.orgtblname = pare.orgtblname and trn.paretblname = pare.tblname
 																and trn.orgtblid = pare.orgtblid and trn.paretblid = pare.tblid
 									inner join alloctbls alloc on alloc.trngantts_id = trn.id
 																and alloc.qty_linkto_alloctbl > 0
 									inner join shelfnos s on s.id = trn.shelfnos_id_trn
 								where (trn.tblname != trn.paretblname or trn.tblid != trn.paretblid) 
+                and trn.orgtblname = '#{mst_code}' and trn.orgtblid = #{id} 
 								group by alloc.srctblname ,alloc.srctblid 
 									& 
 					else  ###custschs,custordsはganttのみ
@@ -631,7 +593,7 @@ module GanttChart
 				end
 				if @level =~ /trn/
             case n0[:tblname]
-            when /prdacts|puracts|dvsact|ercact/
+            when /puracts/
               strsql = %Q& select link.srctblname,link.srctblid from linktbls link
                                   inner join alloctbls alloc on alloc.srctblname = link.tblname and alloc.srctblid = link.tblid
                                               and alloc.trngantts_id = link.trngantts_id 
@@ -640,6 +602,9 @@ module GanttChart
               prevtbl = ActiveRecord::Base.connection.select_one(strsql)
               strsql =  %Q& select * from #{prevtbl["srctblname"]} where id = #{prevtbl["srctblid"]} &
               prevtbldata = ActiveRecord::Base.connection.select_one(strsql)
+							rec = ActiveRecord::Base.connection.select_one("select * from #{n0[:tblname]} where id = #{n0[:tblid]}")
+              dvstbl = ActiveRecord::Base.connection.select_one(strsql)
+            when /prdacts/
 							rec = ActiveRecord::Base.connection.select_one("select * from #{n0[:tblname]} where id = #{n0[:tblid]}")
 						when  /^custdlvs|^custacts|^dym|^dvs|^shp|^erc/ 
 							rec = ActiveRecord::Base.connection.select_one("select * from #{n0[:tblname]} where id = #{n0[:tblid]}")
@@ -669,14 +634,9 @@ module GanttChart
             when /^custdlvs/
 							n0[:duedate] = rec["depdate"]
 							n0[:start] = tbl["isudate"] 
-						when /^prdacts|^dvsacts/
+						when /^prdacts/
 							n0[:duedate] = rec["cmpldate"]
-              strsql = %Q&
-                          select commencementdate from dvs#{prevtbl["srctblname"][3..-1]} 
-                                  where #{prevtbl["srctblname"]}_id_dvs#{prevtbl["srctblname"][3..-2]} = #{n0[:tblid]}
-              & 
-              commencementdate = ActiveRecord::Base.connection.select_value(strsql)
-							n0[:start] = (prevtbldata["commencementdate"]||=rec["cmpldate"])
+							n0[:start] = rec["starttime"]
             when /^ercacts|^dvsacts/
 							n0[:duedate] = (rec["cmpldate"]||=rec["duedate"])  ###duedate? rcptdate? cmpldate?
 							n0[:start] = (rec["commencementdate"]||=rec["starttime"])
@@ -722,16 +682,7 @@ module GanttChart
 				new_qty = n0[:qty].to_f * rec["chilnum"].to_f / rec["parenum"].to_f
 				child = {}
 				if ope
-						nlevel = @level +  format('%07d',idx)
-						# strsql = "select * from r_nditms where nditm_opeitm_id = #{ope["id"]}
-						# 			and nditm_itm_id_nditm =  #{rec["nditm_itm_id_nditm"]} 
-						# 			and nditm_Expiredate > current_date order by itm_code_nditm  "
-						# child = ActiveRecord::Base.connection.select_one(strsql)
-						##if child
-							# if rec["shelfno_code_opeitm"] != "000"
-							# 	child["loca_name_shelfno"]=rec["shelfno_name_opeitm"]
-							# end
-						###else	
+						nlevel = @level +  format('%03d',idx)
 								if ope["shelfno_code_opeitm"] == "000"
 									child = {"shelfno_loca_id_shelfno"=>ope["shelfno_loca_id_shelfno_opeitm"],
 										"loca_code_shelfno"=>ope["loca_code_shelfno_opeitm"],
@@ -741,14 +692,27 @@ module GanttChart
 										"loca_code_shelfno"=>ope["shelfno_code_opeitm"],
 										"loca_name_shelfno"=>ope["shelfno_name_opeitm"]}
 								end
-						###end
+                contents = {:opeitms_id=>ope["id"],:processseq=>ope["opeitm_processseq"],
+                    :start=>start,:duedate=>duedate,  ###startはget_item_loca_contentsでset
+                    :duration=>rec["duration"],:unitofduration=>rec["unitofduration"],:id=>nlevel,:type=>"task",
+                    :parenum=>rec["parenum"],:chilnum=>rec["chilnum"],:qty=>new_qty,
+                    :itms_id=>rec["itms_id"],:itm_code=>rec["itm_code_nditm"],:itm_name=>rec["itm_name_nditm"],
+                       :classlist_code=>rec["classlist_code"],
+                    :locas_id=>child["shelfno_loca_id_shelfno"],:loca_code=>child["loca_code_shelfno"],
+                    :loca_name=>child["loca_name_shelfno"]}
+                depend << nlevel
+                nd =  {"duration"=>contents[:duration],"unitofduration"=>contents[:unitofduration],
+                     "classlist_code"=>contents[:classlist_code]}
+                contents[:start] = field_starttime(contents[:duedate],nd,"gantt")
+                @ngantts << contents
+                @bgantts[nlevel] = contents	
 				else
 					ope = {}
 					ope["id"] = "9999999"
 					ope["opeitm_processseq"] = ""
 					case rec["classlist_code"]
 					when "ITool","mold" ###工具、金型
-						strsql = %Q&
+						  strsql = %Q&
 								select s.code loca_code_shelfno,s.name loca_name_shelfno
 									from lotstkhists l
 									inner join shelfnos s on s.id = l.shelfnos_id
@@ -757,37 +721,147 @@ module GanttChart
 									and not exists(select 1 from lotstkhists xx where l.itms_id = xx.itms_id and l.processseq = xx.processseq
 														and xx.qty_stk <= 0 and xx.starttime > l.starttime)
 									order by l.starttime
-						&
-						sh = ActiveRecord::Base.connection.select_one(strsql)
-						if sh 
-							child = {"shelfno_loca_id_shelfno"=>sh["shelfno_loca_id_shelfno"],
+						    &
+						  sh = ActiveRecord::Base.connection.select_one(strsql)
+						  if sh 
+							  child = {"shelfno_loca_id_shelfno"=>sh["shelfno_loca_id_shelfno"],
 									"loca_code_shelfno"=>sh["loca_code_shelfno"],"loca_name_shelfno"=>sh["loca_name_shelfno"]}
-						else
-							child = {"shelfno_loca_id_shelfno"=>0,"loca_code_shelfno"=>"dummy","loca_name_shelfno"=>"dummy"}
-						end
+						  else
+							  child = {"shelfno_loca_id_shelfno"=>0,"loca_code_shelfno"=>"dummy","loca_name_shelfno"=>"dummy"}
+						  end
+              nlevel = @level +  format('%03d',idx)
+              contents = {:opeitms_id=>ope["id"],:processseq=>ope["opeitm_processseq"],
+                :start=>n0[:start],:duedate=>n0[:duedate],  ###startはget_item_loca_contentsでset
+                :duration=>rec["duration"],:unitofduration=>rec["unitofduration"],:id=>nlevel,:type=>"task",
+                :parenum=>rec["parenum"],:chilnum=>rec["chilnum"],:qty=>new_qty,
+                :itms_id=>rec["itms_id"],:itm_code=>rec["itm_code_nditm"],:itm_name=>rec["itm_name_nditm"],
+                   :classlist_code=>rec["classlist_code"],
+                :locas_id=>child["shelfno_loca_id_shelfno"],:loca_code=>child["loca_code_shelfno"],
+                :loca_name=>child["loca_name_shelfno"]}
+                if  (rec["changeoverlt"].to_f > 0 )
+                  nd =  {"duration"=>(rec["changeoverlt"]),"unitofduration"=>rec["unitofdvs"],
+                         "classlist_code"=>rec["classlist_code"]}
+                  contents[:start] = field_starttime(n0[:start],nd,"gantt")
+                end
+                if  (rec["postprocessinglt"].to_f > 0 )
+                  nd =  {"duration"=>(rec["postprocessinglt"].to_f * -1),"unitofduration"=>rec["unitofdvs"],
+                         "classlist_code"=>rec["classlist_code"]}
+                  contents[:duedate] = field_starttime(n0[:duedate],nd,"gantt")
+                end
+              depend << nlevel
+              @ngantts << contents
+              @bgantts[nlevel] = contents	
 					when "apparatus"   ###装置
-						child = {"shelfno_loca_id_shelfno"=>0,"loca_code_shelfno"=>"","loca_name_shelfno"=>""}
+              nlevel = @level +  format('%03d',idx)
+              contents = {:opeitms_id=>ope["id"],:processseq=>ope["opeitm_processseq"],
+                          :start=>n0[:start],:duedate=>n0[:duedate], ###startはget_item_loca_contentsでset
+                          :duration=>rec["duration"],:unitofduration=>rec["unitofduration"],:id=>nlevel,:type=>"task",
+                          :parenum=>rec["parenum"],:chilnum=>rec["chilnum"],:qty=>new_qty,
+                          :itms_id=>rec["itms_id"],:itm_code=>rec["itm_code_nditm"],:itm_name=>rec["itm_name_nditm"],
+                          :classlist_code=>rec["classlist_code"],
+                          :locas_id=>rec["locas_id_shelfno"],:loca_code=>"",:loca_name=>""}
+                                  Rails.logger.debug " class:#{self} ,line:#{__LINE__},contents:#{contents} "
+              if  (rec["changeoverlt"].to_f > 0 )
+                nd =  {"duration"=>(rec["changeoverlt"].to_f ),"unitofduration"=>rec["unitofdvs"],
+                       "classlist_code"=>rec["classlist_code"]}
+                contents[:start] = field_starttime(n0[:start],nd,"gantt")  ###n0[:start]-->prdxxxs.starttime
+              end
+                                  Rails.logger.debug " class:#{self} ,line:#{__LINE__},contents:#{contents} "
+              if  (rec["postprocessinglt"].to_f > 0 )
+                nd =  {"duration"=>(rec["postprocessinglt"].to_f * -1),"unitofduration"=>rec["unitofdvs"],
+                       "classlist_code"=>rec["classlist_code"]}
+                contents[:duedate] = field_starttime(n0[:duedate],nd,"gantt")  ###n0[:duedate]-->prdxxxs.duedate
+              end
+                                  Rails.logger.debug " class:#{self} ,line:#{__LINE__},contents:#{contents} "
+              save_contents = contents.dup
+              @ngantts << contents
+              @bgantts[nlevel] = contents	###dvs
+              save_nlevel = nlevel
+              depend << nlevel
+              strsql = %Q&  --- from master when ercords
+                  select f.id,itm_code_fcoperator,f.itm_name_fcoperator,f.person_code_chrg_fcoperator,f.person_name_chrg_fcoperator 
+                      from  r_fcoperators f 
+                      where f.fcoperator_itm_id_fcoperator = #{rec["itms_id"]}
+                      order by f.fcoperator_priority desc
+                  &
+              fcops = ActiveRecord::Base.connection.select_all(strsql)
+              ["changeover","require","postprocess"].each do |processname|   ###前処理、処理、後処理 erc
+                  case processname
+                  when  "changeover" 
+                    next if  (rec["changeoverlt"].to_f == 0 or rec["changeoverop"].to_f == 0)
+                    fcops.each_with_index do |op,ii|
+                      next if rec["changeoverop"].to_i <= ii
+                      nlevel = (save_nlevel + "a" +  format('%02d',ii))
+                      contents = {:opeitms_id=>ope["id"],:processseq=>ope["opeitm_processseq"],
+                                  :start=>start,:duedate=>duedate,  ###startはget_item_loca_contentsでset
+                                  :duration=>rec["duration"],:unitofduration=>rec["unitofduration"],:id=>nlevel,
+                                  :type=>"task",:parenum=>rec["parenum"],:chilnum=>rec["chilnum"],:qty=>new_qty,
+                                  :itms_id=>rec["itms_id"],:itm_code=>op["itm_code_fcoperator"],:itm_name=>op["itm_name_fcoperator"],
+                                  :classlist_code=>rec["classlist_code"],
+                                  :locas_id=>op["person_code_chrg_fcoperator"],:loca_code=>"",:loca_name=>op["person_name_chrg_fcoperator"]}
+                      nd =  {"duration"=>(rec["postprocessinglt"].to_i * -1),"unitofduration"=>rec["unitofdvs"],
+                                  "classlist_code"=>rec["classlist_code"]}
+                      contents[:duedate] = field_starttime(save_contents[:start],nd,"gantt")
+                      contents[:start] = save_contents[:start]
+                      depend << nlevel
+                      ##@ngantts << contents
+                      @bgantts[nlevel] = contents	
+                    end
+                  when "require" 
+                    next if  rec["requireop"].to_f == 0
+                    fcops.each_with_index do |op,ii|
+                      next if rec["requireop"].to_i <= ii
+                      nlevel = (save_nlevel + "b" +  format('%02d',ii))
+                      contents = {:opeitms_id=>ope["id"],:processseq=>ope["opeitm_processseq"],
+                                  :start=>n0[:start],:duedate=>n0[:duedate],  ###startはget_item_loca_contentsでset
+                                  :duration=>rec["duration"],:unitofduration=>rec["unitofduration"],:id=>nlevel,
+                                  :type=>"task",:parenum=>rec["parenum"],:chilnum=>rec["chilnum"],:qty=>new_qty,
+                                  :itms_id=>rec["itms_id"],:itm_code=>op["itm_code_fcoperator"],:itm_name=>op["itm_name_fcoperator"],
+                                  :classlist_code=>rec["classlist_code"],
+                                  :locas_id=>op["person_code_chrg_fcoperator"],:loca_code=>"",:loca_name=>op["person_name_chrg_fcoperator"]}
+                      depend << nlevel
+                      ##@ngantts << contents
+                      @bgantts[nlevel] = contents	
+                    end
+                  when  "postprocess" 
+                    next if  (rec["postprocessingop"].to_f == 0 or rec["postprocessinglt"].to_f == 0)
+                    fcops.each_with_index do |op,ii|
+                      nlevel = (save_nlevel + "c" +  format('%02d',ii))
+                      contents = {:opeitms_id=>ope["id"],:processseq=>ope["opeitm_processseq"],
+                                  :start=>start,:duedate=>duedate,  ###startはget_item_loca_contentsでset
+                                  :duration=>rec["duration"],:unitofduration=>rec["unitofduration"],:id=>nlevel ,
+                                  :type=>"task",:parenum=>rec["parenum"],:chilnum=>rec["chilnum"],:qty=>new_qty,
+                                  :itms_id=>rec["itms_id"],:itm_code=>op["itm_code_fcoperator"],:itm_name=>op["itm_name_fcoperator"],
+                                  :classlist_code=>rec["classlist_code"],
+                                  :locas_id=>op["person_code_chrg_fcoperator"],:loca_code=>"",:loca_name=>op["person_name_chrg_fcoperator"]}
+                      nd =  {"duration"=>(rec["postprocessinglt"].to_i),"unitofduration"=>rec["unitofdvs"],
+                                  "classlist_code"=>rec["classlist_code"]}
+                                  Rails.logger.debug " class:#{self} ,line:#{__LINE__},contents:#{contents} "
+                      contents[:start] = field_starttime(save_contents[:duedate],nd,"gantt")
+                      contents[:duedate] = save_contents[:duedate]
+                      depend << nlevel
+                      ##@ngantts << contents
+                      @bgantts[nlevel] = contents	
+                    end
+                  end
+              end
 					else
-						child = {"shelfno_loca_id_shelfno"=>0,"loca_code_shelfno"=>"dummy","loca_name_shelfno"=>"dummy"}
+              nlevel = @level +  format('%03d',idx)
+              contents = {:opeitms_id=>ope["id"],:processseq=>ope["opeitm_processseq"],
+                :start=>start,:duedate=>duedate,  ###startはget_item_loca_contentsでset
+                :duration=>rec["duration"],:unitofduration=>rec["unitofduration"],:id=>nlevel,:type=>"task",
+                :parenum=>rec["parenum"],:chilnum=>rec["chilnum"],:qty=>new_qty,
+                :itms_id=>rec["itms_id"],:itm_code=>rec["itm_code_nditm"],:itm_name=>rec["itm_name_nditm"],
+                   :classlist_code=>rec["classlist_code"],
+                :locas_id=>0,:loca_code=>"dummy",:loca_name=>"dummy"}
+              depend << nlevel
+              nd =  {"duration"=>contents[:duration],"unitofduration"=>contents[:unitofduration],
+                 "classlist_code"=>contents[:classlist_code]}
+              contents[:start] = field_starttime(contents[:duedate],nd,"gantt")
+              @ngantts << contents
+              @bgantts[nlevel] = contents	
 					end
-					nlevel = @level +  format('%07d',idx)
 				end
-				contents = {:opeitms_id=>ope["id"],:processseq=>ope["opeitm_processseq"],
-						:start=>start,:duedate=>duedate,  ###startはget_item_loca_contentsでset
-						:duration=>rec["duration"],:unitofduration=>rec["unitofduration"],:id=>nlevel,:type=>"task",
-						:parenum=>rec["parenum"],:chilnum=>rec["chilnum"],:qty=>new_qty,
-						:itms_id=>rec["itms_id"],:itm_code=>rec["itm_code_nditm"],:itm_name=>rec["itm_name_nditm"],
-   						:classlist_code=>rec["classlist_code"],
-						:changeoverlt=>rec["changeoverlt"],
-						:locas_id=>child["shelfno_loca_id_shelfno"],:loca_code=>child["loca_code_shelfno"],
-						:loca_name=>child["loca_name_shelfno"]}
-				depend << nlevel
-				nd =  {"duration"=>contents[:duration],"unitofduration"=>contents[:unitofduration],
-				   	"classlist_code"=>contents[:classlist_code],
-					"changeoverlt"=>contents[:changeoverlt]}
-				contents[:start] = field_starttime(contents[:duedate],nd,"gantt")
-				@ngantts << contents
-				@bgantts[nlevel] = contents	
 				if @max_time < contents[:duedate]
 					@max_time = contents[:duedate]
 				end
@@ -810,7 +884,7 @@ module GanttChart
 			ActiveRecord::Base.connection.select_all(ArelCtl.proc_reverse_nditmSql(n0[:itms_id],n0[:processseq])).each_with_index  do |rec,idx|  ###子部品
 				new_qty = n0[:qty].to_f / rec["chilnum"].to_f * rec["parenum"].to_f
 				pare = {}
-					nlevel = @level +  format('%07d',idx)
+					nlevel = @level +  format('%03d',idx)
 					if rec["shelfno_code_opeitm"] == "000"
 							pare = {"shelfno_loca_id_shelfno"=>rec["shelfno_loca_id_shelfno_opeitm"],
 									"loca_code_shelfno"=>rec["loca_code_shelfno_opeitm"],
@@ -820,7 +894,7 @@ module GanttChart
 									"loca_code_shelfno"=>rec["shelfno_code_opeitm"],
 									"loca_name_shelfno"=>rec["shelfno_name_opeitm"]}
 					end
-				nlevel = @level +  format('%07d',idx)
+				nlevel = @level +  format('%03d',idx)
 				contents = {:opeitms_id=>rec["opeitms_id"],:processseq=>ope["processseq_pare"],
 						:start=>start,:duedate=>duedate,  ###startはget_item_loca_contentsでset
 						:duration=>rec["duration"],:unitofduration=>rec["unitofduration"],:id=>nlevel,:type=>"task",
@@ -830,8 +904,7 @@ module GanttChart
 						:locas_id=>pare["shelfno_loca_id_shelfno"],:loca_code=>pare["loca_code_shelfno"],
 						:loca_name=>pare["loca_name_shelfno"]}
 				depend << nlevel
-				nd =  {"duration"=>contents[:duration],"unitofduration"=>contents[:unitofduration],
-				   	"classlist_code"=>"","changeoverlt"=>0,}
+				nd =  {"duration"=>contents[:duration],"unitofduration"=>contents[:unitofduration],"classlist_code"=>""}
 				contents[:duedate] = field_starttime(contents[:start],nd,"reverse")
 				@ngantts << contents
 				@bgantts[nlevel] = contents	
@@ -849,8 +922,8 @@ module GanttChart
 		
 	def field_starttime startEnd,nd,reverse
 		###if tblnamechop =~ /dvs|erc/
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},startEnd:#{startEnd} "
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
+		###	Rails.logger.debug " class:#{self} ,line:#{__LINE__},startEnd:#{startEnd} "
+		###	Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
 		###end
 		if reverse == "reverse"
 			cal = -1

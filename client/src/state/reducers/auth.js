@@ -53,7 +53,7 @@ const authreducer =  (state= initialValues , actions) =>{
           time: new Date(),
           isSubmitting:false,
           isSignUp:true,
-          error: actions.payload   /// payloadに統一
+          error: actions.payload.message   /// payloadに統一
       }
     // Set the requesting flag and append a message to be shown
     case LOGIN_REQUEST:
@@ -66,7 +66,7 @@ const authreducer =  (state= initialValues , actions) =>{
     // Successful?  Reset the login state.
     case LOGIN_SUCCESS:
       return {...state,
-        message: [],
+        message: "",
         isAuthenticated:true,
         token:actions.payload["access-token"], 
         client:actions.payload.client, 
@@ -81,7 +81,7 @@ const authreducer =  (state= initialValues , actions) =>{
       return {...state,
         isAuthenticated:false,
         isSubmitting:false,
-        error:actions.payload.message,
+        error:actions.payload.error,
     }
 
     case LOGOUT_REQUEST:

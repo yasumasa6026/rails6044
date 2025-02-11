@@ -523,7 +523,7 @@ module ScreenLib
 							next						
                 		end ## ff["value"].size
 					when /char|text|select/
-						if  (ff["value"] =~ /^%/ or ff["value"] =~ /%$/ ) then 
+						if  (ff["value"] =~ /%/ ) then 
 							where_str << " #{ff["id"]} like '#{ff["value"]}'     AND " if  ff["value"] != ""
 						elsif ff["value"] =~ /^<=/  or ff["value"] =~ /^>=/ then 
 							where_str << " #{ff["id"]} #{ff["value"][0..1]} '#{ff["value"][2..-1]}'     AND " if  ff["value"] != ""
@@ -657,6 +657,7 @@ module ScreenLib
 			if params[:parse_linedata]
 				setParams[:parse_linedata] = params[:parse_linedata].dup
 			end
+      setParams[:message] = ""
 			return pagedata,setParams 
 		end	
 
@@ -695,7 +696,7 @@ module ScreenLib
 						case cell[:accessor]   ###初期表示
 						when /_expiredate/
 							temp[cell[:accessor]] = "2099-12-31"
-						when /_isudate|_rcptdate|_cmpldate|payact_paymentdate/
+						when /_isudate|_rcptdate|_cmpldate|payact_paymentdate|_acpdate/
 							temp[cell[:accessor]] = Time.now.strftime("%Y/%m/%d")
 						when /pobject_objecttype_tbl/
 							temp[cell[:accessor]] = "tbl"
@@ -793,6 +794,19 @@ module ScreenLib
 						when  /qty.*bal/  ###
 							temp[cell[:accessor]] = 0
 						end
+          when /rejections/
+								case cell[:accessor]   ###初期表示
+                when /_paretblname/
+                  temp[cell[:accessor]] = params[:paretblname]
+                when /_paretblid/
+                  temp[cell[:accessor]] = params[:paretblid]
+                when /_chrg_id/
+                  temp[cell[:accessor]] = params[:lineData]["#{params[:paretblname].chop}_chrg_id"]
+                else
+                  if params[:lineData][cell[:accessor]]
+                    temp[cell[:accessor]] = params[:lineData][cell[:accessor]]
+                  end
+                end
 					else
 						case cell[:accessor]
 						when /itm_taxflg/	
@@ -809,6 +823,14 @@ module ScreenLib
 			setParams[:sortBy]= []
 			setParams[:groupBy]= []
 			setParams[:aggregations] = {}
+      setParams[:message] = case screenCode
+                  when /puracts/
+                    "受入数は合格数+不良数"
+                  when /prdacts/
+                    "完成数は合格数+不良数"
+                  else
+                    ""
+                  end
 			return pagedata,setParams		
 		end	   ## proc_strwhere
 
@@ -1202,8 +1224,17 @@ module ScreenLib
               setParams["gantt"] = {}
               processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
             end
-					return setParams
-				#when /custactheads/
+				when /custactheads/
+          command_c["custacthead_amt"] = 0
+          command_c["custacthead_tax"] = 0
+          command_c = blk.proc_create_tbldata(command_c) ##設定のし直し
+					###setParams = blk.proc_private_aud_rec(setParams,command_c)
+					setParams,command_c = blk.proc_add_update_table(setParams,command_c) 
+					if command_c["sio_result_f"]  == "9"
+						command_c[:confirm] = false  
+					else
+						setParams = ok_confirm(setParams,command_c,tblnamechop)
+					end
 					# case setParams[:buttonflg]
 					# when /confirmAll|MkInvoiceNo/   ###一画面分纏めてcommit
 					# 	setParams = blk.proc_private_aud_rec(params,command_c)
@@ -1440,59 +1471,73 @@ module ScreenLib
 		end	
 
 		def proc_add_custact_details(params)  ###  from custactheads to custacts
-			setParams = params.dup
 			prevs = []
-			outqty = totalAmt = 0
 			err = nil
 			pareview,paretblname = screenCode.split("_")
 			parse_linedata = params[:parse_linedata].dup
 			tbldata = params["tbldata"].dup
-			if parse_linedata[:custacthead_packinglistnos].size > 0
+			if parse_linedata[:custacthead_packinglistnos].size > 0   ###cust3_custactheads packinglistnoでの纒
 				strsql = %Q&
-						select 'custdlvs' tblname,dlv.*,link.id link_id,link.trngantts_id,dlv.id tblid from r_custdlvs dlv
-												inner join linkcusts link on link.tblname = 'custdlvs' and link.tblid = dlv.id and link.qty_src > 0
+						select 'custdlvs' tblname,dlv.*,link.id link_id,link.trngantts_id,dlv.id tblid,dlv.custdlv_packinglistno 
+                        from r_custdlvs dlv
+												inner join linkcusts link on link.tblname = 'custdlvs' and link.tblid = dlv.id 
 												where dlv.custdlv_packinglistno in('#{parse_linedata[:custacthead_packinglistnos].split(",").join("','")}')
-												and dlv.custdlv_cust_id = #{parse_linedata[:custacthead_cust_id]}
+												and dlv.custdlv_cust_id = #{parse_linedata[:custacthead_cust_id]} and link.qty_src > 0
 					&
 				prevs = 	ActiveRecord::Base.connection.select_all(strsql)
 			else
 				if tbldata["sno_custordhead"].size > 0
 					strsql = %Q&
-								select act.*,alloc.id link_id,alloc.trngantts_id from linkcusts alloc
-									inner join (select * from custordheads head 
+								select 'custords' tblname,head.srctblid tblid,alloc.id link_id,alloc.trngantts_id from linkcusts alloc
+									inner join (select head.* from custordheads head 
 													inner join linkheads link link.paretblid = head.id 
 														where head.sno = '#{parse_linedata[:custacthead_sno_custordhead]}' and link.paretblname = 'custordheads' 
 															and custs_id = #{parse_linedata[:custacthead_cust_id]}) head
 									on head.tblid = alloc.tblid and alloc.srctblname = 'custords'
-									inner join inoutlotstks act on alloc.trngantts_id = act.trngantts_id 
 									where	alloc.qty_src > 0 		 		
 					&
 					ActiveRecord::Base.connection.select_all(strsql).each do |rec|
 						detailsql = %Q&
-										select '#{rec["tblname"]}' tblname,'#{rec["link_id"]}' link_id,'#{rec["trngantts_id"]}' trngantts_id,* 
-													from r_#{rec["tblname"]} where id = #{rec["tblid"]}
+										select  'custords'  tblname,'#{rec["link_id"]}' link_id,'#{rec["trngantts_id"]}' trngantts_id,* 
+													from r_#{rec["srctblname"]} where id = #{rec["srctblid"]}
 						&
 						prevs << ActiveRecord::Base.connection.select_one(detailsql) 
 					end
 				else
-					if tbldata["cno_custordhead"].size > 0
+					if tbldata["cno_custordhead"].size > 0  ######cust1_custordheads,cust1_custactheads, custordheadsのcnoでの纒
 						strsql = %Q&
-							select act.*,alloc.id link_id,alloc.trngantts_id  from linkcusts alloc
-								inner join (select * from custordheads head 
+							select   'custords'  tblname,head.srctblid tblid,alloc.id link_id,alloc.trngantts_id  from linkcusts alloc
+								inner join (select head.* from custordheads head 
 												inner join linkheads link link.paretblid = head.id 
 												where head.cno = '#{parse_linedata[:custacthead_cno_custordhead]}' and link.paretblname = 'custordheads' 
 												and custs_id = #{parse_linedata[:custacthead_cust_id]}) head
 									on head.tblid = alloc.tblid and alloc.srctblname = 'custords'
-								inner join inoutlotstks act on alloc.trngantts_id = act.trngantts_id 
 								where	alloc.qty_src > 0 		
 							&
 						ActiveRecord::Base.connection.select_all(strsql).each do |rec|
 							detailsql = %Q&
-									select  '#{rec["tblname"]}' tblname,'#{rec["link_id"]}' link_id,'#{rec["trngantts_id"]}' trngantts_id,* 
+									select   'custords'  tblname,'#{rec["link_id"]}' link_id,'#{rec["trngantts_id"]}' trngantts_id,* 
 																from r_#{rec["tblname"]} where id = #{rec["tblid"]}
 									&
 							prevs << ActiveRecord::Base.connection.select_one(detailsql) 
 						end
+          else
+            if tbldata["gno_custord"].size > 0
+              strsql = %Q&
+                select alloc.id link_id,alloc.trngantts_id,'custords' tblname,head.id tblid  from linkcusts alloc
+                  inner join custords head on alloc.tblid = head.id 
+                  where head.gno = '#{parse_linedata[:custacthead_gno_custordhead]}' 
+                          and custs_id = #{parse_linedata[:custacthead_cust_id]}
+                          and	alloc.qty_src > 0 		
+                &
+              ActiveRecord::Base.connection.select_all(strsql).each do |rec|
+                detailsql = %Q&
+                    select   'custords'  tblname,'#{rec["link_id"]}' link_id,'#{rec["trngantts_id"]}' trngantts_id,* 
+                                  from r_#{rec["tblname"]} where id = #{rec["tblid"]}
+                    &
+                prevs << ActiveRecord::Base.connection.select_one(detailsql) 
+              end
+            end
 					end
 				end
 			end
@@ -1501,14 +1546,9 @@ module ScreenLib
 			custact =  RorBlkCtl::BlkClass.new("#{pareview}_custacts")
 			linktbl_ids = []
 			amtTaxRate = {}
-			prevs.each do |prev|
+			prevs.each do |prev|   ###records
 				command_custact = custact.command_init
-				command_custact["sio_classname"] = "detail_add_custacts"
-				command_custact["custact_created_at"] = Time.now
-				command_custact["id"] = ArelCtl.proc_get_nextval("custacts_seq")
-			  command_custact["custact_person_id_upd"] = params["person_id_upd"]
-			  command_custact["custact_saledate"] = tbldata["saledate"]
-				prev.each do |key,val|
+				prev.each do |key,val|   ###fields
 					next if key == "id"
 					next if key == "tblname"
 					next if key =~ /#{prev["tblname"]}_id$|#{prev["tblname"]}_sno$|#{prev["tblname"]}_cno$|#{prev["tblname"]}_gno$/
@@ -1520,9 +1560,24 @@ module ScreenLib
           else
 					  command_custact[key.sub("#{prev["tblname"].chop}","custact")] = val
           end
-					outqty += val.to_f if key =~ /qty$|qty_stk$/
-					totalAmt += val.to_f if key =~ /amt$/
 				end
+
+				command_custact["sio_classname"] = "detail_add_custacts"
+        command_custact["sio_viewname"] = "r_custacts"
+				command_custact["custact_created_at"] = Time.now
+				command_custact["id"] = ArelCtl.proc_get_nextval("custacts_seq")
+			  command_custact["custact_person_id_upd"] = params["person_id_upd"]
+			  command_custact["custact_saledate"] = tbldata["saledate"]
+        case prev["tblname"]
+           when "custdlvs"
+			       command_custact["custact_packinglistno_custdlv"] = prev["custdlv_packinglistno"]
+			       command_custact["custact_qty_stk"] = prev["custdlv_qty_stk"]
+           else
+			       command_custact["custact_packinglistno_custdlv"] = ""
+			       command_custact["custact_qty_stk"] = prev["#{prev["tblname"].chop}_qty"]
+        end
+
+			  command_custact["custact_invoiceno"] = tbldata["invoiceno"]
 				command_custact = custact.proc_create_tbldata(command_custact) ###
 				if amtTaxRate[command_custact["custact_taxrate"].to_s]
 				    amtTaxRate[command_custact["custact_taxrate"].to_s]["amt"] += command_custact["custact_amt"].to_f
@@ -1532,26 +1587,26 @@ module ScreenLib
 				    amtTaxRate[command_custact["custact_taxrate"].to_s] = {"amt" => command_custact["custact_amt"].to_f,
 															"qty" => command_custact["custact_qty_stk"].to_f,"count" => 1}
 				end
-				custact.proc_private_aud_rec({},command_custact)  ### add custacts
+				custact.proc_private_aud_rec(params,command_custact)  ### add custacts
 				###
 				#
 				###
-				base = {"tblname" => "custacts" ,	"tblid" => command_custact["id"],
-									"qty_src" => command_custact["custact_qty_stk"] ,
-									"amt_src" => command_custact["custact_amt"]  ,
-									"trngantts_id" => prev["trngantts_id"],"persons_id_upd" => setParams["person_id_upd"]}
-				linktbl_ids  << ArelCtl.proc_insert_linkcusts(prev,base)
-							update_strsql = %Q&
-								update  linkcusts link set qty_src = qty_src - #{command_custact["custact_qty_stk"]}
-															,amt_src = amt_src - #{command_custact["custact_amt"]} 
-															,remark = ' #{self} line:#{__LINE__} '||remark
-												where id  = '#{prev["link_id"]}'
-							&
-				ActiveRecord::Base.connection.update(update_strsql)
+				# base = {"tblname" => "custacts" ,	"tblid" => command_custact["id"],
+				# 					"qty_src" => command_custact["custact_qty_stk"] ,
+				# 					"amt_src" => command_custact["custact_amt"]  ,
+				# 					"trngantts_id" => prev["trngantts_id"],"persons_id_upd" => params["person_id_upd"]}
+				# linktbl_ids  << ArelCtl.proc_insert_linkcusts(prev,base)
+				# 			update_strsql = %Q&
+				# 				update  linkcusts link set qty_src = qty_src - #{command_custact["custact_qty_stk"]}
+				# 											,amt_src = amt_src - #{command_custact["custact_amt"]} 
+				# 											,remark = ' #{self} line:#{__LINE__} '||remark
+				# 								where id  = '#{prev["link_id"]}'
+				# 			&
+				# ActiveRecord::Base.connection.update(update_strsql)
 				###
 				# 親子関係作成
 				###
-					ArelCtl.proc_insert_linkheads(params[:head],{"tblname" => "custacts","tblid" => command_custact["id"],"persons_id_upd" => setParams["person_id_upd"]})
+					ArelCtl.proc_insert_linkheads(params[:head],{"tblname" => "custacts","tblid" => command_custact["id"],"persons_id_upd" => params["person_id_upd"]})
 				###
 				#
 				###

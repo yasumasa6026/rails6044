@@ -181,7 +181,7 @@ module ArelCtl
         case totbl
         when "fcoperators"
           command_c["fcoperator_itm_id_fcoperator"] =  fmcommand_c["facilitie_itm_id"]
-          command_c["fcoperator_chrg_id_fcoperator"] =  0
+          command_c["fcoperator_chrg_id_fcoperator"] =  fmcommand_c["facilitie_chrg_id_facilitie"]
         end
 		else
         Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
@@ -261,44 +261,8 @@ module ArelCtl
 		return head
 	end	
 
-	# def consume_amt_sch_by_act fmtbl,fmtblid,prev_totbl
-	# 	taxrate = 0.1  ###変更要
-	# 	srctbl = fmtbl
-	# 	srctblid = fmtblid
-	# 	flg = false
-	# 	until flg == true
-	# 		strsql = %Q&select * from linktbls where tblname = '#{srctbl}' and tblid = #{srctblid}&
-	# 		flg = true
-	# 		ActiveRecord::Base.connection.select_all(strsql).each do |link|
-	# 			case link["srctblname"] 
-	# 			when /ords/
-	# 				linl_sql = %Q&select sum(qty_src) from linktbls 
-	# 								where  srctblname = #{link["srctblname"]} and srctblid = #{link["srctblid"]} 
-	# 								group by srctblname,srctblid
-	# 								&
-	# 				link_rec = ActiveRecord::Base.connection.select_one(link_sql)
-	# 				prev_sql = %Q&select * from #{link["srctblname"]} 	where  srctblid = #{link["srctblid"]} 
-	# 								&
-	# 				prev_rec = ActiveRecord::Base.connection.select_one(link_sql)
-	# 				amt_sch = prev_rec["amt"].to_f - link_rec["qty_src"].to_f * prev_rec["price"]
-	# 				tax = amt_sch * taxrate
-	# 				amt_sch_sql = %Q& select * from  r_#{prev_totbl} 
-	# 									where  #{prev_totbl.chop}_sno_#{link["srctblname"].chop} = #{ord["sno"]}&
-	# 				command_c = ActiveRecord::Base.connection.select_one(amt_sch_sql)
-	# 				command_c["#{prev_totbl.chop}_amt_sch"] = amt_sch
-	# 				command_c["#{prev_totbl.chop}_tax"] = tax
-	# 				command_c["sio_code"] = command_c["sio_viewname"] =  "r_" + prev_totbl
-	# 				command_c["sio_classname"] = "_update_consume_amt_sch_by_act"
-	# 			when /insts$|dlvs$|acts$|replyinputs$/
-	# 				srctbl = link["srctblname"]
-	# 				srctblid = link["srctblid"]
-	# 				flg = false
-	# 			end
-	# 		end
-	# 	end
-	# end
 
-	def proc_insert_linktbls(src,base)
+	def proc_insert_linktbls(src,newsrc)
 		linktbl_id = proc_get_nextval("linktbls_seq")
 		strsql = %Q&
 				insert into linktbls(id,trngantts_id,
@@ -309,12 +273,16 @@ module ArelCtl
 					update_ip,persons_id_upd,expiredate,remark)
 				values(#{linktbl_id},#{src["trngantts_id"]},
 					'#{src["tblname"]}',#{src["tblid"]}, 
-					'#{base["tblname"]}',#{base["tblid"]},#{base["qty_src"]} ,#{base["amt_src"]} , 
+					'#{newsrc["tblname"]}',#{newsrc["tblid"]},#{newsrc["qty_src"]} ,#{newsrc["amt_src"]} , 
 					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
 					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-					' ',0,'2099/12/31','#{base["remark"]}')  ---persons.id=0はテーブルに必須
+					' ',0,'2099/12/31','#{newsrc["remark"]}')  ---persons.id=0はテーブルに必須
 				&
 		ActiveRecord::Base.connection.insert(strsql)
+    if src["tblname"] =~ /^prd/ and newsrc["tblname"] =~ /^prd/  and src["tblname"] != newsrc["tblname"] and newsrc["qty_src"].to_f > 0
+       link = {"prevtblname" => src["tblname"],"prevtblid" => src["tblid"],"tblname" => newsrc["tblname"],"tblid" => newsrc["tblid"]}
+       add_dvserc_link(link)
+    end  
 		return linktbl_id
 	end
 
@@ -358,6 +326,50 @@ module ArelCtl
 		return linkhead_id
 	end
 
+  
+  def add_dvserc_link src  ###prevtblname:prdxxxxs,tblname:prdxxxs,prevtblid,tblid
+    ["dvs","erc"].each do |dvserc|
+      strsql = %Q&
+        select '#{dvserc}#{src["prevtblname"][3..-1]}' prevdvserctblname,id prevdvserctblid
+                             from #{dvserc}#{src["prevtblname"][3..-1]}
+                                where #{src["prevtblname"]}_id_#{dvserc}#{src["prevtblname"][3..-2]} = #{src["prevtblid"]}
+                &
+        ActiveRecord::Base.connection.select_all(strsql).each do |prevdvserc| 
+          prev = {"tblname" => prevdvserc["prevdvserctblname"],"tblid" => prevdvserc["prevdvserctblid"]}
+          strsql =%Q&                 
+            select '#{prevdvserc["prevdvserctblname"].sub(src["prevtblname"][3..-1],src["tblname"][3..-1])}' currdvserctblname,id currdvserctblid
+                             from #{prevdvserc["prevdvserctblname"].sub(src["prevtblname"][3..-1],src["tblname"][3..-1])}
+                                where #{src["tblname"]}_id_#{dvserc}#{src["tblname"][3..-2]} = #{src["tblid"]}
+                &
+            ActiveRecord::Base.connection.select_all(strsql).each do |currdvserc| 
+              curr = {"tblname" => currdvserc["currdvserctblname"],"tblid" => currdvserc["currdvserctblid"],"qty_src" => 1,"amt_src" => 0}
+              strsql = %Q&
+                      select l.id link_id,a.id alloc_id,l.trngantts_id from linktbls l
+                                    inner join alloctbls a on a.srctblname = l.tblname and a.srctblid = l.tblid and a.trngantts_id = l.trngantts_id    
+                                    where l.tblname = '#{prevdvserc["prevdvserctblname"]}' and l.tblid = #{prevdvserc["prevdvserctblid"]} 
+                                    and l.qty_src > 0 and a.qty_linkto_alloctbl > 0
+                  &
+              ActiveRecord::Base.connection.select_all(strsql).each do |link|  ###trngantts_idを求める
+                prev["trngantts_id"] = link["trngantts_id"] 
+                curr["remark"] = "class:#{self},line #{__LINE__}"
+                ArelCtl.proc_insert_linktbls(prev,curr)
+                alloc = {"srctblname" => curr["tblname"],"srctblid" => curr["tblid"],"trngantts_id" => link["trngantts_id"],
+                      "qty_linkto_alloctbl" => 1,
+                      "remark" => "class:#{self}, line:#{__LINE__} #{Time.now}","persons_id_upd" => 0,
+                        "allocfree" =>"alloc"}  ##persons_id_upd=0;未定
+                ArelCtl.proc_aud_alloctbls(alloc,"add")
+                strsql = %Q& update linktbls set qty_src = 0,remark = 'class:#{self}, line:#{__LINE__} #{Time.now}'||left(remark,3000)
+                                     where id = #{link["link_id"]}&
+                ActiveRecord::Base.connection.update(strsql)
+                strsql = %Q& update alloctbls set qty_linkto_alloctbl = 0,remark = 'class:#{self}, line:#{__LINE__} #{Time.now}'||left(remark,3000)
+                                     where id = #{link["alloc_id"]}&
+                ActiveRecord::Base.connection.update(strsql)
+              end
+            end                 
+        end
+    end
+  end
+
 	def proc_insert_linkcusts(src,base)
 		linkcust_id = proc_get_nextval("linkcusts_seq")
 		strsql = %Q&
@@ -379,6 +391,7 @@ module ArelCtl
 	end
 
 	def proc_aud_alloctbls(rec_alloc,aud)   ### alloctbls.id又は(alloctbls.srctblname,srctblid,trngantts_id)は必須
+    alloctbl = {}
     strwhere  = if rec_alloc["trngantts_id"]
                   " and trngantts_id = #{rec_alloc["trngantts_id"]} "
                 else
@@ -436,7 +449,6 @@ module ArelCtl
 		  end
       last_lotstk["qty_src"] = rec_alloc["qty_linkto_alloctbl"]
     when "insert","add"
-        alloctbl = {}
 			  alloctbl["id"] = proc_get_nextval("alloctbls_seq")
 			  strsql = %Q&
 				  insert into alloctbls(id,
@@ -478,7 +490,7 @@ module ArelCtl
             last_lotstk["qty_src"] = rec_alloc["qty_linkto_alloctbl"].to_f - alloctbl["qty_linkto_alloctbl"].to_f 
 			      strsql = %Q&
 						  update alloctbls set qty_linkto_alloctbl = #{rec_alloc["qty_linkto_alloctbl"]},
-									remark = '#{rec_alloc["remark"]}'||remark  --- persond_id_upd=0
+									remark = '#{rec_alloc["remark"]}'||left(remark,3000)  --- persond_id_upd=0
 									where id = #{alloctbl["id"]}&
           end
 		      ActiveRecord::Base.connection.update(strsql)
@@ -487,13 +499,12 @@ module ArelCtl
           raise
         end
       else
-        alloctbl = {"id" => rec_alloc["id"]}
-        src = ActiveRecord::Base.connection.select_one(%Q& select * from alloctbls where id = #{alloctbl["id"]}  &)
+        src = ActiveRecord::Base.connection.select_one(%Q& select * from alloctbls where id = #{rec_alloc["id"]}  &)
         if aud == "update+" or  aud == "edit+"
             last_lotstk = {"tblname" => src["srctblname"],"tblid" => src["srctblid"],"qty_src" => rec_alloc["qty_linkto_alloctbl"]}
 			      strsql = %Q&
 						  update alloctbls set qty_linkto_alloctbl = qty_linkto_alloctbl + #{rec_alloc["qty_linkto_alloctbl"]},
-									remark = '#{rec_alloc["remark"]}'||remark   --- persond_id_upd=0
+									remark = '#{rec_alloc["remark"]}'||left(remark,3000)   --- persond_id_upd=0
 									where id = #{rec_alloc["id"]}
                   &
         else
@@ -501,7 +512,7 @@ module ArelCtl
             last_lotstk["qty_src"] = rec_alloc["qty_linkto_alloctbl"].to_f - src["qty_linkto_alloctbl"].to_f 
 			      strsql = %Q&
 						  update alloctbls set qty_linkto_alloctbl = #{rec_alloc["qty_linkto_alloctbl"]},
-									remark = '#{rec_alloc["remark"]}'||remark   --- persond_id_upd=0
+									remark = '#{rec_alloc["remark"]}'||left(remark,3000)   --- persond_id_upd=0
 									where id = #{rec_alloc["id"]}
 					    &
         end
@@ -509,7 +520,6 @@ module ArelCtl
       end
     when "delete"
     end
-				Rails.logger.debug" class #{self} ,line:#{__LINE__} last_lotstk:#{last_lotstk} "
 		return alloctbl["id"],last_lotstk
 	end
 
@@ -600,29 +610,11 @@ module ArelCtl
 				linktbl_id = proc_insert_linktbls(src,base)
 				alloctbl_id,last_lotstk = proc_aud_alloctbls(alloc,"insert")
         last_lotstks << last_lotstk
-        3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
         setParams = {"tbldata" => tbldata,"gantt" => gantt,"opeitm" => {}}
-        # if  gantt["tblname"] =~ /^prd/
-        #   strsql = %Q&
-        #         select n.itms_id_nditm itms_id ,n.processseq_nditm processseq, ic.code classlist_code,n.unitofdvs, 
-        #           n.duration_facility,n.changeoverlt,n.postprocessinglt
-        #               from nditms n 
-        #               inner join (select i.id itms_id ,c.code from itms i
-        #                         inner join classlists c on c.id = i.classlists_id ) ic
-        #                   on ic.itms_id = n.itms_id_nditm
-        #               where ic.code = 'apparatus' and n.opeitms_id = #{tbldata["opeitms_id"]}
-        #       &
-        #   ActiveRecord::Base.connection.select_all(strsql).each do |apparatus|
-        #       ope = Operation::OpeClass.new(setParams)  ###prdinsts,prdacts
-        #       ope.proc_add_dvs_data(apparatus)
-        #       ope.proc_add_erc_data(apparatus)
-        #   end
-        # end
 			when /^dymschs|^shp/   ### shp itmclass,code=mold,ITollの時
 				linktbl_id = proc_insert_linktbls(src,base)
 				alloctbl_id,last_lotstk = proc_aud_alloctbls(alloc,"insert")
         last_lotstks << last_lotstk
-        3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
 			when /^erc|^dvs/   ### shp itmclass,code=mold,ITollの時
 				linktbl_id = proc_insert_linktbls(src,base)
 				alloctbl_id,last_lotstk_tmp = proc_aud_alloctbls(alloc,"insert")
@@ -631,7 +623,6 @@ module ArelCtl
 				linktbl_id = proc_insert_linkcusts(src,base)
 				alloctbl_id,last_lotstk = proc_aud_alloctbls(alloc,"insert")
         last_lotstks << last_lotstk
-        3.times{Rails.logger.debug" class:#{self} , line:#{__LINE__} ,error last_lotstk:#{last_lotstk}"} if  last_lotstk.nil? or last_lotstk["tblname"].nil? or last_lotstk["tblname"] == ""
 			end
 			return last_lotstks
 	end
@@ -643,6 +634,7 @@ module ArelCtl
 		###      src["qty_linkto_alloctbl"]=>変化前のqty
 		###      src["tblname"],src["tblid"] =>変化前tbl,id
 		###      src["trngantts_id"] => 変化前trngantts_id 
+		###      src["qty_src"] => freeに引き当った数 
 		###
 		###      base["qty_src"]=> 変化先のqty
 		###      base["tblname"],base["tblid"] =>変化先tbl,id
@@ -660,23 +652,25 @@ module ArelCtl
       src["qty_src"] =  base["qty_src"] ### 新たに引き合った 
       base["qty_src"] = 0
 	  else
-			base["remark"] = "#{self} line:(#{__LINE__})" +  base["remark"]
       base["qty_src"] = base["qty_src"].to_f - src["qty_linkto_alloctbl"].to_f
+			base["remark"] = "#{self} line:(#{__LINE__})" +  base["remark"]
       src["qty_src"] =  src["qty_linkto_alloctbl"] 
       src["qty_linkto_alloctbl"] = 0
 		end
-    proc_insert_linktbls(src,base)  ###linktbls.qty_src作成後free_qty=base["qty_src"] = 0
+    newsrc = {"tblname"=>base["tblname"],"tblid"=>base["tblid"],"qty_src"=>src["qty_src"],
+              "amt_src"=>0,"remark"=>base["remark"]}
+    proc_insert_linktbls(src,newsrc)  ###linktbls.qty_src作成後free_qty=base["qty_src"] = 0
 		###  
 
 		alloc = {"id" => src["alloctbls_id"], "qty_linkto_alloctbl" => src["qty_linkto_alloctbl"],
         "srctblname" => src["tblname"],"srctblid" => src["tblid"],"trngantts_id" => src["trngantts_id"],
-        "remark" => "#{self} line #{__LINE__} #{Time.now}","persons_id_upd" => 0}
+        "remark" => base["remark"],"persons_id_upd" => 0}
     alloctbl_id,last_lotstk = proc_aud_alloctbls(alloc,"update")
     last_lotstks << last_lotstk
 		str_qty = case src["tblname"]
 		 			when /schs$/
 						"qty_sch"
-					when /acts$|dlvs$/
+					when /acts$|dlvs$|custinsts$/
 						"qty_stk"
 					else
 						"qty"
@@ -685,34 +679,33 @@ module ArelCtl
 		new_str_qty = case base["tblname"]
 					when /schs$/
 					   "qty_sch"
-				   	when /acts$|dlvs$/
+				   	when /acts$|dlvs$|custinsts$/
 					   "qty_stk"
 				   	else
 					   "qty"
 				   	end
     if str_qty != new_str_qty        
 		  strsql = %Q&  ---   tblname=xxxschsのqty,qty_sch
-			 update trngantts set #{str_qty} = #{str_qty}  - #{base["qty_src"]},
-			 						#{new_str_qty} =  #{new_str_qty} + #{base["qty_src"].to_f},
+			 update trngantts set #{str_qty} = #{str_qty}  - #{src["qty_src"]},
+			 						#{new_str_qty} =  #{new_str_qty} + #{src["qty_src"].to_f},
 						 updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-						 remark = '#{self} line:(#{__LINE__})'|| remark
+						 remark = '#{self} line:(#{__LINE__})'|| left(remark,3000)
 					 where id = #{src["trngantts_id"]} 
 			  &
 		  ActiveRecord::Base.connection.update(strsql)
     end
     
-    if src["trngantts_id"] != base["trngantts_id"] 
+    if src["trngantts_id"] != base["trngantts_id"] ### base free trngantts
       strsql = %Q&  ---   tblname=xxxschsのqty,qty_sch
-        update trngantts set  #{new_str_qty} =  #{new_str_qty} - #{base["qty_src"].to_f},
+        update trngantts set  #{new_str_qty} =  #{new_str_qty} - #{src["qty_src"].to_f},
               updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-              remark = '#{self} line:(#{__LINE__})'|| remark
+              remark = '#{self} line:(#{__LINE__})'||left(remark,3000)
             where id = #{base["trngantts_id"]} 
          &
       ActiveRecord::Base.connection.update(strsql)
     end
 
 		alloc = {"srctblname" => base["tblname"],"srctblid" => base["tblid"],"trngantts_id" => base["trngantts_id"],
-        ###"alloc_id" => base["alloctbls_id"],
          "qty_linkto_alloctbl" => base["qty_src"],
         "remark" => "#{self} line #{__LINE__} #{Time.now}" + (base["remark"]||=""),"persons_id_upd" => 0}
     alloctbl_id,last_lotstk_tmp = proc_aud_alloctbls(alloc,"update")  ###引当の変更はあるが在庫数の変更はない
@@ -724,8 +717,8 @@ module ArelCtl
 		# ###在庫の修正はproc_src_base_trn_stk_update
 		return  last_lotstks
 	end
-	
-	def proc_nditmSql(opeitms_id)  
+
+ 	def proc_nditmSql(opeitms_id)  
         %Q%
             select pare.processseq processseq_pare,pare.packqty packqty_pare,pare.id opeitms_id_pare,
 				        pare.duration duration_pare,pare.unitofduration unitofduration,nditm.unitofdvs,
@@ -738,10 +731,10 @@ module ArelCtl
                	ope.locas_id_shelfno locas_id_shelfno,ope.shelfnos_id_opeitm,  ---子部品作業場所
                	ope.locas_id_shelfno_to locas_id_shelfno_to,ope.shelfnos_id_to_opeitm,   ---子部品保管場所
 			   	ope.consumauto,
-			   	nditm.duration_facility ,nditm.requireop,nditm.changeoverlt,nditm.changeoverop,
+			   	nditm.durationfacility ,nditm.requireop,nditm.changeoverlt,nditm.changeoverop,
 			   	nditm.postprocessinglt,nditm.postprocessingop,
 			    itm.taxflg, itm.classlist_code,itm.itm_code_nditm,itm.itm_name_nditm,
-				nditm.packqtyfacility,nditm.changeoverlt,postprocessinglt,
+				nditm.packqtyfacility,
 				case pare.duration
 				when null then 
 					1
@@ -800,8 +793,8 @@ module ArelCtl
 	
   def proc_pareChildTrnsSqlGroupByChildItem(parent)
          %Q%
-             select pare.id pare_trngantts_id,trn.itms_id_trn itms_id, trn.processseq_trn processseq,
-                max(trn.consumtype) consumtype,max(trn.parenum) parenum,max(trn.chilnum) chilnum,
+             select max(pare.id) pare_trngantts_id,trn.itms_id_trn itms_id, trn.processseq_trn processseq,
+                (trn.consumtype) consumtype,max(trn.parenum) parenum,max(trn.chilnum) chilnum,
                 max(trn.consumunitqty) consumunitqty,max(trn.consumminqty) consumminqty,max(trn.consumchgoverqty) consumchgoverqty,
                 pare.shelfnos_id_trn pare_shelfnos_id,   ---親作業場所
                 trn.shelfnos_id_to_trn shelfnos_id_to,   ---子の保管先
@@ -818,7 +811,7 @@ module ArelCtl
 	 			inner join opeitms ope on trn.itms_id_trn = ope.itms_id and trn.processseq_trn = ope.processseq
 	 							and trn.shelfnos_id_trn = ope.shelfnos_id_opeitm
 	 		where (trn.paretblname != trn.tblname or trn.paretblid != trn.tblid) and pare.mlevel < trn.mlevel
-	 		group by trn.itms_id_trn ,trn.processseq_trn ,pare.shelfnos_id_trn,trn.shelfnos_id_to_trn,pare.id
+	 		group by trn.itms_id_trn ,trn.processseq_trn ,pare.shelfnos_id_trn,trn.shelfnos_id_to_trn,trn.consumtype
          %  
   end
 	
@@ -895,5 +888,17 @@ module ArelCtl
 			where  (trn.tblname != trn.paretblname or trn.tblid != trn.paretblid)   
 			group by trn.itms_id_trn , trn.processseq_trn 
 		&
+  end
+
+  def proc_apparatus_sql(opeitms_id) 
+    %Q&
+      select n.itms_id_nditm itms_id ,n.processseq_nditm processseq, ic.code classlist_code,n.unitofdvs, 
+              n.durationfacility,n.changeoverlt,n.postprocessinglt,n.requireop,n.changeoverop,n.postprocessingop
+          from nditms n 
+          inner join (select i.id itms_id ,c.code from itms i
+                    inner join classlists c on c.id = i.classlists_id ) ic
+              on ic.itms_id = n.itms_id_nditm
+          where ic.code = 'apparatus' and n.opeitms_id = #{opeitms_id}
+    &
   end
 end

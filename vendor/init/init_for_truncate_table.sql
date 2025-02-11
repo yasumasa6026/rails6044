@@ -107,31 +107,6 @@ truncate table sio.sio_r_screenfields cascade;
 
 truncate table sio.sio_r_tblfields cascade;
 
---insert into lotstkhists(id,
---									itms_id,shelfnos_id,
---									prjnos_id,
---									starttime,processseq,
---									lotno,packno,
---									qty_sch,
---									qty_stk,
---									qty,
---									stktaking_proc,
---									created_at,
---									updated_at,
---									update_ip,persons_id_upd,expiredate,remark)
---							values(0,
---									0,0,
---									0,
---									'2000/01/01',999,
---									'','',
---									0,
---									0,
---									0,
---									'',
---									to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'),
---									to_timestamp('2000/01/01 0:0:0','yyyy/mm/dd hh24:mi:ss'),
---									' ',0,'2099/12/31','')
---;
 INSERT INTO public.mkprdpurords 
 (id, 
 cmpldate, result_f, runtime, 

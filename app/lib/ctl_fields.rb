@@ -373,13 +373,13 @@ module CtlFields
 							case  fetchview
 							when /custs$/
 								if line_data[:crr_code].nil? or line_data[:crr_code] == ""
-									line_data[:crr_code] = rec["crr_code_bill_cust"]
-									line_data[:crr_name] = rec["crr_name_bill_cust"]
-									line_data[:custord_crr_id] = rec["bill_crr_id_bill_cust"]
+									line_data[:crr_code] = rec["crr_code_cust"]
+									line_data[:crr_name] = rec["crr_name_cust"]
+									line_data[:custord_crr_id] = rec["cust_crr_id_cust"]
 								end
 								if line_data[:custord_contractprice].nil? or line_data[:custord_contractprice] == ""
 									line_data[:custord_contractprice] = rec["cust_contractprice"]
-								end 
+								end
 							when  /opeitms$/ 
 								if line_data[:shelfno_code_fm] == "" or line_data[:shelfno_code_fm].nil? 
 								   line_data[:loca_code_shelfno_fm] = rec["loca_code_shelfno_to_opeitm"]  ###opeitm.shelfno_code_to_opeitm 完成後の置き場所゜
@@ -390,6 +390,26 @@ module CtlFields
 									###custord.shelfno_code_fm 客先への出荷のための梱包場所
 								end
 							end
+						when /^custacthead/
+							case  fetchview
+							  when /custs$/
+								  if line_data[:loca_code_bill].nil? or line_data[:loca_code_bill] == ""
+									  line_data[:loca_code_bill] = rec["loca_code_bill_cust"]
+									  line_data[:loca_name_bill] = rec["loca_name_bill_cust"]
+									  line_data[:custacthead_bill_id] = rec["cust_bill_id_cust"]
+								  end
+								  if line_data[:crr_code_bill].nil? or line_data[:crr_code_bill] == ""
+									  line_data[:crr_code_bill] = rec["crr_code_bill_cust"]
+									  line_data[:crr_name_bill] = rec["crr_name_bill_cust"]
+								  end
+							  when /bills$/
+									line_data[:loca_code_bill] = rec["loca_code_bill"]
+									line_data[:loca_name_bill] = rec["loca_name_bill"]
+									line_data[:custacthead_bill_id] = rec["bill_id"]
+                  
+									line_data[:crr_code_bill] = rec["crr_code_bill"]
+									line_data[:crr_name_bill] = rec["crr_name_bill"]
+              end
 						end
 					else
 						findstatus = false
@@ -789,11 +809,12 @@ module CtlFields
 
 	def proc_judge_check_duedate line_data,item,index,screenCode  ###
 		tblnamechop = screenCode.split("_")[1].chop
-		parent = {"starttime"  => line_data[(tblnamechop+"_duedate").to_sym]}
+		parent = {"starttime" => line_data[(tblnamechop+"_starttime").to_sym],"duedate" => line_data[(tblnamechop+"_duedate").to_sym]}
 		nd = {"duration" => line_data["opeitm_duration".to_sym],"unitofduration" => line_data[:opeitm_unitofduration] }
 		line_data = proc_field_starttime(tblnamechop,line_data.stringify_keys,parent,nd)
 		err = nil
-		return line_data.symbolize_keys,err
+		###return line_data.symbolize_keys,err
+		return line_data,err
 	end
 	
 	def proc_judge_check_supplierprice line_data,item,index,screenCode  ###M
@@ -1742,30 +1763,30 @@ module CtlFields
 			when "require"
 				duedate =  	pduedate  - ((nd["postprocessinglt"]||=0).to_f)*dayHour  
 			when "postprocess"
-				duedate = pduedate 
+				duedate = pduedate + ((nd["postprocessinglt"]||=0).to_f)*dayHour ###後処理
       else
 			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},processname error ,command_x:#{command_x},nd:#{nd} "
         raise
 			end
 		end
-		if dayHour == 24*3600    ###day = "Day"
-			if duedate.strftime("%H") < "08"
-				duedate = duedate - 24*3600   ###前日
-				command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 16:00:00")
-			else
-				if duedate.strftime("%H") < "13"
-					command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 08:00:00")
-				else	
-					if duedate.strftime("%H") < "16"
-						command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 13:00:00")
-					else	
-						command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 16:00:00")
-					end
-				end
-			end
-		else
+		# if dayHour == 24*3600    ###day = "Day"
+		# 	if duedate.strftime("%H") < "08"
+		# 		duedate = duedate - 24*3600   ###前日
+		# 		command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 16:00:00")
+		# 	else
+		# 		if duedate.strftime("%H") < "13"
+		# 			command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 08:00:00")
+		# 		else	
+		# 			if duedate.strftime("%H") < "16"
+		# 				command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 13:00:00")
+		# 			else	
+		# 				command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 16:00:00")
+		# 			end
+		# 		end
+		# 	end
+		# else
 			command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d %H:%M:%S"))
-		end
+		# end
 		return command_x
 	end
 
@@ -1782,11 +1803,11 @@ module CtlFields
 	end
 
 	def proc_field_facilities_id tblnamechop,command_x,parent,nd
-		strsql = %Q& select id,chrgs_id from facilities  where itms_id = #{nd["itms_id"]}&
+		strsql = %Q& select id,chrgs_id_facilitie from facilities  where itms_id = #{nd["itms_id"]}&
 		facilitie = ActiveRecord::Base.connection.select_one(strsql)
 		if facilitie
 			command_x["#{tblnamechop}_facilitie_id"] = facilitie["id"]
-			command_x["#{tblnamechop}_chrg_id"] = facilitie["chrgs_id"]
+			command_x["#{tblnamechop}_chrg_id"] = facilitie["chrgs_id_facilitie"]
 		else
 			Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
 			Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
@@ -1815,7 +1836,7 @@ module CtlFields
 		when /prdsch/
 		 	qty_sch = command_x["prdsch_qty_sch"].to_f
 			strsql = %Q&
-				select nd.packqtyfacility,nd.duration_facility,itm.classlist_code,op.duration 
+				select nd.packqtyfacility,nd.durationfacility,itm.classlist_code,op.duration 
 					from nditms nd
 					inner join (select i.id itms_id,c.code classlist_code from itms i
 										inner join classlists c	on i.classlists_id = c.id
@@ -1827,11 +1848,11 @@ module CtlFields
 					 &
 			appa = ActiveRecord::Base.connection.select_one(strsql)
 			if appa 		
-				if  (appa["duration_facility"].to_f) > 0   ###装置のltなし
+				if  (appa["durationfacility"].to_f) > 0   ###装置のltなし
 					if (appa["packqtyfacility"].to_f) > 0  ###nd["duration"].nil? --> tbl=dymschs&opeitms無
-						 starttime =  cduedate - (appa["duration_facility"].to_f)*qty_sch/(appa["packqtyfacility"].to_f).ceil*dayHour    
+						 starttime =  cduedate - (appa["durationfacility"].to_f)*qty_sch/(appa["packqtyfacility"].to_f).ceil*dayHour    
 					else
-						 starttime =  cduedate - (appa["duration_facility"].to_f)*dayHour
+						 starttime =  cduedate - (appa["durationfacility"].to_f)*dayHour
 					end
 				else
 					 starttime =  cduedate - (appa["duration"]||=1).to_f*dayHour  ###prdschs.opeitms_id.duration
@@ -1843,64 +1864,64 @@ module CtlFields
 			starttime =  pstarttime - (nd["changeoverlt"]||=0).to_f*dayHour 
 		when "shpest" ###親はprdschs 工具・金型
 			starttime =  pstarttime - (nd["changeoverlt"]||=0).to_f*dayHour 
-		when "ercsch" ###親はdvsschs
+		when "ercsch","ercord" ###親はdvsschs
 			case command_x["#{tblnamechop}_processname"]   ###親はdvsschs
 			when "changeover"
-				starttime = pstarttime
+				starttime = pstarttime - (nd["changeoverlt"]||=0).to_f*dayHour 
 			when "require"
-				starttime =  pstarttime + (nd["changeoverlt"]||=0).to_f*dayHour 
+				starttime =  pstarttime 
 			when "postprocess"
-				starttime = pduedate - ((nd["postprocessinglt"]||=0).to_f)*dayHour 
+				starttime = pduedate 
       else
         Rails.logger.debug " class:#{self} ,line:#{__LINE__},tblnamechop error command_x:#{command_x} "
         raise
 			end
 		end
 		
-		if nd["unitofduration"] == "Day "
-			if starttime.strftime("%M") < "13"
-				case tblnamechop
-				when /prdord/
-		 			command_x["prdord_starttime"] = (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
-				when /shpest/
-		 			command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
-				else
-		 			command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
-				end
-			else
-				if starttime.strftime("%M") < "16"
-					case tblnamechop
-					when /prdord/
-						command_x["prdord_starttime"] =  (starttime.strftime("%Y-%m-%d") + " 13:00:00" )
-					when /shpest/
-						command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d") + " 13:00:00" )
-					else
-						command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d") + " 13:00:00" )
-					end
-				else
-					###前日
-					starttime = starttime - 24*3600
-					case tblnamechop
-					when /prdord/
-		 				command_x["prdord_starttime"] =   (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
-					when /shpest/
-		 				command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
-					else
-		 				command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d") + " 0800:00" )
-					end
-				end
-			end
+		# if nd["unitofduration"] == "Day " and tblnamechop =~ /^prd|^pur|^shp/
+		# 	if starttime.strftime("%M") < "13"
+		# 		case tblnamechop
+		# 		when /prdord/
+		#  			command_x["prdord_starttime"] = (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
+		# 		when /shpest/
+		#  			command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
+		# 		else
+		#  			command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
+		# 		end
+		# 	else
+		# 		if starttime.strftime("%M") < "16"
+		# 			case tblnamechop
+		# 			when /prdord/
+		# 				command_x["prdord_starttime"] =  (starttime.strftime("%Y-%m-%d") + " 13:00:00" )
+		# 			when /shpest/
+		# 				command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d") + " 13:00:00" )
+		# 			else
+		# 				command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d") + " 13:00:00" )
+		# 			end
+		# 		else
+		# 			###前日
+		# 			starttime = starttime - 24*3600
+		# 			case tblnamechop
+		# 			when /prdord/
+		#  				command_x["prdord_starttime"] =   (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
+		# 			when /shpest/
+		#  				command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
+		# 			else
+		#  				command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d") + " 0800:00" )
+		# 			end
+		# 		end
+		# 	end
 				
-		else
-			case tblnamechop
-			when /prdord/
-		 		command_x["prdord_starttime"] =   (starttime.strftime("%Y-%m-%d %H:%M:%S") )
-			when /shpest/
-		 		command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d %H:%M:%S") )
-			else
-		 		command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d %H:%M:%S") )
-			end
-		end
+		# else
+		 	case tblnamechop
+		 	when /prdord/
+		  		command_x["prdord_starttime"] =   (starttime.strftime("%Y-%m-%d %H:%M:%S") )
+		 	when /shpest/
+		  		command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d %H:%M:%S") )
+		 	else
+		  		command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d %H:%M:%S") )
+		 	end
+		# end
 		return command_x
 	end
 
@@ -2099,7 +2120,8 @@ module CtlFields
 			"custschs"=>"CS","custords"=>"CO","custinsts"=>"CJ","custdlvs"=>"CV","custacts"=>"CA","custrets"=>"CR",
 			"ercschs"=>"ES","ercords"=>"EO","ercinsts"=>"EJ","ercacts"=>"CA",
 			"custordheads"=>"CH","custactheads"=>"CB",
-			"shpests"=>"ST","shpschs"=>"SS","shpords"=>"SO","shpinsts"=>"SH","shpacts"=>"SA","shprets"=>"SR"}
+			"shpests"=>"ST","shpschs"=>"SS","shpords"=>"SO","shpinsts"=>"SH","shpacts"=>"SA","shprets"=>"SR",
+      "rejections" =>"RJ","movacts" => "MV"}
 	end
 
 	

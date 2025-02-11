@@ -23,8 +23,6 @@ paysch.payments_id   paysch_payment_id,
   chrg.chrg_person_id_chrg  chrg_person_id_chrg ,
   payment.loca_code_payment  loca_code_payment ,
   payment.loca_name_payment  loca_name_payment ,
-  crr.crr_code  crr_code ,
-  crr.crr_name  crr_name ,
   payment.person_code_chrg_payment  person_code_chrg_payment ,
   payment.person_name_chrg_payment  person_name_chrg_payment ,
   payment.chrg_person_id_chrg_payment  chrg_person_id_chrg_payment ,
@@ -36,11 +34,10 @@ paysch.chrgs_id   paysch_chrg_id,
 paysch.amt_sch  paysch_amt_sch,
 paysch.gno  paysch_gno,
 paysch.taxrate  paysch_taxrate,
-paysch.accounttitle  paysch_accounttitle,
-paysch.crrs_id   paysch_crr_id
+paysch.accounttitle  paysch_accounttitle
  from payschs   paysch,
-  persons  person_upd ,  r_payments  payment ,  r_chrgs  chrg ,  r_crrs  crr 
-  where       paysch.persons_id_upd = person_upd.id      and paysch.payments_id = payment.id      and paysch.chrgs_id = chrg.id      and paysch.crrs_id = crr.id     ;
+  persons  person_upd ,  r_payments  payment ,  r_chrgs  chrg 
+  where       paysch.persons_id_upd = person_upd.id      and paysch.payments_id = payment.id      and paysch.chrgs_id = chrg.id        ;
  DROP TABLE IF EXISTS sio.sio_bal_payschs;
  CREATE TABLE sio.sio_bal_payschs (
           sio_id numeric(22,0)  CONSTRAINT SIO_bal_payschs_id_pk PRIMARY KEY           ,sio_user_code numeric(22,0)
@@ -60,7 +57,6 @@ paysch.crrs_id   paysch_crr_id
           ,sio_search varchar(10)
           ,sio_sidx varchar(256)
 ,paysch_sno  varchar (50) 
-,crr_code  varchar (50) 
 ,loca_code_payment  varchar (50) 
 ,loca_name_payment  varchar (100) 
 ,paysch_amt_sch  numeric (38,4)
@@ -74,10 +70,8 @@ paysch.crrs_id   paysch_crr_id
 ,crr_code_payment  varchar (50) 
 ,crr_name_payment  varchar (100) 
 ,paysch_expiredate   date 
-,crr_name  varchar (100) 
 ,person_code_chrg_payment  varchar (50) 
 ,person_name_chrg_payment  varchar (100) 
-,paysch_crr_id  numeric (22,0)
 ,paysch_payment_id  numeric (38,0)
 ,paysch_gno  varchar (40) 
 ,paysch_accounttitle  varchar (20) 

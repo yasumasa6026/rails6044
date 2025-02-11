@@ -16,13 +16,15 @@ module Api
                             gantt =  GanttChart::GanttClass.new(params[:buttonflg],"itms")
                             ganttData =  gantt.proc_get_ganttchart_data(tblcode,parse_linedata["id"],params[:buttonflg])  
                             ganttData.sort.each do |level,ganttdata|
+                                next if ganttdata[:itm_code].nil?
+                                next if ganttdata[:itm_name].nil?
                                 tasks << {"id"=>ganttdata[:id],
-                                     "name"=>ganttdata[:itm_code]+":#{ganttdata[:itm_name]},#{ganttdata[:processseq]},#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]},QTY:#{ganttdata[:qty]},"  +
+                                     "name"=>ganttdata[:itm_code]+":#{ganttdata[:itm_name]},#{ganttdata[:processseq]},#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]},"  +
                                                %Q& #{case ganttdata[:classlist_code]
                                                 when "installationCharge","mold","apparatus","ITool"
                                                     ""
                                                 else
-                                                    "NumberOfItems:#{ganttdata[:chilnum]}/#{ganttdata[:parenum]}"
+                                                    "QTY:#{ganttdata[:qty]},NumberOfItems:#{ganttdata[:chilnum]}/#{ganttdata[:parenum]}"
                                                 end}&,
                                      "type"=>ganttdata[:type],"start"=>ganttdata[:start],"end"=>ganttdata[:duedate],
                                      "styles"=>case ganttdata[:classlist_code]
@@ -51,9 +53,9 @@ module Api
                                                 "" 
                                             when /schs$/
                                                 "QTY_SCH:#{ganttdata[:qty_sch]}"
-                                            when /ords|insts|reply/
+                                            when /ords$|prdinsts|purinsts|reply/
                                                 "QTY:#{ganttdata[:qty]}"
-                                             when /dlvs$|acts$/
+                                             when /dlvs$|acts$|custinsts$/
                                                 "STK:#{ganttdata[:qty_stk]}"
                                             else
                                                 ""
@@ -81,8 +83,12 @@ module Api
                                                 end,
                                        "styles"=>if ganttdata[:delay] then {"backgroundColor"=>"#FF0000"} else 
                                                                                                             case ganttdata[:tblname]
+                                                                                                            when /dvsacts$/
+                                                                                                                 {"backgroundColor"=>"#111111"}
+                                                                                                            when /ercacts$/
+                                                                                                                  {"backgroundColor"=>"#222222"}
                                                                                                             when /acts$/
-                                                                                                                {"backgroundColor"=>"#000000"}
+                                                                                                                  {"backgroundColor"=>"#000000"}
                                                                                                             when /dlvs$/
                                                                                                                   {"backgroundColor"=>"#330000"}
                                                                                                             when /insts$/
@@ -107,9 +113,9 @@ module Api
                                 str_qty =  case ganttdata[:tblname]
                                             when /schs/
                                                 "QTY_SCH:#{ganttdata[:qty_sch]}"
-                                            when /ords$|insts$|reply/
+                                            when /ords$|insts$|purinsts$|prdinsts|reply/
                                                 "QTY:#{ganttdata[:qty]}"
-                                             when /dlvs$|acts$/
+                                             when /dlvs$|acts$|custinsts$/
                                                 "STK:#{ganttdata[:qty_stk]}"
                                             else
                                                 ""

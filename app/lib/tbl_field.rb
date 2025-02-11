@@ -132,8 +132,8 @@ class TblClass
 			end
 		rescue
         		ActiveRecord::Base.connection.rollback_db_transaction()
-            	Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
-          		Rails.logger.debug"error class #{self} : $!: #{$!} "
+            	Rails.logger.debug"error class #{self},line:#{__LINE__} ,#{Time.now} "
+          		Rails.logger.debug" $!: #{$!} \n @: #{$@}"
           		Rails.logger.debug"  params: #{params} "
 				status = 500
 				errmsg = $!
@@ -253,13 +253,17 @@ class TblClass
 		@modifysql << "\n --- and rerun 'Create table,view,screen'  again" 
 		@modifysql << "\n --- ----------------------------------------------"	
 		@modifysql << "\n --- alter table #{ table_name} DROP COLUMN #{column_name} CASCADE;\n"
-		@modifysql << "\n --- 使用しているview "
+		@modifysql << "\n --- first "
+		@modifysql << "\n --- 使用しているview ,fields check"
 		@modifysql << "\n --- select pobject_code_scr,pobject_code_sfd,
 							---   case screenfield_selection when 1 then '選択有' else '' end selection,
 							---	case screenfield_hideflg when 1 then '' else '表示有' end display,
 							---   case screenfield_indisp when 1 then '必須' else '' end inquire from r_screenfields "
 		if column_name =~ /s_id/
 			@modifysql << "\n ---- where  pobject_code_sfd = '#{table_name.chop}_#{column_name.sub("s_id","_id")}'"
+			@modifysql << "\n ---- "
+			@modifysql << "\n ---- second"
+			@modifysql << "\n ---- "
 			@modifysql << "\n --- update screenfields set expiredate = '2000/1/1',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
 			@modifysql << "\n ---        ,updated_at = current_date  ,selection = '0'"
 			@modifysql << "\n ---        where id in  (select id from r_screenfields where  (pobject_code_sfd like '#{table_name.chop}_#{column_name.sub("s_id","_id")}%' "
@@ -862,7 +866,7 @@ class TblClass
 		end 
 		@modifysql << createviewscript[0..-5]
 		@modifysql << ";" 
-		@messages << " --- create view script   #{screen} "
+		@messages << "  --- create view script   #{screen} "
 	end
 
 	def create_foreign_key_constraint tbl

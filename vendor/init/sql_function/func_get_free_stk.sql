@@ -1,222 +1,222 @@
 
--- DROP FUNCTION public.func_get_free_ord_stk(varchar, numeric, numeric, numeric);
+-- -- DROP FUNCTION public.func_get_free_ord_stk(varchar, numeric, numeric, numeric);
 
-CREATE OR REPLACE FUNCTION public.func_get_free_ord_stk(induedate character varying, inprjnos_id numeric, initms_id numeric, inprocessseq numeric)
- RETURNS TABLE(tblname character varying, tblid numeric, priority text, due numeric, starttime timestamp without time zone, duedate timestamp without time zone, processseq numeric, mlevel numeric, itms_id numeric, shelfnos_id numeric, prjnos_id numeric, trngantts_id numeric, alloctbls_id numeric, qty numeric, qty_stk numeric, qty_linkto_alloctbl numeric, update_ip character varying, updated_at timestamp without time zone)
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-	RETURN QUERY
-	 EXECUTE 'select   ---  free　を求めるsql
-						alloc.srctblname tblname,alloc.srctblid tblid,
-	 	 				case
-	 	 				when alloc.srctblname like '||'''%dlvs'''||'
-	 	 					then '||'''02'''||' 
-	 	 				when alloc.srctblname like '||'''%acts'''||'
-	 	 					then '||'''02'''||' 
-	 	 				when  gantt.duedate_trn <= to_date($1,'||'''yyyy-mm-dd'''||')
-	 	 					then '||'''01'''||'	
-	 	 				else
-	 	 					'||'''03'''||' end  priority,
-	 	 				to_number(to_char(gantt.duedate_trn,'||'''yyyymmdd'''||'),'||'''99999999'''||')*-1 due,
-	 	 				gantt.starttime_trn starttime,gantt.duedate_trn duedate,
-	 	 				gantt.processseq_trn processseq,gantt.mlevel mlevel,
-	 	 				gantt.itms_id_trn itms_id,gantt.shelfnos_id_to_trn shelfnos_id,
-	 	 				gantt.prjnos_id,alloc.trngantts_id trngantts_id,
-	 	 				alloc.id alloctbls_id	,
-	 	 				gantt.qty qty,gantt.qty_stk qty_stk,alloc.qty_linkto_alloctbl qty_linkto_alloctbl,
-						gantt.update_ip,gantt.updated_at	
-	 	 				from trngantts gantt
-	 	 				inner join alloctbls alloc on gantt.id = alloc.trngantts_id
-	 	 				where gantt.prjnos_id =  $2 and  
-	 	 						 gantt.orgtblname = gantt.paretblname and gantt.paretblname = gantt.tblname
-	 	 					and gantt.orgtblid = gantt.paretblid  and gantt.paretblid = gantt.tblid
-	 	 					and  gantt.itms_id_trn = $3 and gantt.processseq_trn = $4
-	 	 				---	and  gantt.shelfnos_id_to_trn = shelfnos_id_to ---作成場所、購入先にはこだわらない。
-	 	 					and  alloc.srctblname not like  '||'''%schs'''||'
-	 	 					--- freeの在庫　　未定 仮に"lotstkhists"にした。要確認
-							--- xxxordsはxxxinsts,xxxactsに変わってもtrngantts.tblname は xxxordsのまま
-	 	 					and   alloc.qty_linkto_alloctbl > 0 and alloc.allocfree = '||'''free'''||' 
-	 	 					order by priority,due
-	 	 					---for update
-	 	 				--- xxxacts等を登録するときは必ずxxxordsを前に登録すること。
-	 	 		'	
-		using induedate ,inprjnos_id ,initms_id ,inprocessseq ;
+-- CREATE OR REPLACE FUNCTION public.func_get_free_ord_stk(induedate character varying, inprjnos_id numeric, initms_id numeric, inprocessseq numeric)
+--  RETURNS TABLE(tblname character varying, tblid numeric, priority text, due numeric, starttime timestamp without time zone, duedate timestamp without time zone, processseq numeric, mlevel numeric, itms_id numeric, shelfnos_id numeric, prjnos_id numeric, trngantts_id numeric, alloctbls_id numeric, qty numeric, qty_stk numeric, qty_linkto_alloctbl numeric, update_ip character varying, updated_at timestamp without time zone)
+--  LANGUAGE plpgsql
+-- AS $function$
+-- BEGIN
+-- 	RETURN QUERY
+-- 	 EXECUTE 'select   ---  free　を求めるsql
+-- 						alloc.srctblname tblname,alloc.srctblid tblid,
+-- 	 	 				case
+-- 	 	 				when alloc.srctblname like '||'''%dlvs'''||'
+-- 	 	 					then '||'''02'''||' 
+-- 	 	 				when alloc.srctblname like '||'''%acts'''||'
+-- 	 	 					then '||'''02'''||' 
+-- 	 	 				when  gantt.duedate_trn <= to_date($1,'||'''yyyy-mm-dd'''||')
+-- 	 	 					then '||'''01'''||'	
+-- 	 	 				else
+-- 	 	 					'||'''03'''||' end  priority,
+-- 	 	 				to_number(to_char(gantt.duedate_trn,'||'''yyyymmdd'''||'),'||'''99999999'''||')*-1 due,
+-- 	 	 				gantt.starttime_trn starttime,gantt.duedate_trn duedate,
+-- 	 	 				gantt.processseq_trn processseq,gantt.mlevel mlevel,
+-- 	 	 				gantt.itms_id_trn itms_id,gantt.shelfnos_id_to_trn shelfnos_id,
+-- 	 	 				gantt.prjnos_id,alloc.trngantts_id trngantts_id,
+-- 	 	 				alloc.id alloctbls_id	,
+-- 	 	 				gantt.qty qty,gantt.qty_stk qty_stk,alloc.qty_linkto_alloctbl qty_linkto_alloctbl,
+-- 						gantt.update_ip,gantt.updated_at	
+-- 	 	 				from trngantts gantt
+-- 	 	 				inner join alloctbls alloc on gantt.id = alloc.trngantts_id
+-- 	 	 				where gantt.prjnos_id =  $2 and  
+-- 	 	 						 gantt.orgtblname = gantt.paretblname and gantt.paretblname = gantt.tblname
+-- 	 	 					and gantt.orgtblid = gantt.paretblid  and gantt.paretblid = gantt.tblid
+-- 	 	 					and  gantt.itms_id_trn = $3 and gantt.processseq_trn = $4
+-- 	 	 				---	and  gantt.shelfnos_id_to_trn = shelfnos_id_to ---作成場所、購入先にはこだわらない。
+-- 	 	 					and  alloc.srctblname not like  '||'''%schs'''||'
+-- 	 	 					--- freeの在庫　　未定 仮に"lotstkhists"にした。要確認
+-- 							--- xxxordsはxxxinsts,xxxactsに変わってもtrngantts.tblname は xxxordsのまま
+-- 	 	 					and   alloc.qty_linkto_alloctbl > 0 and alloc.allocfree = '||'''free'''||' 
+-- 	 	 					order by priority,due
+-- 	 	 					---for update
+-- 	 	 				--- xxxacts等を登録するときは必ずxxxordsを前に登録すること。
+-- 	 	 		'	
+-- 		using induedate ,inprjnos_id ,initms_id ,inprocessseq ;
 
-END
-$function$
-;
+-- END
+-- $function$
+-- ;
 
 
-create or replace function 
-	func_get_free_stk(prjnos_id  numeric,itms_id numeric,processseq numeric,out qty_stk numeric(22,6))
-as $func$
-BEGIN	
-  EXECUTE 'select case sum(qty_linkto_alloctbl)
-					when  NULL then 0
-					else  sum(qty_linkto_alloctbl) end qty_stk
-					from  func_get_free_ord_stk('||'''2000-01-01'''||',$1 ,$2 ,$3)
-	where (tblname like '||'''%dlvs'''||' or tblname like '||'''%acts'''||' )
- 	group by $2,$3'
-   INTO qty_stk
-   USING  prjnos_id ,itms_id,processseq;
-END
-$func$  LANGUAGE plpgsql;
+-- create or replace function 
+-- 	func_get_free_stk(prjnos_id  numeric,itms_id numeric,processseq numeric,out qty_stk numeric(22,6))
+-- as $func$
+-- BEGIN	
+--   EXECUTE 'select case sum(qty_linkto_alloctbl)
+-- 					when  NULL then 0
+-- 					else  sum(qty_linkto_alloctbl) end qty_stk
+-- 					from  func_get_free_ord_stk('||'''2000-01-01'''||',$1 ,$2 ,$3)
+-- 	where (tblname like '||'''%dlvs'''||' or tblname like '||'''%acts'''||' )
+--  	group by $2,$3'
+--    INTO qty_stk
+--    USING  prjnos_id ,itms_id,processseq;
+-- END
+-- $func$  LANGUAGE plpgsql;
 	
 
-drop function freetoalloc_alloctbls;
----frer のords,acts...に変わるのはschsのみ
---- 親:子　1:1を想定　1:nの時はmkprdpurordsを利用
-create or replace function freetoalloc_alloctbls(intblname varchar(30),insno  varchar(30))
-									---		inprjnos_id numeric,initms_id numeric,inprocessseq numeric)
-		returns table( 	alloctbl_srctblname_src varchar(30),dummy_sno_trn varchar(30),
-			itm_code_trn varchar(30),itm_name_trn varchar(30),trngantt_processseq_trn numeric,
-			loca_code_shelfno_trn varchar(30),loca_name_shelfno_trn varchar(30),
-			shelfno_code_trn varchar(30),shelfno_name_trn varchar(30),
-			trngantt_starttime_trn timestamp,trngantt_duedate_trn timestamp,
-			trngantt_qty_sch numeric(22,6),
-			loca_code_shelfno_to_trn varchar(30),loca_name_shelfno_to_trn varchar(30),
-			shelfno_code_to_trn varchar(30),shelfno_name_to_trn varchar(30),
-			loca_code_shelfno_free varchar(30),loca_name_shelfno_free varchar(30),
-			shelfno_code_free varchar(30),shelfno_name_free varchar(30),
-			loca_code_shelfno_to_free varchar(30),loca_name_shelfno_to_free varchar(30),
-			shelfno_code_to_free varchar(30),shelfno_name_to_free varchar(30),
-			trngantt_starttime_free timestamp,trngantt_duedate_free timestamp,
-			alloctbl_srctblname_free varchar(30),dummy_sno_free varchar(30),
-			dummy_qty_free numeric(22,6),dummy_qty_stk_free numeric(22,6), 
-			prjno_code varchar(30),prjno_name varchar(30),
-			person_code_upd varchar(30),person_name_upd varchar(50), 
-			alloctbl_id_free numeric,alloctbl_srctblid_free numeric,			
-			alloctbl_trngantt_id_src numeric, alloctbl_srctblid_src numeric,alloctbl_id_src numeric,
-			alloctbl_trngantt_id_free numeric ,dummy_qty_alloc numeric(22,6),
-			trngantt_update_ip varchar(30),	trngantt_updated_at timestamp(6),
-			id numeric,alloctbl_id numeric)
-as $func$
-DECLARE	
-	rec_src record;
-	rec_free record;
-	rec_dummy record;
-	prjnos_id numeric;
-	itms_id numeric;
-	processseq numeric;
-	cur_free CURSOR(inprjnos_id numeric,initms_id numeric,inprocessseq numeric)  FOR 
-		select tblname alloctbl_srctblname_free,tblid alloctbl_srctblid_free,trngantts_id alloctbl_trngantt_id_free, 
-				alloctbls_id alloctbl_id_free ,qty_linkto_alloctbl,update_ip ,updated_at
-			FROM func_get_free_ord_stk('2000-01-01',prjnos_id,itms_id,processseq) f
-				;
-begin
+-- drop function freetoalloc_alloctbls;
+-- ---frer のords,acts...に変わるのはschsのみ
+-- --- 親:子　1:1を想定　1:nの時はmkprdpurordsを利用
+-- create or replace function freetoalloc_alloctbls(intblname varchar(30),insno  varchar(30))
+-- 									---		inprjnos_id numeric,initms_id numeric,inprocessseq numeric)
+-- 		returns table( 	alloctbl_srctblname_src varchar(30),dummy_sno_trn varchar(30),
+-- 			itm_code_trn varchar(30),itm_name_trn varchar(30),trngantt_processseq_trn numeric,
+-- 			loca_code_shelfno_trn varchar(30),loca_name_shelfno_trn varchar(30),
+-- 			shelfno_code_trn varchar(30),shelfno_name_trn varchar(30),
+-- 			trngantt_starttime_trn timestamp,trngantt_duedate_trn timestamp,
+-- 			trngantt_qty_sch numeric(22,6),
+-- 			loca_code_shelfno_to_trn varchar(30),loca_name_shelfno_to_trn varchar(30),
+-- 			shelfno_code_to_trn varchar(30),shelfno_name_to_trn varchar(30),
+-- 			loca_code_shelfno_free varchar(30),loca_name_shelfno_free varchar(30),
+-- 			shelfno_code_free varchar(30),shelfno_name_free varchar(30),
+-- 			loca_code_shelfno_to_free varchar(30),loca_name_shelfno_to_free varchar(30),
+-- 			shelfno_code_to_free varchar(30),shelfno_name_to_free varchar(30),
+-- 			trngantt_starttime_free timestamp,trngantt_duedate_free timestamp,
+-- 			alloctbl_srctblname_free varchar(30),dummy_sno_free varchar(30),
+-- 			dummy_qty_free numeric(22,6),dummy_qty_stk_free numeric(22,6), 
+-- 			prjno_code varchar(30),prjno_name varchar(30),
+-- 			person_code_upd varchar(30),person_name_upd varchar(50), 
+-- 			alloctbl_id_free numeric,alloctbl_srctblid_free numeric,			
+-- 			alloctbl_trngantt_id_src numeric, alloctbl_srctblid_src numeric,alloctbl_id_src numeric,
+-- 			alloctbl_trngantt_id_free numeric ,dummy_qty_alloc numeric(22,6),
+-- 			trngantt_update_ip varchar(30),	trngantt_updated_at timestamp(6),
+-- 			id numeric,alloctbl_id numeric)
+-- as $func$
+-- DECLARE	
+-- 	rec_src record;
+-- 	rec_free record;
+-- 	rec_dummy record;
+-- 	prjnos_id numeric;
+-- 	itms_id numeric;
+-- 	processseq numeric;
+-- 	cur_free CURSOR(inprjnos_id numeric,initms_id numeric,inprocessseq numeric)  FOR 
+-- 		select tblname alloctbl_srctblname_free,tblid alloctbl_srctblid_free,trngantts_id alloctbl_trngantt_id_free, 
+-- 				alloctbls_id alloctbl_id_free ,qty_linkto_alloctbl,update_ip ,updated_at
+-- 			FROM func_get_free_ord_stk('2000-01-01',prjnos_id,itms_id,processseq) f
+-- 				;
+-- begin
 	
-	 EXECUTE 
-		 	'select alloc.trngantts_id alloctbl_trngantt_id_src ,alloc.id alloctbl_id_src,alloc.srctblid alloctbl_srctblid_src,
-					ope.itms_id,ope.processseq,sch.prjnos_id,
-					shelfno.loca_code_shelfno loca_code_shelfno,shelfno.loca_name_shelfno loca_name_shelfno,
-					shelfno.shelfno_code ,shelfno.shelfno_name,
-					shelfno_to.loca_code_shelfno loca_code_shelfno_to,shelfno_to.loca_name_shelfno loca_name_shelfno_to,
-					shelfno_to.shelfno_code shelfno_code_to,shelfno_to.shelfno_name shelfno_name_to,
-					alloc.qty_linkto_alloctbl  trngantt_qty_sch,sch.starttime trngantt_starttime,sch.duedate trngantt_duedate
-				from '||quote_ident(intblname)||' sch 
-					inner join alloctbls alloc on alloc.srctblid = sch.id 
-					inner join opeitms ope on ope.id = sch.opeitms_id
-					inner join r_shelfnos shelfno on sch.shelfnos_id = shelfno.id
-					inner join r_shelfnos shelfno_to on sch.shelfnos_id = shelfno_to.id 
-					where  sch.sno = $1 and alloc.qty_linkto_alloctbl > 0
-			' 
-			into rec_src 					 
-			using insno;
+-- 	 EXECUTE 
+-- 		 	'select alloc.trngantts_id alloctbl_trngantt_id_src ,alloc.id alloctbl_id_src,alloc.srctblid alloctbl_srctblid_src,
+-- 					ope.itms_id,ope.processseq,sch.prjnos_id,
+-- 					shelfno.loca_code_shelfno loca_code_shelfno,shelfno.loca_name_shelfno loca_name_shelfno,
+-- 					shelfno.shelfno_code ,shelfno.shelfno_name,
+-- 					shelfno_to.loca_code_shelfno loca_code_shelfno_to,shelfno_to.loca_name_shelfno loca_name_shelfno_to,
+-- 					shelfno_to.shelfno_code shelfno_code_to,shelfno_to.shelfno_name shelfno_name_to,
+-- 					alloc.qty_linkto_alloctbl  trngantt_qty_sch,sch.starttime trngantt_starttime,sch.duedate trngantt_duedate
+-- 				from '||quote_ident(intblname)||' sch 
+-- 					inner join alloctbls alloc on alloc.srctblid = sch.id 
+-- 					inner join opeitms ope on ope.id = sch.opeitms_id
+-- 					inner join r_shelfnos shelfno on sch.shelfnos_id = shelfno.id
+-- 					inner join r_shelfnos shelfno_to on sch.shelfnos_id = shelfno_to.id 
+-- 					where  sch.sno = $1 and alloc.qty_linkto_alloctbl > 0
+-- 			' 
+-- 			into rec_src 					 
+-- 			using insno;
 		
-		prjnos_id := rec_src.prjnos_id;
-		itms_id := rec_src.itms_id;
-		processseq := rec_src.processseq;
+-- 		prjnos_id := rec_src.prjnos_id;
+-- 		itms_id := rec_src.itms_id;
+-- 		processseq := rec_src.processseq;
 	
-	for rec_free in cur_free(prjnos_id,itms_id,processseq) loop
+-- 	for rec_free in cur_free(prjnos_id,itms_id,processseq) loop
 			
-		 EXECUTE 
-		 	'select ord.*,tbl.sno sno_free from r_'||quote_ident(rec_free.alloctbl_srctblname_free)||' ord
-					inner join '||quote_ident(rec_free.alloctbl_srctblname_free)||' tbl on tbl.id = ord.id
-					 where ord.id = $1 '
-			into rec_dummy 					 
-			using rec_free.alloctbl_srctblid_free;
+-- 		 EXECUTE 
+-- 		 	'select ord.*,tbl.sno sno_free from r_'||quote_ident(rec_free.alloctbl_srctblname_free)||' ord
+-- 					inner join '||quote_ident(rec_free.alloctbl_srctblname_free)||' tbl on tbl.id = ord.id
+-- 					 where ord.id = $1 '
+-- 			into rec_dummy 					 
+-- 			using rec_free.alloctbl_srctblid_free;
 		
-			alloctbl_srctblname_src := intblname;
-			dummy_sno_trn := insno;
-			itm_code_trn := rec_dummy.itm_code;
-			itm_name_trn := rec_dummy.itm_name;
-			trngantt_processseq_trn := rec_dummy.opeitm_processseq;
-			loca_code_shelfno_trn := rec_src.loca_code_shelfno;
-			loca_name_shelfno_trn := rec_src.loca_name_shelfno;
-			shelfno_code_trn := rec_src.shelfno_code;
-			shelfno_name_trn := rec_src.shelfno_name;
-			loca_code_shelfno_to_trn := rec_src.loca_code_shelfno_to;
-			loca_name_shelfno_to_trn := rec_src.loca_name_shelfno_to;
-			shelfno_code_to_trn := rec_src.shelfno_code_to;
-			shelfno_name_to_trn := rec_src.shelfno_name_to;
-			trngantt_starttime_trn := rec_src.trngantt_starttime;
-			trngantt_duedate_trn := rec_src.trngantt_duedate;
-			trngantt_qty_sch := rec_src.trngantt_qty_sch;
-			alloctbl_srctblname_free := rec_free.alloctbl_srctblname_free;
-			dummy_sno_free := rec_dummy.sno_free;
-			loca_code_shelfno_free := rec_dummy.loca_code_shelfno;
-			loca_name_shelfno_free := rec_dummy.loca_name_shelfno;
-			shelfno_code_free := rec_dummy.shelfno_code;
-			shelfno_name_free := rec_dummy.shelfno_name;
-			loca_code_shelfno_to_free := rec_dummy.loca_code_shelfno_to;
-			loca_name_shelfno_to_free := rec_dummy.loca_name_shelfno_to;
-			shelfno_code_to_free := rec_dummy.shelfno_code_to;
-			shelfno_name_to_free := rec_dummy.shelfno_name_to;
-			dummy_qty_alloc := 0;
-			prjno_code := rec_dummy.prjno_code;
-			prjno_name := rec_dummy.prjno_name;
-			person_code_upd := rec_dummy.person_code_upd;
-			person_name_upd := rec_dummy.person_name_upd;
-			trngantt_update_ip := rec_free.update_ip;
-			trngantt_updated_at := rec_free.updated_at;
-			alloctbl_id_free := rec_free.alloctbl_id_free;
-			alloctbl_srctblid_free := rec_free.alloctbl_srctblid_free;
-			alloctbl_trngantt_id_free := rec_free.alloctbl_trngantt_id_free;
-			alloctbl_id_src := rec_src.alloctbl_id_src;
-			alloctbl_srctblid_src := rec_src.alloctbl_srctblid_src;
-			alloctbl_trngantt_id_src := rec_src.alloctbl_trngantt_id_src;
-			id := null;
-			alloctbl_id := null;
-			case rec_free.alloctbl_srctblname_free
-				when 'purords' then
-					trngantt_starttime_free := rec_dummy.purord_starttime;
-					trngantt_duedate_free := rec_dummy.purord_duedate;
-					dummy_qty_free := rec_free.qty_linkto_alloctbl;
-					dummy_qty_stk_free := 0;
-				when 'prdords' then
-					trngantt_starttime_free := rec_dummy.prdord_starttime;
-					trngantt_duedate_free := rec_dummy.prdord_duedate;
-					dummy_qty_free := rec_free.qty_linkto_alloctbl;
-					dummy_qty_stk_free := 0;
-				when 'purinsts' then
-					trngantt_starttime_free := rec_dummy.purinst_starttime;
-					trngantt_duedate_free := rec_dummy.purinst_duedate;
-					dummy_qty_free := rec_free.qty_linkto_alloctbl;
-					dummy_qty_stk_free := 0;
-				when 'pureplyinputs' then
-					trngantt_starttime_free := rec_dummy.pureplyinput_replydate;
-					trngantt_duedate_free := rec_dummy.pureplyinput_replydate;
-					dummy_qty_free := rec_free.qty_linkto_alloctbl;
-					dummy_qty_stk_free := 0;
-				when 'purdlvs' then
-					trngantt_starttime_free := rec_dummy.purdlv_replydate;
-					trngantt_duedate_free := rec_dummy.purdlv_replydate;
-					dummy_qty_free := 0;
-					dummy_qty_stk_free := rec_free.qty_linkto_alloctbl;
-				when 'puracts' then
-					trngantt_starttime_free := rec_dummy.puract_rcptdate;
-					trngantt_duedate_free := rec_dummy.puract_rcptdate;
-					dummy_qty_free := 0;
-					dummy_qty_stk_free := rec_free.qty_linkto_alloctbl;
-				when 'prdacts' then
-					trngantt_starttime_free := rec_dummy.prdact_cmpldate;
-					trngantt_duedate_free := rec_dummy.prdact_cmpldate;
-					dummy_qty_free := 0;
-					dummy_qty_stk_free := rec_free.qty_linkto_alloctbl;
-			end case;
-		return next;
-	end loop;
-end;
-$func$  LANGUAGE plpgsql;
+-- 			alloctbl_srctblname_src := intblname;
+-- 			dummy_sno_trn := insno;
+-- 			itm_code_trn := rec_dummy.itm_code;
+-- 			itm_name_trn := rec_dummy.itm_name;
+-- 			trngantt_processseq_trn := rec_dummy.opeitm_processseq;
+-- 			loca_code_shelfno_trn := rec_src.loca_code_shelfno;
+-- 			loca_name_shelfno_trn := rec_src.loca_name_shelfno;
+-- 			shelfno_code_trn := rec_src.shelfno_code;
+-- 			shelfno_name_trn := rec_src.shelfno_name;
+-- 			loca_code_shelfno_to_trn := rec_src.loca_code_shelfno_to;
+-- 			loca_name_shelfno_to_trn := rec_src.loca_name_shelfno_to;
+-- 			shelfno_code_to_trn := rec_src.shelfno_code_to;
+-- 			shelfno_name_to_trn := rec_src.shelfno_name_to;
+-- 			trngantt_starttime_trn := rec_src.trngantt_starttime;
+-- 			trngantt_duedate_trn := rec_src.trngantt_duedate;
+-- 			trngantt_qty_sch := rec_src.trngantt_qty_sch;
+-- 			alloctbl_srctblname_free := rec_free.alloctbl_srctblname_free;
+-- 			dummy_sno_free := rec_dummy.sno_free;
+-- 			loca_code_shelfno_free := rec_dummy.loca_code_shelfno;
+-- 			loca_name_shelfno_free := rec_dummy.loca_name_shelfno;
+-- 			shelfno_code_free := rec_dummy.shelfno_code;
+-- 			shelfno_name_free := rec_dummy.shelfno_name;
+-- 			loca_code_shelfno_to_free := rec_dummy.loca_code_shelfno_to;
+-- 			loca_name_shelfno_to_free := rec_dummy.loca_name_shelfno_to;
+-- 			shelfno_code_to_free := rec_dummy.shelfno_code_to;
+-- 			shelfno_name_to_free := rec_dummy.shelfno_name_to;
+-- 			dummy_qty_alloc := 0;
+-- 			prjno_code := rec_dummy.prjno_code;
+-- 			prjno_name := rec_dummy.prjno_name;
+-- 			person_code_upd := rec_dummy.person_code_upd;
+-- 			person_name_upd := rec_dummy.person_name_upd;
+-- 			trngantt_update_ip := rec_free.update_ip;
+-- 			trngantt_updated_at := rec_free.updated_at;
+-- 			alloctbl_id_free := rec_free.alloctbl_id_free;
+-- 			alloctbl_srctblid_free := rec_free.alloctbl_srctblid_free;
+-- 			alloctbl_trngantt_id_free := rec_free.alloctbl_trngantt_id_free;
+-- 			alloctbl_id_src := rec_src.alloctbl_id_src;
+-- 			alloctbl_srctblid_src := rec_src.alloctbl_srctblid_src;
+-- 			alloctbl_trngantt_id_src := rec_src.alloctbl_trngantt_id_src;
+-- 			id := null;
+-- 			alloctbl_id := null;
+-- 			case rec_free.alloctbl_srctblname_free
+-- 				when 'purords' then
+-- 					trngantt_starttime_free := rec_dummy.purord_starttime;
+-- 					trngantt_duedate_free := rec_dummy.purord_duedate;
+-- 					dummy_qty_free := rec_free.qty_linkto_alloctbl;
+-- 					dummy_qty_stk_free := 0;
+-- 				when 'prdords' then
+-- 					trngantt_starttime_free := rec_dummy.prdord_starttime;
+-- 					trngantt_duedate_free := rec_dummy.prdord_duedate;
+-- 					dummy_qty_free := rec_free.qty_linkto_alloctbl;
+-- 					dummy_qty_stk_free := 0;
+-- 				when 'purinsts' then
+-- 					trngantt_starttime_free := rec_dummy.purinst_starttime;
+-- 					trngantt_duedate_free := rec_dummy.purinst_duedate;
+-- 					dummy_qty_free := rec_free.qty_linkto_alloctbl;
+-- 					dummy_qty_stk_free := 0;
+-- 				when 'pureplyinputs' then
+-- 					trngantt_starttime_free := rec_dummy.pureplyinput_replydate;
+-- 					trngantt_duedate_free := rec_dummy.pureplyinput_replydate;
+-- 					dummy_qty_free := rec_free.qty_linkto_alloctbl;
+-- 					dummy_qty_stk_free := 0;
+-- 				when 'purdlvs' then
+-- 					trngantt_starttime_free := rec_dummy.purdlv_replydate;
+-- 					trngantt_duedate_free := rec_dummy.purdlv_replydate;
+-- 					dummy_qty_free := 0;
+-- 					dummy_qty_stk_free := rec_free.qty_linkto_alloctbl;
+-- 				when 'puracts' then
+-- 					trngantt_starttime_free := rec_dummy.puract_rcptdate;
+-- 					trngantt_duedate_free := rec_dummy.puract_rcptdate;
+-- 					dummy_qty_free := 0;
+-- 					dummy_qty_stk_free := rec_free.qty_linkto_alloctbl;
+-- 				when 'prdacts' then
+-- 					trngantt_starttime_free := rec_dummy.prdact_cmpldate;
+-- 					trngantt_duedate_free := rec_dummy.prdact_cmpldate;
+-- 					dummy_qty_free := 0;
+-- 					dummy_qty_stk_free := rec_free.qty_linkto_alloctbl;
+-- 			end case;
+-- 		return next;
+-- 	end loop;
+-- end;
+-- $func$  LANGUAGE plpgsql;
 

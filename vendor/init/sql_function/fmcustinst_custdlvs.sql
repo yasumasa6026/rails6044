@@ -25,8 +25,8 @@
   opeitm.classlist_code  classlist_code ,
   opeitm.classlist_name  classlist_name ,
   opeitm.boxe_code boxe_code,
-  ''  boxe_code_custdlv ,
-  ''  boxe_name_custdlv ,
+  opeitm.boxe_code  boxe_code_custdlv ,
+  opeitm.boxe_name  boxe_name_custdlv ,
   0  custdlv_boxe_id_custdlv ,---boxes_id=0 ����,dummy
     0 boxe_outdepth_custdlv,
     0 boxe_outwide_custdlv,
@@ -87,20 +87,20 @@ opeitm.opeitm_processseq opeitm_processseq,
 '' custdlv_dimension,
 0  custdlv_weight,
 0  custdlv_unit_id_weight,
-''  unit_code_weight,
-''  unit_name_weight,
+'KG'  unit_code_weight,
+'kg'  unit_name_weight,
 custinst.packno custdlv_packno,
 '' custdlv_packinglistno
  from r_custs  cust ,  r_custrcvplcs  custrcvplc ,  persons  person_upd ,  r_shelfnos  shelfno_fm ,
   r_opeitms  opeitm ,  r_chrgs  chrg , r_crrs crr,
   custinsts   custinst
+  left join (select sum(link.qty_src) qty_src,link.srctblid from linkcusts link where link.srctblname = 'custinsts'  
+ 											and(link.tblname = 'custdlvs' OR link.tblname = 'custacts' )
+ 											group by link.srctblname ,link.srctblid) link on link.srctblid = custinst.id
   where       custinst.custs_id = cust.id      and custinst.custrcvplcs_id = custrcvplc.id     
  	and custinst.persons_id_upd = person_upd.id      
  	and custinst.opeitms_id = opeitm.id      and custinst.crrs_id = crr.id      and custinst.chrgs_id = chrg.id  
- 	and custinst.shelfnos_id_fm = shelfno_fm.id
- 	and exists(select 1 from linkcusts link where tblname = 'custinsts' and tblid = custinst.id and qty_src > 0)
- 	AND not exists(select 1 from linkcusts link where srctblname = 'custinsts' and srctblid = custinst.id and qty_src >= custinst.qty AND 
- 								(tblname = 'custdlvs' OR tblname = 'custacts' ))
+ 	and custinst.shelfnos_id_fm = shelfno_fm.id and (link.qty_src < custinst.qty_stk or link.qty_src is null)
 	  
 ;
  DROP TABLE IF EXISTS sio.sio_fmcustinst_custdlvs;

@@ -1,5 +1,4 @@
 ##https://github.com/lynndylanhurley/devise_token_auth
-##http://sainu.hatenablog.jp/entry/2018/08/11/194319
 module Api
   module Auth
     class RegistrationsController < DeviseTokenAuth::RegistrationsController
@@ -9,7 +8,8 @@ module Api
       ###end  
       private
       def sign_up_params
-        params.permit( :email,  :password, :password_confirmation)
+        ###params.permit( :email,  :password, :password_confirmation)
+        params.permit(*params_for_resource(:sign_up))
       end
     end  
   end

@@ -33,6 +33,7 @@ export function* ScreenSaga({ payload: {params}  }) {
 
   const headers = {'access-token':auth.token,'client':auth.client,'uid':auth.uid }
     let message
+    let hostError
     let lineData
     // while (loading===true) {
     //   console.log("delay")
@@ -48,6 +49,7 @@ export function* ScreenSaga({ payload: {params}  }) {
             case 'viewtablereq7':
             case 'inlineedit7':   //第一画面又は第二画面のみ　両方修正は不可  更新画面要求
             case 'inlineadd7':  //追加画面要求
+            case 'rejections':  //追加画面要求
               params = {...response.data.params,err:null,parse_linedata:{},index:0,clickIndex:[]}
               if(params.screenFlg==="second")
                   {return yield put({type:SECOND_SUCCESS7,payload:{data:response.data,params:{...params,index:-1}} })}
@@ -96,10 +98,21 @@ export function* ScreenSaga({ payload: {params}  }) {
               
            case "confirmAll":  //
            //case "adddetail":  //
+              params = response.data.params
+              if(params.err==""||params.err===null){
                 message = "out count : " + response.data.outcnt
                 message = message + ",out qty : " + response.data.outqty
                 message = message + ",out amt : " + response.data.outamt
-                return yield put({ type: CONFIRMALL_SUCCESS, payload:{message:message}})     
+                return yield put({ type: CONFIRMALL_SUCCESS, payload:{message:message}})
+              }
+              else{
+                  hostError = `error ${response.status}: Screen Something went wrong 。。。。${params.err} `
+                  if(params.screenFlg==="second"){
+                      return  yield put({type:SECOND_FAILURE,payload:{message:"",hostError:hostError,}})   
+                  }else{  
+                      return  yield put({type:SCREEN_FAILURE,payload:{message:"",hostError:hostError,}})   
+                  }
+              }
            case "MkPackingListNo":  //
                message = "out count : " + response.data.outcnt
                message = message + ",out qty : " + response.data.outqty
@@ -107,7 +120,7 @@ export function* ScreenSaga({ payload: {params}  }) {
               
             case "MkInvoiceNo":
               message = "out count : " + response.data.outcnt
-              message = message + ",out amt : " + response.data.outqty
+              message = message + ",out qty : " + response.data.outqty
               message = message + ",out amt : " + response.data.outamt 
               lineData  = response.data.params.parse_linedata
               params = {...params,screenFlg:response.data.params.screenFlg,
@@ -124,45 +137,45 @@ export function* ScreenSaga({ payload: {params}  }) {
         case 500: message = `error ${response.status}: Internal Server Error`
                   params = response.data.params
                   if(params.screenFlg==="second"){
-                      return  yield put({type:SECOND_FAILURE,payload:{message: params.err,}})   //cannot display grid table
+                      return  yield put({type:SECOND_FAILURE,payload:{message:"",hostError: params.err,}})   //cannot display grid table
                     }else{  
-                      return  yield put({type:SCREEN_FAILURE,payload:{message: params.err,}})   
+                      return  yield put({type:SCREEN_FAILURE,payload:{message:"",hostError: params.err,}})   
                     }
         case 401: message = `error ${response.status}: Invalid credentials or Login TimeOut ${response.statusText}`
                   params = response.data.params
                   if(params.screenFlg==="second"){
-                      return  yield put({type:SECOND_FAILURE,payload:{message: params.err,}})   
+                      return  yield put({type:SECOND_FAILURE,payload:{message:"",hostError:params.err,}})   
                     }else{  
-                      return  yield put({type:SCREEN_FAILURE,payload:{message: params.err,}})   
+                      return  yield put({type:SCREEN_FAILURE,payload:{message:"",hostError:params.err,}})   
                     }
                     break
         case 202:
               params = response.data.params
               if(params.screenFlg==="second"){
-                  return  yield put({type:SECOND_FAILURE,payload:{message: params.err,}})   
+                  return  yield put({type:SECOND_FAILURE,payload:{message:"",hostError: params.err,}})   
               }else{  
-                  return  yield put({type:SCREEN_FAILURE,payload:{message: params.err,}})   
+                  return  yield put({type:SCREEN_FAILURE,payload:{message:"",hostError: params.err,}})   
               }
         default:
-                  message = `error ${response.status}: Screen Something went wrong ${response.statusText} `
+                  hostError = `error ${response.status}: Screen Something went wrong ${params.err} `
                     break      
       }
       if(params.screenFlg==="second"){
-            return  yield put({type:SECOND_FAILURE,payload:{message:message,}})   
+            return  yield put({type:SECOND_FAILURE,payload:{message:"",hostError:hostError,}})   
       }else{  
-            return  yield put({type:SCREEN_FAILURE,payload:{message:message,}})   
+            return  yield put({type:SCREEN_FAILURE,payload:{message:"",hostError:hostError,}})   
       }
     }
     catch(e){
         switch (true) {
-            case /code.*500/.test(e): message = `${e}: Internal Server Error `
-                  return  yield put({type:SCREEN_FAILURE, payload:{message:message}})   
+            case /code.*500/.test(e): hostError = `${e}: Internal Server Error `
+                  return  yield put({type:SCREEN_FAILURE, payload:{message:"",hostError:hostError}})   
             case /code.*401/.test(e): message = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
                     yield call(history.push,'/login')
                     return  yield put({type:LOGIN_FAILURE, payload:{message:message}})   
             default:
-                message = `catch  Screen Something went wrong ${e} `
-                      return  yield put({type:SCREEN_FAILURE, payload:{message:message}})   
+                hostError = `catch  Screen Something went wrong ${e} `
+                      return  yield put({type:SCREEN_FAILURE, payload:{message:"",hostError:hostError}})   
       }
     }
   }

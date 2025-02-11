@@ -44,7 +44,7 @@ export function* LogoutSaga({ payload: {token,client,uid} }) {
                case 404: message = "User was not found or was not logged in."
                 break
               default: message = error.status}
-      yield put({ type: MENU_FAILURE, errors: message })
+      yield put({ type: MENU_FAILURE, error: message })
     } 
   } 
 //  送信されてない。

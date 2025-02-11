@@ -40,6 +40,6 @@ export function * SignupSaga({payload:{email,password,password_confirmation}}) {
              case /code.*401/.test(error): message = 'Invalid credentials or Login TimeOut'
               break
              default: message = `Something went wrong ${error}`}
-    yield put({ type: SIGNUP_FAILURE, payload: message })
+    yield put({ type: SIGNUP_FAILURE, payload: {message:message} })
   }
 }

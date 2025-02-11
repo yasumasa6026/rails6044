@@ -35,17 +35,17 @@ const menureducer =  (state= initialValues , actions) =>{
 
     case MENU_FAILURE:
       return {...state,
-        hostError:actions.error,
+        hostError:actions.payload.hostError,
     }    
 
     
     case SCREEN_FAILURE:  //gridtable が利用できないとき 
       return {...state,
         screenFlg:"first",
-        firstView:false,
         secondView:false,
-        hostError:actions.payload.message,
-      loading:false,
+        hostError:actions.payload.hostError,
+        message:actions.payload.message,
+        loading:false,
     }  
 
     case FETCH_RESULT:
@@ -84,6 +84,7 @@ const menureducer =  (state= initialValues , actions) =>{
         firstView:true,
         secondView:false,
         hostError:null,
+        message: actions.payload.params.message,
       }  
       
     case SCREEN_REQUEST:
@@ -164,6 +165,7 @@ const menureducer =  (state= initialValues , actions) =>{
         return {...state,
           secondView:true,
           hostError:null,
+          message: actions.payload.params.message,
         }
         
     case SECOND_CONFIRMALL_SUCCESS:
@@ -189,7 +191,7 @@ const menureducer =  (state= initialValues , actions) =>{
       return {
         firstView:false,
         secondView:false,
-        hostError:actions.payload.message,
+        hostError:actions.payload.error,
 }
 
     default:

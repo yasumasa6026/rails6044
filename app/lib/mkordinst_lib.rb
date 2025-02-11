@@ -149,7 +149,7 @@ module MkordinstLib
 					where trn.mkprdpurords_id_trngantt = #{mkprdpurords_id}
 					and (trn.qty_sch > 0 or trn.qty > 0)
 					group by trn.mkprdpurords_id_trngantt,trn.prjnos_id,
-							trn.itms_id_trn,trn.processseq_trn,trn.shelfnos_id_trn,trn.shelfnos_id_to_trn,
+							trn.itms_id_pare,trn.processseq_pare,trn.shelfnos_id_pare,trn.shelfnos_id_to_pare,
 							trn.itms_id_trn,trn.processseq_trn,trn.shelfnos_id_trn,trn.shelfnos_id_to_trn
 					---having max(trn.mlevel) > 1
 					order by max(trn.mlevel),trn.itms_id_trn,trn.processseq_trn,trn.prjnos_id,
@@ -163,15 +163,24 @@ module MkordinstLib
 		end	
 		handovers.each do |handover|
 			ActiveRecord::Base.connection.select_all(get_ordqty(handover)).each do |cal_rec|  ###
-			    # strsql = %Q&
-		        #         update 	mkordtmpfs set  qty_require = #{cal_rec["qty_require"]},
-				# 		                        qty_handover = #{cal_rec["qty_handover"]}
-				# 				where id = #{cal_rec["id"]}				
-			    # &
-                # ActiveRecord::Base.connection.update(strsql)
+			    sum_sql = %Q&
+                    select trunc(sum(qty_require)/ max(packqty) + 0.99999) * max(packqty) qty_handover	from mkordtmpfs 
+                where  itms_id_trn = #{cal_rec["itms_id_trn"]} and processseq_trn = #{cal_rec["processseq_trn"]}
+                and shelfnos_id_trn = #{cal_rec["shelfnos_id_trn"]} and shelfnos_id_to_trn = #{cal_rec["shelfnos_id_to_trn"]}
+                          and mkprdpurords_id = #{cal_rec["mkprdpurords_id"]}    and prjnos_id = #{cal_rec["prjnos_id"]}
+              &
+          qty_handover = ActiveRecord::Base.connection.select_value(sum_sql)
 			    strsql = %Q&
-		                update 	mkordtmpfs set  qty_require = qty_require + #{cal_rec["qty_require"]},
-						                        qty_handover = qty_handover + #{cal_rec["qty_handover"]}
+		                update 	mkordtmpfs set  qty_require =  #{cal_rec["qty_require"]},
+						                        qty_handover =  #{qty_handover}
+								where  itms_id_trn = #{cal_rec["itms_id_trn"]} and processseq_trn = #{cal_rec["processseq_trn"]}
+                          and shelfnos_id_trn = #{cal_rec["shelfnos_id_trn"]} and shelfnos_id_to_trn = #{cal_rec["shelfnos_id_to_trn"]}
+                                    and mkprdpurords_id = #{cal_rec["mkprdpurords_id"]}    and prjnos_id = #{cal_rec["prjnos_id"]}
+					&
+			    ActiveRecord::Base.connection.update(strsql)
+			    strsql = %Q&
+		                update 	mkordtmpfs set  qty_require =  #{cal_rec["qty_require"]},
+						                        qty_handover =  #{qty_handover}
 								where  itms_id_pare = #{cal_rec["itms_id_trn"]} and processseq_pare = #{cal_rec["processseq_trn"]}
 								and shelfnos_id_pare = #{cal_rec["shelfnos_id_trn"]} and shelfnos_id_to_pare = #{cal_rec["shelfnos_id_to_trn"]}
 			                    and mkprdpurords_id = #{cal_rec["mkprdpurords_id"]}    and prjnos_id = #{cal_rec["prjnos_id"]}
@@ -224,6 +233,7 @@ module MkordinstLib
 						symqty = tblord + "_qty"
 						command_c[symqty] = qty_handover
 						command_c["sio_classname"] = "_add_ord_by_mkordinst"
+						command_c["sio_viewname"] = "r_#{tblord}s"
 						opeitm = {}
 						schRec.each do |key,val|   ###schRec:xxxschs
 							case key
@@ -562,7 +572,7 @@ module MkordinstLib
                   else
                     duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
                   end
-                  payinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
+                  payinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"] / 100 ,
                               "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
                               "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
                   proc_create_paybilltbl("payinsts",payinst_tbldata)
@@ -585,8 +595,8 @@ module MkordinstLib
                   else
                     duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
                   end
-                  payinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
-                              "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
+                  payinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"] / 100 ,
+                              "tax" =>  params["tax"].to_f * rate["rate"] / 100,
                               "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
                   proc_create_paybilltbl("payinsts",payinst_tbldata)
                   mkpayinstparams[:outcnt] += 1
@@ -622,11 +632,6 @@ module MkordinstLib
 		   		base["persons_id_upd"] = sumSchs["persons_id_upd"]
 					base["amt_src"] = 0
 					base["qty_src"] = free_qty = free["qty_linkto_alloctbl"].to_f   ###free_qty
-		   			# base["srctblname"] = "lotstkhists"
-		   			# strsql = %Q&select srctblid from inoutlotstks 
-						#    where tblname = '#{free["tblname"]}' and tblid = #{free["tblid"]}
-					  #  	and trngantts_id = #{free["trngantts_id"]} and srctblname = 'lotstkhists'  &
-		   			# base["srctblid"] = ActiveRecord::Base.connection.select_value(strsql)
           base["tblname"] = free["tblname"]
           base["tblid"] = free["tblid"]
           base["trnganttd_id"] = free["trngantts_id"]
@@ -638,7 +643,6 @@ module MkordinstLib
 						free_qty = base["qty_src"] - sch_qty 
 					end
 					base["remark"] = "#{self} line:(#{__LINE__})"
-					###Shipment.proc_alloc_change_inoutlotstk(base) ### xxxordsの在庫明細変更
 					last_lotstks_parts =  ArelCtl.proc_add_linktbls_update_alloctbls(sch_trn,base)  ###freeの引当
           last_lotstks.concat last_lotstks_parts
           ###schsの消費の取り消し
@@ -666,7 +670,7 @@ module MkordinstLib
 	def set_mkprdpurords_id_in_trngantts_strsql(add_tbl,strwhere,mkprdpurords_id)   ##alocctblのxxxschsは一件のみ
 		%Q&
 		update trngantts bgantt set mkprdpurords_id_trngantt = #{mkprdpurords_id},
-				remark = ' #{self} line:#{__LINE__}'|| remark,
+				remark = ' #{self} line:#{__LINE__}'||left(remark,3000),
 				updated_at = current_timestamp  
 				from (select gantt.orgtblid 
 										from trngantts gantt #{add_tbl}
@@ -765,9 +769,7 @@ module MkordinstLib
 						max(gantt.shelfnos_id_to_pare) shelfnos_id_to_pare,
 						sum(gantt.qty_sch) qty_sch,sum(gantt.qty) qty,sum(gantt.qty_stk) qty_stk,
 						min(gantt.duedate_trn),	max(gantt.toduedate_trn),	min(gantt.starttime_trn),
-						max(term.packqty) packqty,
-						max(gantt.consumchgoverqty),max(gantt.consumminqty),
-						max(gantt.consumunitqty) consumunitqty,
+						term.packqty,gantt.consumchgoverqty,gantt.consumminqty,gantt.consumunitqty,
 						1 parenum,1 chilnum,
 						sum(alloc.qty_linkto_alloctbl) qty_handover,sum(alloc.qty_linkto_alloctbl) qty_require,
 						max(gantt.tblname) tblname,min(gantt.tblid) tblid,count(tblid),
@@ -783,7 +785,8 @@ module MkordinstLib
 							and alloc.qty_linkto_alloctbl > 0 and srctblname like '%schs'  ---topは xxxschsのみ
 						group by gantt.mkprdpurords_id_trngantt ,
 							gantt.itms_id_trn,gantt.processseq_trn ,gantt.itms_id_pare,gantt.processseq_pare ,gantt.prjnos_id,
-							s.locas_id_shelfno,gantt.shelfnos_id_to_trn,gantt.shelfnos_id_trn
+							s.locas_id_shelfno,gantt.shelfnos_id_to_trn,gantt.shelfnos_id_trn,
+						  term.packqty,gantt.consumchgoverqty,gantt.consumminqty,gantt.consumunitqty
 							having max(gantt.mlevel) = '1'
 				&
 	end	
@@ -815,30 +818,23 @@ module MkordinstLib
 						gantt.prjnos_id ,
 						gantt.shelfnos_id_to_trn ,gantt.shelfnos_id_trn,
 						gantt.shelfnos_id_pare shelfnos_id_pare,gantt.shelfnos_id_to_pare shelfnos_id_to_pare,
+            --- COALESCE関数は、NULLでない自身の最初の引数を返します。
 						coalesce(sum(alloc.qty_linkto_alloctbl),0) qty_sch,coalesce(sum(ord.qty_linkto_alloctbl),0) qty,
 						coalesce(sum(stk.qty_linkto_alloctbl),0) qty_stk,
 						min(gantt.duedate_trn) duedate,	min(gantt.toduedate_trn) toduedate,	min(gantt.starttime_trn) starttime,
-						max(term.packqty)  packqty,
-						max(gantt.consumchgoverqty) consumchgoverqty,max(gantt.consumminqty) consumminqty,
-						max(gantt.consumunitqty)  consumunitqty,
-						gantt.parenum,gantt.chilnum,
+						term.packqty,gantt.consumchgoverqty,gantt.consumminqty,gantt.consumunitqty,gantt.parenum,gantt.chilnum,
 						coalesce(sum(alloc.qty_linkto_alloctbl),0) + coalesce(sum(ord.qty_linkto_alloctbl),0) qty_handover,
-						coalesce(sum(alloc.qty_linkto_alloctbl),0) + coalesce(sum(ord.qty_linkto_alloctbl),0) qty_require,
+						coalesce(sum(alloc.qty_linkto_alloctbl),0)  qty_require,
 						max(gantt.tblname) tblname,min(gantt.tblid) tblid,count(gantt.tblid),
 						'2099/12/31',current_timestamp,current_timestamp 
 						from trngantts gantt 
-						---inner join opeitms opeitm on gantt.itms_id_trn = opeitm.itms_id  and gantt.processseq_trn = opeitm.processseq 
-						----							and gantt.shelfnos_id_trn = opeitm.shelfnos_id_opeitm  
 						inner join mkordterms term on gantt.itms_id_trn = term.itms_id  and gantt.processseq_trn = term.processseq 
 													and gantt.shelfnos_id_trn = term.shelfnos_id and gantt.shelfnos_id_to_trn = term.shelfnos_id_to 
 													and gantt.prjnos_id = term.prjnos_id  
-													and gantt.mkprdpurords_id_trngantt = term.mkprdpurords_id  
-						---inner join mkordorgs tmp on   gantt.prjnos_id = tmp.prjnos_id 	and gantt.mkprdpurords_id_trngantt = tmp.mkprdpurords_id 
-						---								and gantt.itms_id_pare = tmp.itms_id and gantt.processseq_pare = tmp.processseq
-						---								and gantt.shelfnos_id_pare = tmp.shelfnos_id and gantt.shelfnos_id_to_pare = tmp.shelfnos_id_to
 						inner join shelfnos s on s.id = gantt.shelfnos_id_trn 
 						left join alloctbls alloc on alloc.trngantts_id = gantt.id and alloc.qty_linkto_alloctbl > 0 and alloc.srctblname like '%schs'  
-						left join alloctbls ord on ord.trngantts_id = gantt.id and ord.qty_linkto_alloctbl > 0 and ord.srctblname like '%ords'  ---xxxordを含む  
+						left join alloctbls ord on ord.trngantts_id = gantt.id and ord.qty_linkto_alloctbl > 0 and 
+                                        (ord.srctblname like '%ords' or ord.srctblname like '%insts' or ord.srctblname like '%reply%') ---xxxordを含む  
 						left join alloctbls stk on stk.trngantts_id = gantt.id and stk.qty_linkto_alloctbl > 0 and (stk.srctblname like '%acts' or
 																														stk.srctblname like '%dlvs')  ---xxxordを含む
 						where   gantt.mlevel > '1' and 
@@ -848,31 +844,24 @@ module MkordinstLib
 							and gantt.processseq_trn = #{handover["processseq_trn"]}  
 							and gantt.shelfnos_id_trn = #{handover["shelfnos_id_trn"]} 
 							and gantt.shelfnos_id_to_trn	= #{handover["shelfnos_id_to_trn"]}
-							--- and gantt.itms_id_pare = #{handover["itms_id_pare"]} 
-							--- and gantt.processseq_pare = #{handover["processseq_pare"]}  
-							--- and gantt.shelfnos_id_pare = #{handover["shelfnos_id_pare"]} 
-							--- and gantt.shelfnos_id_to_pare	= #{handover["shelfnos_id_to_pare"]}
-							---and gantt.itms_id_trn = #{handover["itms_id_trn"]} and gantt.processseq_trn = #{handover["processseq_trn"]}  
-							---and gantt.shelfnos_id_trn = #{handover["shelfnos_id_trn"]} 
-							---and gantt.shelfnos_id_to_trn	= #{handover["shelfnos_id_to_trn"]}	
-							---and (opeitm.prdpurordauto != 'M' or opeitm.prdpurordauto is null)	---prdords,
-							---and opeitm.priority = 999
 						group by gantt.mkprdpurords_id_trngantt ,
 							gantt.itms_id_pare,gantt.processseq_pare ,gantt.shelfnos_id_pare,gantt.shelfnos_id_to_pare,  
 		 					gantt.itms_id_trn,gantt.processseq_trn ,s.locas_id_shelfno ,gantt.shelfnos_id_to_trn   ,
-							gantt.parenum,gantt.chilnum,gantt.prjnos_id,gantt.shelfnos_id_trn
+							gantt.parenum,gantt.chilnum,gantt.prjnos_id,gantt.shelfnos_id_trn,
+						  term.packqty,gantt.consumchgoverqty,gantt.consumminqty,gantt.consumunitqty,gantt.parenum,gantt.chilnum
 				&
 	end			
 	
-	def get_ordqty(handover)
-		
+	def get_ordqty(handover)		
 		%Q&
 		 select     ---tmp.id,
-		 			trunc(trunc((sum(tmp.qty_handover) * tmp.chilnum / tmp.parenum) / max(tmp.consumunitqty) + 0.99999) * max(tmp.consumunitqty) + max(tmp.consumchgoverqty) 
-		 			            - sum(tmp.qty) - sum(tmp.qty_stk)) qty_require,
-		 			trunc((trunc((sum(tmp.qty_handover) * tmp.chilnum / tmp.parenum) / max(tmp.consumunitqty) + 0.99999) * max(tmp.consumunitqty) + max(tmp.consumchgoverqty)
-		 						- sum(tmp.qty) - sum(tmp.qty_stk))/max(tmp.packqty) + 0.99999) * max(tmp.packqty)  qty_handover,
+		 			trunc(trunc((sum(tmp.qty_handover) * tmp.chilnum / tmp.parenum) / max(tmp.consumunitqty) + 0.99999) * max(tmp.consumunitqty) +
+                     max(tmp.consumchgoverqty)) qty_require,
+		 			---trunc((trunc((sum(tmp.qty_handover) * tmp.chilnum / tmp.parenum) / max(tmp.consumunitqty) + 0.99999) * max(tmp.consumunitqty) + max(tmp.consumchgoverqty)
+		 			---			- sum(tmp.qty) - sum(tmp.qty_stk))/max(tmp.packqty) + 0.99999) * max(tmp.packqty)  qty_handover,
+            0 qty_handover,max(packqty) packqty, 
 		 	   		max(tmp.tblname),min(tmp.tblid),
+						tmp.itms_id_pare,tmp.processseq_pare,tmp.shelfnos_id_pare,tmp.shelfnos_id_to_pare,
 						tmp.itms_id_trn,tmp.locas_id_trn,tmp.processseq_trn,tmp.shelfnos_id_trn,tmp.shelfnos_id_to_trn,
 						tmp.mkprdpurords_id,tmp.prjnos_id
 		 	   	from mkordtmpfs tmp
@@ -883,33 +872,35 @@ module MkordinstLib
 		 	   			and tmp.prjnos_id = #{handover["prjnos_id"]}
 		 			group by    tmp.itms_id_pare,tmp.processseq_pare,tmp.shelfnos_id_pare,tmp.shelfnos_id_to_pare,  
 		 			            tmp.itms_id_trn,tmp.locas_id_trn,tmp.processseq_trn,tmp.prjnos_id,tmp.shelfnos_id_trn,tmp.shelfnos_id_to_trn,
-		 						tmp.chilnum , tmp.parenum,tmp.id
-		&
+						          tmp.packqty,tmp.consumchgoverqty,tmp.consumminqty,tmp.consumunitqty,tmp.parenum,tmp.chilnum,tmp.mkprdpurords_id
+		      &
 	end
-
 	 
 	def req_ord_sql(mkprdpurords_id) 
 			%Q&
 					select  tmp.itms_id_trn itms_id,tmp.shelfnos_id_trn shelfnos_id,tmp.locas_id_trn locas_id,
 							tmp.processseq_trn processseq,tmp.prjnos_id,tmp.shelfnos_id_to_trn shelfnos_id_to,
-							term.duedate,max(tmp.packqty) packqty,
+							---term.duedate,
+              max(tmp.packqty) packqty,min(tmp.duedate) duedate,
 							max(tmp.tblname) tblname,max(tmp.tblid) tblid,tmp.mkprdpurords_id ,min(tmp.starttime) starttime,
-							sum(tmp.qty_require) qty_require,sum(tmp.qty_handover) qty_handover,max(tmp.consumminqty) consumminqty,
+							max(tmp.qty_require) qty_require,max(tmp.qty_handover) qty_handover,max(tmp.consumminqty) consumminqty,
 							max(tmp.id) mkordorgs_id,min(tmp.toduedate) toduedate,max(tmp.consumchgoverqty) consumchgoverqty,
 							sum(tmp.incnt) incnt,max(tmp.persons_id_upd) persons_id_upd
 					   from mkordtmpfs tmp
-					   inner join mkordterms term on	tmp.itms_id_trn = term.itms_id and tmp.shelfnos_id_trn = term.shelfnos_id 
-					   							and tmp.locas_id_trn = term.locas_id and  tmp.processseq_trn = term.processseq
-												and	tmp.prjnos_id = term.prjnos_id and 	tmp.shelfnos_id_to_trn  = term.shelfnos_id_to
-												and tmp.mkprdpurords_id = term.mkprdpurords_id
+					  ---  inner join mkordterms term on	tmp.itms_id_trn = term.itms_id and tmp.shelfnos_id_trn = term.shelfnos_id 
+					  ---  							and tmp.locas_id_trn = term.locas_id and  tmp.processseq_trn = term.processseq
+						--- 						and	tmp.prjnos_id = term.prjnos_id and 	tmp.shelfnos_id_to_trn  = term.shelfnos_id_to
+						--- 						and tmp.mkprdpurords_id = term.mkprdpurords_id
 					   where tmp.mkprdpurords_id = #{mkprdpurords_id}
 						   --and tmp.itms_id_pare = {handover["itms_id_pare"]} and tmp.processseq_pare = {handover["processseq_pare"]}  
 						   ---and tmp.shelfnos_id_pare = {handover["shelfnos_id_pare"]} and tmp.shelfnos_id_to_pare = {handover["shelfnos_id_to_pare"]} 
 						   ---and tmp.prjnos_id = {handover["prjnos_id"]}
 						and tmp.qty_sch > 0  --- ord手配済は対象外
-						and tmp.duedate >= term.duedate and tmp.duedate < term.optfixodate
-						group by  tmp.itms_id_trn,tmp.shelfnos_id_trn,tmp.locas_id_trn, tmp.processseq_trn,tmp.prjnos_id,
-									tmp.shelfnos_id_to_trn,term.duedate,tmp.mkprdpurords_id 
+						---and tmp.duedate >= term.duedate and tmp.duedate < term.optfixodate
+						group by  tmp.itms_id_trn,tmp.shelfnos_id_trn,tmp.locas_id_trn, tmp.processseq_trn,tmp.prjnos_id,tmp.shelfnos_id_to_trn,
+						          tmp.packqty,tmp.consumchgoverqty,tmp.consumminqty,tmp.consumunitqty,tmp.parenum,tmp.chilnum,
+                  ---term.duedate,
+                  tmp.mkprdpurords_id 
 					&
 	end
 
@@ -970,8 +961,8 @@ module MkordinstLib
    				and gantt.duedate >= term.duedate and gantt.duedate < term.optfixodate  --- gantt.duedate:ok
 			group by gantt.mkprdpurords_id,
 				gantt.itms_id_trn,gantt.processseq_trn ,
-				gantt.prjnos_id,gantt.shelfnos_id_to_trn,gantt.shelfnos_id_trn
-				,gantt.locas_id_trn 
+				gantt.prjnos_id,gantt.shelfnos_id_to_trn,gantt.shelfnos_id_trn,gantt.locas_id_trn,
+				gantt.packqty,gantt.consumchgoverqty,gantt.consumminqty,gantt.consumunitqty,gantt.parenum,gantt.chilnum 
    				having max(gantt.mlevel) = 1
 				&
 	end	
@@ -991,10 +982,11 @@ module MkordinstLib
           command_c["#{tblname.chop}_payment_id"] = tbldata["payments_id"]
           command_c["#{tblname.chop}_accounttitle"] = "1"  ###仕入
         when /^bill/
-          command_c["#{tblname.chop}_bill_id"] = tbldata["bill_id"]
+          command_c["#{tblname.chop}_bill_id"] = tbldata["bills_id"]
         end
         command_c["#{tblname.chop}_amt"] = tbldata["amt_src"]
-        command_c["#{tblname.chop}_denomination"] = tbldata["denomination"]
+        command_c["#{tblname.chop}_tax"] = tbldata["amt_src"].to_f * tbldata["taxrate"].to_f / 100 
+        command_c["#{tblname.chop}_denomination"] = tbldata["denomination"]   ###  CASH,DEPOSIT,DRAFT
         command_c["#{tblname.chop}_remark"] = "class:#{self},line:#{__LINE__},srctblname:#{tbldata["srctblname"]},srctblid:#{tbldata["srctblid"]}"
         case tblname 
         when /acts$/
@@ -1028,6 +1020,7 @@ module MkordinstLib
                 command_c["#{tblname.chop}_created_at"] = Time.now
                 command_c["#{tblname.chop}_sno"] = CtlFields.proc_field_sno("#{tblname.chop}",tbldata["isudate"],command_c["id"])
                 command_c["#{tblname.chop}_#{str_amt}"] = tbldata["amt_src"]
+                command_c["#{tblname.chop}_#{str_amt}"] = command_c["#{tblname.chop}_#{str_amt}"].to_f * tbldata["taxrate"].to_f / 1000
                 command_c["#{tblname.chop}_sno"] = CtlFields.proc_field_sno(tblname.chop,tbldata["isudate"],command_c["id"])
                 command_c = blk.proc_create_tbldata(command_c) ##
                 blk.proc_private_aud_rec({},command_c)
@@ -1039,7 +1032,7 @@ module MkordinstLib
             # 前の状態の削除
             ##
         case tblname
-        when /acts$/  ##patinsts,billinsts からｓｎｏでの消込
+        when /acts$/  ##payinsts,billinsts からｓｎｏでの消込
               strsql = %Q&
                         select * from #{src["srctblname"]} where id = #{tbldata["srctblid"]}             
               &
@@ -1050,6 +1043,7 @@ module MkordinstLib
               command_c["#{prevtblname.chop}_person_id_upd"] = tbldata["persons_id_upd"]
               command_c["id"] = command_c["#{prevtblname.chop}_id"]= tbldata["srctblid"]
               command_c["#{prevtblname.chop}_amt"] = prevtbldata["amt"].to_f 
+              command_c["#{prevtblname.chop}_tax"] = prevtbldata["amt"].to_f * prevtbldata["taxrate"].to_f / 100   
               command_c = blk.proc_create_tbldata(command_c) ##
               blk.proc_private_aud_rec({},command_c)
         when /insts$/
@@ -1067,6 +1061,7 @@ module MkordinstLib
               command_c["#{prevtblname.chop}_person_id_upd"] = tbldata["persons_id_upd"]
               command_c["id"] = command_c["#{prevtblname.chop}_id"]= prevtbldata["id"]
               command_c["#{prevtblname.chop}_amt"] = prevtbldata["amt"].to_f - tbldata["amt_src"].to_f
+              command_c["#{prevtblname.chop}_tax"] = command_c["#{prevtblname.chop}_amt"] * tbldata["taxrate"].to_f / 100
               command_c = blk.proc_create_tbldata(command_c) ##
               blk.proc_private_aud_rec({},command_c)
         when /ords$/
@@ -1074,63 +1069,71 @@ module MkordinstLib
               when  /puracts/ #
                     strsql = %Q&
                         select ord.srctblname,ord.srctblid from linktbls ord 
-                              where ord.tblname = 'puracts' and ord.id =  #{tbldata["srctblid"]}
+                              where ord.tblname = 'puracts' and ord.tblid =  #{tbldata["srctblid"]}
                               and ord.srctblname = 'purords'
+                              group by ord.srctblname,ord.srctblid 
                       union
                         select ord.srctblname,ord.srctblid from linktbls ord 
                               inner join linktbls inst on ord.tblname = inst.srctblname and ord.tblid = inst.srctblid
-                              where inst.tblname = 'puracts' and inst.id =  #{tbldata["srctblid"]}
+                              where inst.tblname = 'puracts' and inst.tblid =  #{tbldata["srctblid"]}
                               and (ord.tblname = 'purinsts' or ord.tblname = 'purreplyinputs' or ord.tblname = 'purdlvs') 
                               and ord.srctblname = 'purords'
+                              group by ord.srctblname,ord.srctblid 
                       union
                         select ord.srctblname,ord.srctblid from linktbls ord 
                               inner join (select i.* from linktbls i 
                                                 inner join linktbls j on i.tblname = j.srctblname and i.tblid = j.srctblid
-                                                where j.tblname = 'puracts' and j.id =  #{tbldata["srctblid"]}
+                                                where j.tblname = 'puracts' and j.tblid =  #{tbldata["srctblid"]}
                                                 and (i.tblname != j.srctblname or i.tblid != j.srctblid)
                                                 and ( j.srctblname = 'purreplyinputs' or j.srctblname = 'purdlvs') ) inst
                                 on ord.tblname = inst.srctblname and ord.tblid = inst.srctblid
                               where (ord.tblname = 'purinsts' or ord.tblname = 'purreplyinputs') 
                               and ord.srctblname = 'purords'
+                              group by ord.srctblname,ord.srctblid 
                       union
                         select ord.srctblname,ord.srctblid from linktbls ord 
                               inner join (select i.* from linktbls i 
                                                 inner join (select x.* from linktbls x
                                                                   inner join linktbls y  on x.tblname = y.srctblname and x.tblid = y.srctblid
-                                                              where x.tblname = 'puracts' and x.id =  #{tbldata["srctblid"]}
+                                                              where x.tblname = 'puracts' and x.tblid =  #{tbldata["srctblid"]}
                                                               and  y.srctblname = 'purdlvs') j
                                                 on i.tblname = j.srctblname and i.tblid = j.srctblid
                                                 where   j.srctblname = 'purreplyinputs' or j.srctblname = 'purinsts' ) inst
                                 on ord.tblname = inst.srctblname and ord.tblid = inst.srctblid
                               where (ord.tblname = 'purinsts' or ord.tblname = 'purreplyinputs') 
                               and ord.srctblname = 'purords'
+                              group by ord.srctblname,ord.srctblid 
                           &
               when /custacts/
                         strsql = %Q&
                             select ord.srctblname,ord.srctblid from linkcusts ord 
-                                where ord.tblname = 'custacts' and ord.id =  #{tbldata["srctblid"]}
+                                where ord.tblname = 'custacts' and ord.tblid =  #{tbldata["srctblid"]}
                                 and ord.srctblname = 'custords'
+                              group by ord.srctblname,ord.srctblid 
                           union
                             select ord.srctblname,ord.srctblid from linkcusts ord 
                                 inner join linkcusts inst on ord.tblname = inst.srctblname and ord.tblid = inst.srctblid
-                                where inst.tblname = 'custacts' and inst.id =  #{tbldata["srctblid"]}
+                                where inst.tblname = 'custacts' and inst.tblid =  #{tbldata["srctblid"]}
                                 and (ord.tblname = 'custinsts' or ord.tblname = 'custdlvs') 
                                 and ord.srctblname = 'custords'
+                              group by ord.srctblname,ord.srctblid 
                           union
                             select ord.srctblname,ord.srctblid from linkcusts ord 
                                 inner join (select i.* from linkcusts i 
                                                 inner join linkcusts j on i.tblname = j.srctblname and i.tblid = j.srctblid
-                                                where j.tblname = 'custacts' and j.id =  #{tbldata["srctblid"]}
-                                                and j.srctblname = 'custdlvs') ) inst
+                                                where j.tblname = 'custacts' and j.tblid =  #{tbldata["srctblid"]}
+                                                and j.srctblname = 'custdlvs') inst
                                   on ord.tblname = inst.srctblname and ord.tblid = inst.srctblid
                                 where ord.tblname = 'custinsts'   and ord.srctblname = 'custords'
+                              group by ord.srctblname,ord.srctblid 
                             &
               end
-              rnord = ActiveRecord::Base.connection.select_one(strsql)
               prevtblname = tblname.sub("ord","sch")  ###tbldata["srctblname"]--> puracts custacts
-              strsql = %Q&
+              tmp_amt =  tbldata["amt_src"].to_f
+              ActiveRecord::Base.connection.select_all(strsql).each do |trnord|
+                strsql = %Q&
                       select * from #{prevtblname} where id in(
-                                      select tblid from srctbllinks where srctblid = #{trnord["id"]}
+                                      select tblid from srctbllinks where srctblid = #{trnord["srctblid"]}
                                                   and srctblname = '#{case tblname 
                                                                         when /payords/
                                                                               "purords"
@@ -1138,16 +1141,24 @@ module MkordinstLib
                                                                               "custords"
                                                                         end}' and tblname = '#{prevtblname}'
                                     )
-              &
-              prevtbldata = ActiveRecord::Base.connection.select_one(strsql)
-              blk = RorBlkCtl::BlkClass.new("r_#{prevtblname}")
-              command_c = blk.command_init
-              command_c["sio_classname"] = "_update_from_#{tblname}"
-              command_c["#{prevtblname.chop}_person_id_upd"] = tbldata["persons_id_upd"]
-              command_c["id"] = command_c["#{prevtblname.chop}_id"]= prevtbldata["id"]
-              command_c["#{prevtblname.chop}_amt_sch"] = prevtbldata["amt_sch"].to_f - tbldata["amt_src"].to_f
-              command_c = blk.proc_create_tbldata(command_c) ##
-              blk.proc_private_aud_rec({},command_c)
+                &
+                blk = RorBlkCtl::BlkClass.new("r_#{prevtblname}")
+                command_c = blk.command_init
+                command_c["sio_classname"] = "_update_from_#{tblname}"
+                command_c["#{prevtblname.chop}_person_id_upd"] = tbldata["persons_id_upd"]
+                ActiveRecord::Base.connection.select_all(strsql).each do |prevtbldata|
+                  command_c["id"] = command_c["#{prevtblname.chop}_id"]= prevtbldata["id"]
+                  if tmp_amt <= prevtbldata["amt_sch"].to_f 
+                    command_c["#{prevtblname.chop}_amt_sch"] = prevtbldata["amt_sch"].to_f - tmp_amt
+                    command_c["#{prevtblname.chop}_tax"] = command_c["#{prevtblname.chop}_amt_sch"] * prevtbldata["taxrate"].to_f / 100
+                    tmp_amt -= prevtbldata["amt_sch"].to_f
+                  else
+                    next
+                  end
+                  command_c = blk.proc_create_tbldata(command_c) ##
+                  blk.proc_private_aud_rec({},command_c)
+                end
+              end
         end
         return  
   end

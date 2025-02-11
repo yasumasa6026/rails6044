@@ -26,15 +26,10 @@ BEGIN
 						gantt.update_ip,gantt.updated_at	
 	 	 				from trngantts gantt
 	 	 				inner join alloctbls alloc on gantt.id = alloc.trngantts_id
-	 	 				---inner join inoutlotstks  inout on inout.tblname = gantt.tblname and inout.tblid = gantt.tblid 
-						---			and inout.srctblname = '||'''lotstkhists'''||' and gantt.id = inout.trngantts_id 
 	 	 				where gantt.prjnos_id =  $2 and  
 	 	 						 gantt.orgtblname = gantt.paretblname and gantt.paretblname = gantt.tblname
 	 	 					and gantt.orgtblid = gantt.paretblid  and gantt.paretblid = gantt.tblid
 	 	 					and  gantt.itms_id_trn = $3 and gantt.processseq_trn = $4
-	 	 				---	and  gantt.shelfnos_id_to_trn = shelfnos_id_to ---作成場所、購入先にはこだわらない。
-	 	 				---	and (alloc.srctblname = '||'''prdords'''||' or alloc.srctblname = '||'''purords'''||'  or alloc.srctblname = '||'''lotstkhists'''||' )
-	 	 					--- freeの在庫　　未定 仮に"lotstkhists"にした。要確認
 							--- xxxordsはxxxinsts,xxxactsに変わってもtrngantts.tblname は xxxordsのまま
 							and orgtblname = paretblname and paretblname = gantt.tblname
 							and orgtblid = paretblid and paretblid = gantt.tblid

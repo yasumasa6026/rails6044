@@ -28,16 +28,16 @@ export function* MenuSaga({ payload: {auth} }) {
       yield put({ type: MENU_SUCCESS, action: response.data })
       yield call(history.push,'/menus7')}
   catch(e){
-      let error 
+      let hostError 
       switch (true) {
-        case /code.*500/.test(e): error = `${e}: Internal Server Error `
-              return  yield put({type:MENU_FAILURE, payload:{error:error}})   
+        case /code.*500/.test(e): hostError = `${e}: Internal Server Error `
+              return  yield put({type:MENU_FAILURE, payload:{hostError:hostError}})   
         case /code.*401/.test(e): error = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
                 yield call(history.push,'/login')
-                return  yield put({type:LOGIN_FAILURE, payload:{error:error}})   
+                return  yield put({type:MENU_FAILURE, payload:{hostError:hostError}})   
         default:
-            error = `Menu  Something went wrong ${e} `
-                  return  yield put({type:MENU_FAILURE, payload:{error:error}})   
+          hostError = `Menu  Something went wrong ${e} `
+          return  yield put({type:MENU_FAILURE, payload:{hostError:hostError}})   
         }
   }  
 }      

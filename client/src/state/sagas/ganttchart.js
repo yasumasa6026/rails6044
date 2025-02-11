@@ -1,6 +1,6 @@
 import { call, put, select } from 'redux-saga/effects'
 import axios         from 'axios'
-import { GANTTCHART_SUCCESS,GANTTCHART_FAILURE,SECOND_SUCCESS7,}     from '../../actions'
+import { GANTTCHART_SUCCESS,SCREEN_FAILURE,SECOND_SUCCESS7,}     from '../../actions'
 //import { ReactReduxContext } from 'react-redux';
 import {getAuthState} from '../reducers/auth'
 
@@ -56,6 +56,6 @@ export function* GanttChartSaga({ payload: {params}  }) {
           case /code.*401/.test(error): message = 'Invalid credentials or Login TimeOut'
            break
           default: message = `Something went wrong ${error}`}
-        yield put({ type:GANTTCHART_FAILURE, errors: message })
+        yield put({type:SCREEN_FAILURE, payload:{message:"",hostError:message}})
         }
  }      

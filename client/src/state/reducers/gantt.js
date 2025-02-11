@@ -31,7 +31,6 @@ const ganttreducer =  (state= initialValues , actions) =>{
 
     default:
       return {...state,
-       loading:true,
        tasks:[{start:new Date,end:new Date}],
     }
   }
