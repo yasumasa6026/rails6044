@@ -958,9 +958,6 @@ module RorBlkCtl
 			values = ""  ###insert into(....) value(xxx)のxxx
 			tblarel.each do |key,val|
 				fields << key + ","
-				# strsql = %Q&select fieldcode_ftype from r_fieldcodes
-				# 			where  pobject_code_fld = '#{if tblname.downcase =~ /^sio|^bk/ then key.to_s.split("_",2)[1] else key.to_s end}'&
-				# ftype = ActiveRecord::Base.connection.select_value(strsql)
 				key = if reqTblName.downcase =~ /^sio|^bk/ then key.split("_",2)[1] else key end
 				ftype = $ftype[key]
 			 		values << 	case ftype
@@ -982,7 +979,7 @@ module RorBlkCtl
 								###when "created_at","updated_at"
 								###	%Q& to_timestamp('#{val.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),&
 								when "expiredate"  ###date type
-									%Q& to_date('#{val.strftime("%Y/%m/%d")}','yyyy/mm/dd'),&
+									%Q& cast('#{val.strftime("%Y/%m/%d")}' as date),&
 			 					else
 									%Q& '#{val}',&
 								end
@@ -991,7 +988,7 @@ module RorBlkCtl
 			 					when "created_at","updated_at","isudate"
 			 						%Q& to_timestamp('#{val.gsub("-","/")}','yyyy/mm/dd hh24:mi:ss'),&
 								when "expiredate"
-									%Q& to_date('#{val.gsub("-","/")}','yyyy/mm/dd'),&
+									%Q& cast('#{val.gsub("-","/")}' as date),&
 			 					else
 									%Q& to_timestamp('#{val.gsub("-","/")}','yyyy/mm/dd hh24:mi'),&
 								end
@@ -1022,8 +1019,6 @@ module RorBlkCtl
 			strset = ""
 			tbldata.each do |key,val|
 				next if key.to_s == "id"
-				# strsql = %Q&select fieldcode_ftype from r_fieldcodes where  pobject_code_fld = '#{key.to_s}'&
-				# ftype = ActiveRecord::Base.connection.select_value(strsql)
 				ftype = $ftype[key]
 				if ftype
 					strset << case ftype
@@ -1047,7 +1042,7 @@ module RorBlkCtl
 							when "updated_at"
 								%Q& #{key} =  to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),&
 				   			when "expiredate"
-					   			%Q&  #{key} = to_date('#{val.strftime("%Y/%m/%d")}','yyyy/mm/dd'),&
+					   			%Q&  #{key} = cast('#{val.strftime("%Y/%m/%d")}' as date),&
 							else
 								%Q&  #{key} = to_timestamp('#{val.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi'),&
 				   			end
@@ -1058,7 +1053,7 @@ module RorBlkCtl
 							when "updated_at"
 							    %Q& #{key} =  to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),&
 				   			when "expiredate"
-					   			%Q&  #{key} = to_date('#{val.gsub("-","/")}','yyyy/mm/dd'),&
+					   			%Q&  #{key} = cast('#{val.gsub("-","/")}' as date),&
 							else
 								%Q&  #{key} = to_timestamp('#{val.gsub("-","/")}','yyyy/mm/dd hh24:mi'),&
 				   			end

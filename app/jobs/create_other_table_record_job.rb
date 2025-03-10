@@ -583,6 +583,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         command_c = blk.proc_create_tbldata(command_c)
                                         setParams = blk.proc_private_aud_rec(setParams,command_c) ###create pur,prdschs
                                         if gantt["consumtype"] == "CON"  ###出庫 消費と金型・設備の使用
+                                          setParams["child"] =  nd.dup
                                           setParams["screenCode"] = "r_conschs"
                                           last_lotstks << Shipment.proc_create_consume(setParams)
                                         end

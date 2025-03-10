@@ -136,11 +136,11 @@ module Api
                             :totalCount=>totalCount,:filttered=>params[:filtered] }    
 
             when 'confirmAll'   ###purords,prdordsからshpordsを表示
-                if params["clickIndex"]
+                if params[:clickIndex]
                     outcnt = outqty = outamt = 0
                     reqparams = params.dup
                     ActiveRecord::Base.connection.begin_db_transaction()
-                    params["clickIndex"].each_with_index do |strselected,idx|
+                    params[:clickIndex].each_with_index do |strselected,idx|
                         next if strselected == "undefined" 
                         selected = JSON.parse(strselected)
                         next if selected.empty?
@@ -212,7 +212,7 @@ module Api
                     strPackingListNo = "#{params[:screenCode].split("_")[1].chop}_packinglistno"
                     begin
                     ActiveRecord::Base.connection.begin_db_transaction()
-                      params["clickIndex"].each_with_index do |strselected,idx|
+                      params[:clickIndex].each_with_index do |strselected,idx|
                         next if strselected == "undefined"
                         selected = JSON.parse(strselected)
                         next if selected.empty?
@@ -266,7 +266,7 @@ module Api
                 end
 
             # when 'MkInvoiceNo'  
-            #     if params["clickIndex"]
+            #     if params[:clickIndex]
             #         outcnt = 0
             #         totalAmt =  0
             #         totalTax = 0
@@ -274,7 +274,7 @@ module Api
             #         invoiceNo = "Inv-" + format('%06d',ArelCtl.proc_get_nextval("invoiceno_seq"))
             #         strInvoiceNo = "custacthead_invoiceno"
             #         ActiveRecord::Base.connection.begin_db_transaction()
-            #         params["clickIndex"].each_with_index do |strselected,idx|
+            #         params[:clickIndex].each_with_index do |strselected,idx|
             #             next if strselected == "undefined"
             #             selected = JSON.parse(strselected)
             #             if params[:screenCode] == selected["screenCode"]
@@ -358,6 +358,56 @@ module Api
             #         render json:{:err=>"please  select Order"}    
             #     end
 
+            when 'MkCalendars'  
+              if params[:clickIndex]
+                outcnt = 0
+                str_hcalendar_ids = ""
+                str_facilities_ids = ""
+                begin
+                ActiveRecord::Base.connection.begin_db_transaction()
+                  params[:clickIndex].each_with_index do |strselected,idx|
+                    next if strselected == "undefined"
+                    selected = JSON.parse(strselected)
+                    next if selected.empty?
+                    if params[:screenCode] == selected["screenCode"]
+                      if selected["id"]
+                        str_hcalendar_ids << selected["id"] + ","
+                        outcnt +=1
+                      end
+                    else
+                      next
+                    end
+                  end
+                  if outcnt == 0
+                    params[:message] = " please select"
+                    params[:buttonflg] = "MkCalendars"
+                    render json:{:params=>params}
+                  else
+                    screen = ScreenLib::ScreenClass.new(params)
+                    a_locas_ids = screen.proc_create_calendars(str_hcalendar_ids.chop)
+                    a_locas_ids.each do |locas_id|
+                      strsql = %Q&
+                                select f.id from facilities f 
+				                                      inner join shelfnos s on s.id = f.shelfnos_id
+	                                            where s.locas_id_shelfno = #{locas_id}
+                                &
+                      facilities_ids = ActiveRecord::Base.connection.select_values(strsql)
+                      facilities_ids.each do |facilities_id|
+                        a_locas_ids = screen.proc_create_facility_calendars(locas_id,facilities_id)
+                      end
+                    end
+                    params[:message] = "create calendars"
+                    params[:buttonflg] = "MkCalendars"
+                    ActiveRecord::Base.connection.commit_db_transaction()
+                    render json:{:params=>params}
+                  end
+                end
+              else
+                  params[:message] = " please select"
+                  params[:buttonflg] = "MkCalendars"
+                  render json:{:params=>params}
+              end
+            
             when 'mkShpords'  ###shpschsは作成済が条件。shpschsはpurords,prdords時に自動作成
                 if params[:clickIndex]
                     outcnt,shortcnt,err,last_lotstks = Shipment.proc_mkShpords(params)      
@@ -382,7 +432,7 @@ module Api
             
             when 'refShpords'   ###purords,prdordsからshpordsを表示
                 reqparams = params.dup   ###
-                if params["clickIndex"]
+                if params[:clickIndex]
                     reqparams[:where_str] ||= ""
                     reqparams[:filtered] ||= []
                     reqparams[:pageIndex] ||= 0
@@ -412,7 +462,7 @@ module Api
             
             when 'refShpinsts'  ###purords,prdordsからshpinstsを表示
                 reqparams = params.dup   ### f
-                if params["clickIndex"]
+                if params[:clickIndex]
                     reqparams[:where_str] ||= ""
                     reqparams[:filtered] ||= []
                     reqparams[:pageIndex] ||= 0
@@ -441,7 +491,7 @@ module Api
           
             when 'refShpacts'   ###purords,prdordsからshpactsを表示
                 reqparams = params.dup   ### 
-                if params["clickIndex"]
+                if params[:clickIndex]
                     reqparams[:where_str] ||= ""
                     reqparams[:filtered] ||= []
                     reqparams[:pageIndex] ||= 0
@@ -465,7 +515,7 @@ module Api
             when /^prdDvs|^prdErc/
                   reqparams = params.dup   ### 
                   reqparams[:where_str] ||= ""
-                  if params["clickIndex"]
+                  if params[:clickIndex]
                       reqparams[:filtered] ||= []
                       reqparams[:pageIndex] ||= 0
                       reqparams[:pageSize] ||= 10

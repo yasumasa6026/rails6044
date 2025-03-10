@@ -19,12 +19,16 @@ const GanttTask = (props:Props) => {
         switch(view){
         case ViewMode.Month:
             columnWidth = 300
+            break
         case ViewMode.Week:
             columnWidth = 250
+            break
         case ViewMode.Day:
             columnWidth = 65
+            break
         case ViewMode.Hour:
             columnWidth = 20
+            break
         }
 
         

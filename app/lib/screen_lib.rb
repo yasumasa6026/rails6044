@@ -723,7 +723,7 @@ module ScreenLib
 						when /mkprdpurord_duedate_/
 							temp[cell[:accessor]] = "2099/12/31"  
 						when /mkprdpurord_starttime_/
-							temp[cell[:accessor]] = "2000/01/01"  
+							temp[cell[:accessor]] = $beginnig_date  
 						end
 						if cell[:className] =~ /Numeric/
 							temp[cell[:accessor]] = "0" ###初期表示
@@ -1613,6 +1613,159 @@ module ScreenLib
 			end
 			return amtTaxRate ,err
 		end
+
+    def proc_create_calendars  str_hcalendars_id
+      prev_locas_id = "-1"
+      prev_expiredate = $beginnig_date
+      a_locas_ids = []
+      strsql = %Q&select * from hcalendars where expiredate > current_date
+                                and id in(#{str_hcalendars_id}) 
+                                order by locas_id,expiredate,effectivetime &    
+      ActiveRecord::Base.connection.select_all(strsql).each do |head|
+        if prev_locas_id != head["locas_id"] 
+           prev_expiredate = $beginnig_date
+           a_locas_ids << head["locas_id"]
+        end
+        holidayweekdays =  head["dayofweek"].split(",")
+        holidays = head["holidays"].split(",")
+        workingdays = head["workingday"].split(",")
+        cnt = $calendar_cnt
+        tmp_current_timestamp = (Time.now).strftime("%Y-%m-%d %H:%M:%S")
+        while cnt >= 0
+          workf = true
+          cnt_current_date = (Date.today + $calendar_cnt - cnt).strftime("%Y-%m-%d")
+          mmdd = cnt_current_date[5..6] + cnt_current_date[8..9]
+          tmpday = (Date.today + $calendar_cnt - cnt).wday
+          workf = false if holidayweekdays.include?(tmpday.to_s) 
+          workf = false if holidays.include?(mmdd.to_s)
+          workf = true if workingdays.include?(cnt_current_date)
+          strsql = %Q&select * from calendars where locas_id = #{head["locas_id"]}
+                                  and expiredate > current_date and targetdate = cast('#{cnt_current_date}' as date)
+                                  and targetdate  <= cast('#{head["expiredate"]}' as date)
+                                  and targetdate  > cast('#{prev_expiredate}' as date)
+                                  order by targetdate,effectivestarttime &    
+          detail = ActiveRecord::Base.connection.select_one(strsql)
+          if detail.nil?
+            if workf
+              head["effectivetime"].split(",").each do |effective|
+                strsql = %Q&insert into calendars(id,expiredate,
+                                              locas_id,targetdate,
+                                              effectivestarttime,effectiveendtime,
+                                              created_at,updated_at,persons_id_upd
+                                              )
+                                values( #{ArelCtl.proc_get_nextval("calendars_seq")},'#{head["expiredate"]}',
+                                        #{head["locas_id"]}, cast('#{cnt_current_date}' as date), 
+                                            '#{effective.split("~")[0]}','#{effective.split("~")[1]}' ,
+                                        cast('#{tmp_current_timestamp}' as timestamp),cast('#{tmp_current_timestamp}' as timestamp),0)&
+                ActiveRecord::Base.connection.insert(strsql)
+              end
+            else
+                strsql = %Q&insert into calendars(id,expiredate,
+                                             locas_id,targetdate,
+                                             effectivestarttime,effectiveendtime,
+                                             created_at,updated_at,persons_id_upd
+                                             )
+                               values( #{ArelCtl.proc_get_nextval("calendars_seq")},'#{head["expiredate"]}',
+                                       #{head["locas_id"]},cast('#{cnt_current_date}' as date), 
+                                           '','',
+                                       cast('#{tmp_current_timestamp}' as timestamp),cast('#{tmp_current_timestamp}' as timestamp),0)&
+              ActiveRecord::Base.connection.insert(strsql)
+            end
+          else
+            if detail["updated_at"] < head["updated_at"]
+              if cnt == 10
+                Rails.logger.debug"class:#{self},line:#{__LINE__},cnt_current_date:#{cnt_current_date},mmdd:#{mmdd},tmpday:#{tmpday},holidayweekdays:#{holidayweekdays},holidays:#{holidays},workingdays:#{workingdays},workf:#{workf}"
+              end
+              if workf
+                strsql = %Q&select * from calendars where locas_id = #{head["locas_id"]}
+                                        and expiredate > current_date and targetdate = cast('#{cnt_current_date}' as date)
+                                        order by targetdate,effectivestarttime &    
+                workdetails = ActiveRecord::Base.connection.select_all(strsql) 
+                effs = head["effectivetime"].split(",")
+                effs.each_with_index do |effective,idx|
+                  if workdetails[idx].nil? 
+                    strsql = %Q&insert into calendars(id,expiredate,
+                                                  locas_id,targetdate,
+                                                  effectivestarttime,effectiveendtime,
+                                                  created_at,updated_at,persons_id_upd
+                                                  )
+                                    values( #{ArelCtl.proc_get_nextval("calendars_seq")},'#{head["expiredate"]}',
+                                            #{head["locas_id"]}, cast('#{cnt_current_date}' as date), 
+                                                '#{effective.split("~")[0]}','#{effective.split("~")[1]}' ,
+                                            cast('#{tmp_current_timestamp}' as timestamp),cast('#{tmp_current_timestamp}' as timestamp),0)&
+                    ActiveRecord::Base.connection.insert(strsql)
+                  else
+                    strsql = %Q&update calendars set expiredate = '#{head["expiredate"]}',
+                                        effectivestarttime = '#{effective.split("~")[0]}',
+                                        effectiveendtime = '#{effective.split("~")[1]}',
+                                        updated_at = cast('#{tmp_current_timestamp}' as timestamp),
+                                        persons_id_upd = 0
+                                    where id = #{workdetails[idx]["id"]}&
+                    ActiveRecord::Base.connection.update(strsql)
+                  end
+                end
+              else
+                strsql = %Q&update calendars set  expiredate = '#{head["expiredate"]}',
+                                        effectivestarttime = '',
+                                        effectiveendtime = '',
+                                        updated_at = cast('#{tmp_current_timestamp}' as timestamp),
+                                        persons_id_upd = 0
+                              where locas_id = #{head["locas_id"]}
+                                and targetdate = cast('#{cnt_current_date}' as date)
+                                    &
+                ActiveRecord::Base.connection.update(strsql)
+              end
+            else
+              break
+            end
+          end
+          cnt -= 1
+        end
+        prev_locas_id = head["locas_id"]
+        prev_expiredate = head["expiredate"]
+      end          
+      return a_locas_ids                                         
+    end  ###create_calendars
+
+
+    def proc_create_facility_calendars  locas_id,facilities_id
+      tmp_current_timestamp = (Time.now).strftime("%Y-%m-%d %H:%M:%S")
+      strsql = %Q&update facilitycalendars  set notchange = '1',updated_at = cast('#{tmp_current_timestamp}' as timestamp)
+                          where locas_id_pare = #{locas_id} and facilities_id = #{facilities_id}
+                          and expiredate > current_date      
+                          and exists(select 1 from facilitycalendars f 
+                                      where f.locas_id_pare = #{locas_id} and f.facilities_id = #{facilities_id}
+                                      and f.targetdate = facilitycalendars.targetdate
+                                      and f.notchange = '1')
+                             &
+      ActiveRecord::Base.connection.update(strsql)
+      strsql = %Q&delete from facilitycalendars where locas_id_pare = #{locas_id} and facilities_id = #{facilities_id}
+                                                and notchange != '1'  and expiredate > current_date      &
+      ActiveRecord::Base.connection.delete(strsql)
+      strsql = %Q&insert into facilitycalendars(id,expiredate,
+                                               locas_id_pare,facilities_id,targetdate,
+                                               effectivestarttime,effectiveendtime,
+                                               notchange,
+                                               created_at,updated_at,persons_id_upd
+                                               )
+                                select (#{ArelCtl.proc_get_nextval("facilitycalendars_seq")} + row_number() over (order by id)) as id,c.expiredate,
+                                  c.locas_id,#{facilities_id},c.targetdate,
+                                 c.effectivestarttime,c.effectiveendtime,
+                                 '0',
+                                  cast('#{tmp_current_timestamp}' as timestamp),cast('#{tmp_current_timestamp}' as timestamp),0
+                                 from calendars c 
+                                       where c.locas_id = #{locas_id} and c.expiredate > current_date        
+                                       and not exists(select 1 from facilitycalendars f 
+                                                   where f.locas_id_pare = c.locas_id 
+                                                   and f.targetdate = c.targetdate
+                                                   and f.notchange = '1'     )         
+                                         &
+        ActiveRecord::Base.connection.insert(strsql)
+        max_id = ActiveRecord::Base.connection.select_value(%Q&select max(id) from facilitycalendars&)
+        strsql = %Q& select setval('facilitycalendars_seq',#{max_id})&
+        ActiveRecord::Base.connection.update(strsql)
+    end
+
   
 		def undefined
 		  nil

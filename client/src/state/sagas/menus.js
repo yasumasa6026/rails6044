@@ -1,7 +1,7 @@
 import { call, put} from 'redux-saga/effects'
 import axios         from 'axios'
 
-import { MENU_SUCCESS, MENU_FAILURE,LOGIN_FAILURE, } from '../../actions'
+import { MENU_SUCCESS, MENU_FAILURE, } from '../../actions'
 import history from '../../histrory'
 
 function MenuGetApi({auth}) {
@@ -32,7 +32,7 @@ export function* MenuSaga({ payload: {auth} }) {
       switch (true) {
         case /code.*500/.test(e): hostError = `${e}: Internal Server Error `
               return  yield put({type:MENU_FAILURE, payload:{hostError:hostError}})   
-        case /code.*401/.test(e): error = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
+        case /code.*401/.test(e): hostError = ` Invalid credentials  Unauthorized or Login TimeOut ${e}`
                 yield call(history.push,'/login')
                 return  yield put({type:MENU_FAILURE, payload:{hostError:hostError}})   
         default:

@@ -61,8 +61,7 @@ module ArelCtl
 						seqno,id,result_f)
 					values(
 						'','#{setParams["remark"]}',
-						to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-						to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+						current_timestamp,current_timestamp,
 						'',#{setParams["person_id_upd"]},'#{setParams.to_json}',
 						#{setParams["seqno"][0]},#{processreqs_id},'0')
 		&
@@ -274,8 +273,7 @@ module ArelCtl
 				values(#{linktbl_id},#{src["trngantts_id"]},
 					'#{src["tblname"]}',#{src["tblid"]}, 
 					'#{newsrc["tblname"]}',#{newsrc["tblid"]},#{newsrc["qty_src"]} ,#{newsrc["amt_src"]} , 
-					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					current_timestamp,current_timestamp,
 					' ',0,'2099/12/31','#{newsrc["remark"]}')  ---persons.id=0はテーブルに必須
 				&
 		ActiveRecord::Base.connection.insert(strsql)
@@ -299,8 +297,7 @@ module ArelCtl
 				values(#{linktbl_id},
 					'#{src["tblname"]}',#{src["tblid"]}, 
 					'#{base["tblname"]}',#{base["tblid"]},#{base["amt_src"]} , 
-					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					current_timestamp,current_timestamp,
 					' ',0,'2099/12/31','#{base["remark"]}')  ---persons.id=0ははテーブルに必須
 				&
 		ActiveRecord::Base.connection.insert(strsql)
@@ -318,8 +315,7 @@ module ArelCtl
 				values(#{linkhead_id},
 					'#{head["paretblname"]}',#{head["paretblid"]}, 
 					'#{detail["tblname"]}',#{detail["tblid"]}, 
-					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					current_timestamp,current_timestamp,
 					' ',#{detail["persons_id_upd"]},'2099/12/31','#{detail["remark"]}')
 				&
 		ActiveRecord::Base.connection.insert(strsql)
@@ -382,8 +378,7 @@ module ArelCtl
 				values(#{linkcust_id},#{src["trngantts_id"]},
 					'#{src["tblname"]}',#{src["tblid"]}, 
 					'#{base["tblname"]}',#{base["tblid"]},#{base["qty_src"]} ,#{base["amt_src"]} , 
-					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					current_timestamp,current_timestamp,
 					' ',#{base["persons_id_upd"]},'2099/12/31','#{base["remark"]}')
 				&
 		ActiveRecord::Base.connection.insert(strsql)
@@ -439,8 +434,7 @@ module ArelCtl
 							'#{rec_alloc["srctblname"]}',#{rec_alloc["srctblid"]},
 							#{rec_alloc["trngantts_id"]},
 							#{rec_alloc["qty_linkto_alloctbl"]},
-							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					    current_timestamp,current_timestamp,
 							' ',0,'2099/12/31','#{rec_alloc["remark"]}',   --- persond_id_upd=0
 							'#{rec_alloc["allocfree"]}')
 			    &
@@ -462,8 +456,7 @@ module ArelCtl
 							'#{rec_alloc["srctblname"]}',#{rec_alloc["srctblid"]},
 							#{rec_alloc["trngantts_id"]},
 							#{rec_alloc["qty_linkto_alloctbl"]},
-							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-							to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					    current_timestamp,current_timestamp,
 							' ',0,'2099/12/31','#{rec_alloc["remark"]}',   --- persond_id_upd=0
 							'#{rec_alloc["allocfree"]}')
 			    &
@@ -554,8 +547,7 @@ module ArelCtl
 						toduedate_org,
 						consumtype,
 						chrgs_id_trn,chrgs_id_pare,chrgs_id_org,
-						created_at,
-						updated_at,
+						created_at,	updated_at,
 						update_ip,persons_id_upd,expiredate,remark)
 			values(#{gantt["trngantts_id"]},'#{gantt["key"]}',
 					'#{gantt["orgtblname"]}',#{gantt["orgtblid"]},'#{gantt["paretblname"]}',#{gantt["paretblid"]},
@@ -585,8 +577,7 @@ module ArelCtl
 					to_timestamp('#{gantt["toduedate_org"]}','yyyy/mm/dd hh24:mi:ss'),
 					'#{gantt["consumtype"]}',   ---custxxxsの時は""
 					#{gantt["chrgs_id_trn"]},#{gantt["chrgs_id_pare"]},#{gantt["chrgs_id_org"]},
-					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					current_timestamp,current_timestamp,
 					' ',#{gantt["persons_id_upd"]},'2099/12/31','#{gantt["remark"]}')
 				&
 			ActiveRecord::Base.connection.insert(strsql)

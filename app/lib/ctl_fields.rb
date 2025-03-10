@@ -373,9 +373,9 @@ module CtlFields
 							case  fetchview
 							when /custs$/
 								if line_data[:crr_code].nil? or line_data[:crr_code] == ""
-									line_data[:crr_code] = rec["crr_code_cust"]
-									line_data[:crr_name] = rec["crr_name_cust"]
-									line_data[:custord_crr_id] = rec["cust_crr_id_cust"]
+									line_data[:crr_code] = rec["crr_code_bill_cust"]
+									line_data[:crr_name] = rec["crr_name_bill_cust"]
+									line_data[:custord_crr_id] = rec["bill_crr_id_bill_cust"]
 								end
 								if line_data[:custord_contractprice].nil? or line_data[:custord_contractprice] == ""
 									line_data[:custord_contractprice] = rec["cust_contractprice"]
@@ -1312,7 +1312,7 @@ module CtlFields
 			end
 			strsql = %Q&
 						select taxrate from taxtbls where taxflg = '#{line_data[:itm_taxflg]}' 
-													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													and expiredate >= cast('#{base_date}' as date)
 													order by expiredate limit 1
 			&
 			line_data[:puract_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
@@ -1325,7 +1325,7 @@ module CtlFields
 			base_date =   line_data[:shpsch_isudate]
 			strsql = %Q&
 						select taxrate from taxtbls where taxflg = '#{line_data[:itm_taxflg]}' 
-													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													and expiredate >= cast('#{base_date}' as date)
 													order by expiredate limit 1
 			&
 			line_data[:shpsch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
@@ -1333,7 +1333,7 @@ module CtlFields
 			base_date =   line_data[:shpact_rcptdate]
 			strsql = %Q&
 						select taxrate from taxtbls where taxflg = '#{line_data[:itm_taxflg]}' 
-													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													and expiredate >= cast('#{base_date}' as date)
 													order by expiredate limit 1
 			&
 			line_data[:shpsch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
@@ -1395,7 +1395,7 @@ module CtlFields
 			end
 			strsql = %Q&
 						select taxrate from taxtbls where taxflg = '#{line_data[:itm_taxflg]}' 
-													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													and expiredate >= cast('#{base_date}' as date)
 													order by expiredate limit 1
 			&
 			line_data[:custact_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
@@ -1414,7 +1414,7 @@ module CtlFields
 			end
 			strsql = %Q&
 						select taxrate from taxtbls where taxflg = '#{line_data[:itm_taxflg]}' 
-													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													and expiredate >= cast('#{base_date}' as date)
 													order by expiredate limit 1
 			&
 			line_data[:custord_taxrate] = ActiveRecord::Base.connection.select_value(strsql)
@@ -1427,7 +1427,7 @@ module CtlFields
 			end
 			strsql = %Q&
 						select taxrate from taxtbls where taxflg = '#{line_data[:itm_taxflg]}' 
-													and expiredate >= to_date('#{base_date}','yyyy/mm/dd')
+													and expiredate >= cast('#{base_date}' as date)
 													order by expiredate limit 1
 			&
 			line_data[:custsch_taxrate] = ActiveRecord::Base.connection.select_value(strsql)

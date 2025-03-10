@@ -11,13 +11,36 @@ import {  SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,CONFIRMALL_SUCCESS,
   SCREEN_SUBFORM,LOGIN_SUCCESS,LOGOUT_SUCCESS} 
   from '../../actions'
 
-export let getScreenState = state => state.screen
-
 const initialValues = {loading : false,second_columns_info:{columns_info:null,},}
 
 const screenreducer =  ( state = initialValues , actions) =>{
 let data
-let date = new Date()
+/*
+SCREENINIT_REQUEST: A request to initialize the screen.
+SCREEN_REQUEST: A general request for screen data.
+SCREEN_SUCCESS7: Successfully retrieved screen data.
+SCREEN_CONFIRM7: request to confirm a record.
+SCREEN_CONFIRM7_SUCCESS: confirm of record is ok.
+SECOND_CONFIRM7_SUCCESS: confirm of the sub record.
+FETCH_REQUEST: A request to fetch data.
+FETCH_RESULT: Data has been fetched.
+INPUTFIELDPROTECT_REQUEST: request to set the inputfield protect.
+INPUTPROTECT_RESULT: inputfield is protected.
+SCREEN_DATASET: set the data of the screen.
+MKSHPORDS_SUCCESS: process of the creation of the prdords and purords is ok.
+TBLFIELD_REQUEST: request to update the table field.
+GANTTCHART_REQUEST: request to update the gantt chart.
+GANTTCHART_SUCCESS: update of the gantt chart is ok.
+TBLFIELD_SUCCESS: update of the table field is ok.
+AREACHART_REQUEST: a request to update the area chart.
+UPLOADEXCEL_INIT: initialize upload of an excel file.
+DROPDOWNVALUE_SET: set the value of the dropdown list.
+SCREEN_FAILURE: An error occurred fetching screen data.
+SCREEN_SUBFORM: set the display of the subform.
+LOGIN_SUCCESS: Login has been successful.
+LOGOUT_REQUEST: A request to logout.
+LOGOUT_SUCCESS: Logout has been successful.
+*/
 switch (actions.type) {
 
 case SCREENINIT_REQUEST:

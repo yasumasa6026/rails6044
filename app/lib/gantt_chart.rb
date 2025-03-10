@@ -93,7 +93,7 @@ module GanttChart
 				end
 			when /prd|pur|cust/
 				@bgantts[@base] = {:itm_code=>"",:itm_name=>"全行程",:loca_code=>"",:loca_name=>"",:opeitms_id=>"0",
-												:start => "2099-12-31",:duedate => "2000-01-01",
+												:start => "2099-12-31",:duedate => $beginnig_date,
 												:type=>"project",:depend => [""],:id=>@level}
 				trget = ActiveRecord::Base.connection.select_one(%Q&select * from #{mst_code} where id = #{id}&)
 				@bgantts[@base][:tblname] = mst_code

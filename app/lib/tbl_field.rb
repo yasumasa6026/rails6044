@@ -264,7 +264,7 @@ class TblClass
 			@modifysql << "\n ---- "
 			@modifysql << "\n ---- second"
 			@modifysql << "\n ---- "
-			@modifysql << "\n --- update screenfields set expiredate = '2000/1/1',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
+			@modifysql << "\n --- update screenfields set expiredate = '#{$beginnig_date}',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
 			@modifysql << "\n ---        ,updated_at = current_date  ,selection = '0'"
 			@modifysql << "\n ---        where id in  (select id from r_screenfields where  (pobject_code_sfd like '#{table_name.chop}_#{column_name.sub("s_id","_id")}%' "
 			@modifysql << "\n ---        						  or screenfield_crtfield = '#{column_name.sub("s_id","")}' "
@@ -275,7 +275,7 @@ class TblClass
 			@modifysql << "\n ---  		and  pobject_code_scr like '%_#{table_name}' and screenfield_selection = '1');"
 		else
 			@modifysql << "\n ---- where  pobject_code_sfd = '#{table_name.chop}_#{column_name}'"
-			@modifysql << "\n --- update screenfields set expiredate = '2000/1/1',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
+			@modifysql << "\n --- update screenfields set expiredate = '#{$beginnig_date}',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
 			@modifysql << "\n ---        ,updated_at = current_date  ,selection = '0'"
 			@modifysql << "\n ---        where id in  (select id from r_screenfields where  pobject_code_sfd = '#{table_name.chop}_#{column_name}' "
 			@modifysql << "\n ---        and  pobject_code_scr like '%_#{table_name}'  and screenfield_selection = '1');"

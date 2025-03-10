@@ -109,12 +109,31 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
                 if(/^[0-2][0-9]:[0-2][0-9]$/.exec(lineData[id])){
                                                 lineData[`${id}_gridmessage`]="ok"}else{lineData[`${id}_gridmessage`]="err HH:MM"}}
             break
+        case /effectivetime/.test(id):
+                if(lineData[id]){
+                  lineData[id].split(",").map((item,idx)=>{
+                    if(/^[0-2][0-9]:[0-2][0-9]~[0-2][0-9]:[0-2][0-9]$/.exec(item)&&
+                       item.split(/~|:/)[0]<item.split(/~|:/)[1]&&item.split(/~|:/)[1]<item.split(/~|:/)[2]&&
+                          item.split(/~|:/)[2]<item.split(/~|:/)[3]){
+                              lineData[`${id}_gridmessage`]="ok"}else{lineData[`${id}_gridmessage`]="err HH:MM"}})}
+                break
+        case /holidays/.test(id):
+                if(lineData[id]){
+                          lineData[id].split(",").map((item,idx)=>{
+                            if(isValidMMDD(item)){
+                                      lineData[`${id}_gridmessage`]="ok"}else{lineData[`${id}_gridmessage`]="err mmdd"}})}
+                break
+        case /dayofweek/.test(id):
+          if(lineData[id]){
+                    lineData[id].split(",").map((item,idx)=>{
+                      if(/^[0-6]$/.exec(item)){
+                                lineData[`${id}_gridmessage`]="ok"}else{lineData[`${id}_gridmessage`]="err 0-6:0:sun 1:mon 2:tue 3:wed 4:thu 5:fri 6:sat"}})}
+                break
         case /mmdd/.test(id):
-            if(lineData[id]){
-                let mmdd = new Date(lineData[id])
-                if(mmdd.getDate()){
-                                     lineData[`${id}_gridmessage`]="ok"}else{lineData[`${id}_gridmessage`]="err mm/dd"}}
-            break
+                if(lineData[id]){
+                    if(isValidMMDD(lineData[id].replace(/\/|-/g,""))){
+                                         lineData[`${id}_gridmessage`]="ok"}else{lineData[`${id}_gridmessage`]="err mmdd"}}
+                break
         default:
              break    
         }
@@ -122,6 +141,34 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
     return  lineData,autoAddFields
 }
 
+function isValidMMDD(mmdd) {
+  if (typeof mmdd !== 'string' || mmdd.length !== 4) {
+    return false
+  }
+
+  const month = parseInt(mmdd.slice(0, 2), 10)
+  const day = parseInt(mmdd.slice(2, 4), 10)
+
+  if (isNaN(month) || isNaN(day)) {
+    return false
+  }
+
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return false
+  }
+
+  if (month === 2) {
+    if (day > 29) {
+      return false
+    }
+  } else if ([4, 6, 9, 11].includes(month)) {
+    if (day > 30) {
+      return false
+    }
+  }
+
+  return true
+}
 
 export function   onFieldValite (lineData, field, screenCode) {  // yupでは　2019/12/32等がエラーにならない
     let Yup = require('yup')    

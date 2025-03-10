@@ -116,7 +116,11 @@ export function* ScreenSaga({ payload: {params}  }) {
            case "MkPackingListNo":  //
                message = "out count : " + response.data.outcnt
                message = message + ",out qty : " + response.data.outqty
-               return yield put({ type: CONFIRMALL_SUCCESS, payload:{message:message}})     
+               return yield put({ type: CONFIRMALL_SUCCESS, payload:{message:message}})   
+
+            case "MkCalendars":  //
+                   message = response.data.params.message
+                   return yield put({ type: CONFIRMALL_SUCCESS, payload:{message:message}})     
               
             case "MkInvoiceNo":
               message = "out count : " + response.data.outcnt

@@ -50,7 +50,8 @@ import {ScreenRequest,DownloadRequest,UploadExcelInit,GanttChartRequest,
             </Tabs>
         }
         
-        {(buttonflg==="ganttchart"||buttonflg==="reversechart")&&screenFlg===params.screenFlg&&<GanttTask /> }
+        {(buttonflg==="ganttchart"||buttonflg==="reversechart")&&screenFlg===params.screenFlg&&
+                  <div style={{ width: '1800px' }}><GanttTask /> </div>}
         {buttonflg==='upload'&&<UploadExcel/>}
         {buttonflg==="download"&&<Download/>}
         {(buttonflg==="createTblViewScreen"||buttonflg==="createUniqueIndex")&&params.messages.map((msg,index) =>{
@@ -199,6 +200,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
           case "prdErcords":  //第一画面で選択された親より第二画面表示
           case "prdErcinsts":  //第一画面で選択された親より第二画面表示
           case "prdErcacts":  //第一画面で選択された親より第二画面表示
+          case "MkCalendars":
               clickIndex = params.clickIndex
               if(clickIndex.length > 0){    //if(params.clickIndex.length===0)  ---> error
                   params= {...params,linedata:{},buttonflg:buttonflg,disableFilters:false,screenFlg:ownProps.screenFlg}

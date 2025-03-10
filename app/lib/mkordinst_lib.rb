@@ -104,10 +104,10 @@ module MkordinstLib
 								%
 						end		
 					when /duedate/						
-						strwhere[sel] << %Q% and gantt.#{field}_#{sel} <= to_date('#{val}','yyyy/mm/dd hh24:mi:ss')  
+						strwhere[sel] << %Q% and gantt.#{field}_#{sel} <= cast('#{val}' as date)  
 								%
 					when /starttime/						
-						strwhere[sel] << %Q% and gantt.#{field}_#{sel} >= to_date('#{val}','yyyy/mm/dd hh24:mi:ss')   
+						strwhere[sel] << %Q% and gantt.#{field}_#{sel} >= cast('#{val}' as date)   
 								%
 					when /sno/			###snoが	
 						case sel
@@ -409,82 +409,15 @@ module MkordinstLib
       last_manth = (Time.now.strftime("%Y") + "-" +Time.now.strftime("%m") + "-" + "01").to_date.since(-1.day)  
       ActiveRecord::Base.connection.select_all(strsql).each do |inst|
         mkbillinstparams[:incnt] += 1
-        billinst_tbldata = {"isudate"=>billinst_isudate,"bills_id" => inst["bills_id"],
+        payinst_tbldata = {"isudate"=>payinst_isudate,"pays_id" => inst["pays_id"],
                       "last_amt" => nil,"last_duedate" => nil,
                       "termofs" => inst["termof"],"payment" => inst["ratejson"],
                       "persons_id_upd" => params["person_id_upd"] ,"trngantts_id" => nil,
-                      "chrgs_id" => inst["chrgs_id_bill"],"crrs_id" => inst["crrs_id"],
+                      "chrgs_id" => inst["chrgs_id_pay"],"crrs_id" => inst["crrs_id"],
+                      "tblname" => "payinsts",
                       "srctblname" => "custacts","srctblid" => inst["custacts_id"]}
         
-        inst["termof"].split(",").each do |termof|
-          case termof
-          when "0","00"   ###随時
-            JSON.parse(inst["ratejson"]).each do |rate|   ###rate["duration"] 0:同月　1:翌月
-                duedate =  inst["saledate"].to_date.since(rate["duration"].to_i.month)
-                if rate["day"].to_i >= 28
-                  duedate =  duedate.since(1.month)
-                  duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
-                  duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
-                else
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
-                end
-                billinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
-                            "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
-                            "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
-                proc_create_paybilltbl("payinsts",billinst_tbldata)
-                mkbillinstparams[:outcnt] += 1
-                mkbillinstparams[:inamt] += billinst_tbldata["amt_src"]
-                mkbillinstparams[:outamt] += billinst_tbldata["amt_src"]
-            end
-            break
-          when "28","29","30","31"
-            if inst["saledate"].to_date > last_month
-              break
-            else
-              JSON.parse(inst["ratejson"]).each do |rate|
-                  duedate =  inst["saledate"].to_date.since(rate["duration"].to_i.month)
-                  if rate["day"].to_i >= 28
-                    duedate =  duedate.since(1.month)
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
-                  else
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
-                  end
-                  billinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
-                              "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
-                              "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
-                  proc_create_paybilltbl("billinsts",billinst_tbldata)
-                  mkbillinstparams[:outcnt] += 1
-                  mkbillinstparams[:inamt] += billinst_tbldata["amt_src"]
-                  mkbillinstparams[:outamt] += billinst_tbldata["amt_src"]
-              end
-              break
-            end
-          else
-            if inst["saledate"].to_date > (Time.now.strftime("%Y") + "-" +Time.now.strftime("%m") + "-" + termof).to_date
-              next
-            else
-              JSON.parse(inst["ratejson"]).each do |rate|
-                  duedate =  inst["saledate"].to_date.since(rate["duration"].to_i.month)
-                  if rate["day"].to_i >= 28
-                    duedate =  duedate.since(1.month)
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
-                  else
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
-                  end
-                  billinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
-                              "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
-                              "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
-                  proc_create_paybilltbl("billinsts",billinst_tbldata)
-                  mkbillinstparams[:outcnt] += 1
-                  mkbillinstparams[:inamt] += billinst_tbldata["amt_src"]
-                  mkbillinstparams[:outamt] += billinst_tbldata["amt_src"]
-              end
-              break ### 重複しないように
-            end
-          end
-        end
+        mkbillinstparams = paybillinsts(inst,mkbillinstparams,payinst_tbldata)
 		  end
 		return mkbillinstparams  
 	end	
@@ -531,85 +464,89 @@ module MkordinstLib
       last_manth = (Time.now.strftime("%Y") + "-" +Time.now.strftime("%m") + "-" + "01").to_date.since(-1.day)  
       ActiveRecord::Base.connection.select_all(strsql).each do |inst|
         mkpayinstparams[:incnt] += 1
-        payinst_tbldata = {"isudate"=>payinst_isudate,"payments_id" => inst["payments_id"],
+        payinst_tbldata = {"isudate"=>payinst_isudate,"pays_id" => inst["pays_id"],
                       "last_amt" => nil,"last_duedate" => nil,
                       "termofs" => inst["termof"],"payment" => inst["ratejson"],
                       "persons_id_upd" => params["person_id_upd"] ,"trngantts_id" => nil,
-                      "chrgs_id" => inst["chrgs_id_payment"],"crrs_id" => inst["crrs_id"],
-                      "srctblname" => "puracts","srctblid" => inst["puracts_id"]}
-        
-        inst["termof"].split(",").each do |termof|
-          case termof
-          when "0","00"   ###随時
-            JSON.parse(inst["ratejson"]).each do |rate|   ###rate["duration"] 0:同月　1:翌月
-                duedate =  inst["rcptdate"].to_date.since(rate["duration"].to_i.month)
-                if rate["day"].to_i >= 28
-                  duedate =  duedate.since(1.month)
-                  duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
-                  duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
-                else
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
-                end
-                payinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
-                            "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
-                            "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
-                proc_create_paybilltbl("payinsts",payinst_tbldata)
-                mkpayinstparams[:outcnt] += 1
-                mkpayinstparams[:inamt] += payinst_tbldata["amt_src"]
-                mkpayinstparams[:outamt] += payinst_tbldata["amt_src"]
-            end
-            break
-          when "28","29","30","31"
-            if inst["saledate"].to_date > last_month
-              break
-            else
-              JSON.parse(inst["ratejson"]).each do |rate|
-                  duedate =  inst["rcptdate"].to_date.since(rate["duration"].to_i.month)
-                  if rate["day"].to_i >= 28
-                    duedate =  duedate.since(1.month)
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
-                  else
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
-                  end
-                  payinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"] / 100 ,
-                              "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
-                              "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
-                  proc_create_paybilltbl("payinsts",payinst_tbldata)
-                  mkpayinstparams[:outcnt] += 1
-                  mkpayinstparams[:inamt] += payinst_tbldata["amt_src"]
-                  mkpayinstparams[:outamt] += payinst_tbldata["amt_src"]
-              end
-              break
-            end
-          else
-            if inst["rcptdate"].to_date > (Time.now.strftime("%Y") + "-" +Time.now.strftime("%m") + "-" + termof).to_date
-              next
-            else
-              JSON.parse(inst["ratejson"]).each do |rate|
-                  duedate =  inst["rcptdate"].to_date.since(rate["duration"].to_i.month)
-                  if rate["day"].to_i >= 28
-                    duedate =  duedate.since(1.month)
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
-                  else
-                    duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
-                  end
-                  payinst_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"] / 100 ,
-                              "tax" =>  params["tax"].to_f * rate["rate"] / 100,
-                              "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
-                  proc_create_paybilltbl("payinsts",payinst_tbldata)
-                  mkpayinstparams[:outcnt] += 1
-                  mkpayinstparams[:inamt] += payinst_tbldata["amt_src"]
-                  mkpayinstparams[:outamt] += payinst_tbldata["amt_src"]
-              end
-              break ### 重複しないように
-            end
-          end
-        end
+                      "chrgs_id" => inst["chrgs_id_pay"],"crrs_id" => inst["crrs_id"],
+                      "tblname" => "payinsts",
+                      "srctblname" => "custacts","srctblid" => inst["custacts_id"]}
+        mkpayinstparams = paybillinsts(inst,mkbillinstparams,payinst_tbldata)
 		  end
 		return mkpayinstparams  
 	end	
+
+  def paybillinsts(inst,paybillParams,paybill_tbldata)
+    inst["termof"].split(",").each do |termof|
+      case termof
+      when "0","00"   ###随時
+        JSON.parse(inst["ratejson"]).each do |rate|   ###rate["duration"] 0:同月　1:翌月
+            duedate =  inst["saledate"].to_date.since(rate["duration"].to_i.month)
+            if rate["day"].to_i >= 28
+              duedate =  duedate.since(1.month)
+              duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
+              duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
+            else
+                duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
+            end
+            paybill_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
+                        "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
+                        "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
+            proc_create_paybilltbl("payinsts",paybill_tbldata)
+            paybillParams[:outcnt] += 1
+            paybillParams[:inamt] += paybill_tbldata["amt_src"]
+            paybillParams[:outamt] += paybill_tbldata["amt_src"]
+        end
+        break
+      when "28","29","30","31"
+        if inst["saledate"].to_date > last_month
+          break
+        else
+          JSON.parse(inst["ratejson"]).each do |rate|
+              duedate =  inst["saledate"].to_date.since(rate["duration"].to_i.month)
+              if rate["day"].to_i >= 28
+                duedate =  duedate.since(1.month)
+                duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
+                duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
+              else
+                duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
+              end
+              paybill_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
+                          "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
+                          "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
+              proc_create_paybilltbl("billinsts",paybill_tbldata)
+              paybillParams[:outcnt] += 1
+              paybillParams[:inamt] += paybill_tbldata["amt_src"]
+              paybillParams[:outamt] += paybill_tbldata["amt_src"]
+          end
+          break
+        end
+      else
+        if inst["saledate"].to_date > (Time.now.strftime("%Y") + "-" +Time.now.strftime("%m") + "-" + termof).to_date
+          next
+        else
+          JSON.parse(inst["ratejson"]).each do |rate|
+              duedate =  inst["saledate"].to_date.since(rate["duration"].to_i.month)
+              if rate["day"].to_i >= 28
+                duedate =  duedate.since(1.month)
+                duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + "1").since(-1.day)
+                duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + duedate.strftime("%d"))
+              else
+                duedate = (duedate.strftime("%Y") + "-" + duedate.strftime("%m") + "-" + rate["day"].to_s)
+              end
+              paybill_tbldata.merge!({"amt_src" => inst["amt_src"].to_f * rate["rate"].to_i / 100 ,
+                          "tax" =>  params["tax"].to_f * rate["rate"].to_i / 100,
+                          "denomination" => rate["denomination"],"duedate" =>duedate.to_date})
+              proc_create_paybilltbl(paybill_tbldat["tblname"],paybill_tbldata)
+              paybillParams[:outcnt] += 1
+              paybillParams[:inamt] += paybill_tbldata["amt_src"]
+              paybillParams[:outamt] += paybill_tbldata["amt_src"]
+          end
+          break ### 重複しないように
+        end
+      end
+    end
+  end
 
 	def sch_trn_alloc_to_freetrn(sumSchs)   ###xxxschsをまとめて消費量を決めているので
 	 	###freeを探す　

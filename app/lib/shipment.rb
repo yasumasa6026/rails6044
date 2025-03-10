@@ -736,19 +736,17 @@ module Shipment
 
 		
 		stkinout["qty_sch"] = stkinout["qty"] = stkinout["qty_stk"] =  stkinout["qty_real"] = 0
-		con_qty = CtlFields.proc_cal_qty_sch(parent[str_pare_qty],
-										child["chilnum"],child["parenum"],child["consumunitqty"],
-										child["consumminqty"],child["consumchgoverqty"])
-		command_c["#{tblnamechop}_#{str_con_qty}"] =  con_qty
+		command_c["#{tblnamechop}_#{str_con_qty}"] = CtlFields.proc_cal_qty_sch(parent[str_pare_qty],
+										                              child["chilnum"],child["parenum"],child["consumunitqty"],
+										                              child["consumminqty"],child["consumchgoverqty"])
 		command_c["#{tblnamechop}_person_id_upd"] = setParams["person_id_upd"]
 		command_c["#{tblnamechop}_created_at"] = Time.now
 		command_c["id"] = ArelCtl.proc_get_nextval("#{tblnamechop}s_seq")
 		blk.proc_create_tbldata(command_c) ##
 		blk.proc_private_aud_rec(setParams,command_c)
-		last_lotstk = {"tblname" =>  tblnamechop + "s" ,"tblid" => command_c["id"] ,"qty_src" => con_qty }	
+		last_lotstk = {"tblname" =>  tblnamechop + "s" ,"tblid" => command_c["id"] ,"qty_src" => command_c["#{tblnamechop}_#{str_con_qty}"]}	
     return last_lotstk
 	end	
-
   
 	def proc_update_consume(tblname,tbldata,last_rec,decrease) ##   tblname-->paretblname decrease
 		####
@@ -1100,8 +1098,7 @@ module Shipment
                 qty_rejection,
 								lotno,packno,
 								prjnos_id,
-								created_at,
-								updated_at,
+								created_at,	updated_at,
 								update_ip,persons_id_upd,expiredate,remark)
 						values(#{stkinout["lotstkhists_id"]},
 								'#{stkinout["starttime"]}',
@@ -1111,8 +1108,7 @@ module Shipment
                 #{stkinout["qty_rejection"]},
 								'#{stkinout["lotno"]}' ,'#{stkinout["packno"]}',
 								#{stkinout["prjnos_id"]},
-								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					current_timestamp,current_timestamp,
 								' ',#{stkinout["persons_id_upd"]},'2099/12/31','#{stkinout["remark"]}')
 		&
 	end
@@ -1126,8 +1122,7 @@ module Shipment
 								 qty_sch,   
 								 qty_stk,
 								 qty,
-								 created_at,
-								 updated_at,
+								 created_at, updated_at,
 								 update_ip,persons_id_upd,expiredate,remark)
 						values(#{inoutlotstks_seq},
 								 #{stkinout["trngantts_id"]},
@@ -1136,8 +1131,7 @@ module Shipment
 								 #{stkinout["qty_sch"]} ,
 								 #{stkinout["qty_stk"]},
 								 #{stkinout["qty"]},
-								 to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-								 to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					        current_timestamp,current_timestamp,
 								 ' ',#{stkinout["persons_id_upd"]},'2099/12/31','#{stkinout["remark"]}')
 		&
 		ActiveRecord::Base.connection.insert(strsql)
@@ -1172,8 +1166,7 @@ module Shipment
 								'#{stkinout["starttime"]}',
 								#{stkinout["qty_sch"]},#{stkinout["qty"]},#{stkinout["qty_stk"]},
 								'#{stkinout["lotno"]}',#{stkinout["itms_id"]},#{stkinout["processseq"]},
-								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+					      current_timestamp,current_timestamp,
 								' ',#{stkinout["persons_id_upd"]},'2099/12/31','#{stkinout["remark"]}')
 				&
 			ActiveRecord::Base.connection.insert(strsql)
@@ -1219,8 +1212,7 @@ module Shipment
 								qty,
 								qty_stk,
 								lotno,itms_id,processseq,
-								created_at,
-								updated_at,
+								created_at,	updated_at,
 								update_ip,persons_id_upd,expiredate,remark)
 						values(#{supplierwhs_id},#{stkinout["suppliers_id"]},
 								'#{stkinout["starttime"]}',
@@ -1228,8 +1220,7 @@ module Shipment
 								#{stkinout["qty"]},
 								#{stkinout["qty_stk"]},
 								'#{stkinout["lotno"]}',#{stkinout["itms_id"]},#{stkinout["processseq"]},
-								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
-								to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+                current_timestamp,current_timestamp,
 								' ',#{stkinout["persons_id_upd"]},'2099/12/31','')
 				&
 			ActiveRecord::Base.connection.insert(strsql)

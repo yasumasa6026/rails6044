@@ -2,7 +2,7 @@ import {MENU_REQUEST,MENU_SUCCESS,MENU_FAILURE,
           LOGOUT_REQUEST,LOGIN_FAILURE,LOGIN_SUCCESS,
           SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,SCREEN_FAILURE,
           SECONDFETCH_RESULT,FETCH_RESULT,TBLFIELD_SUCCESS,
-          SCREEN_CONFIRM7, SCREEN_CONFIRM7_SUCCESS,
+          SCREEN_CONFIRM7, SCREEN_CONFIRM7_SUCCESS,CONFIRMALL_SUCCESS,
           SECOND_CONFIRMALL_REQUEST,SECOND_CONFIRMALL_SUCCESS,
           SECOND_REQUEST,SECOND_SUCCESS7,SECOND_CONFIRM7,MKSHPORDS_SUCCESS,
           SECOND_FAILURE, } from '../../actions'
@@ -15,6 +15,15 @@ const initialValues = {
   secondView:false,
   params:{screenCode:null,screenName:null,buttonflg:"viewtablereq7"},
 }
+/*
+MENU_REQUEST firstView と secondView を false に設定した新しい状態を返します。
+MENU_SUCCESS  menuListData をアクションのデータで更新し、firstView と secondView を false に設定し、hostError を null に設定した新しい状態を返します。
+MENU_FAILURE  hostError をアクションのペイロードから取得し、新しい状態を返します。
+SCREEN_FAILURE  screenFlg を "first" に設定し、secondView を false に設定し、hostError と message をアクションのペイロードから取得し、loading を false に設定した新しい状態を返します。
+FETCH_RESULT  message をアクションのペイロードから取得し、loading を false に設定し、hostError を null に設定し、firstView を true に設定し、secondView を false に設定した新しい状態を返します。
+SECONDFETCH_RESULT  message をアクションのペイロードから取得し、loading を false に設定し、hostError を null に設定し、firstView を true に設定し、secondView を true に設定した新しい状態を返します。
+SCREENINIT_REQUEST  params をアクションのペイロードから取得した新しい状態を返します。
+*/
 
 const menureducer =  (state= initialValues , actions) =>{
   switch (actions.type) {
@@ -134,7 +143,15 @@ const menureducer =  (state= initialValues , actions) =>{
                       loading:true,
                       secondView:false,
                       hostError:null,
-        }      
+        }  
+
+      case CONFIRMALL_SUCCESS:
+          return {...state,
+            screenFlg:"first",
+            loading:false,
+            firstView:true,
+            message:actions.payload.message,
+          }   
 
     
       case MKSHPORDS_SUCCESS:

@@ -115,7 +115,7 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen,loadingOrg,loadingOrgS
         }else{
           return(
             <div>
-              <p> doing{hostError?hostError:""} </p>
+              {loading?<p> doing{hostError?hostError:""} </p>:<p> please logout because no data </p>}
             </div>)}
     }else{
       if(isSignUp){

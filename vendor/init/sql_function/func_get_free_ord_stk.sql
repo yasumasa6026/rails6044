@@ -12,7 +12,7 @@ BEGIN
 	 	 					then '||'''02'''||' 
 	 	 				when alloc.srctblname like '||'''%acts'''||'
 	 	 					then '||'''02'''||' 
-	 	 				when  gantt.duedate_trn <= to_date($1,'||'''yyyy-mm-dd'''||')
+	 	 				when  gantt.duedate_trn <= cast($1 as date)
 	 	 					then '||'''01'''||'	
 	 	 				else
 	 	 					'||'''03'''||' end  priority,
