@@ -30,7 +30,7 @@ module Api
               when 'createTblViewScreen'  ### blktbs tblfields 
                 tbl =  TblField::TblClass.new
                 message,modifysql,status,errmsg = tbl.proc_blktbs params   ###params[:data]に画面の表示内容を含む
-		            $tblfield_materiallized.each do |view|
+		            Constants::Tblfield_materiallized.each do |view|
 				            strsql = %Q%select 1 from pg_catalog.pg_matviews pm 
 				                  where matviewname = '#{view}' %
 				            if ActiveRecord::Base.connection.select_one(strsql)			

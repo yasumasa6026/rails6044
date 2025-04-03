@@ -26,25 +26,25 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
         //starttime 将来部署別のカレンダーでrailsで求める。 prdord_commencementdate
         case /_duedate/.test(id):
                 //moment.defaultFormat = "YYYY-MM-DD HH:mm"
-                starttime = id.split("_")[0] + "_starttime" 
-                //if(lineData[starttime]===""||lineData[starttime]===undefined||lineData[starttime]===null){
-                if(lineData[starttime]===""){
-                        yymmdd = new Date(lineData[id]) 
-                    if(/cust/.test(screenCode)){ //受注の時はopeitmのLT(duration)は使用できない。
-                        yymmdd = new Date(yymmdd.setDate(yymmdd.getDate() - 1))
-                        lineData[starttime] = yymmdd.getFullYear()+"-"+(yymmdd.getMonth()+1)+"-"+yymmdd.getDate()+" "+yymmdd.getHours()+":"+yymmdd.getMinutes()
-                        autoAddFields[starttime] = lineData[starttime]
-                    }
-                    else{
-                        yymmdd = new Date(yymmdd.setDate(yymmdd.getDate() - parseFloat(lineData["opeitm_duration"])))
-                        lineData[starttime] = yymmdd.getFullYear()+"-"+(yymmdd.getMonth()+1)+"-"+yymmdd.getDate()+" "+yymmdd.getHours()+":"+yymmdd.getMinutes()
-                        autoAddFields[starttime] = lineData[starttime]
-                        if(lineData["prdord_commencementdate"]===""){
-                            lineData["prdord_commencementdate"] = lineData[starttime] 
-                            autoAddFields["prdord_commencementdate"] = lineData[starttime]                            
-                        }
-                    }       
-                }
+                // starttime = id.split("_")[0] + "_starttime" 
+                // //if(lineData[starttime]===""||lineData[starttime]===undefined||lineData[starttime]===null){
+                // if(lineData[starttime]===""){
+                //         yymmdd = new Date(lineData[id]) 
+                //     if(/cust/.test(screenCode)){ //受注の時はopeitmのLT(duration)は使用できない。
+                //         yymmdd = new Date(yymmdd.setDate(yymmdd.getDate() - 1))
+                //         lineData[starttime] = yymmdd.getFullYear()+"-"+(yymmdd.getMonth()+1)+"-"+yymmdd.getDate()+" "+yymmdd.getHours()+":"+yymmdd.getMinutes()
+                //         autoAddFields[starttime] = lineData[starttime]
+                //     }
+                //     else{
+                //         yymmdd = new Date(yymmdd.setDate(yymmdd.getDate() - parseFloat(lineData["opeitm_duration"])))
+                //         lineData[starttime] = yymmdd.getFullYear()+"-"+(yymmdd.getMonth()+1)+"-"+yymmdd.getDate()+" "+yymmdd.getHours()+":"+yymmdd.getMinutes()
+                //         autoAddFields[starttime] = lineData[starttime]
+                //         if(lineData["prdord_commencementdate"]===""){
+                //             lineData["prdord_commencementdate"] = lineData[starttime] 
+                //             autoAddFields["prdord_commencementdate"] = lineData[starttime]                            
+                //         }
+                //     }       
+                // }
                 toduedate = id.split("_")[0] + "_toduedate" 
                 if(lineData[toduedate]===""){
                         lineData[toduedate] = lineData[id] 
@@ -113,8 +113,7 @@ export function  onBlurFunc7(screenCode,lineData,id){  //id:field
                 if(lineData[id]){
                   lineData[id].split(",").map((item,idx)=>{
                     if(/^[0-2][0-9]:[0-2][0-9]~[0-2][0-9]:[0-2][0-9]$/.exec(item)&&
-                       item.split(/~|:/)[0]<item.split(/~|:/)[1]&&item.split(/~|:/)[1]<item.split(/~|:/)[2]&&
-                          item.split(/~|:/)[2]<item.split(/~|:/)[3]){
+                       item.split("~")[0]<item.split("~")[1]){
                               lineData[`${id}_gridmessage`]="ok"}else{lineData[`${id}_gridmessage`]="err HH:MM"}})}
                 break
         case /holidays/.test(id):

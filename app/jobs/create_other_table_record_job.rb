@@ -54,16 +54,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                           add_update_lotstkhists(params["last_lotstks"],params["person_id_upd"])
 
                         when "createtable"
-                            # parent.select do |key,val|  
-                            #     if key.to_s =~ /_autocreate/
-                            #         fmtbl_totbls = JSON.parse(val)  ###table suppliers等の項目autocreateに次に作成されるテーブルが登録されている。
-                            #         fmtbl_totbls.each do |totbl,fmtbl|   ### {totbl => fmtbl}
-                            #             if fmtbl == tblname
-                            #                 ArelCtl.proc_createtable(fmtbl,totbl,parent,params)
-                            #             end
-                            #         end
-                            #     end
-                            # end    
 
                         when "mkprdpurords"  ###  xxxschsからxxxordsを作成。
                             ### 　parent 未使用
@@ -464,8 +454,9 @@ class CreateOtherTableRecordJob < ApplicationJob
                             gantt["shelfnos_id_to_pare"] = gantt["shelfnos_id_to_trn"]
                             gantt["qty_pare"] = gantt["qty"].to_f  
                             parent["qty_handover"] =  gantt["qty_handover"]
-                            parent["shelfnos_id_trn"] = gantt["shelfnos_id_trn"]
+                            parent["shelfnos_id"] = gantt["shelfnos_id_trn"]
                             parent["trngantts_id"] = gantt["trngantts_id"]   ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
+                            parent["unitofduration"] =  gantt["unitofduration"] 
                             setParams["parent"] = parent.dup
                             last_lotstks = []
                             ActiveRecord::Base.connection.select_all(ArelCtl.proc_nditmSql(tbldata["opeitms_id"])).each do |nd|
@@ -499,6 +490,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     gantt["consumminqty"]  = nd["consumminqty"]
                                     gantt["consumchgoverqty"] = nd["consumchgoverqty"]
                                     gantt["consumauto"] =  (nd["consumauto"]||="")
+                                    gantt["unitofduration"] =  nd["unitofduration"] 
                                     command_c["#{gantt["tblname"].chop}_person_id_upd"] = gantt["persons_id_upd"] = setParams["person_id_upd"]
                                     setParams["gantt"] =  gantt.dup
                                     command_c = blk.proc_create_tbldata(command_c)
@@ -840,7 +832,7 @@ class CreateOtherTableRecordJob < ApplicationJob
         command_c["#{paybillsch}_person_id_upd"] = sch["persons_id_upd"]
         command_c["#{paybillsch}_duedate"] = sch["duedate"]
         command_c["#{paybillsch}_isudate"] = sch["isudate"]
-        command_c["#{paybillsch}_expiredate"] = "2099/12/31"
+        command_c["#{paybillsch}_expiredate"] =  Constants::End_date 
         command_c["#{paybillsch}_chrg_id"] = billpay["chrgs_id_#{mst}"]
         command_c["#{paybillsch}_tax"] = 0 
         command_c["#{paybillsch}_updated_at"] = Time.now
@@ -1099,6 +1091,7 @@ class CreateOtherTableRecordJob < ApplicationJob
       tmptbls = []
       save_tblname = save_tblid = ""
       last_lotstks.each do |last_lotstk| 
+        next if last_lotstk.nil?
           if last_lotstk["set_f"]
               rec = last_lotstk["rec"].dup
           else
@@ -1182,13 +1175,13 @@ class CreateOtherTableRecordJob < ApplicationJob
               tmptbls << temp
             when /custschs/
               temp.merge!({"starttime" => rec["starttime"].to_time.strftime("%Y-%m-%d %H:%M:%S"),"shelfnos_id" => rec["shelfnos_id_fm"],
-                                "qty_sch" => last_lotstk["qty_src"]*-1,
+                                "qty_sch" => last_lotstk["qty_src"].to_f*-1,
                               "lotno" => "","packno" => ""})
               tmptbls << temp
               temp = {"shelfnos_id" => rec["shelfnos_id_to"],"itms_id" => rec["itms_id"],
                       "processseq" => rec["processseq"],"prjnos_id" => rec["prjnos_id"]}
               temp.merge!({"starttime" => rec["duedate"].to_time.strftime("%Y-%m-%d %H:%M:%S"),"custrcvplcs_id" => rec["custrcvplcs_id"],
-                                "qty_sch" => last_lotstk["qty_src"]*-1,
+                                "qty_sch" => last_lotstk["qty_src"].to_f*-1,
                                 "lotno" => "","packno" => ""})
               tmptbls << temp
             when /purords|purinsts/
@@ -1211,7 +1204,7 @@ class CreateOtherTableRecordJob < ApplicationJob
               xtemp = temp.dup
               xtemp.merge!({"starttime" => rec["starttime"].to_time.strftime("%Y-%m-%d %H:%M:%S"),"shelfnos_id" => rec["shelfnos_id_fm"],
                               "custrcvplcs_id" => "",
-                              "qty" => last_lotstk["qty_src"]*-1,
+                              "qty" => last_lotstk["qty_src"].to_f*-1,
                               "lotno" => "","packno" => ""})
               tmptbls << xtemp
               temp = {"itms_id" => rec["itms_id"],"processseq" => rec["processseq"],"prjnos_id" => rec["prjnos_id"],
@@ -1221,6 +1214,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                       "qty_sch" => 0,"qty" => last_lotstk["qty_src"],
                       "lotno" => "","packno" => ""})
               tmptbls << temp
+					 Rails.logger.debug " calss:#{self},line:#{__LINE__},tmptbls:#{tmptbls}"
             when /purreplyinputs/
               temp.merge!({"starttime" => rec["replaydate"].to_time.strftime("%Y-%m-%d %H:%M:%S"),"shelfnos_id" => rec["shelfnos_id_to"],
                         "qty" => last_lotstk["qty_src"],"qty_stk" => 0, "qty_real" => 0,

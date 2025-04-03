@@ -912,7 +912,7 @@ module MkordinstLib
         command_c["#{tblname.chop}_chrg_id"] = tbldata["chrgs_id"]
         command_c["#{tblname.chop}_duedate"] = tbldata["duedate"]
         command_c["#{tblname.chop}_isudate"] = tbldata["isudate"]
-        command_c["#{tblname.chop}_expiredate"] = "2099/12/31"
+        command_c["#{tblname.chop}_expiredate"] =  Constants::End_date 
         command_c["#{tblname.chop}_updated_at"] = Time.now
         case tblname
         when /^pay/

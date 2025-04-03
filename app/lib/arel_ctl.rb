@@ -15,8 +15,8 @@ module ArelCtl
 	end
 
   def proc_materiallized tblname
-		if $materiallized[tblname]
-		  	$materiallized[tblname].each do |view|
+		if  Constants::Materiallized[tblname]
+        Constants::Materiallized[tblname].each do |view|
 				  strsql = %Q%select 1 from pg_catalog.pg_matviews pm 
 				              where matviewname = '#{view}' %
 				  if ActiveRecord::Base.connection.select_one(strsql)			
@@ -107,8 +107,7 @@ module ArelCtl
 						command_c["custrcvplc_name"] = "same as customer"  
 						command_c["id"] = nil
 				else
-						 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
-						 raise
+						 raise" calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
 				end
 			when /^suppliers$/
 				case totbl
@@ -124,7 +123,7 @@ module ArelCtl
 							command_c["id"] = nil
 						end
 				else
-					 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
+					 raise " calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
 				end
 			when /^workplaces$/
 				case totbl
@@ -140,9 +139,7 @@ module ArelCtl
 						command_c["id"] = nil
 					end
 				else
-					 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
-					 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{totbl}"
-					 raise
+					 raise " calss:#{self},line:#{__LINE__},\n create table not support table:#{fmtbl} \n table:#{totbl}"
 				end
 			when /rlstinputs/
 				case totbl 
@@ -191,7 +188,7 @@ module ArelCtl
 		if params[:classname] =~ /_add_|_insert_/
 				command_c["sio_classname"] ="_add_proc_createtable_data"
 				command_c["#{totbl.chop}_created_at"] = Time.now
-				command_c["#{totbl.chop}_expiredate"] = "2099/12/31"
+				command_c["#{totbl.chop}_expiredate"] =  Constants::End_date 
 				command_c["#{totbl.chop}_remark"] = " auto add  by table #{fmtbl} "
 		else
 				command_c["sio_classname"] ="_update_proc_createtable_data"
@@ -566,15 +563,15 @@ module ArelCtl
 					#{gantt["itms_id_org"]},#{gantt["processseq_org"]},#{gantt["shelfnos_id_org"]},
 					#{case gantt["consumunitqty"].to_i when 0 then 1 else gantt["consumunitqty"] end},
 					#{gantt["consumminqty"]},#{gantt["consumchgoverqty"]},
-					to_timestamp('#{gantt["starttime_trn"]}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{gantt["starttime_pare"]}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{gantt["starttime_org"]}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{gantt["duedate_trn"]}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{gantt["duedate_pare"]}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{gantt["duedate_org"]}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{gantt["toduedate_trn"]}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{gantt["toduedate_pare"]}','yyyy/mm/dd hh24:mi:ss'),
-					to_timestamp('#{gantt["toduedate_org"]}','yyyy/mm/dd hh24:mi:ss'),
+					cast('#{gantt["starttime_trn"]}' as timestamp),
+					cast('#{gantt["starttime_pare"]}' as timestamp),
+					cast('#{gantt["starttime_org"]}' as timestamp),
+					cast('#{gantt["duedate_trn"]}' as timestamp),
+					cast('#{gantt["duedate_pare"]}' as timestamp),
+					cast('#{gantt["duedate_org"]}' as timestamp),
+					cast('#{gantt["toduedate_trn"]}' as timestamp),
+					cast('#{gantt["toduedate_pare"]}' as timestamp),
+					cast('#{gantt["toduedate_org"]}' as timestamp),
 					'#{gantt["consumtype"]}',   ---custxxxsの時は""
 					#{gantt["chrgs_id_trn"]},#{gantt["chrgs_id_pare"]},#{gantt["chrgs_id_org"]},
 					current_timestamp,current_timestamp,
@@ -614,6 +611,7 @@ module ArelCtl
 				linktbl_id = proc_insert_linkcusts(src,base)
 				alloctbl_id,last_lotstk = proc_aud_alloctbls(alloc,"insert")
         last_lotstks << last_lotstk
+      Rails.logger.debug("class:#{self},line:#{__LINE__},\n last_lotstks:#{last_lotstks}")
 			end
 			return last_lotstks
 	end
@@ -679,7 +677,7 @@ module ArelCtl
 		  strsql = %Q&  ---   tblname=xxxschsのqty,qty_sch
 			 update trngantts set #{str_qty} = #{str_qty}  - #{src["qty_src"]},
 			 						#{new_str_qty} =  #{new_str_qty} + #{src["qty_src"].to_f},
-						 updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+						 updated_at = cast('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}' as timestamp),
 						 remark = '#{self} line:(#{__LINE__})'|| left(remark,3000)
 					 where id = #{src["trngantts_id"]} 
 			  &
@@ -689,7 +687,7 @@ module ArelCtl
     if src["trngantts_id"] != base["trngantts_id"] ### base free trngantts
       strsql = %Q&  ---   tblname=xxxschsのqty,qty_sch
         update trngantts set  #{new_str_qty} =  #{new_str_qty} - #{src["qty_src"].to_f},
-              updated_at = to_timestamp('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}','yyyy/mm/dd hh24:mi:ss'),
+              updated_at = cast('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}' as timestamp),
               remark = '#{self} line:(#{__LINE__})'||left(remark,3000)
             where id = #{base["trngantts_id"]} 
          &
@@ -789,10 +787,11 @@ module ArelCtl
                 max(trn.consumunitqty) consumunitqty,max(trn.consumminqty) consumminqty,max(trn.consumchgoverqty) consumchgoverqty,
                 pare.shelfnos_id_trn pare_shelfnos_id,   ---親作業場所
                 trn.shelfnos_id_to_trn shelfnos_id_to,   ---子の保管先
-	 		   max(ope.units_id_case_shp) units_id_case_shp,
-	 		   sum(pare.qty_linkto_alloctbl) qty_sch,max(ope.consumauto) consumauto,max(ope.shpordauto) shpordauto
+	 		   max(ope.units_id_case_shp) units_id_case_shp,max(trn.qty) qty,max(trn.qty_stk) qty_stk,
+	 		   sum(pare.qty_linkto_alloctbl) qty_sch,macx(ope.consumauto) consumauto,max(ope.shpordauto) shpordauto
              from trngantts trn
-                inner join (select p.*, alloc.qty_linkto_alloctbl 
+                inner join (select p.id, p.shelfnos_id_trn,alloc.qty_linkto_alloctbl, 
+                                    p.orgtblname,p.orgtblid,p.tblname,p.tblid                                
                             from trngantts p 
                             inner join alloctbls alloc on alloc.trngantts_id = p.id
 	 					   			where alloc.srctblname = '#{parent["tblname"]}' and alloc.srctblid = #{parent["tblid"]} 
@@ -811,21 +810,24 @@ module ArelCtl
             select trn.orgtblname,trn.orgtblid,trn.tblname,trn.tblid,
 			 		      trn.qty_sch,trn.qty,trn.qty_stk,
 					      trn.mlevel,trn.parenum,trn.chilnum,trn.consumunitqty,trn.consumminqty,
-					      trn.consumchgoverqty,pare.qty_linkto_alloctbl alloc_qty,pare.qty_pare pare_qty,
+					      trn.consumchgoverqty,pare.qty_linkto_alloctbl  pare_qty_alloc,
 					      trn.itms_id_trn itms_id,trn.processseq_trn processseq,
-					      ope.duration ,ope.unitofduration
+					      ope.duration ,ope.unitofduration,ope.locas_id_shelfno,
+                pare.duedate_trn duedate_pare,pare.starttime_trn starttime_pare, pare.shelfnos_id_trn shelfnos_id_pare    
              	from trngantts trn
                 inner join (select p.*, alloc.qty_linkto_alloctbl 
                             from trngantts p 
                             inner join alloctbls alloc on alloc.trngantts_id = p.id
 	 					   			where alloc.srctblname = '#{parent["tblname"]}' and alloc.srctblid = #{parent["tblid"]} 
-	 								and alloc.qty_linkto_alloctbl > 0) pare 
+	 								  and alloc.qty_linkto_alloctbl >= 0) pare 
                     on  trn.orgtblname = pare.orgtblname and   trn.orgtblid = pare.orgtblid  
                     and trn.paretblname = pare.tblname and   trn.paretblid = pare.tblid 
-	 			      inner join opeitms ope on trn.itms_id_trn = ope.itms_id and trn.processseq_trn = ope.processseq
-	 							and trn.shelfnos_id_trn = ope.shelfnos_id_opeitm
+	 			      inner join (select o.* , s.locas_id_shelfno from opeitms o 
+                                                        inner join shelfnos s on o.shelfnos_id_opeitm = s.id                                   
+                            )ope on trn.itms_id_trn = ope.itms_id and trn.processseq_trn = ope.processseq
+	 							          and trn.shelfnos_id_trn = ope.shelfnos_id_opeitm
 	 		        where (trn.paretblname != trn.tblname or trn.paretblid != trn.tblid) and pare.mlevel < trn.mlevel
-              and trn.tblname in('custschs','custords','prdschs','prdords','purschs','purords')
+              and trn.tblname in('prdschs','purschs')  ---,'dvsschs','ercschs','shpschs'は二重計上になるので除外
             %  
   end
 	
@@ -884,11 +886,15 @@ module ArelCtl
   def proc_apparatus_sql(opeitms_id) 
     %Q&
       select n.itms_id_nditm itms_id ,n.processseq_nditm processseq, ic.code classlist_code,n.unitofdvs, 
+              o.locas_id_shelfno locas_id_shelfno,
               n.durationfacility,n.changeoverlt,n.postprocessinglt,n.requireop,n.changeoverop,n.postprocessingop
           from nditms n 
           inner join (select i.id itms_id ,c.code from itms i
                     inner join classlists c on c.id = i.classlists_id ) ic
               on ic.itms_id = n.itms_id_nditm
+          inner join (select ope.*,s.locas_id_shelfno from opeitms ope 
+                                inner join shelfnos s on ope.shelfnos_id_opeitm = s.id ) o 
+                                on  o.id = n.opeitms_id
           where ic.code = 'apparatus' and n.opeitms_id = #{opeitms_id}
     &
   end

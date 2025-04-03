@@ -264,7 +264,7 @@ class TblClass
 			@modifysql << "\n ---- "
 			@modifysql << "\n ---- second"
 			@modifysql << "\n ---- "
-			@modifysql << "\n --- update screenfields set expiredate = '#{$beginnig_date}',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
+			@modifysql << "\n --- update screenfields set expiredate = '#{Constants::Beginnig_date}',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
 			@modifysql << "\n ---        ,updated_at = current_date  ,selection = '0'"
 			@modifysql << "\n ---        where id in  (select id from r_screenfields where  (pobject_code_sfd like '#{table_name.chop}_#{column_name.sub("s_id","_id")}%' "
 			@modifysql << "\n ---        						  or screenfield_crtfield = '#{column_name.sub("s_id","")}' "
@@ -275,7 +275,7 @@ class TblClass
 			@modifysql << "\n ---  		and  pobject_code_scr like '%_#{table_name}' and screenfield_selection = '1');"
 		else
 			@modifysql << "\n ---- where  pobject_code_sfd = '#{table_name.chop}_#{column_name}'"
-			@modifysql << "\n --- update screenfields set expiredate = '#{$beginnig_date}',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
+			@modifysql << "\n --- update screenfields set expiredate = '#{Constants::Beginnig_date}',remark = 'auto delete because of DROP COLUMN #{column_name}' " 
 			@modifysql << "\n ---        ,updated_at = current_date  ,selection = '0'"
 			@modifysql << "\n ---        where id in  (select id from r_screenfields where  pobject_code_sfd = '#{table_name.chop}_#{column_name}' "
 			@modifysql << "\n ---        and  pobject_code_scr like '%_#{table_name}'  and screenfield_selection = '1');"
@@ -662,7 +662,8 @@ class TblClass
 		command_r["screenfield_datascale"] = (field["screenfield_datascale"]||=field["fieldcode_datascale"])
 		command_r["screenfield_edoptmaxlength"] = (field["screenfield_edoptmaxlength"]||=0)
 		command_r["screenfield_subindisp"] =  (field["screenfield_subindisp"]||="")
-		command_r["screenfield_editable"] =	if field["pobject_code_sfd"]  =~ /_upd/
+		command_r["screenfield_editable"] =	case field["pobject_code_sfd"] 
+                        when /_upd|_sno/
 													"0"
 												else
 													if owner == true

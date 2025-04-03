@@ -74,7 +74,7 @@ export function* ScreenSaga({ payload: {params}  }) {
                                  if(params.screenFlg==="second"){
                                      yield put({type: SECONDFETCH_RESULT, payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
                                  }else{
-                                      console.log(lineData)
+                                     // console.log(lineData)
                                      yield put({type: FETCH_RESULT, payload:{params:params,index:parseInt(params.index),lineData:lineData}}) 
                                  }  
                     return  
@@ -90,11 +90,6 @@ export function* ScreenSaga({ payload: {params}  }) {
               message = message + ",shortage count : " + response.data.shortcnt
               return yield put({ type: MKSHPORDS_SUCCESS, payload:{message:message}})       
            
-            // case "mkShpinsts":  //second画面出力専用　第一画面の修正、追加は不可
-            //      return yield put({ type:SECOND_SUCCESS7, payload:response})
-                
-            // case "mkshpacts":  //second画面専用
-            //   return yield put({ type: MKSHPACTS_RESULT, payload:response})    
               
            case "confirmAll":  //
            //case "adddetail":  //

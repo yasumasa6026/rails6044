@@ -29,7 +29,7 @@ function logoutApi(token,client,uid) {
 export function* LogoutSaga({ payload: {token,client,uid} }) {
   let {response,error} = yield call(logoutApi, token,client,uid )
     if(response || !error){
-      yield put({ type: LOGOUT_SUCCESS})
+      //yield put({ type: LOGOUT_SUCCESS})
       yield call(history.push,'/login')  //
       // persistor.purge() これを実行すると、Storageに保存された情報がクリアされる
     }else{  

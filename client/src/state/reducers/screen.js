@@ -159,8 +159,11 @@ return {...state,
 }
 
 case FETCH_RESULT:
-  data = state.data.map((row,idx)=>{if(actions.payload.index===idx){row = {...row,...actions.payload.lineData}}
-                                        return row }) 
+  data = state.data.map((row,idx)=>{if(actions.payload.index===idx){
+                                        Object.keys(actions.payload.lineData).map((field)=>row[field] = actions.payload.lineData[field])
+                                                      return row }
+                                     else{return row} }
+                            ) 
           return {...state,
             params:actions.payload.params,  
             data:data,
@@ -232,14 +235,12 @@ case GANTTCHART_SUCCESS:
 
   case  LOGOUT_REQUEST:
     return {
-        ...state,
-        loading:false,
-        disabled:false,
     }
 
   
     case  LOGOUT_SUCCESS:
       return {
+        isAuthenticated:false,
       }
       
 

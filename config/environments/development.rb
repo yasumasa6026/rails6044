@@ -71,3 +71,48 @@ Rails.application.configure do
    ###config.logger = Logger.new(STDOUT)
    config.logger = Logger.new('log/development.log', 'daily')
 end
+
+
+###
+# https://qiita.com/uenomoto/items/1af0626e18bde4c2e245  から引用
+###
+
+# MailCatcherのgemを使って、送信メールをブラウザで確認します。
+
+# まずはインストールから
+# gem install mailcatcher
+# このGemはbundle installでインストールすると正常に動作しないことがあるらしいです。
+# このGemの開発者もgem install mailcatcherでインストールすることをすすめています
+
+# 次に、Railsの設定を変更します。開発環境の設定
+# config/environments/development.rbを以下のように設定します
+# 大体41行あたりです
+
+# # Don't care if the mailer can't send.
+# config.action_mailer.raise_delivery_errors = false
+# # ここから追加
+# config.action_mailer.delivery_method = :smtp
+# config.action_mailer.smtp_settings = { address: "localhost", port: 1025 }
+
+# これで、Railsアプリケーションから送信されるメールはMailCatcherによってキャッチされ、
+# http://localhost:1080 で閲覧可能になります。
+
+# これらの設定後、実際にメールを送信するアクション(注文確定)すると
+# メールが送信できているのかを確認します。
+
+# orders#createアクションを起こしてこのようなログが出ていれば成功です。
+
+# OrderMailer#order_confirmation: processed outbound mail in 114.5ms
+# rails_ec-web-1  | Delivered mail 6497c8b6e979_13fd4-491@63818aa95769.mail (120.8ms)
+# 最後にMailCatcherを起動します
+# mailcatcherとコマンドを記述します
+
+# mailcatcher
+
+# Starting MailCatcher v0.8.2
+# ==> smtp://127.0.0.1:1025
+# ==> http://127.0.0.1:1080
+# *** MailCatcher runs as a daemon by default. Go to the web interface to quit.
+# このようにレスポンスがあれば接続できています
+# http://127.0.0.1:1080のIPアドレスでアクセスするか
+# http://localhost:1080 でアクセスしたら送信されたメールをブラウザで確認できます。

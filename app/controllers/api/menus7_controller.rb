@@ -96,28 +96,22 @@ module Api
             when "fetch_request"
                 reqparams = params.dup   ### 　　
                 reqparams[:parse_linedata] = JSON.parse(params[:lineData])
-                reqparams = CtlFields.proc_chk_fetch_rec reqparams
+                reqparams = CtlFields.proc_fetch_rec reqparams
                 render json: {:params=>reqparams}   
 
             when "check_request"  
                 reqparams = params.dup
                 reqparams[:parse_linedata] = JSON.parse(params[:lineData])
-                # if params[:fetchview] and params[:fetchview] != ""
-                #     reqparams = CtlFields.proc_chk_fetch_rec reqparams
-                # end
                 JSON.parse(params[:checkCode]).each do |sfd,checkcode|
+                  err = reqparams[:err]
                   reqparams = CtlFields.proc_judge_check_code reqparams,sfd,checkcode
+                  reqparams[:err] = (reqparams[:err] ||="")  + (err||="")
                 end
-                # if params[:fetchview] and params[:fetchview] != ""
-                #     reqparams = CtlFields.proc_chk_fetch_rec reqparams
-                # end
                 render json: {:params=>reqparams}   
 
             when "confirm7"
                 screen = ScreenLib::ScreenClass.new(params)
                 reqparams = params.dup   ### 　
-                reqparams[:parse_linedata] = JSON.parse(params[:lineData])
-                reqparams[:head] = JSON.parse(params[:head]||="{}")
                 reqparams = screen.proc_confirm_screen(reqparams)
                 if reqparams[:err]
                     render json: {:params=>reqparams}
@@ -152,8 +146,7 @@ module Api
                                 when "fmcustord_custinsts"
                                     strSno = %Q& custinst_sno_custord  = '#{selected["sNo"]}' &
                                 else
-                                    Rails.logger.debug%Q&#{Time.now self} line:#{__LINE__} screnCode ummatch params[screenCode]:#{params[:screenCode]}  selected[screenCode]:#{selected["screenCode"]} &
-                                    raise
+                                    raise"#{Time.now self} line:#{__LINE__},screnCode ummatch params[screenCode]:#{params[:screenCode]},selected[screenCode]:#{selected["screenCode"]}"
                                 end
                                 strsql = %Q&select #{grid_columns_info[:select_fields]} from #{params[:screenCode]} where #{strSno}&
                             else
@@ -171,7 +164,7 @@ module Api
                             #     end
                             # end
                             reqparams = screen.proc_confirm_screen(reqparams)
-                            if reqparams[:err].nil?
+                            if reqparams[:err].nil? or reqparams[:err] == ""
                                 outcnt += 1
                                 outamt += reqparams[:outamt]
                                 outqty += reqparams[:outqty]
@@ -237,7 +230,7 @@ module Api
                             reqparams[:parse_linedata] = ActiveRecord::Base.connection.select_one(strsql)
                             reqparams[:parse_linedata][strPackingListNo] =  packingListNo
                             reqparams = screen.proc_confirm_screen(reqparams)
-                            if reqparams[:err].nil?
+                            if reqparams[:err].nil? or reqparams[:err] == ""
                                 outcnt += 1
                             else
                                 ActiveRecord::Base.connection.rollback_db_transaction()

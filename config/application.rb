@@ -34,5 +34,11 @@ module Rails6044
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
     config.active_job.queue_adapter = :sidekiq
+
+    #
+    # Adds the 'lib' directory to the list of paths that Rails will autoload classes and modules from.
+    # This allows you to place custom classes and modules in the 'lib' directory and have them
+    # automatically loaded by Rails without needing to require them manually.
+    config.autoload_paths += %W(#{config.root}/app/lib/constants.rb)
   end
 end

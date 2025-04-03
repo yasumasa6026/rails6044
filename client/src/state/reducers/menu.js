@@ -1,5 +1,5 @@
 import {MENU_REQUEST,MENU_SUCCESS,MENU_FAILURE,
-          LOGOUT_REQUEST,LOGIN_FAILURE,LOGIN_SUCCESS,
+          LOGOUT_REQUEST,LOGIN_FAILURE,LOGIN_SUCCESS,LOGOUT_SUCCESS,
           SCREENINIT_REQUEST,SCREEN_REQUEST,SCREEN_SUCCESS7,SCREEN_FAILURE,
           SECONDFETCH_RESULT,FETCH_RESULT,TBLFIELD_SUCCESS,
           SCREEN_CONFIRM7, SCREEN_CONFIRM7_SUCCESS,CONFIRMALL_SUCCESS,
@@ -209,7 +209,12 @@ const menureducer =  (state= initialValues , actions) =>{
         firstView:false,
         secondView:false,
         hostError:actions.payload.error,
-}
+      }
+
+    case  LOGOUT_SUCCESS:
+            return {
+              isAuthenticated:false,
+            }
 
     default:
       return  {...state,

@@ -77,7 +77,7 @@ class UploadexcelController < ApplicationController
                     if fetchCode[field] 
                         jparams[:fetchCode] = %Q%{"#{field}":"#{val}"}%
                         jparams[:fetchview] = fetchCode[field]
-                        jparams = CtlFields.proc_chk_fetch_rec jparams  
+                        jparams = CtlFields.proc_fetch_rec jparams  
                         if jparams[:err] 
                             jparams[:parse_linedata][:confirm_gridmessage] = jparams[:err] 
                             jparams[:parse_linedata][:confirm] = false 

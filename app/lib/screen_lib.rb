@@ -141,12 +141,10 @@ module ScreenLib
 							if i["screenfield_edoptvalue"] =~ /\:/
 								dropDownList[i["pobject_code_sfd"].to_sym] = i["screenfield_edoptvalue"]
 							else
-								Rails.logger.debug " class:#{self} ,line:#{__LINE__},screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
-								raise
+								raise" class:#{self} ,line:#{__LINE__},screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
 							end
 						else
-							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
-							raise
+							raise " class:#{self} ,line:#{__LINE__}, screenfield_type = selectではedoptvalueにxxx:yyy,aaa:bbbは必須 "
 						end
 					end	
 					tmp_subform = {label:i["screenfield_name"]}
@@ -262,8 +260,7 @@ module ScreenLib
 						else
 							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, aggregations:#{aggregations[i["pobject_code_sfd"]]} not support"
 							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, field:#{i["pobject_code_sfd"]} "
-							Rails.logger.debug " class:#{self} ,line:#{__LINE__},  support by  YY:,MM:,WW:.DD:"
-							raise
+							raise " class:#{self} ,line:#{__LINE__},  support by  YY:,MM:,WW:.DD:"
 						end
 					else											
 						select_row_fields << i["pobject_code_sfd"]  + " ,"
@@ -283,8 +280,7 @@ module ScreenLib
 						else
 							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, aggregations:#{aggregations[i["pobject_code_sfd"]]} not support"
 							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, field:#{i["pobject_code_sfd"]} "
-							Rails.logger.debug " class:#{self} ,line:#{__LINE__},  support by  SUM:,MIN:,MAX:"
-							raise
+							raise " class:#{self} ,line:#{__LINE__},  support by  SUM:,MIN:,MAX:"
 						end
 					else
 						if i["pobject_code_sfd"] =~ /_qty|_amt|_cash/
@@ -453,7 +449,7 @@ module ScreenLib
 					next if ff["value"] =~ /'/
 					next if ff["value"] == "null"
 					###init_where_info[i["pobject_code_sfd"].to_sym] 
-	      			case init_where_info[ff["id"].to_sym]  ### where_info[i["pobject_code_sfd"].to_sym] = i["screenfield_type"]	
+	      	case init_where_info[ff["id"].to_sym]  ### where_info[i["pobject_code_sfd"].to_sym] = i["screenfield_type"]	
 					when nil
 						next
 		 			when /numeric/
@@ -471,28 +467,28 @@ module ScreenLib
 								where_str << " #{ff["id"]} = #{ff["value"]}     AND "
 							end	
 						end	
-				  	when /^date|^timestamp/
+				  when /^date|^timestamp/
 						ff["value"] = ff["value"].gsub("-","/")
-		      			case  ff["value"].size
-			         	when 4
-					 		where_str << "to_char(#{ff["id"]},'yyyy') = '#{ff["value"]}'      							 AND "
-			         	when 5
-					 		where_str << "to_char(#{ff["id"]},'yyyy') #{ff["value"][0]} '#{ff["value"][1..-1]}'          AND "  if  ( ff["value"]=~ /^</   or ff["value"] =~ /^>/ )
-					 	when 6
-					 		where_str << "to_char(#{ff["id"]},'yyyy')  #{ff["value"][0..1]} '#{ff["value"][2..-1]}'      AND "  if   (ff["value"] =~ /^<=/  or ff["value"] =~ /^>=/ )
-			         	when 7
-					 		where_str << "to_char(#{ff["id"]},'yyyy/mm') = '#{ff["value"]}'                              AND "  if Date.valid_date?(ff["value"].split("/")[0].to_i,ff["value"].split("/")[1].to_i,01)
-			         	when 8
-					 		where_str << "to_char(#{ff["id"]},'yyyy/mm') #{ff["value"][0]} '#{ff["value"][1..-1]}'       AND "  if Date.valid_date?(ff["value"][1..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,01)  and ( ff["value"] =~ /^</   or  ff["value"] =~ /^>/ )
-                	 	when 9
-					 		where_str << "to_char(#{ff["id"]},'yyyy/mm')  #{ff["value"][0..1]} '#{ff["value"][2..-1]}'   AND "  if Date.valid_date?(ff["value"][1..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,01)   and (ff["value"] =~ /^<=/  or ff["value"]=~ /^>=/ )
-			         	when 10
-					 		where_str << "to_char(#{ff["id"]},'yyyy/mm/dd') = '#{ff["value"]}'                           AND "  if Date.valid_date?(ff["value"].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2].to_i)
-			         	when 11
-					 		where_str << "to_char(#{ff["id"]},'yyyy/mm/dd') #{ff["value"][0]} '#{ff["value"][1..-1]}'   AND "  if Date.valid_date?(ff["value"][1..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2].to_i)  and ( ff["value"] =~ /^</   or  ff["value"] =~ /^>/ )
-                	 	when 12
-					 		where_str << "to_char(#{ff["id"]},'yyyy/mm/dd')  #{ff["value"][0..1]} '#{ff["value"][2..-1]}' AND "  if Date.valid_date?(ff["value"][2..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2].to_i)   and (ff["value"] =~ /^<=/  or ff["value"]=~ /^>=/ )
-			         	when 16
+		      		case  ff["value"].size
+			        when 4
+					 		  where_str << "to_char(#{ff["id"]},'yyyy') = '#{ff["value"]}'      							 AND "
+			        when 5
+					 		  where_str << "to_char(#{ff["id"]},'yyyy') #{ff["value"][0]} '#{ff["value"][1..-1]}'          AND "  if  ( ff["value"]=~ /^</   or ff["value"] =~ /^>/ )
+					 	  when 6
+					 		  where_str << "to_char(#{ff["id"]},'yyyy')  #{ff["value"][0..1]} '#{ff["value"][2..-1]}'      AND "  if   (ff["value"] =~ /^<=/  or ff["value"] =~ /^>=/ )
+			        when 7
+					 		  where_str << "to_char(#{ff["id"]},'yyyy/mm') = '#{ff["value"]}'                              AND "  if Date.valid_date?(ff["value"].split("/")[0].to_i,ff["value"].split("/")[1].to_i,01)
+			        when 8
+					 		  where_str << "to_char(#{ff["id"]},'yyyy/mm') #{ff["value"][0]} '#{ff["value"][1..-1]}'       AND "  if Date.valid_date?(ff["value"][1..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,01)  and ( ff["value"] =~ /^</   or  ff["value"] =~ /^>/ )
+              when 9
+					 		  where_str << "to_char(#{ff["id"]},'yyyy/mm')  #{ff["value"][0..1]} '#{ff["value"][2..-1]}'   AND "  if Date.valid_date?(ff["value"][1..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,01)   and (ff["value"] =~ /^<=/  or ff["value"]=~ /^>=/ )
+			        when 10
+					 		  where_str << "to_char(#{ff["id"]},'yyyy/mm/dd') = '#{ff["value"]}'                           AND "  if Date.valid_date?(ff["value"].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2].to_i)
+			        when 11
+					 		  where_str << "to_char(#{ff["id"]},'yyyy/mm/dd') #{ff["value"][0]} '#{ff["value"][1..-1]}'   AND "  if Date.valid_date?(ff["value"][1..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2].to_i)  and ( ff["value"] =~ /^</   or  ff["value"] =~ /^>/ )
+              when 12
+					 		  where_str << "to_char(#{ff["id"]},'yyyy/mm/dd')  #{ff["value"][0..1]} '#{ff["value"][2..-1]}' AND "  if Date.valid_date?(ff["value"][2..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2].to_i)   and (ff["value"] =~ /^<=/  or ff["value"]=~ /^>=/ )
+			        when 16
 			            	if Date.valid_date?(ff["value"].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2][0..1].to_i)
 					 							hh = ff["value"].split(" ")[1][0..1]
 					 							mi = ff["value"].split(" ")[1][3..4]
@@ -500,17 +496,17 @@ module ScreenLib
 					 							if  Array(0..24).index(hh.to_i) and Array(0..60).index(mi.to_i) and delm ==":"
 					 								where_str << " to_char( #{ff["id"]},'yyyy/mm/dd hh24:mi') = '#{ff["value"]}'       AND "
 					 							end
-					 		end
-			        	when 17
-							if Date.valid_date?(ff["value"][1..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2][0..1].to_i)  and ( ff["value"] =~ /^</   or ff["value"] =~ /^>/ or  ff["value"] =~ /^=/ )
+					 		      end
+			        when 17
+							  if Date.valid_date?(ff["value"][1..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2][0..1].to_i)  and ( ff["value"] =~ /^</   or ff["value"] =~ /^>/ or  ff["value"] =~ /^=/ )
 										hh = ff["value"].split(" ")[1][0..1]
 										mi = ff["value"].split(" ")[1][3..4]
 										delm = ff["value"].split(" ")[1][2.2]
 										if  Array(0..24).index(hh.to_i) and Array(0..60).index(mi.to_i) and delm ==":"
 											where_str << " to_char( #{ff["id"]},'yyyy/mm/dd hh24:mi') #{ff["id"][0]} '#{ff["id"][1..-1]}'      AND "
 										end
-							end
-                		when 18
+							  end
+              when 18
 			                if Date.valid_date?(j[2..-1].split("/")[0].to_i,ff["value"].split("/")[1].to_i,ff["value"].split("/")[2][0..1].to_i)   and (ff["value"]=~ /^<=/  or ff["value"]=~ /^>=/ )
 												hh = ff["value"].split(" ")[1][0..1]
 												mi = ff["value"].split(" ")[1][3..4]
@@ -518,10 +514,10 @@ module ScreenLib
 												if  Array(0..24).index(hh.to_i) and Array(0..60).index(mi.to_i) and delm ==":"
 													where_str << " to_char( #{ff["id"]},'yyyy/mm/dd hh24:mi')  #{ff["id"][0..1]} '#{ff["id"][2..-1]}'      AND "
 												end
-							end
-						else
-							next						
-                		end ## ff["value"].size
+							        end
+						  else
+							  next						
+              end ## ff["value"].size
 					when /char|text|select/
 						if  (ff["value"] =~ /%/ ) then 
 							where_str << " #{ff["id"]} like '#{ff["value"]}'     AND " if  ff["value"] != ""
@@ -535,8 +531,8 @@ module ScreenLib
 							where_str << " #{ff["id"]} = '#{ff["value"]}'         AND "
 						end
 	      			##when "select"
-					##	where_str << " #{ff["id"]} = '#{ff["value"]}'         AND "
-        			end   ##show_data[:alltypes][i]
+					  ##	where_str << " #{ff["id"]} = '#{ff["value"]}'         AND "
+        	end   ##show_data[:alltypes][i]
         			tmpwhere = " #{ff["id"]} #{ff["value"]}    AND " if  ff["value"] =~/is\s*null/ or ff["value"]=~/is\s*not\s*null/
 	      			where_str << (tmpwhere||="")
 				end ### command_c.each  do |i,j|###
@@ -545,7 +541,7 @@ module ScreenLib
 				setParams[:where_str] = ""
 				if grid_columns_info[:init_where_info][:filtered]
 				  if grid_columns_info[:init_where_info][:filtered].size > 1
-					setParams[:where_str] = " where " + grid_columns_info[:init_where_info][:filtered] 
+					  setParams[:where_str] = " where " + grid_columns_info[:init_where_info][:filtered] 
 				  end
 				end   
 				###@where_info["filtered"] screen sort 規定値
@@ -695,7 +691,7 @@ module ScreenLib
 						end
 						case cell[:accessor]   ###初期表示
 						when /_expiredate/
-							temp[cell[:accessor]] = "2099-12-31"
+							temp[cell[:accessor]] =  Constants::End_date 
 						when /_isudate|_rcptdate|_cmpldate|payact_paymentdate|_acpdate/
 							temp[cell[:accessor]] = Time.now.strftime("%Y/%m/%d")
 						when /pobject_objecttype_tbl/
@@ -721,9 +717,9 @@ module ScreenLib
 						when /loca_code_|shelfno_code_|itm_code_|person_code_chrg/	
 							temp[cell[:accessor]] = "dummy"
 						when /mkprdpurord_duedate_/
-							temp[cell[:accessor]] = "2099/12/31"  
+							temp[cell[:accessor]] =  Constants::End_date 
 						when /mkprdpurord_starttime_/
-							temp[cell[:accessor]] = $beginnig_date  
+							temp[cell[:accessor]] = Constants::Beginnig_date  
 						end
 						if cell[:className] =~ /Numeric/
 							temp[cell[:accessor]] = "0" ###初期表示
@@ -1004,25 +1000,27 @@ module ScreenLib
 		end
 
 		def proc_confirm_screen(params)
+			setParams = params.dup
+      setParams[:parse_linedata] = JSON.parse(params[:lineData])
+      setParams[:head] = JSON.parse(params[:head]||="{}")
 			tblnamechop = screenCode.split("_")[1].chop
 			yup_fetch_code = grid_columns_info[:fetch_check][:fetchCode]
 			yup_check_code = grid_columns_info[:fetch_check][:checkCode]
 			addfield = {}
-			setParams = params.dup
 			setParams[:err] = nil
       setParams[:outqty] = 0
       setParams[:outamt] = 0
-			parse_linedata = params[:parse_linedata].dup  ###(can't add a new key into hash during iteration)	
+			parse_linedata = setParams[:parse_linedata].dup  ###(can't add a new key into hash during iteration)	
 			blk =  RorBlkCtl::BlkClass.new(screenCode)
 			command_c = blk.command_init
 			parse_linedata.each do |field,val|
 			  if yup_fetch_code[field] 
 				 	##setParams["fetchCode"] = %Q%{"#{field}":"#{val}"}%  ###clientのreq='fetch_request'で利用
 				 	if setParams[:parse_linedata][:id] == "" or setParams[:parse_linedata][:id].nil? ###tableのユニークid
-				 		setParams[:parse_linedata][:aud]= "add" ###
+				 		setParams[:parse_linedata][:aud] = "add" ###
 				 	end  
 				 	setParams[:fetchview] = yup_fetch_code[field]
-				 	setParams = CtlFields.proc_chk_fetch_rec setParams  
+				 	setParams = CtlFields.proc_fetch_rec setParams  
 				 	if setParams[:err] 
 						command_c[:confirm_gridmessage] = setParams[:err] 
 						command_c[:confirm] = false 
@@ -1033,7 +1031,7 @@ module ScreenLib
 				   		break
 				 	end
 				end
-			 	if setParams[:err].nil?
+			 	if setParams[:err].nil? or setParams[:err] == "" 
 					if yup_check_code[field] 
 				  		setParams = CtlFields.proc_judge_check_code setParams,field,yup_check_code[field]  
 				  		if setParams[:err]
@@ -1050,18 +1048,18 @@ module ScreenLib
 				###setParams[:parse_linedata][field] = val    
 			end	
 			### cannot use parse_linedata
-			if  setParams[:err].nil?
-				setParams[:parse_linedata].each do |key,val|
-				 	if key.to_s =~ /_id/ and val == ""   and tblnamechop == key.to_s.split("_")[0] and
-					  key.to_s !~ /_gridmessage$/ and  key.to_s !~ /_person_id_upd$/ and  key.to_s != "#{tblnamechop}_id"
+			if  setParams[:err].nil? or setParams[:err] == "" 
+				  setParams[:parse_linedata].each do |key,val|
+				 	  if key.to_s =~ /_id/ and val == ""   and tblnamechop == key.to_s.split("_")[0] and
+					    key.to_s !~ /_gridmessage$/ and  key.to_s !~ /_person_id_upd$/ and  key.to_s != "#{tblnamechop}_id"
 					  		command_c[:confirm_gridmessage] = " error key #{key.to_s} missing"
-							command_c[:confirm] = false 
-							setParams[:err] = "error  key #{key.to_s} missing"
-							if command_c[:errPath].nil? 
-								command_c[:errPath] = [key+"_gridmessage"]
-							end
-							break
-					else
+							  command_c[:confirm] = false 
+							  setParams[:err] = "error  key #{key.to_s} missing"
+							  if command_c[:errPath].nil? 
+								  command_c[:errPath] = [key+"_gridmessage"]
+							  end
+							  break
+					  else
 				  		command_c[key.to_s] = val  
               case key.to_s
               when /_amt$|amt_sch$|_cash$/
@@ -1069,7 +1067,7 @@ module ScreenLib
               when /_qty_sch$|_qty$|_qty_stk$/
                 setParams[:outqty] = val.to_f
               end
-					end
+					  end
 				end
 				### セカンドkeyのユニークチェック
 				err = CtlFields.proc_blkuky_check(screenCode.split("_")[1],parse_linedata)
@@ -1086,7 +1084,7 @@ module ScreenLib
 					end	
 				end
 			end	
-			if  setParams[:err].nil?
+			if  setParams[:err].nil?  or setParams[:err] == ""
 				if command_c["id"] == "" or  command_c["id"].nil?   ### add画面で同一lineで二度"enter"を押されたとき errorにしない
 					###  追加後エラーに気づいたときエラーしないほうが，操作性がよい
 				  command_c["sio_classname"] = "_add_grid_linedata"
@@ -1099,7 +1097,7 @@ module ScreenLib
 				command_c = blk.proc_create_tbldata(command_c) ##:
 				case screenCode 
 				when /tblfields/  ###前処理 　 　
-					if  setParams[:err].nil?  
+					if  setParams[:err].nil?    or setParams[:err] == ""
 						strsql =  %Q%  select screenfield_seqno,pobject_code_sfd from r_screenfields  
 							where screenfield_expiredate > current_date and 
 						  			id in (select id from r_screenfields where pobject_code_scr = '#{screenCode}') and
@@ -1115,14 +1113,14 @@ module ScreenLib
 							command_c[:confirm_gridmessage] = setParams[:err] 
 							command_c[:confirm] = false 
 			  			else
-							if (seqchkfields["screenfield_qty_case"]||="99999") <  (seqchkfields["screenfield_qty"]||="0")
-								setParams[:err] =  " error qty_case seqno > qty seqno  line:#{setParams[:index]} "  ###画面表示順　　包装単位の計算ため
-								command_c[:confirm_gridmessage] = setParams[:err] 
-								command_c[:confirm] = false 
-							end
+							    if (seqchkfields["screenfield_qty_case"]||="99999") <  (seqchkfields["screenfield_qty"]||="0")
+								      setParams[:err] =  " error qty_case seqno > qty seqno  line:#{setParams[:index]} "  ###画面表示順　　包装単位の計算ため
+								      command_c[:confirm_gridmessage] = setParams[:err] 
+								      command_c[:confirm] = false 
+							    end
 			  			end
 					end
-					if setParams[:err].nil?  ###一画面分纏めてcommit
+					if setParams[:err].nil?    or setParams[:err] == "" ###一画面分纏めてcommit
 						setParams,command_c = blk.proc_add_update_table(setParams,command_c)
 						setParams = ok_confirm(setParams,command_c,tblnamechop)
 						ArelCtl.proc_materiallized tblnamechop+"s"
@@ -1616,26 +1614,26 @@ module ScreenLib
 
     def proc_create_calendars  str_hcalendars_id
       prev_locas_id = "-1"
-      prev_expiredate = $beginnig_date
+      prev_expiredate = Constants::Beginnig_date
       a_locas_ids = []
       strsql = %Q&select * from hcalendars where expiredate > current_date
                                 and id in(#{str_hcalendars_id}) 
                                 order by locas_id,expiredate,effectivetime &    
       ActiveRecord::Base.connection.select_all(strsql).each do |head|
         if prev_locas_id != head["locas_id"] 
-           prev_expiredate = $beginnig_date
+           prev_expiredate = Constants::Beginnig_date
            a_locas_ids << head["locas_id"]
         end
         holidayweekdays =  head["dayofweek"].split(",")
         holidays = head["holidays"].split(",")
         workingdays = head["workingday"].split(",")
-        cnt = $calendar_cnt
+        cnt = Constants::Calendar_cnt
         tmp_current_timestamp = (Time.now).strftime("%Y-%m-%d %H:%M:%S")
         while cnt >= 0
           workf = true
-          cnt_current_date = (Date.today + $calendar_cnt - cnt).strftime("%Y-%m-%d")
+          cnt_current_date = (Date.today + Constants::Calendar_cnt - cnt).strftime("%Y-%m-%d")
           mmdd = cnt_current_date[5..6] + cnt_current_date[8..9]
-          tmpday = (Date.today + $calendar_cnt - cnt).wday
+          tmpday = (Date.today + Constants::Calendar_cnt - cnt).wday
           workf = false if holidayweekdays.include?(tmpday.to_s) 
           workf = false if holidays.include?(mmdd.to_s)
           workf = true if workingdays.include?(cnt_current_date)
@@ -1674,7 +1672,7 @@ module ScreenLib
           else
             if detail["updated_at"] < head["updated_at"]
               if cnt == 10
-                Rails.logger.debug"class:#{self},line:#{__LINE__},cnt_current_date:#{cnt_current_date},mmdd:#{mmdd},tmpday:#{tmpday},holidayweekdays:#{holidayweekdays},holidays:#{holidays},workingdays:#{workingdays},workf:#{workf}"
+                raise"class:#{self},line:#{__LINE__},cnt_current_date:#{cnt_current_date},mmdd:#{mmdd},tmpday:#{tmpday},holidayweekdays:#{holidayweekdays},holidays:#{holidays},workingdays:#{workingdays},workf:#{workf}"
               end
               if workf
                 strsql = %Q&select * from calendars where locas_id = #{head["locas_id"]}

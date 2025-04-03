@@ -35,7 +35,7 @@ export function * SignupSaga({payload:{email,password,password_confirmation}}) {
          switch (true) {
              case /code.*500/.test(error): message = 'Internal Server Error'
               break
-             case /code.*422/.test(error): message = 'dupulicate Error'
+             case /code.*422/.test(error): message = 'Unprocessable Content Error '
               break
              case /code.*401/.test(error): message = 'Invalid credentials or Login TimeOut'
               break

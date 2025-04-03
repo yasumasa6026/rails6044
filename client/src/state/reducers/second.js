@@ -179,16 +179,11 @@ const secondreducer =  (state = initialValues , actions) =>{
   case  LOGIN_SUCCESS:
     return {
         ...state,
+        params:{screenMame:null,screenCode:null},
     }
                
     case  LOGOUT_REQUEST:
-            return {data:[],
-                params:{screenCode:null,screenName:null},
-                grid_columns_info:{pageSizeList:[],
-                                   columns_info:[],
-                                   creenwidth:0,
-                                   dropDownList:[],
-                                   hiddenColumns:[]},}  
+            return {}  
                            
      default:
         return {...state}

@@ -48,7 +48,6 @@ const cellFontSize = (column,para) =>{
   if(checkFontSize>10){fontSize = 15}
       else{fontSize = Math.ceil( width / length * 1.5) }
   return `${fontSize}px`
- //return '100%'
 }
 
 const AutoCell = ({
@@ -69,8 +68,8 @@ const AutoCell = ({
                  updateMyData(index, id, values[id] ) //dataの内容が更新されない。但しとると、画面に入力内容が表示されない。
                  //updateChangeData(data,index,id,values[id])
                 let msg_id = `${id}_gridmessage`
-                updateMyData(index, msg_id, "ok" )
-                 handleDataSetRequest(data,params)
+                // updateMyData(index, msg_id, "ok" )
+                handleDataSetRequest(data,params)
                }   
         } 
   

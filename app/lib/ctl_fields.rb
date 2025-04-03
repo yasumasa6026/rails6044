@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 module CtlFields
 	extend self
-	def proc_chk_fetch_rec params
+	def proc_fetch_rec params
 		fetchview = save_fetchview = ""  ### save_fetchview:複数項目でkeyを構成するする時の重複処理を避ける
 		params[:fetchview].split(",").each do |fetch|
 			fetchview,delm = fetch.split(":")   ## YupSchemaでparagrapfをもとに作成済　split(":")拡張子の確認
 			next if fetch == save_fetchview 
 			delm ||= ""
-			params = detail_chk_fetch_rec(params,fetchview,delm)
+			params = detail_fetch_rec(params,fetchview,delm)
 			save_fetchview = fetch	
 		end
 		return params
 	end
-	def  detail_chk_fetch_rec(params,fetchview,delm)
+	def  detail_fetch_rec(params,fetchview,delm)
 		params[:err] = nil 
 		line_data,keys,findstatus,mainviewflg,missing = get_fetch_rec(params,fetchview,delm)
 		params[:parse_linedata] = line_data.dup
@@ -89,9 +89,16 @@ module CtlFields
 				end	
 			end
 			flgfetchview = fetchview + if delm == "" then "" else ":#{delm}" end	  
-			fetcfieldgetsql = "select pobject_code_sfd,screenfield_paragraph from r_screenfields
-								 where pobject_code_scr =  '#{params[:screenCode]}' 
-								 and screenfield_paragraph like '%#{flgfetchview}%'"
+	    #fetcfieldgetsql = "select pobject_code_sfd,screenfield_paragraph from r_screenfields
+			# 					 where pobject_code_scr =  '#{params[:screenCode]}' 
+			# 					 and screenfield_paragraph like '%#{flgfetchview}%'"
+        fetcfieldgetsql = "select p.code  pobject_code_sfd,s.paragraph screenfield_paragraph  from screenfields s
+		                           inner join pobjects p on p.id = s.pobjects_id_sfd -- and p.objecttype = 'view_field' 
+	                             where s.screens_id  = (select scr.id from screens scr 
+	 		 						                                      inner join pobjects p2   on p2.id = scr.pobjects_id_scr 
+	 		 									                              and p2.objecttype  = 'screen'
+	 		 									                              and p2.code = '#{params[:screenCode]}') 
+			  					              and s.paragraph like '%#{flgfetchview}%' ---複数のviewに対応"
 			missing = false   ###missing:true パラメータが未だ未設定　　false:チェックok
 			where_strsql = ""
 			fetchs = ActiveRecord::Base.connection.select_all(fetcfieldgetsql)
@@ -135,7 +142,6 @@ module CtlFields
 							missing = false 
 						end
 					end
-			    Rails.logger.debug " class:#{self} ,line:#{__LINE__},paragraphs:#{paragraphs},cnt:#{cnt},fetch:#{fetch} "
 					if missing == false  ###検索のための入力項目はすべて入力されている。
 						if cnt >= paragraphs.to_a.size
 							case fetch
@@ -479,11 +485,13 @@ module CtlFields
 	### 
 	def proc_judge_check_code params,sfd,checkCode  ###
 		line_data = params[:parse_linedata]
-		err = nil
+		err = ""
+    params[:err] ||= ""
 		checkCode.split(",").each do |chk|
 			line_data,err = __send__("proc_judge_check_#{chk}",line_data,sfd,params[:index],params[:screenCode])  ###[1]: nil all,add,updateは画面側で判断
+      params[:err] << (err||="")
 		end
-		params[:err] = err
+		params[:parse_linedata] = line_data.dup
 		return params 
 	end	
 
@@ -636,7 +644,7 @@ module CtlFields
 
 	
 	def proc_judge_check_workplaces line_data,item,index,screenCode
-		if line_data[item.to_sym] 
+		if line_data[:loca_code_workplace] 
 			strsql = %Q%
 				select id from r_workplaces where loca_code_workplace = '#{line_data[item.to_sym]}'
 											and workplace_expiredate > current_date
@@ -644,60 +652,64 @@ module CtlFields
 			if  ActiveRecord::Base.connection.select_value(strsql)
 				err = nil
 			else
-				err =  " #{line_data[item.to_sym]} not workplaces"
+				err =  " #{line_data[:loca_code_workplace]} not workplaces"
 			end
 		end
 		return line_data,err
 	end
 	
 	def proc_judge_check_suppliers line_data,item,index,screenCode
-		if line_data[item.to_sym] 
+		if line_data[:loca_code_supplier] 
 			strsql = %Q%
-				select id from r_suppliers where loca_code_supplier = '#{line_data[item.to_sym]}'
+				select id from r_suppliers where loca_code_supplier = '#{line_data[:loca_code_supplier]}'
 											and supplier_expiredate > current_date
 			%
 			if  ActiveRecord::Base.connection.select_value(strsql)
 				err = nil
 			else
-				err =  " #{line_data[item.to_sym]} not suppliers"
+				err =  " #{line_data[:loca_code_supplier]} not suppliers"
 			end
 		end
 		return line_data,err
 	end
 
 	
-	def proc_judge_check_workplaces_suppliers line_data,item,index,screenCode
-		case line_data[:opeitm_prdpur]
+	def proc_judge_check_prdpur line_data,item,index,screenCode
+    ### shelfnos_idの妥当性チェック prd:workingplaces pur:suppliers その他:制限なし
+		case line_data[:loca_code_supplier]
 		when "pur"
 			if line_data[item.to_sym] 
 				strsql = %Q%
-					select id from r_suppliers where loca_code_supplier = '#{line_data[item.to_sym]}'
+					select id from r_suppliers where loca_code_supplier = '#{line_data[:loca_code_supplier]}'
 											and supplier_expiredate > current_date
 				%
 				if  ActiveRecord::Base.connection.select_value(strsql)
 					err = nil
 				else
-					err =  " #{line_data[item.to_sym]} not suppliers"
+					err =  " #{line_data[:loca_code_supplier]} not suppliers"
 				end
 			end
 		when "prd"
-			if line_data[item.to_sym] 
+			if line_data[:loca_code_workplace] 
 				strsql = %Q%
-					select id from r_workplaces where loca_code_workplace = '#{line_data[item.to_sym]}'
+					select id from r_workplaces where loca_code_workplace = '#{line_data[:loca_code_workplace]}'
 												and workplace_expiredate > current_date
 				%
 				if  ActiveRecord::Base.connection.select_value(strsql)
 					err = nil
 				else
-					err =  " #{line_data[item.to_sym]} not workplaces"
+					err =  " #{line_data[:loca_code_workplace]} not workplaces"
 				end
 			end
+    else
+      err = nil
 		end
 		return line_data,err
 	end
 
 	def proc_judge_check_qty line_data,item,index,screenCode
-		###　get_fetch_recで実施済
+		###　pur,prd schs,ords,insts,dlvs 数量増 ng
+    ###pur,prdacts 条件による
 	 	return line_data,nil   ###err= nil
 	end	
 	
@@ -793,7 +805,7 @@ module CtlFields
 				if line_data[:code] =~ /cust|prd|pur|shp/ and line_data[:code] =~ /schs$|ords$|oinsts$|replyinputs$|dlvs$|acts$|rets$/
 					if line_data[:code].split("_")[0]  == "r"
 					else
-						err =  "error A  ---> view:#{code}   must be r_xxxxxxx 参照 Operation.get_last_rec  "
+						err =  "error A  ---> view:#{code}   must be r_xxxxxxx 参照  "
 					end
 				end
 			end
@@ -810,9 +822,8 @@ module CtlFields
 	def proc_judge_check_duedate line_data,item,index,screenCode  ###
 		tblnamechop = screenCode.split("_")[1].chop
 		parent = {"starttime" => line_data[(tblnamechop+"_starttime").to_sym],"duedate" => line_data[(tblnamechop+"_duedate").to_sym]}
-		nd = {"duration" => line_data["opeitm_duration".to_sym],"unitofduration" => line_data[:opeitm_unitofduration] }
+		nd = {"duration" => line_data["opeitm_duration".to_sym],"unitofduration" => line_data[:opeitm_unitofduration],"locas_id_shelfno" => 0 }
 		line_data = proc_field_starttime(tblnamechop,line_data.stringify_keys,parent,nd)
-		err = nil
 		###return line_data.symbolize_keys,err
 		return line_data,err
 	end
@@ -1307,8 +1318,7 @@ module CtlFields
 			when "0","1","9"
 				base_date =  line_data[:puract_rcptdate]
 			else
-				Rails.logger.debug"taxflg error B paymants_id : #{line_data[:paymets_id]} LINE:#{__LINE__} "
-				raise
+				raise"taxflg error B paymants_id : #{line_data[:paymets_id]} LINE:#{__LINE__} "
 			end
 			strsql = %Q&
 						select taxrate from taxtbls where taxflg = '#{line_data[:itm_taxflg]}' 
@@ -1390,8 +1400,7 @@ module CtlFields
 				&
 				base_date =  ActiveRecord::Base.connection.select_value(strsql)
 			else
-				Rails.logger.debug"taxflg error C 1 paymants_id : #{line_data[:paymets_id]} LINE:#{__LINE__} "
-				raise
+				raise"taxflg error C 1 paymants_id : #{line_data[:paymets_id]} LINE:#{__LINE__} "
 			end
 			strsql = %Q&
 						select taxrate from taxtbls where taxflg = '#{line_data[:itm_taxflg]}' 
@@ -1493,43 +1502,48 @@ module CtlFields
 			case line_data[:pobject_code_tbl]
 			when /ords$|schs$/   ###tranganntsからxxxschs,mkprdpurordsからxxxords作成時利用
 				case line_data[:pobject_code_fld]
-				when /starttime/ 
-					strsql = %Q&
+				  when /starttime/ 
+					  strsql = %Q&
 							select tblfield_seqno from r_tblfields where pobject_code_tbl = '#{line_data[:pobject_code_tbl]}'
 														and pobject_code_fld = 'duedate' 
-					&
-					duedate_seqno = ActiveRecord::Base.connection.select_value(strsql)
-					if duedate_seqno
-						if duedate_seqno < line_data[:tblfield_seqno]
-							return line_data, nil
-						else
-							err = "  seqno of starttime > seqno of duedate "
-							return line_data, nil
-						end
-					end
-				when /duedate/ 
-					strsql = %Q&
+					  &
+					  duedate_seqno = ActiveRecord::Base.connection.select_value(strsql)
+					  if duedate_seqno
+						  if duedate_seqno < line_data[:tblfield_seqno]
+							  return line_data, nil
+						  else
+							  err = "  seqno of starttime > seqno of duedate "
+							  return line_data, nil
+						  end
+					  end
+				  when /duedate/ 
+					  strsql = %Q&
 							select tblfield_seqno from r_tblfields where pobject_code_tbl = '#{line_data[:pobject_code_tbl]}'
 														and pobject_code_fld = 'starttime' 
-					&
-					starttime_seqno = ActiveRecord::Base.connection.select_value(strsql)
-					if starttime_seqno
-						if starttime_seqno < line_data[:tblfield_seqno]
-							err = "  seqno of starttime > seqno of duedate "
-							return line_data,err 
-						else
-							return line_data, nil						
-						end
-					end
-				when /qty/
-					###
-					##  coding missing
-					###
+					    &
+					  starttime_seqno = ActiveRecord::Base.connection.select_value(strsql)
+					  if starttime_seqno
+						  if starttime_seqno < line_data[:tblfield_seqno]
+							  err = "  seqno of starttime > seqno of duedate "
+							  return line_data,err 
+						  else
+							  return line_data, nil						
+						  end
+					  end
+				    ###when /qty/
+					  ###
+					  ##  coding missing
+					  ###
+		    else
+			    return line_data, nil 
 				end
+      else
+        return line_data, nil
 			end
 		else
 			return line_data, nil
 		end
+    return line_data, nil
 	end
 	###
 	#
@@ -1712,81 +1726,128 @@ module CtlFields
 	end	 
 
 	def proc_field_duedate tblnamechop,command_x,parent,nd
-		pstarttime =  parent["starttime"].to_time  ###ercschsの親はdvsschs
-    case tblnamechop
-    when /prdact/
-		  pduedate =  parent["cmpldate"].to_time
-    when /puract/
-		  pduedate =  parent["rcptdate"].to_time
-    else
-      pduedate =  parent["duedate"].to_time
-    end
+    message = ""
 		case tblnamechop
-		when /^dvs|^erc/
-		  case nd["unitofdvs"]  ###char(4)
-		  when "Day "
-			  dayHour = 24*3600   ###  duedate 16:00   starttime 10:00
-		  when "Hour"
-			  dayHour = 3600
-      else 
-			  dayHour = 1
-			  starttime = Time.now
-		  end
+		  when /^pur|^prd|^dymsch|^cust/
+        if parent["shelfnos_id"]  == command_x["#{tblnamechop}_shelfno_id_to"]
+          if parent["unitofduration"] == nd["unitofduration"]
+            if parent["unitofduration"] == "Day "
+              pstarttime = parent["starttime"].to_date
+              duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_shelfno_id_to"])
+            else
+              pstarttime = parent["starttime"].to_time  ###3600:1時間
+              duedate,message = calculate_working_time(tblnamechop,pstarttime,3600,"-",command_x["#{tblnamechop}_shelfno_id_to"])
+            end
+          else
+            pstarttime = parent["starttime"].to_date
+            duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_shelfno_id_to"])
+            if  nd["unitofduration"] == "Hour"
+                strsql = %Q&select effectivetime from hcalendats where locas_id = 
+                            (select locas_id_shelfno from shelfnos where id = #{command_x["#{tblnamechop}_shelfno_id_to"]})&
+                effectivetime = ActiveRecord::Base.connection.select_value(strsql)
+                hhmm = effectivetime.split(",")[-1].split("-")[0] + ":" + effectivetime.split(",")[-1].split("-")[1]
+                duedate = (duedate.strftime("%Y-%m-%d") + " " + effectivetime.split(",")[-1].split("-")).to_date
+            end
+          end
+        else
+          strsql = %Q&select locas_id_shelfno from shelfnos where id = #{parent["shelfnos_id"]}&
+          pare_locas_id = ActiveRecord::Base.connection.select_value(strsql)
+          if pare_locas_id == command_x["shelfno_locas_id_to"]
+            if parent["unitofduration"] == nd["unitofduration"]
+              if parent["unitofduration"] == "Day "
+                pstarttime = parent["starttime"].to_date
+                duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_shelfno_id_to"])
+              else
+                pstarttime = parent["starttime"].to_time
+                duedate,message = calculate_working_time(tblnamechop,pstarttime,3600,"-",command_x["#{tblnamechop}_shelfno_id_to"])
+              end
+            else
+              pstarttime = parent["starttime"].to_date
+              duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_shelfno_id_to"])
+              if  nd["unitofduration"] == "Hour"
+                strsql = %Q&select effectivetime from hcalendats where locas_id = 
+                              (select locas_id_shelfno from shelfnos where id = #{command_x["#{tblnamechop}_shelfno_id_to"]})
+                              and expiredate > current_date &
+                effectivetime = ActiveRecord::Base.connection.select_value(strsql)
+                hhmm = effectivetime.split(",")[-1].split("-")[0] + ":" + effectivetime.split(",")[-1].split("-")[1]
+                duedate = (duedate.strftime("%Y-%m-%d") + " " + effectivetime.split(",")[-1].split("-")).to_time
+              end
+            end
+          else
+            strsql = %Q&select * from transports where locas_id_fm = #{command_x["shelfno_locas_id_to"]} 
+                                            and  locas_id_to = #{pare_locas_id }  
+                                            and expiredate > current_date
+                                            order by priority desc &
+            duration = ActiveRecord::Base.connection.select_one(strsql)
+            if duration
+              if duration["unitofduration"] == "Day " and duration["duration"].to_f == duration["duration"].to_i
+                pstarttime = parent["starttime"].to_date
+                duedate,message = calculate_working_day(tblnamechop,pstarttime,duration["duration"].to_i,"-",command_x["#{tblnamechop}_shelfno_id"])
+              else
+                pstarttime = parent["starttime"].to_time
+                duration = duration["duration"].to_f * Constants::Whr * 3600
+                duedate,message = calculate_working_time(tblnamechop,pstarttime,duration,"-",command_x["#{tblnamechop}_shelfno_id"])
+              end
+            else  ###場所違いでtransportsが設定されていない時
+              pstarttime = parent["starttime"].to_date
+              duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_shelfno_id"])
+            end
+          end
+        end
+		  when /^dvs|^shp/
+        if nd["postprocessinglt"].to_f  > 0
+          if nd["unitofduration"] == "Day " and nd["postprocessinglt"].to_f == nd["postprocessinglt"].to_i
+              pduedate = parent["duedate"].to_date
+              duedate,message = calculate_working_day(tblnamechop,pduedate,(nd["postprocessinglt"]).to_i,"+",command_x["#{tblnamechop}_shelfno_id_to"])
+          else
+            pduedate = parent["duedate"].to_time
+            if nd["unitofduration"] == "Day "
+              tduration = (nd["postprocessinglt"]).to_f * Constants::Whr * 3600
+            else  
+              tduration = (nd["postprocessinglt"]).to_f * 3600
+            end
+            duedate,message = calculate_working_time(tblnamechop,pduedate,tduration,"+",command_x["#{tblnamechop}_shelfno_id_to"])
+          end
+        else 
+          if nd["unitofduration"] == "Day "
+            duedate = parent["duedate"].to_date
+          else
+            duedate = parent["duedate"].to_time
+          end
+        end
+		  when /^erc/
+			  case command_x["#{tblnamechop}_processname"]   ###
+			    when "postprocess"
+            if nd["unitofduration"] == "Day " and nd["postprocessinglt"].to_f == nd["postprocessinglt"].to_i
+              pstarttime = parent["duedate"].to_date
+              duedate,message = calculate_working_day(tblnamechop,pstarttime,(nd["postprocessinglt"]).to_i,"-",command_x["#{tblnamechop}_shelfno_id"])
+            else
+              pstarttime = parent["duedate"].to_time
+              if nd["unitofduration"] == "Day "
+                tduration = (nd["postprocessinglt"]).to_f * Constants::Whr * 3600
+              else  
+                tduration = (nd["postprocessinglt"]).to_f * 3600
+              end
+              duedate,message = calculate_working_time(tblnamechop,pstarttime,tduration,"-",command_x["#{tblnamechop}_person_id_chrg"])
+            end
+			    when "require"
+            if nd["unitofduration"] == "Day " and nd["postprocessinglt"].to_f == nd["postprocessinglt"].to_i
+              duedate = parent["duedate"].to_date
+            else
+              duedate = parent["duedate"].to_time
+            end
+			    when "changeover"
+            if nd["unitofduration"] == "Day " and nd["postprocessinglt"].to_f == nd["postprocessinglt"].to_i
+              duedate = parent["starttime"].to_date
+            else
+              duedate = parent["starttime"].to_time
+            end
+        end
     else
-		  case nd["unitofduration"]  ###char(4)
-		  when "Day "
-			  dayHour = 24*3600   ###  duedate 16:00   starttime 10:00
-		  when "Hour"
-			  dayHour = 3600
-      else 
-			  dayHour = 1
-			  starttime = Time.now
-		  end
-    end
-		case tblnamechop
-		when /prd|dym/
-			if nd["shelfnos_id_to_opeitm"] == parent["shelfnos_id"]
-				duedate = pstarttime - 1*3600  ###稼働日
-			else
-					duedate = pstarttime - 24*3600  ###稼働日 出庫作業考慮
-			end
-		when /pur/
-				duedate = pstarttime - 1*3600  ###稼働日
-		when /^dvs/
-			duedate =  pduedate + ((nd["postprocessinglt"]||=0).to_f)*dayHour ###後処理
-		when /shpest/  ###duedate 工具返還日
-			duedate =  pduedate + ((nd["postprocessinglt"]||=0).to_f)*dayHour ###後処理
-		when /^erc/
-			case command_x["#{tblnamechop}_processname"]   ###
-			when "changeover"
-				duedate =  pstarttime  + (nd["changeoverlt"]||=0).to_f*dayHour 
-			when "require"
-				duedate =  	pduedate  - ((nd["postprocessinglt"]||=0).to_f)*dayHour  
-			when "postprocess"
-				duedate = pduedate + ((nd["postprocessinglt"]||=0).to_f)*dayHour ###後処理
-      else
-			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},processname error ,command_x:#{command_x},nd:#{nd} "
-        raise
-			end
+			  raise" class:#{self} ,line:#{__LINE__},tblname error:#{tblnamechop}s,command_x:#{command_x},nd:#{nd} "
 		end
-		# if dayHour == 24*3600    ###day = "Day"
-		# 	if duedate.strftime("%H") < "08"
-		# 		duedate = duedate - 24*3600   ###前日
-		# 		command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 16:00:00")
-		# 	else
-		# 		if duedate.strftime("%H") < "13"
-		# 			command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 08:00:00")
-		# 		else	
-		# 			if duedate.strftime("%H") < "16"
-		# 				command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 13:00:00")
-		# 			else	
-		# 				command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d") + " 16:00:00")
-		# 			end
-		# 		end
-		# 	end
-		# else
-			command_x[(tblnamechop+"_duedate")]  = (duedate.strftime("%Y-%m-%d %H:%M:%S"))
-		# end
+		command_x[(tblnamechop+"_duedate")]  = duedate.strftime("%Y-%m-%d %H:%M:%S")
+		command_x[(tblnamechop+"_message")]  = message
 		return command_x
 	end
 
@@ -1809,127 +1870,181 @@ module CtlFields
 			command_x["#{tblnamechop}_facilitie_id"] = facilitie["id"]
 			command_x["#{tblnamechop}_chrg_id"] = facilitie["chrgs_id_facilitie"]
 		else
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
-			Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
-      raise
+			raise " class:#{self} ,line:#{__LINE__} \n command_x:#{command_x} \n nd:#{nd} "
 		end
 		return command_x
 	end
 
-	def proc_field_starttime tblnamechop,command_x,parent,nd
-		case nd["unitofduration"]  ###char(4)
-		when "Day "
-			dayHour = 24*3600   ###  duedate 16:00   starttime 10:00
-		when "Hour"
-			dayHour = 3600
-		else 
-			dayHour = 1
-			starttime = Time.now
-		end
-		pstarttime =  parent["starttime"].to_time  ###ercschsの親はdvsschs
-		pduedate =  parent["duedate"].to_time
-		cduedate = command_x["#{tblnamechop}_duedate"].to_time
-		
-		case tblnamechop   ###insts ,reply,dlvs,actsではstarttimeはない
-		when /prdord|purord|pursch|dym/
-			starttime = cduedate - (nd["duration"]||=1).to_f*dayHour
-		when /prdsch/
-		 	qty_sch = command_x["prdsch_qty_sch"].to_f
-			strsql = %Q&
-				select nd.packqtyfacility,nd.durationfacility,itm.classlist_code,op.duration 
-					from nditms nd
-					inner join (select i.id itms_id,c.code classlist_code from itms i
-										inner join classlists c	on i.classlists_id = c.id
-													where c.code in('apparatus') )								
-					itm on itm.itms_id = nd.itms_id_nditm
-					inner join opeitms op on op.id = nd.opeitms_id
-					where op.itms_id = #{nd["itms_id"]} and op.processseq = #{nd["processseq"]} 
-					and  op.priority = 999 ---nd["itms_id"],nd["processseq"] = child itms
-					 &
-			appa = ActiveRecord::Base.connection.select_one(strsql)
-			if appa 		
-				if  (appa["durationfacility"].to_f) > 0   ###装置のltなし
-					if (appa["packqtyfacility"].to_f) > 0  ###nd["duration"].nil? --> tbl=dymschs&opeitms無
-						 starttime =  cduedate - (appa["durationfacility"].to_f)*qty_sch/(appa["packqtyfacility"].to_f).ceil*dayHour    
-					else
-						 starttime =  cduedate - (appa["durationfacility"].to_f)*dayHour
-					end
-				else
-					 starttime =  cduedate - (appa["duration"]||=1).to_f*dayHour  ###prdschs.opeitms_id.duration
-				 end
-			else
-					 starttime =  cduedate - (nd["duration"]||=1).to_f*dayHour  ###nd["duration"].nil? --> tbl=dymschs&opeitms無,cal=-1 --> reverse
-			end
-		when /^dvs/  ###親はprdschs
-			starttime =  pstarttime - (nd["changeoverlt"]||=0).to_f*dayHour 
-		when "shpest" ###親はprdschs 工具・金型
-			starttime =  pstarttime - (nd["changeoverlt"]||=0).to_f*dayHour 
-		when "ercsch","ercord" ###親はdvsschs
-			case command_x["#{tblnamechop}_processname"]   ###親はdvsschs
-			when "changeover"
-				starttime = pstarttime - (nd["changeoverlt"]||=0).to_f*dayHour 
-			when "require"
-				starttime =  pstarttime 
-			when "postprocess"
-				starttime = pduedate 
+	def proc_field_starttime tblnamechop,command_x,parent,nd  ###parentはdvsschs,ercschsで使用
+		message = ""
+    if nd["unitofduration"] ==  "Hour"
+      duration = (nd["duration"]||=1).to_i * 3600
+      hourFlg = true 
+    else
+      if (nd["duration"]||=1).to_i != (nd["duration"]||=1).to_f
+        hourFlg = true 
+        duration = (nd["duration"]||=1).to_f * Constants::Whr * 3600  ###Whr 壱日の労働時間
       else
-        Rails.logger.debug " class:#{self} ,line:#{__LINE__},tblnamechop error command_x:#{command_x} "
-        raise
-			end
-		end
-		
-		# if nd["unitofduration"] == "Day " and tblnamechop =~ /^prd|^pur|^shp/
-		# 	if starttime.strftime("%M") < "13"
-		# 		case tblnamechop
-		# 		when /prdord/
-		#  			command_x["prdord_starttime"] = (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
-		# 		when /shpest/
-		#  			command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
-		# 		else
-		#  			command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
-		# 		end
-		# 	else
-		# 		if starttime.strftime("%M") < "16"
-		# 			case tblnamechop
-		# 			when /prdord/
-		# 				command_x["prdord_starttime"] =  (starttime.strftime("%Y-%m-%d") + " 13:00:00" )
-		# 			when /shpest/
-		# 				command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d") + " 13:00:00" )
-		# 			else
-		# 				command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d") + " 13:00:00" )
-		# 			end
-		# 		else
-		# 			###前日
-		# 			starttime = starttime - 24*3600
-		# 			case tblnamechop
-		# 			when /prdord/
-		#  				command_x["prdord_starttime"] =   (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
-		# 			when /shpest/
-		#  				command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d") + " 08:00:00" )
-		# 			else
-		#  				command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d") + " 0800:00" )
-		# 			end
-		# 		end
-		# 	end
-				
-		# else
-		 	case tblnamechop
-		 	when /prdord/
-		  		command_x["prdord_starttime"] =   (starttime.strftime("%Y-%m-%d %H:%M:%S") )
-		 	when /shpest/
-		  		command_x["shpest_depdate"] =  (starttime.strftime("%Y-%m-%d %H:%M:%S") )
+        hourFlg = false
+        duration = ((nd["duration"]||=1).to_i)   ###Whr 壱日の労働時間
+      end
+    end 
+    if nd["unitofduration"] ==  "Hour" or hourFlg 
+		    pstarttime =  parent["starttime"].to_time  ###dvsxxxs,ercxxxs,shpxxxsで使用。ercschsの親はdvsschs
+		    pduedate =  parent["duedate"].to_time  ###dvsxxxs,ercxxxs,shpxxxsで使用。
+		    cduedate = command_x["#{tblnamechop}_duedate"].to_time
+		    case tblnamechop   ###insts ,reply,dlvs,actsではstarttimeはない
+	    	  when /pur|dym/
+            starttime,message = calculate_working_time(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_supplier_id"])
+		      when /cust/  ###前日準備
+            starttime,message  = calculate_working_time(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_shelfno_id_fm"])
+		      when /prd/
+            if tblnamechop== "prdsch"
+		 	        str_qty = command_x["prdsch_qty_sch"].to_f
+            else
+              str_qty = command_x["#{tblnamechop}_qty"].to_f
+            end
+			      strsql = %Q&
+				              select nd.packqtyfacility,nd.durationfacility,itm.classlist_code,op.duration 
+					                  from nditms nd
+					                  inner join (select i.id itms_id,c.code classlist_code from itms i
+										                        inner join classlists c	on i.classlists_id = c.id
+													                  where c.code in('apparatus') )								
+					                        itm on itm.itms_id = nd.itms_id_nditm
+					                  inner join opeitms op on op.id = nd.opeitms_id
+					                  where op.itms_id = #{nd["itms_id"]} and op.processseq = #{nd["processseq"]} 
+					                  and  op.priority = 999 ---nd["itms_id"],nd["processseq"] = child itms
+					              &
+			      appas = ActiveRecord::Base.connection.select_all(strsql)
+			      appas.each do |appa|	###複数の装置のLTがある時
+				      if  (appa["durationfacility"].to_f) > 0   ###装置のlt
+					      if (appa["packqtyfacility"].to_f) > 0  ###nd["duration"].nil? --> tbl=dymschs&opeitms無
+                  tduration = appa["durationfacility"].to_f*qty_sch/appa["packqtyfacility"].to_f    
+					      else
+                  tduration = appa["durationfacility"].to_f
+					      end
+				      end
+              if nd["unitofduration"] ==  "Hour"
+                tduration = tduration * 3600
+              else
+                tduration = tduration * Constants::Whr * 3600
+              end
+              
+              if tduration > duration
+                duration = tduration
+              end
+            end  
+            starttime,message = calculate_working_time(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_shelfno_id"])
+		      when /^dvs/  ###親はprdschs
+            # strsql = %Q&
+				    #           select f.shelfnos_id from facilities f 
+            #                 inner join #{tblnamechop}s d on d.facilities_id = f.id
+            #                 where d.id = #{command_x["id"]} &
+			      # shelfnos_id = ActiveRecord::Base.connection.select_value(strsql)
+            if nd["unitofduration"] ==  "Hour"
+              duration = (nd["changeoverlt"]||=0).to_f * 3600
+            else
+              duration = (nd["changeoverlt"]||=0).to_f * Constants::Whr * 3600
+            end
+            starttime,message = calculate_working_time(tblnamechop,pstarttime,duration,"-",command_x["#{tblnamechop}_facilitie_id"])
+		      when /^shp/ ###親はprdschs 工具・金型
+            if nd["unitofduration"] ==  "Hour"
+              duration = (nd["changeoverlt"]||=0).to_f * 3600
+            else
+              duration = (nd["changeoverlt"]||=0).to_f * Constants::Whr * 3600
+            end
+            starttime,message = calculate_working_time(tblnamechop,pstarttime,duration,"-",command_x["#{tblnamechop}_shelfno_id_fm"])
+		      when "ercsch","ercord" ###親はdvsschs
+			      case command_x["#{tblnamechop}_processname"]   ###親はdvsschs
+			        when "changeover"
+                starttime,message = calculate_working_time(tblnamechop,pstarttime,(nd["changeoverlt"]||=0).to_f*3600,"-",command_x["#{tblnamechop}_person_id_chrg"])
+			        when "require"
+				        starttime =  pstarttime 
+			        when "postprocess"
+				        starttime = pduedate 
+              else
+                raise" class:#{self} ,line:#{__LINE__},tblnamechop error command_x:#{command_x} "
+			      end
+        end
+      else
+		    pstarttime =  parent["starttime"].to_date  ###ercschsの親はdvsschs
+		    pduedate =  parent["duedate"].to_date
+		    cduedate = command_x["#{tblnamechop}_duedate"].to_date
+		    case tblnamechop   ###insts ,reply,dlvs,actsではstarttimeはない
+	    	  when /pur/
+            starttime,message = calculate_working_day(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_supplier_id"])
+		      when /dym/
+            starttime,message = calculate_working_day(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_shelfno_id"])
+		      when /cust/
+            starttime,message = calculate_working_day(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_shelfno_id_fm"])
+		      when /prd/
+            if tblnamechop== "prdsch"
+		 	        str_qty = command_x["prdsch_qty_sch"].to_f
+            else
+              str_qty = command_x["#{tblnamechop}_qty"].to_f
+            end
+			      strsql = %Q&  ---装置のLTがある時
+				              select nd.packqtyfacility,nd.durationfacility,itm.classlist_code,op.duration,op.shelfnos_id_opeitm shelfnos_id 
+					                  from nditms nd
+					                  inner join (select i.id itms_id,c.code classlist_code from itms i
+										                        inner join classlists c	on i.classlists_id = c.id
+													                  where c.code in('apparatus') )								
+					                        itm on itm.itms_id = nd.itms_id_nditm
+					                  inner join opeitms op on op.id = nd.opeitms_id
+					                  where op.itms_id = #{nd["itms_id"]} and op.processseq = #{nd["processseq"]} 
+					                  and  op.priority = 999 ---nd["itms_id"],nd["processseq"] = child itms
+					              &
+			      appas = ActiveRecord::Base.connection.select_all(strsql)
+			      appas.each do |appa| 		
+				      if  (appa["durationfacility"].to_f) > 0   ###装置のlt
+					      if (appa["packqtyfacility"].to_f) > 0  ###nd["duration"].nil? --> tbl=dymschs&opeitms無
+                  tduration = (appa["durationfacility"].to_f)*qty_sch/(appa["packqtyfacility"].to_f).ceil    
+					      else
+                  tduration = (appa["durationfacility"].to_f).ceil  
+					      end
+				      else
+                tduration = (appa["duration"]||=1).to_f.ceil  ###prdschs.opeitms_id.duration
+				      end
+			        if tduration > duration
+				        duration = tduration
+			        end
+			      end
+            starttime,message = calculate_working_day(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_shelfno_id"])
+		      when /^dvs/  ###親はprdschs
+            strsql = %Q&
+				              select f.shelfnos_id from facilities f 
+                            inner join #{tblnamechop}s d on d.facilities_id = f.id
+                            where d.id = #{command_x["id"]} &
+			      shelfnos_id = ActiveRecord::Base.connection.select_value(strsql)
+            starttime,message = calculate_working_day(tblnamechop,pstarttime,(nd["changeoverlt"]).to_f.ceil,"-",shelfnos_id)
+		      when /^shp/ ###親はprdschs 工具・金型
+            starttime,message = calculate_working_day(tblnamechop,pstarttime,(nd["changeoverlt"]).to_f.ceil,"-",command_x["#{tblnamechop}_shelfno_id_fm"])
+		      when "ercsch","ercord" ###親はdvsschs
+			      case command_x["#{tblnamechop}_processname"]   ###親はdvsschs
+			        when "changeover"
+                starttime,message = calculate_working_day(tblnamechop,pstarttime,(nd["changeoverlt"]).to_f.ceil,"-",command_x["#{tblnamechop}_shelfno_id_fm"])
+			        when "require"
+				        starttime =  pstarttime 
+			        when "postprocess"
+				        starttime = pduedate 
+              else
+                raise" class:#{self} ,line:#{__LINE__},tblnamechop error command_x:#{command_x} "
+			      end
+		  end
+    end
+		case tblnamechop
+		 	when /^shp/
+		  		command_x["#{tblnamechop}_depdate"] = starttime.strftime("%Y-%m-%d") + " " + parent["starttime"].to_time.strftime("%H:%M:%S")		
 		 	else
 		  		command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d %H:%M:%S") )
-		 	end
+		end
 		# end
+    command_x[:message] = message 
 		return command_x
 	end
 
 	def field_chrgs_id tblnamechop,command_x,nd ### seq_noは　chrgs_id > custs_id,suppliers_id,workplaces_idであること
 		if command_x["#{tblnamechop}_chrg_id"].nil? or  command_x["#{tblnamechop}_chrg_id"] == ""
-			if nd["chrgs_id"]
-				command_x["#{tblnamechop}_chrg_id"] = nd["chrgs_id"]
-			else
 				case tblnamechop
 				when /^cust/
 					strsql = %Q&
@@ -1937,7 +2052,7 @@ module CtlFields
 					&
 				when /^pur/
 				 	strsql = %Q&
-				 			select chrgs_id_supplier chrgs_id from suppliers 
+				 			select chrgs_id_supplier chrgs_id ,locas_id_calendar from suppliers 
 									where locas_id_supplier = #{nd["locas_id_shelfno"]}
 				 	&
 				 when /^prd|^dvs/
@@ -1947,7 +2062,7 @@ module CtlFields
 				 	&
 				when /^erc/
 				 	strsql = %Q&
-				 			select chrgs_id_fcoperator from fcoperators
+				 			select chrgs_id_fcoperator  chrgs_id from fcoperators
 									where itms_id_fcoperator = #{nd["itms_id"]} order by priority desc
 				 	&
 				when /^dymsch/
@@ -1955,17 +2070,15 @@ module CtlFields
 							select 0 chrgs_id 
 					&
 				else
-					Rails.logger.debug"get chrgs_id error  class:#{self}, line:#{__LINE__} ,tblnamechop:#{tblnamechop}"
-					raise
+					raise"get chrgs_id error  class:#{self}, line:#{__LINE__} ,tblnamechop:#{tblnamechop}"
 				end
-				command_x["#{tblnamechop}_chrg_id"] = ActiveRecord::Base.connection.select_value(strsql)
-			end
+        chrg = ActiveRecord::Base.connection.select_one(strsql)
+				command_x["#{tblnamechop}_chrg_id"] = chrg["chrgs_id"]
 		end
 		return command_x
 	end	
 
 	def proc_field_fcoperators_id(tblnamechop,command_x,parent,nd) 
-		Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
     case tblnamechop
     when "ercsch"
 		  strsql = %Q&  ---予定されている担当者
@@ -2015,8 +2128,7 @@ module CtlFields
 		  else
 			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
 			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
-			  Rails.logger.debug " class:#{self} ,line:#{__LINE__}, can not get fcoperators_id"
-			  raise
+			  raise " class:#{self} ,line:#{__LINE__}, can not get fcoperators_id"
 		  end
     when "ercord"
 			strsql = %Q&
@@ -2029,12 +2141,11 @@ module CtlFields
 		  else
 			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
 			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
-			  Rails.logger.debug " class:#{self} ,line:#{__LINE__}, can not get fcoperators_id"
-			  raise
+			  raise " class:#{self} ,line:#{__LINE__}, can not get fcoperators_id"
 		  end
     else
       Rails.logger.debug " class:#{self} ,line:#{__LINE__},tblnamechop:#{tblnamechop} "
-      Rails.logger.debug " class:#{self} ,line:#{__LINE__}, tblnamechop error"
+      raise " class:#{self} ,line:#{__LINE__}, tblnamechop error"
     end
 		return command_x
 	end
@@ -2101,7 +2212,7 @@ module CtlFields
 	
 	def field_expiredate tblnamechop,command_x,parent,nd
 		if command_x["#{tblnamechop}_expiredate"].nil? or command_x["#{tblnamechop}_expiredate"] == ""
-			command_x["#{tblnamechop}_expiredate"] = "2099/12/31" 
+			command_x["#{tblnamechop}_expiredate"] =  Constants::End_date  
 		end
 		return command_x
 	end
@@ -2110,6 +2221,361 @@ module CtlFields
 		false
 	end
 
+  def calculate_working_day(tblnamechop,base_date,calculate_day,plusminus,calendars_id)
+    ###base_date (型:Date からcalculate_day日後の稼働日を考慮して計算する  
+    ###dayofweek = "0":日曜日,"1":月曜日,"2":火曜日,"3":水曜日,"4":木曜日,"5":金曜日,"6":土曜日　休日がarrayで渡される
+    ###holidays = "mmdd"でarray 型で休日を渡す
+    ###workingday = "yyyymmdd"でarray 型で稼働日を渡す
+    message = ""
+    case tblnamechop
+      when /^pur/
+            strsql = %Q&
+                    select dayofweek,holidays,workingday from hcalendars 
+                        where locas_id = (select locas_id_calendar from suppliers 
+                                                where id = #{calendars_id}    ---calendars_id = suppliers_is
+                                                and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date))
+                        order by expiredate limit 1
+              &
+            calendar = ActiveRecord::Base.connection.select_one(strsql)
+            if calendar.nil?
+              message = "suppliers_id:#{calendars_id}  calendar missing"
+              strsql = %Q&
+                      select dayofweek,holidays,workingday from hcalendars 
+                          where locas_id = 0
+                          order by expiredate limit 1
+                &
+              calendar = ActiveRecord::Base.connection.select_one(strsql)
+              if calendar.nil?
+                raise"error calendar missing \n supplier:#{calendars_id}  calendar missing"
+              end
+            end
+      when /^prd/
+            strsql = %Q&
+                    select dayofweek,holidays,workingday from hcalendars 
+                        where locas_id = (select locas_id_calendar from workplaces w
+                                      inner join shelfnos s on w.locas_id_workplace = s.locas_id_shelfno
+                                      where s.id = #{calendars_id})   --- calendars_id = shelfnos_id
+                        and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
+                        order by expiredate limit 1
+            &
+            calendar = ActiveRecord::Base.connection.select_one(strsql)
+            if calendar.nil?
+              message = "workplaces shelfnos_id:#{calendars_id}  calendar missing"
+              strsql = %Q&
+                      select dayofweek,holidays,workingday from hcalendars 
+                          where locas_id = 0
+                          order by expiredate limit 1
+                &
+              calendar = ActiveRecord::Base.connection.select_one(strsql)
+              if calendar.nil?
+                raise"error calendar missing \n workplaces shelfnos_id:#{calendars_id}  calendar missing"
+              end
+            end
+      when /^cust/
+                strsql = %Q&
+                        select dayofweek,holidays,workingday from hcalendars 
+                            where locas_id = (select locas_id_shelfno from shelfnos s 
+                                               where s.id = #{calendars_id})  
+                            and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
+                            order by expiredate limit 1
+                &
+                calendar = ActiveRecord::Base.connection.select_one(strsql)
+                if calendar.nil?
+                  message = "shipping shelfnos_id:#{calendars_id}  calendar missing"
+                  strsql = %Q&
+                          select dayofweek,holidays,workingday from hcalendars 
+                              where locas_id = 0
+                              order by expiredate limit 1
+                    &
+                  calendar = ActiveRecord::Base.connection.select_one(strsql)
+                  if calendar.nil?
+                    raise"error calendar missing \n locas_id = 0  calendar missing"
+                  end
+                end
+      when /^dvs/
+            strsql = %Q&  ---休日を求める　facilitycalendars:日別カレンダー
+                    select * from facilitycalendars f 
+                          where f.facilities_id = #{calendars_id}) 
+                           and f.targetdate > current_date
+										        and f.expiredate > current_date and f.effectivestarttime = ''
+										        and not exists(select 1 from facilitycalendars f2  where f.facilities_id = f2.facilities_id 
+														                and f.targetdate  = f2.targetdate  and f2.effectivestarttime != '')										
+									          order by f.targetdate 
+            &
+            timeCalendar = ActiveRecord::Base.connection.select_one(strsql)
+            if timeCalendar.nil?
+              message = "facilities_id:#{calendars_id}  facilities calendar missing"
+              strsql = %Q&
+                      select dayofweek,holidays,workingday from hcalendars 
+                          where locas_id = 0
+                          order by expiredate limit 1
+                &
+              calendar = ActiveRecord::Base.connection.select_one(strsql)
+            else
+              calendar = {"workingday" => [],"dayofweek" => [],"holidays" => []}
+              timeCalendar.each do |calendar|
+                calendar["holidays"] << calendar["targetdate"].to_date.strftime("%m%d")
+              end              
+            end
+      when /^erc/
+            strsql = %Q&
+                    select p.* from chrgs c 
+			                  inner join personcalendars p  on p.persons_id = c.persons_id_chrg
+			                  where p.persons_id = #{calendars_id} 		and p.expiredate > current_date 
+            &
+            calendar = ActiveRecord::Base.connection.select_one(strsql)
+            if calendar.nil?
+              message = "persons_id:#{calendars_id}  persons calendar missing"
+              strsql = %Q&
+                      select dayofweek,holidays,workingday from hcalendars 
+                          where locas_id = 0
+                          order by expiredate limit 1
+                &
+              calendar = ActiveRecord::Base.connection.select_one(strsql)
+            end
+      else
+            strsql = %Q&
+             select dayofweek,holidays,workingday from hcalendars 
+               where locas_id = 0
+               and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
+               order by expiredate limit 1
+              &
+            calendar = ActiveRecord::Base.connection.select_one(strsql)
+              if calendar.nil?
+                raise"error calendar missing "
+              end
+    end
+    workingday = calendar["workingday"]
+    dayofweek = calendar["dayofweek"]
+    holidays = calendar["holidays"]
+    degcnt = 0
+    until calculate_day < 0
+        if !workingday.include?(base_date.strftime("%Y%m%d"))&&(dayofweek.include?(base_date.wday.to_s)||holidays.include?(base_date.strftime("%m%d")))
+          degcnt += 1
+          raise"LINE:#{__LINE__},degcnt:#{degcnt},base_date:#{base_date},workingday:#{workingday},dayofweek:#{dayofweek},holidays:#{holidays}"  if degcnt > 1000
+        else
+          calculate_day -= 1
+          return base_date,message if calculate_day < 0
+        end
+        if  plusminus == "-"
+          base_date = base_date - 1
+        else
+          base_date = base_date + 1
+        end
+    end
+    return base_date,message
+  end
+
+  def calculate_working_time(tblnamechop,base_date,calculate_time,plusminus,calendars_id)
+    ###base_date (型:Time)からcalculate_time時間後の稼働時間を考慮して計算する 
+    ###calculate_time (型:numeric) 移動時間 秒数
+    ###plusminus "+" or "-" で加算または減算する
+    ###dayofweek = "0":日曜日,"1":月曜日,"2":火曜日,"3":水曜日,"4":木曜日,"5":金曜日,"6":土曜日　休日がarrayで渡される
+    ###holidays = "mmdd"でarray 型で休日を渡す
+    ###workingday = "yyyymmdd"でarray 型で稼働日を渡す
+    ## return base_date(型TTime)
+    message = ""
+    calendars = []
+    calendar = {}
+    case tblnamechop
+      when /^pur/
+        strsql = %Q&
+                 select dayofweek,holidays,workingdaytargetdate from calendars 
+                        where locas_id = (select locas_id_calendar from suppliers 
+                                                where id = #{calendars_id}    ---calendars_id = suppliers_is
+                                                and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
+                        and targetdate = '#{base_date.strftime("%Y-%m-%d")}'
+                        order by targetdate,effectivestarttime #{if plusminus == "-" then "desc" else "asc" end}  
+                    &
+          calendars = ActiveRecord::Base.connection.select_all(strsql)
+          if calendars.length == 0          
+              strsql = %Q&
+                    select dayofweek,holidays,workingday,effectivetime  from hcalendars 
+                        where locas_id = (select locas_id_calendar from suppliers 
+                                      where id = #{calendars_id}    ---calendars_id = suppliers_is
+                        and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
+                        order by expiredate limit 1
+              &
+              calendar = ActiveRecord::Base.connection.select_one(strsql)
+              if calendar.nil?
+                message = "suppliers_id:#{calendars_id}  calendar missing"
+                strsql = %Q&
+                      select dayofweek,holidays,workingday,effectivetime  from hcalendars 
+                          where locas_id = 0
+                          order by expiredate limit 1
+                &
+                calendar = ActiveRecord::Base.connection.select_one(strsql)
+                if calendar.nil?
+                  raise"error calendar missing \n supplier:#{calendars_id}  calendar missing"
+                end
+              end
+          else
+          end
+      when /^prd/
+        strsql = %Q&
+                 select dayofweek,holidays,workingdaytargetdate from calendars 
+                        where locas_id = (select locas_id_calendar from workplaces w
+                                                  inner join shelfnos s on w.locas_id_workplace = s.locas_id_shelfno
+                                                  where s.id = #{calendars_id}    --- calendars_id = shelfnos_id
+                                                  and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
+                        and targetdate = '#{base_date.strftime("%Y-%m-%d")}'
+                        order by targetdate,effectivestarttime #{if plusminus == "-" then "desc" else "asc" end}  
+                    &
+          calendars = ActiveRecord::Base.connection.select_all(strsql)
+          if calendars.length == 0          
+              strsql = %Q&
+                    select dayofweek,holidays,workingday,effectivetime  from hcalendars 
+                        where locas_id = (select locas_id_calendar from workplaces w
+                                      inner join shelfnos s on w.locas_id_workplace = s.locas_id_shelfno
+                                      where s.id = #{calendars_id})   --- calendars_id = shelfnos_id
+                        and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
+                        order by expiredate limit 1
+            &
+            calendar = ActiveRecord::Base.connection.select_one(strsql)
+            if calendar.nil?
+              message = "workplaces shelfnos_id:#{calendars_id}  calendar missing"
+              strsql = %Q&
+                      select dayofweek,holidays,workingday,effectivetime  from hcalendars 
+                          where locas_id = 0
+                          order by expiredate limit 1
+                &
+              calendar = ActiveRecord::Base.connection.select_one(strsql)
+              if calendar.nil?
+                raise"error calendar missing \n workplaces shelfnos_id:#{calendars_id}  calendar missing"
+              end
+            end
+          end
+      when /^dvs/
+            strsql = %Q&  
+                    select * from facilitycalendars f 
+                          where f.facilities_id = #{calendars_id}
+                           and f.targetdate > current_date   and f.expiredate > current_date 								
+									         order by targetdate,effectivestarttime #{if plusminus == "-" then "desc" else "asc" end}
+            &
+            calendars = ActiveRecord::Base.connection.select_all(strsql)
+            if calendars.length == 0
+              message = "facilities_id:#{calendars_id}  facilities calendar missing"
+              strsql = %Q&
+                      select dayofweek,holidays,workingday,effectivetime  from hcalendars 
+                          where locas_id = 0
+                          order by expiredate limit 1
+                &
+              calendar = ActiveRecord::Base.connection.select_one(strsql)
+            end
+      when /^erc/
+            strsql = %Q&
+                    select p.* from chrgs c 
+			                  inner join personcalendars p  on p.persons_id = c.persons_id_chrg
+			                  where p.persons_id = #{calendars_id} 		and p.expiredate > current_date 
+                        order by targetdate,effectivestarttime #{if plusminus == "-" then "desc" else "asc" end}  
+            &
+            calendars = ActiveRecord::Base.connection.select_all(strsql)
+            if calendars.length == 0
+              message = "persons_id:#{calendars_id}  persons calendar missing"
+              strsql = %Q&
+                      select dayofweek,holidays,workingday,effectivetime from hcalendars 
+                          where locas_id = 0
+                          order by expiredate limit 1
+                &
+              calendar = ActiveRecord::Base.connection.select_one(strsql)
+            end
+      else
+            strsql = %Q&
+             select dayofweek,holidays,workingday,effectivetime  from hcalendars 
+               where locas_id = 0
+               and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
+               order by expiredate limit 1
+              &
+            calendar = ActiveRecord::Base.connection.select_one(strsql)
+              if calendar.nil?
+                raise"error calendar missing "
+              end
+    end
+    degcnt = 0
+    if calendars.length == 0
+      workingday = calendar["workingday"]
+      dayofweek = calendar["dayofweek"]
+      holidays = calendar["holidays"]
+      wkHour = 0
+      calendar["effectivetime"].split(",").each do |effectivetime|  ###effectivetime = "09:00-17:00"又は"09:00-12:00","13:00-17:00"
+        wkHour = effectivetime.split(/-|~/)[1].to_time - effectivetime.split(/-|~/)[0].to_time 
+      end
+      until calculate_time < 0
+        if !workingday.include?(base_date.strftime("%Y%m%d"))&&(dayofweek.include?(base_date.wday.to_s)||holidays.include?(base_date.strftime("%m%d")))
+          degcnt += 1
+          raise"LINE:#{__LINE__},degcnt:#{degcnt},base_date:#{base_date},workingday:#{workingday},dayofweek:#{dayofweek},holidays:#{holidays}"  if degcnt > 1000
+        else
+          if  calculate_time < wkHour
+            if  plusminus == "-"
+              base_date = base_date - 86400 ###1日分の秒数を引く
+              calendar["effectivetime"].split(",").reverse_each do |eff|  ###effectivetime = "09:00-17:00"又は"09:00-12:00","13:00-17:00"
+                if  calculate_time  > (eff.split(/-|~/)[1].to_time - eff.split(/-|~/)[0].to_time) 
+                    calculate_time -=  (eff.split(/-|~/)[1].to_time - eff.split(/-|~/)[0].to_time)
+                    next
+                else
+                  base_date = (base_date.strftime("%Y-%m-%d") + " " + eff.split(/-|~/)[1] + ":00").to_time.ago(calculate_time) 
+                end
+              end
+            else
+              base_date = base_date + 86400  ###1日分の秒数を足す
+              calendar["effectivetime"].split(",").each do |eff|  ###effectivetime = "09:00-17:00"又は"09:00-12:00","13:00-17:00"
+                if  calculate_time  > (eff.split(/-|~/)[1].to_time - eff.split(/-|~/)[0].to_time) 
+                    calculate_time -=  (eff.split(/-|~/)[1].to_time - eff.split(/-|~/)[0].to_time) 
+                    next
+                else
+                    base_date = (base_date.strftime("%Y-%m-%d") + " " + eff.split(/-|~/)[0] + ":00").to_time.since(calculate_time) 
+                end
+              end
+            end
+            return base_date,message 
+          else
+            calculate_time -= wkHour
+          end
+        end
+        if  plusminus == "-"
+          base_date = base_date - 86400
+        else
+          base_date = base_date + 86400
+        end
+      end
+    else
+      if plusminus == "-"
+        calendars.reverse_each do |calendar|
+          if calendar["effectivestarttime"].nil? or calendar["effectivestarttime"].to_time.nil?
+            degcnt += 1
+            raise"LINE:#{__LINE__},degcnt:#{degcnt},base_date:#{base_date},calendar:#{calendar}"  if degcnt > 1000
+            next
+          else
+            wkHour = calendar["effectiveendtime"].to_time - calendar["effectivestarttime"].to_time
+            if calculate_time < wkHour
+              base_date = (base_date.strftime("%Y-%m-%d") + " " + calendar["effectiveendtime"] + ":00").to_time.ago(calculate_time) 
+            else
+              calculate_time -= wkHour
+              next
+            end
+          end
+        end
+      else
+        calendars.each do |calendar|
+          if calendar["effectivestarttime"].nil? or calendar["effectivestarttime"].to_time.nil?
+            degcnt += 1
+            raise"LINE:#{__LINE__},degcnt:#{degcnt},base_date:#{base_date},calendar:#{calendar}"  if degcnt > 1000
+            next
+          else
+            wkHour = calendar["effectiveendtime"].to_time - calendar["effectivestarttime"].to_time
+            if calculate_time < wkHour
+              base_date = (base_date.strftime("%Y-%m-%d") + " " + calendar["effectivestarttime"] + ":00").to_time.since(calculate_time) 
+            else
+              calculate_time -= wkHour
+              next
+            end
+          end
+        end
+      end
+    end
+    return base_date,message
+  end
+    
 	def proc_snolist   ###reqparams["segment"] = ["trn_org"]の対象でもある。
 		{"purschs"=>"PS","purords"=>"PO","purinsts"=>"PH","purdlvs"=>"PV","puracts"=>"PA","dymschs"=>"DY",
 			"purreplyinputs"=>"PL","prdreplyinputs"=>"ML",
