@@ -14,14 +14,14 @@ module Api
                         ### 第三パラメータ　gantt_xxx-->順方向　reverse-->逆方向
                         ###　　　　　　　　　xxx_mst-->mater系  xxx-trn--->trn系
                             gantt =  GanttChart::GanttClass.new(params[:buttonflg],"itms")
-                            ganttData =  gantt.proc_get_ganttchart_data(tblcode,parse_linedata["id"],params[:buttonflg])  
+                            ganttData =  gantt.proc_get_ganttchart_data(tblcode,parse_linedata["id"])  
                             ganttData.sort.each do |level,ganttdata|
                                 next if ganttdata[:itm_code].nil?
                                 next if ganttdata[:itm_name].nil?
                                 tasks << {"id"=>ganttdata[:id],
                                      "name"=>ganttdata[:itm_code]+":#{ganttdata[:itm_name]},#{ganttdata[:processseq]},#{ganttdata[:loca_code]}:#{ganttdata[:loca_name]},"  +
                                                %Q& #{case ganttdata[:classlist_code]
-                                                when "installationCharge","mold","apparatus","ITool"
+                                                when "installationCharge","mold","apparatus","ITool","changeover","require","postprocess"
                                                     ""
                                                 else
                                                     "QTY:#{ganttdata[:qty]},NumberOfItems:#{ganttdata[:chilnum]}/#{ganttdata[:parenum]}"
@@ -33,7 +33,13 @@ module Api
                                                 when "mold"  ###金型
                                                     {"backgroundColor"=>"#66FF66"}
                                                 when "apparatus" ### 設備
-                                                    {"backgroundColor"=>"#FFFF66"}
+                                                  {"backgroundColor"=>"#ccccff"} 
+                                                when "changeover"  ### 切替作業
+                                                    {"backgroundColor"=>"#cccc99"} 
+                                                when "require"
+                                                    {"backgroundColor"=>"#cccc66"} 
+                                                when "postprocess"  ###後加工作業
+                                                    {"backgroundColor"=>"#cccc33"} 
                                                 when "ITool" ### 工具
                                                     {"backgroundColor"=>"#009900"}
                                                 else
@@ -46,7 +52,7 @@ module Api
                         case  params[:buttonflg] 
                         when "ganttchart"
                             gantt =  GanttChart::GanttClass.new(params[:buttonflg],"trns")
-                            ganttData =  gantt.proc_get_ganttchart_data(tblcode,parse_linedata["id"],params[:buttonflg])
+                            ganttData =  gantt.proc_get_ganttchart_data(tblcode,parse_linedata["id"])
                             ganttData.sort.each do |level,ganttdata|
                                 str_qty =  case ganttdata[:tblname]
                                             when /^dvs|^erc/
@@ -108,7 +114,7 @@ module Api
                             end
                         when "reversechart"
                             gantt =  GanttChart::GanttClass.new(params[:buttonflg],"trns")
-                            ganttData =  gantt.proc_get_ganttchart_data(tblcode,parse_linedata["id"],params[:buttonflg])
+                            ganttData =  gantt.proc_get_ganttchart_data(tblcode,parse_linedata["id"])
                             ganttData.sort.each do |level,ganttdata|
                                 str_qty =  case ganttdata[:tblname]
                                             when /schs/
@@ -149,7 +155,7 @@ module Api
                              raise
                         end
                     end 
-		                Rails.logger.debug " class:#{self} ,line:#{__LINE__},tasks:#{tasks} "
+		                ###Rails.logger.debug " class:#{self} ,line:#{__LINE__},tasks:#{tasks} "
                     render json: {:tasks=>tasks}   
                 when "updateNditm"
                     reqparams = params.dup

@@ -153,19 +153,25 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
 
           case "ganttchart":
                   if(typeof(params.index)==="number"){
-                      params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"ganttchart",screenFlg:ownProps.screenFlg}
-                      if(ownProps.screenFlg==="first"){return  dispatch(GanttChartRequest(params))}
-                        else{alert("GanttChart not support second screen  ")}
+                      if(params.index < 0){alert("please select")}
+                      else{
+                        params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"ganttchart",screenFlg:ownProps.screenFlg}
+                          if(ownProps.screenFlg==="first"){return  dispatch(GanttChartRequest(params))}
+                          else{alert("GanttChart not support second screen  ")}
+                        }
                      }//
                   else{alert("please select")}  
                   break
 
           case "reversechart":
                     if(typeof(params.index)==="number"){
+                      if(params.index < 0){alert("please select")}
+                      else{
                               params= { ...params,linedata:data[params.index],viewMode:"Day",buttonflg:"reversechart",}
                               if(ownProps.screenFlg==="first"){return  dispatch(GanttChartRequest(params,auth))}
                               else{alert("GanttChart not support second screen  ")} 
                             }//
+                      }
                     else{alert("please select")}
                     
           case "MkPackingListNo"://

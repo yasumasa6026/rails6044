@@ -471,9 +471,9 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     gantt["tblname"] = nd["prdpur"] + "schs"
                                     gantt["itms_id_trn"] = nd["itms_id"]
                                     gantt["processseq_trn"] = nd["processseq"]
-                                    gantt["shelfnos_id_trn"] = nd["shelfnos_id_opeitm"]
+                                    gantt["shelfnos_id_trn"] = nd["shelfnos_id"]
                                     gantt["consumtype"] = (nd["consumtype"]||="CON")
-                                    gantt["shelfnos_id_to_trn"] = nd["shelfnos_id_to_opeitm"]
+                                    gantt["shelfnos_id_to_trn"] = nd["shelfnos_id_to"]
                                     gantt["duedate_trn"] = command_c["#{gantt["tblname"].chop}_duedate"]
                                     gantt["toduedate_trn"] = command_c["#{gantt["tblname"].chop}_toduedate"]
                                     gantt["qty_require"] = qty_require
@@ -502,13 +502,13 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     end
                                 else  ###
                                     nd["opeitms_id"] = 0
-                                    nd["shelfnos_id_opeitm"] = 0
-                                    nd["shelfnos_id_opeitm"] = 0
-                                    nd["locas_id_shelfno_to"] = 0
-                                    nd["locas_id_shelfno"] = 0
+                                    nd["shelfnos_id"] = 0
+                                    nd["shelfnos_id"] = 0
+                                    nd["locas_id_to"] = 0
+                                    nd["locas_id"] = 0
                                     case nd["classlist_code"]
                                     when "apparatus"  ###
-                                         dvsParams = setParams
+                                         dvsParams = setParams.dup
                                          dvsParams["gantt"] = gantt.dup
                                          dvsParams["child"] = nd.dup
                                          dvsParams["gantt"] = gantt.dup
@@ -542,8 +542,8 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         command_c = blk.command_init
                                         nd["prdpur"] = "dym"
                                         gantt["tblname"] = 'dymschs'
-                                        nd["locas_id_shelfno"] = 0 
-                                        nd["locas_id_shelfno_to"] = 0
+                                        nd["locas_id"] = 0 
+                                        nd["locas_id_to"] = 0
                                         command_c,qty_require = add_update_prdpur_table_from_nditm(nd,parent,tblname,command_c)  ###tblname -->paretblname
                                         command_c["dymsch_itm_id_dym"] = nd["itms_id"]
                                         command_c["dymsch_shelfno_id"] = 0
@@ -712,8 +712,8 @@ class CreateOtherTableRecordJob < ApplicationJob
                             child = {"itms_id_nditm" => gantt["itms_id_trn"],"processseq_nditm" => gantt["processseq_trn"] ,
                                     "opeitms_id"=> tbldata["opeitms_id"],
                                     "parenum" => 1,"chilnum" => 1,"qty_sch" => qty_sch, 
-                                    "locas_id_shelfno" => opeitm["locas_id_shelfno"],"shelfnos_id_opeitm" => opeitm["shelfnos_id_opeitm"], 
-                                    "locas_id_shelfno_to" => opeitm["locas_id_shelfno_to"],"shelfnos_id_to" => opeitm["shelfnos_id_to_opeitm"],  
+                                    "locas_id" => opeitm["locas_id_shelfno"],"shelfnos_id" => opeitm["shelfnos_id_opeitm"], 
+                                    "locas_id_to" => opeitm["locas_id_shelfno_to"],"shelfnos_id_to" => opeitm["shelfnos_id_to_opeitm"],  
                                     "consumunitqty" => 1,"consumminqty" => 0,"consumchgoverqty" => 0}
                             child.merge!(setParams["opeitm"])
                             blk = RorBlkCtl::BlkClass.new("r_"+ setParams["opeitm"]["prdpur"]+"schs")
@@ -727,7 +727,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                             setParams = blk.proc_private_aud_rec(setParams,command_c)   
                             result_f = '1'
                             if !last_lotstks.empty?
-                              Rails.logger.debug"class #{self},line:#{__LINE__} , last_lotstks: #{last_lotstks} "
                               add_update_lotstkhists(last_lotstks,params["person_id_upd"])
                             end
                     else  
@@ -796,6 +795,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                 parent.delete("qty") 
                 parent.delete("amt") 
             end
+			  Rails.logger.debug " class:#{self} ,line:#{__LINE__} \n nd:#{nd} "
 		    command_c,qty_require,err = CtlFields.proc_schs_fields_making(nd,parent,command_init)
 		    return command_c,qty_require,err
     end
@@ -1214,7 +1214,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                       "qty_sch" => 0,"qty" => last_lotstk["qty_src"],
                       "lotno" => "","packno" => ""})
               tmptbls << temp
-					 Rails.logger.debug " calss:#{self},line:#{__LINE__},tmptbls:#{tmptbls}"
             when /purreplyinputs/
               temp.merge!({"starttime" => rec["replaydate"].to_time.strftime("%Y-%m-%d %H:%M:%S"),"shelfnos_id" => rec["shelfnos_id_to"],
                         "qty" => last_lotstk["qty_src"],"qty_stk" => 0, "qty_real" => 0,

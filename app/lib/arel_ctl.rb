@@ -153,8 +153,7 @@ module ArelCtl
 						sym_packno = "prdrsltinput_packno"
 				else
 					 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{fmtbl}"
-					 Rails.logger.debug " calss:#{self},line:#{__LINE__},create table not support table:#{totbl}"
-					 raise
+					 raise " calss:#{self},line:#{__LINE__},create table not support table:#{totbl}"
 				end
 				packqty = fmcommand_c["opeitm_packqty"].to_f
 				fmcommand_c["opeitm_packno_proc"] = 0 if packqty <= 0  ###保険　画面でチェック済
@@ -709,74 +708,89 @@ module ArelCtl
 
  	def proc_nditmSql(opeitms_id)  
         %Q%
-            select pare.processseq processseq_pare,pare.packqty packqty_pare,pare.id opeitms_id_pare,
-				        pare.duration duration_pare,pare.unitofduration unitofduration,nditm.unitofdvs,
-				        nditm.itms_id_nditm itms_id,  ---itms_id = itms_id_nditm
+            select pare.itms_id itms_id_pare,pare.processseq processseq_pare,pare.priority priority_pare,
+                pare.packqty packqty_pare,pare.id opeitms_id_pare,pare.locas_id_pare locas_id_pare,
+                pare.shelfnos_id_opeitm shelfnos_id_pare,pare.shelfnos_id_to_opeitm shelfnos_id_to_pare,
+				        ope.duration ,ope.unitofduration ,ope.consumauto,
+               		COALESCE(ope.id,'0') opeitms_id,ope.packno_proc,
+               	COALESCE(ope.prdpur,'xxx') prdpur,ope.units_id_case_shp,itm.units_id,
+               	ope.locas_id ,ope.locas_code,ope.loca_name,ope.shelfnos_id,  ---子部品作業場所
+               	ope.locas_id_to ,ope.locas_code_to,ope.loca_name_to,ope.shelfnos_id_to,   ---子部品保管場所
+                nditm.unitofdvs, nditm.itms_id_nditm itms_id,  ---itms_id = itms_id_nditm
                	nditm.processseq_nditm processseq,ope.packqty,
+                ope.priority,    ---代替がある場合は、複数個発生
               	nditm.consumtype,nditm.parenum,nditm.chilnum,
                	nditm.consumunitqty,nditm.consumminqty,nditm.consumchgoverqty,
-               	ope.id opeitms_id,ope.packno_proc,
-               	ope.prdpur,ope.units_id_case_shp,itm.units_id,
-               	ope.locas_id_shelfno locas_id_shelfno,ope.shelfnos_id_opeitm,  ---子部品作業場所
-               	ope.locas_id_shelfno_to locas_id_shelfno_to,ope.shelfnos_id_to_opeitm,   ---子部品保管場所
-			   	ope.consumauto,
-			   	nditm.durationfacility ,nditm.requireop,nditm.changeoverlt,nditm.changeoverop,
-			   	nditm.postprocessinglt,nditm.postprocessingop,
-			    itm.taxflg, itm.classlist_code,itm.itm_code_nditm,itm.itm_name_nditm,
-				nditm.packqtyfacility,
-				case pare.duration
-				when null then 
-					1
-				else
-					pare.duration
-				end duration
-           from nditms nditm 
-				inner join opeitms pare on pare.id = nditm.opeitms_id
-        inner join (select i.id,i.taxflg,i.units_id,c.code classlist_code,i.code itm_code_nditm,i.name itm_name_nditm,
+			   	      nditm.durationfacility ,nditm.requireop,nditm.changeoverlt,nditm.changeoverop,
+			   	      nditm.postprocessinglt,nditm.postprocessingop,
+			          itm.taxflg, itm.classlist_code,itm.itm_code_nditm,itm.itm_name_nditm,
+				        nditm.packqtyfacility,null reverse
+            from nditms nditm 
+				    inner join (select p.*,s.locas_id_shelfno locas_id_pare from  opeitms p
+                              inner join shelfnos s on p.shelfnos_id_opeitm = s.id) pare  on pare.id = nditm.opeitms_id
+            inner join (select i.id,i.taxflg,i.units_id,c.code classlist_code,i.code itm_code_nditm,i.name itm_name_nditm,
 								i.units_id itm_unit_id
 			   					from itms i 
 				          inner join classlists c on i.classlists_id = c.id ) itm on itm.id = nditm.itms_id_nditm 
-        left join (select o.*,s.locas_id_shelfno locas_id_shelfno,xto.locas_id_shelfno locas_id_shelfno_to
+            left join (select o.*,
+                            s.locas_id,s.locas_code,s.loca_name,s.shelfnos_id,
+                            xto.locas_id_to,xto.locas_code_to,xto.loca_name_to,xto.shelfnos_id_to
                            from opeitms o 
-                           inner join shelfnos s on o.shelfnos_id_opeitm = s.id
-                           inner join shelfnos xto on o.shelfnos_id_to_opeitm = xto.id
-						   where  o.priority = 999) ope ---完成後の移動場所から親の場所に
+                           inner join (select l1.id locas_id,l1.code locas_code,l1.name loca_name,s1.id shelfnos_id
+                                          from shelfnos s1
+                                          inner join locas l1  on s1.locas_id_shelfno = l1.id)s on o.shelfnos_id_opeitm = s.shelfnos_id
+                           inner join  (select l2.id locas_id_to,l2.code locas_code_to,l2.name loca_name_to,s2.id shelfnos_id_to
+                                          from shelfnos s2
+                                          inner join locas l2  on s2.locas_id_shelfno = l2.id)xto on o.shelfnos_id_to_opeitm = xto.shelfnos_id_to
+						                            ---where  o.priority = 999　　 ---代替がある場合は、複数個発生
+                  ) ope ---完成後の移動場所から親の場所に
                    on  ope.itms_id = nditm.itms_id_nditm  and ope.processseq = nditm.processseq_nditm
                    where nditm.expiredate > current_date and nditm.opeitms_id = #{opeitms_id} 
-			order by itm.classlist_code,itm.itm_code_nditm 
+			        order by itm.classlist_code,itm.itm_code_nditm 
         %  
 	end
     	
-	def proc_reverse_nditmSql(itms_id,processseq)  
+	def proc_reverse_nditmSql(itms_id_pare,processseq_pare)  
 			%Q%
-				select ope.opeitm_processseq processseq_pare,ope.opeitm_packqty packqty_pare,
-					ope.opeitm_duration duration_pare,ope.opeitm_unitofduration unitofduration,
-					ope.opeitm_itm_id itms_id,ope.itm_name,
-					nditm.itms_id_nditm,  ---itms_id = itms_id_nditm
-				   	nditm.processseq_nditm processseq,ope.opeitm_packqty,
-				   	nditm.consumtype,nditm.parenum,nditm.chilnum,
-				   	nditm.consumunitqty,nditm.consumminqty,nditm.consumchgoverqty,
-				   	ope.id opeitms_id,ope.opeitm_prdpur prdpur,ope.opeitm_packno_proc packno_proc,
-				   	ope.opeitm_unit_id_case_shp units_id_case_shp,ope.itm_unit_id unit_id,
-				   	ope.shelfno_loca_id_shelfno_opeitm locas_id_shelfno,ope.opeitm_shelfno_id_opeitm,  ---子部品作業場所
-				   	ope.opeitm_shelfno_id_to_opeitm shelfnos_id_to_opeitm,   ---子部品保管場所
-				   	ope.opeitm_consumauto,ope.shelfno_code_opeitm,ope.shelfno_name_opeitm,
-					ope.itm_taxflg taxflg, '' classlist_code ,ope.itm_code,ope.itm_name,
-					ope.loca_code_shelfno_opeitm,ope.loca_name_shelfno_opeitm,
-					nditm.packqtyfacility,nditm.changeoverlt,
-					case ope.opeitm_duration
-					when null then 
-						1
-					else
-						ope.opeitm_duration
-					end duration
-			   from nditms nditm  
-				inner join r_opeitms ope ---完成後の移動場所から親の場所に
-					   on  ope.id = nditm.opeitms_id
+             select ope.itms_id itms_id_pare,ope.processseq processseq_pare,ope.packqty packqty_pare,ope.id opeitms_id_pare,
+                ope.shelfnos_id_opeitm shelfnos_id_pare,ope.shelfnos_id_to_opeitm shelfnos_id_to_pare,
+				        ope.duration ,ope.unitofduration ,ope.consumauto,
+               	ope.id opeitms_id,ope.packno_proc,
+               	COALESCE(ope.prdpur,'xxx') prdpur,ope.units_id_case_shp,itm.units_id,
+               	ope.locas_id ,ope.locas_code,ope.locas_name,ope.shelfnos_id,  ---子部品作業場所
+               	ope.locas_id_to ,ope.locas_code_to,ope.locas_name_to,ope.shelfnos_id_to,   ---子部品保管場所
+                nditm.unitofdvs, ope.itms_id itms_id,  ---
+               	ope.processseq processseq,ope.packqty,
+              	nditm.consumtype,nditm.parenum,nditm.chilnum,
+               	nditm.consumunitqty,nditm.consumminqty,nditm.consumchgoverqty,
+			   	      nditm.durationfacility ,nditm.requireop,nditm.changeoverlt,nditm.changeoverop,
+			   	      nditm.postprocessinglt,nditm.postprocessingop,
+			          ope.taxflg, ope.classlist_code,ope.itm_code_nditm,ope.itm_name_nditm,
+				        nditm.packqtyfacility,'true' reverse
+           from nditms nditm 
+        inner join (select i.id itms_id,i.taxflg,i.units_id,c.code classlist_code,i.code itm_code_nditm,i.name itm_name_nditm,
+								            i.units_id itm_unit_id,o.id opeitms_id,o.processseq,o.packqty
+			   					from itms i 
+                  inner join opeitms o on i.id = o.itms_id
+				          inner join classlists c on i.classlists_id = c.id ) itm on itm.opeitms_id = nditm.opeitms_id 
+        inner join (select o.*,itm.code itm_code_nditm, itm.name itm_name_nditm,itm.taxflg,
+                            s.locas_id,s.locas_code,s.locas_name,s.shelfnos_id,itm.classlist_code ,
+                            xto.locas_id_to,xto.locas_code_to,xto.locas_name_to,xto.shelfnos_id_to
+                           from opeitms o 
+                           inner join (select l1.id locas_id,l1.code locas_code,l1.name locas_name,s1.id shelfnos_id
+                                          from shelfnos s1
+                                          inner join locas l1  on s1.locas_id_shelfno = l1.id)s on o.shelfnos_id_opeitm = s.shelfnos_id
+                           inner join  (select l2.id locas_id_to,l2.code locas_code_to,l2.name locas_name_to,s2.id shelfnos_id_to
+                                          from shelfnos s2
+                                          inner join locas l2  on s2.locas_id_shelfno = l2.id)xto on o.shelfnos_id_to_opeitm = xto.shelfnos_id_to
+						                            ---where  o.priority = 999
+                          inner join (select itm.*,c.code classlist_code from itms itm 
+                                        inner join classlists c on c.id = itm.classlists_id) itm on itm.id = o.itms_id
+                    ) ope ---完成後の移動場所から親の場所に
+                   on  ope.id = nditm.opeitms_id
 				where nditm.expiredate > current_date 
-					   and nditm.itms_id_nditm = #{itms_id}  and nditm.processseq_nditm = #{processseq}
-					   ---and nditm.itms_id_nditm = 0  and nditm.processseq_nditm = 999 
-					   order by ope.itm_code
+					  and nditm.itms_id_nditm = #{itms_id_pare}  and nditm.processseq_nditm = #{processseq_pare}
+					   order by itm.itm_code_nditm
 			%  
 	end
 	

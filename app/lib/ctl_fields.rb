@@ -113,7 +113,7 @@ module CtlFields
 					end
 				end
 			end	
-				paragraphs.each do |fetch|  ###viewの複数keyの入力確認
+			paragraphs.each do |fetch|  ###viewの複数keyの入力確認
 					cnt += 1 
 					valOfField = params[:parse_linedata][fetch.to_sym]
 					prefix,xno,srctblnamechop = fetch.split("_") ###xxx_sno_yyyy,xxx_cno_yyy用
@@ -173,118 +173,176 @@ module CtlFields
 					end
 					if !rec.nil?  ###viewレコードあり
 						### line_data = params[:parse_linedata].dup loop 中に内容の変更はできない。 
+            fields = rec.keys
 						params[:parse_linedata].each do |key,val|  ###結果をセット
-							if key.to_s == "id"
-								line_data[:id] = line_data[(screentblnamechop+"_id").to_sym] = "" if params[:parse_linedata][:aud] =~ /add|insert/
-								next
-							end 
-							next if key.to_s =~ /person.*upd/  
-							###画面の項目を分解　tableName.chop_fieldName(_delm),viewtblnamechop.fieldName(_delm),tableName.chop_viewtblnamechop_id(_dlem)
-							items = key.to_s.split("_")
+							# if key.to_s == "id"
+							# 	line_data[:id] = line_data[(screentblnamechop+"_id").to_sym] = "" if params[:parse_linedata][:aud] =~ /add|insert/
+							# 	next
+							# end 
+							# next if key.to_s =~ /person.*upd/  
+							# ###画面の項目を分解　tableName.chop_fieldName(_delm),viewtblnamechop.fieldName(_delm),tableName.chop_viewtblnamechop_id(_dlem)
+							# items = key.to_s.split("_")
+							# if delm != ""
+							# 	next if key.to_s !~ /#{delm}$/  ###同一viewでkeyが異なる。
+							# 	field = key.to_s.sub(delm,"")
+							# else
+							# 	field = key.to_s
+							# end
+							# if key.to_s =~ /_id/
+							# 	if delm == ""
+							# 		other_tbl_key = (screentblnamechop+"_"+viewtblnamechop+"_id").to_sym
+							# 		other_tbl_key_grid = (screentblnamechop+"_"+viewtblnamechop+"_id_gridmessage").to_sym
+							# 	else
+							# 		other_tbl_key = (screentblnamechop+"_"+viewtblnamechop+"_id_"+delm).to_sym
+							# 		other_tbl_key_grid = (screentblnamechop+"_"+viewtblnamechop+"_id_"+delm+"_gridmessage").to_sym
+							# 	end
+							# 	if line_data[other_tbl_key]
+							# 		if rec[viewtblnamechop+"_id"]
+							# 			line_data[other_tbl_key] = rec[viewtblnamechop+"_id"]
+							# 			line_data[other_tbl_key_grid] = "deteted"
+							# 		end
+							# 	end
+							# end
+							# if rec[field]  ###id,sno,cnoから求められた同一項目を画面にセットする。
+							# 	field_gridmessage = (key.to_s + "_gridmessage").to_sym
+							# 	next if line_data[field_gridmessage] == "ok"  or line_data[field_gridmessage] == "deteted"    ###手入力あり
+							# 	line_data[key] =  rec[field]  
+							# 	###end
+							# 	###自動セット項目 onblurfunc.js 参照(tableをgetしないとき利用)
+							# 	### qty,qty_stkの修正のため	nextしない。
+							# else
+							#  	### sno,cnoからデータを求めた時は同一項目でなくてもdelmが同じであればセットする。
+							# 	if items[0] == screentblnamechop
+							# 		if items[1] == viewtblnamechop 
+							# 			if items[2]  == "id"
+							#  				if rec["#{field.sub("#{screentblnamechop}_","")}"]  ###r_opeitms ==>opeitm_id
+							#  					line_data[key]  = rec["#{field.sub("#{screentblnamechop}_","")}"]	
+							# 				end
+							# 			end
+							# 		else ###項目の引継ぎ  purord_opeitm_xxx => puract_opeitm_xxx
+							# 			if (val == ""  or val.nil? or val.to_s == "0" ) 
+							# 				next if field =~ /_sno$|_cno$|_gno$|_isudate|_created_at|_updated_at|_remark|_contents|_seqno/
+							# 				if rec["#{field.sub(/^#{screentblnamechop}/,"#{viewtblnamechop}")}"]  
+							# 					line_data[key]  = rec["#{field.sub(/^#{screentblnamechop}/,"#{viewtblnamechop}")}"]  
+							# 				end
+							# 			end
+							# 		end
+							# 	end
+							# end
 							if delm != ""
-								next if key.to_s !~ /#{delm}$/  ###同一viewでkeyが異なる。
-								field = key.to_s.sub(delm,"")
+							 	next if key.to_s !~ /#{delm}$/  ###同一viewでkeyが異なる。shelfnos_id_fm shelfnos_id_to
+							 	field = key.to_s.sub(delm,"")
 							else
-								field = key.to_s
+							 	field = key.to_s
 							end
-							if key.to_s =~ /_id/
-								if delm == ""
-									other_tbl_key = (screentblnamechop+"_"+viewtblnamechop+"_id").to_sym
-									other_tbl_key_grid = (screentblnamechop+"_"+viewtblnamechop+"_id_gridmessage").to_sym
-								else
-									other_tbl_key = (screentblnamechop+"_"+viewtblnamechop+"_id_"+delm).to_sym
-									other_tbl_key_grid = (screentblnamechop+"_"+viewtblnamechop+"_id_"+delm+"_gridmessage").to_sym
-								end
-								if line_data[other_tbl_key]
-									if rec[viewtblnamechop+"_id"]
-										line_data[other_tbl_key] = rec[viewtblnamechop+"_id"]
-										line_data[other_tbl_key_grid] = "deteted"
-									end
-								end
-							end
-							if rec[field]  ###id,sno,cnoから求められた同一項目を画面にセットする。
-								field_gridmessage = (key.to_s + "_gridmessage").to_sym
-								next if line_data[field_gridmessage] == "ok"  or line_data[field_gridmessage] == "deteted"    ###手入力あり
-								###if line_data[key].nil? or line_data[key] == "" or line_data[key].to_s == "0"   ###rec:検索結果
-								line_data[key] =  rec[field]  
-								###end
-								###自動セット項目 onblurfunc.js 参照(tableをgetしないとき利用)
-								### qty,qty_stkの修正のため	nextしない。
-							else
-							 	### sno,cnoからデータを求めた時は同一項目でなくてもdelmが同じであればセットする。
-								if items[0] == screentblnamechop
-									if items[1] == viewtblnamechop 
-										if items[2]  == "id"
-							 				if rec["#{field.sub("#{screentblnamechop}_","")}"]  ###r_opeitms ==>opeitm_id
-							 					line_data[key]  = rec["#{field.sub("#{screentblnamechop}_","")}"]	
-											end
-										end
-									else ###項目の引継ぎ  purord_opeitm_xxx => puract_opeitm_xxx
-										if (val == ""  or val.nil? or val.to_s == "0" ) 
-											next if field =~ /_sno$|_cno$|_gno$|_isudate|_created_at|_updated_at|_remark|_contents|_seqno/
-											if rec["#{field.sub(/^#{screentblnamechop}/,"#{viewtblnamechop}")}"]  
-												line_data[key]  = rec["#{field.sub(/^#{screentblnamechop}/,"#{viewtblnamechop}")}"]  
-											end
-										end
-									end
-								end
-							end
+              case key.to_s
+                when /person.*upd|_gridmessage/ 
+                    next
+                when "id" 
+                   	line_data[:id] = line_data[(screentblnamechop+"_id").to_sym] = "" if params[:parse_linedata][:aud] =~ /add|insert/
+                   	next
+                when /#{screentblnamechop}_#{viewtblnamechop}_id/
+							 		  other_tbl_key_grid = (key.to_s+"_gridmessage").to_sym
+                     			line_data[key] = rec[viewtblnamechop+"_id"] ###主キイの取得
+                     			line_data[other_tbl_key_grid] = "deteted"
+                    next
+                when /^#{screentblnamechop}.*_id/
+							 				if rec[field.sub(screentblnamechop,viewtblnamechop)]  ###r_opeitms ==>opeitm_id
+							  					line_data[key]  = rec[field.sub(screentblnamechop,viewtblnamechop)] 
+                          next
+							 				end
+                      tar_tblchop = field.split("_")[1]   ###field[0]:screentblnamechop,field[1]:target_tblchop,field[2]:id
+                      fieldkey = fields.find{|i|  i =~ /#{tar_tblchop}_id/} ###fields(recのkey配列）の中にtarget_tblchop_idがあるか？
+                      if fieldkey
+                          line_data[key] =  rec[fieldkey]  ### r_custords の　r_custrcvplcsのtransport_code対応
+                          next
+                      end
+                      next
+                when  /_sno$|_cno$|_gno$|_isudate|_created_at|_updated_at|_remark|_contents|_seqno/
+                  next
+                else
+                  if rec[field]  ###id,sno,cnoから求められた同一項目を画面にセットする。
+                    line_data[key] =  rec[field]  
+                  else ###項目の引継ぎ  purord_opeitm_xxx => puract_opeitm_xxx
+                    	if (val == ""  or val.nil? or val.to_s == "0" ) 
+                        if (screentblnamechop =~ /cust/ and viewtblnamechop =~ /cust/)  or
+                            (screentblnamechop =~ /pur/ and viewtblnamechop =~ /pur/)   or
+                             (screentblnamechop =~ /prd/ and viewtblnamechop =~ /prd/)  or
+                              (screentblnamechop =~ /itm/ and viewtblnamechop =~ /itm/)      
+                          if rec["#{field.sub(/^#{screentblnamechop}/,"#{viewtblnamechop}")}"]  
+                     					line_data[key]  = rec["#{field.sub(/^#{screentblnamechop}/,"#{viewtblnamechop}")}"]  
+                              next
+                          end
+                    		end
+                        fieldkey = fields.find{|i|  i =~ /^#{key.to_s}/} 
+                        if fieldkey
+                          line_data[key] =  rec[fieldkey]  ### r_custords の　r_custrcvplcsのtransport_code対応
+                          next
+                        end
+                      end
+                  end
+              end
 						end
+            
+            # if field =~ /#{viewtblnamechop}/
+            #     ### r_custrcvplcsのtransports_id対応
+            #       line_data[key]  = rec["#{field}"]  
+            # end
 						if fetch 	=~ /_sno_/ and (params[:parse_linedata]["aud"] == "add" or params["aud"] =~ /add/)
 							org = nil
 							case screentblnamechop
-							when /prd|pur/
-								str_srctbl_qty = "" ###次のステータスに移行していないqtyを求める。　
-								### qtyのセット
-								if  (viewtblnamechop =~ /sch$/ and screentblnamechop =~ /ord$/) 
-									if params[:parse_linedata][(screentblnamechop+"_qty").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
-										str_srctbl_qty = "max(srctbl.qty_sch) srctbl_qty"
-									end
-								end
-								if	(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /inst$/) or 
-									(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /replyinput/) or
+							  when /prd|pur/
+								  str_srctbl_qty = "" ###次のステータスに移行していないqtyを求める。　
+								  ### qtyのセット
+								  if  (viewtblnamechop =~ /sch$/ and screentblnamechop =~ /ord$/) 
+									  if params[:parse_linedata][(screentblnamechop+"_qty").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
+										  str_srctbl_qty = "max(srctbl.qty_sch) srctbl_qty"
+									  end
+								  end
+								  if	(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /inst$/) or 
+									  (viewtblnamechop =~ /ord$/ and screentblnamechop =~ /replyinput/) or
 										(viewtblnamechop =~ /inst$/ and screentblnamechop =~ /replyinput/)   
-									if params[:parse_linedata][(screentblnamechop+"_qty").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
-										str_srctbl_qty = "max(srctbl.qty) srctbl_qty"
-									end
-								end
-								if 	(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /dlv$|act$/) or 
-									(viewtblnamechop =~ /inst$/ and screentblnamechop =~ /dlv$|act$/) or
-										(viewtblnamechop =~ /replyinput$/ and screentblnamechop =~ /dlv$|act$/)   
-									if params[:parse_linedata][(screentblnamechop+"_qty_stk").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
-										str_srctbl_qty = "max(srctbl.qty) srctbl_qty"
-									end
-								end
-								if str_srctbl_qty != ""
-									strsql = %Q% select sum(link.qty_src) qty_src ,#{str_srctbl_qty}
+									  if params[:parse_linedata][(screentblnamechop+"_qty").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
+										  str_srctbl_qty = "max(srctbl.qty) srctbl_qty"
+									  end
+								  end
+								  if 	(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /dlv$|act$/) or 
+									    (viewtblnamechop =~ /inst$/ and screentblnamechop =~ /dlv$|act$/) or
+										  (viewtblnamechop =~ /replyinput$/ and screentblnamechop =~ /dlv$|act$/)   
+									    if params[:parse_linedata][(screentblnamechop+"_qty_stk").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
+										    str_srctbl_qty = "max(srctbl.qty) srctbl_qty"
+									    end
+								  end
+								  if str_srctbl_qty != ""
+									  strsql = %Q% select sum(link.qty_src) qty_src ,#{str_srctbl_qty}
 											from #{viewtblnamechop}s srctbl 
 											left join  linktbls link  on srctbl.id = link.srctblid	and link.srctblname = '#{viewtblnamechop}s'
 																		and (link.srctblname != link.tblname or link.srctblid != link.tblid)
 																		and link.tblid != '#{params[:parse_linedata][(screentblnamechop+"_id").to_sym]}' 
 											where srctbl.sno = '#{params[:parse_linedata][(screentblnamechop+"_sno_"+viewtblnamechop).to_sym]}' ---key.split("_")[1] :sno
 											group by srctbl.id
-										%  
-									org =  ActiveRecord::Base.connection.select_one(strsql)
-								end
-								next if str_srctbl_qty == ""
-							when /pay|bill/
-								str_srctbl_amt = ""
-								if 	(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /act$/) or 
-										(viewtblnamechop =~ /inst$/ and screentblnamechop =~ /act$/) 
-									if params[:parse_linedata][(screentblnamechop+"_cash").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
-										str_srctbl_amt = "max(srctbl.amt) srctbl_amt"
-									end
-								end
-								if str_srctbl_amt != ""
-									strsql = %Q% select sum(link.amt_src) amt_src ,#{str_srctbl_amt}
+										  %  
+									    org =  ActiveRecord::Base.connection.select_one(strsql)
+								  end
+								  next if str_srctbl_qty == ""
+							  when /pay|bill/
+								  str_srctbl_amt = ""
+								  if 	(viewtblnamechop =~ /ord$/ and screentblnamechop =~ /act$/) or 
+									  	(viewtblnamechop =~ /inst$/ and screentblnamechop =~ /act$/) 
+									    if params[:parse_linedata][(screentblnamechop+"_cash").to_sym].to_s == "0"   ###初期値でzeroがセットされていること
+										    str_srctbl_amt = "max(srctbl.amt) srctbl_amt"
+									    end
+								  end
+								  if str_srctbl_amt != ""
+									  strsql = %Q% select sum(link.amt_src) amt_src ,#{str_srctbl_amt}
 											from #{viewtblnamechop}s srctbl 
 											left join  srctbllinks link  on srctbl.id = link.srctblid	and link.srctblname = '#{viewtblnamechop}s'
 																		and (link.srctblname != link.tblname or link.srctblid != link.tblid)
 											where srctbl.sno = '#{params[:parse_linedata][(screentblnamechop+"_sno_"+viewtblnamechop).to_sym]}' ---key.split("_")[1] :sno
 											group by srctbl.id
-										%  
-									org =  ActiveRecord::Base.connection.select_one(strsql)
-								end
+										  %  
+									  org =  ActiveRecord::Base.connection.select_one(strsql)
+								  end
 							end
 						end
 						if fetch 	=~ /_cno_/ and (params[:parse_linedata]["aud"] == "add" or params["aud"] =~ /add/)
@@ -331,43 +389,43 @@ module CtlFields
 						end
 						if org	
 							case screentblnamechop
-							when /prd|pur/
-								###既に状態が変化しているかチェック
-								if org["qty_src"].to_f >= org["srctbl_qty"].to_f 
-									params[:err] =  "error 4 1--->over qty  line:#{params[:index]} "
-									case screentblnamechop
-									when /ord$|inst$|replyinput/
-										line_data[(screentblnamechop+"_qty_gridmessage").to_sym] =  "error 4 2--->over qty"
-									when /dlv$|act$/
-										line_data[(screentblnamechop+"_qty_stk_gridmessage").to_sym] =  "error 4 3 --->over qty"
-									end
-								else
-									params[:err] =  nil
-									case screentblnamechop
-									when /ord$|inst$|replyinput/
-										line_data[(screentblnamechop+"_qty").to_sym] = org["srctbl_qty"].to_f   - org["qty_src"].to_f  
-									when /dlv$|act$/
-										line_data[(screentblnamechop+"_qty_stk").to_sym] =  org["srctbl_qty"].to_f   - org["qty_src"].to_f
-									end
-								end
-							when /pay|bill/
-								if org["amt_src"].to_f >= org["srctbl_amt"].to_f 
-									params[:err] =  "error 4 1--->over cash  line:#{params[:index]} "
-									case screentblnamechop
-									when /inst$/
-										line_data[(screentblnamechop+"_amt_gridmessage").to_sym] =  "error 4 3 --->over cash"
-									when /act$/
-										line_data[(screentblnamechop+"_cash_gridmessage").to_sym] =  "error 4 3 --->over cash"
-									end
-								else
-									params[:err] =  nil
-									case screentblnamechop
-									when /inst$/
-										line_data[(screentblnamechop+"_amt").to_sym] = org["srctbl_amt"].to_f   - org["amt_src"].to_f  
-									when /act$/
-										line_data[(screentblnamechop+"_cash").to_sym] =  org["srctbl_amt"].to_f   - org["amt_src"].to_f
-									end
-								end
+							  when /prd|pur/
+								  ###既に状態が変化しているかチェック
+								  if org["qty_src"].to_f >= org["srctbl_qty"].to_f 
+									  params[:err] =  "error 4 1--->over qty  line:#{params[:index]} "
+									  case screentblnamechop
+									    when /ord$|inst$|replyinput/
+										    line_data[(screentblnamechop+"_qty_gridmessage").to_sym] =  "error 4 2--->over qty"
+									    when /dlv$|act$/
+										  line_data[(screentblnamechop+"_qty_stk_gridmessage").to_sym] =  "error 4 3 --->over qty"
+									  end
+								  else
+									  params[:err] =  nil
+									  case screentblnamechop
+									    when /ord$|inst$|replyinput/
+										    line_data[(screentblnamechop+"_qty").to_sym] = org["srctbl_qty"].to_f   - org["qty_src"].to_f  
+									    when /dlv$|act$/
+										    line_data[(screentblnamechop+"_qty_stk").to_sym] =  org["srctbl_qty"].to_f   - org["qty_src"].to_f
+									  end
+								  end
+							  when /pay|bill/
+								  if org["amt_src"].to_f >= org["srctbl_amt"].to_f 
+									  params[:err] =  "error 4 1--->over cash  line:#{params[:index]} "
+									  case screentblnamechop
+									    when /inst$/
+										    line_data[(screentblnamechop+"_amt_gridmessage").to_sym] =  "error 4 3 --->over cash"
+									    when /act$/
+										    line_data[(screentblnamechop+"_cash_gridmessage").to_sym] =  "error 4 3 --->over cash"
+									  end
+                  end
+              end
+						else
+							params[:err] =  nil
+							case screentblnamechop
+								when /inst$/
+										  line_data[(screentblnamechop+"_amt").to_sym] = org["srctbl_amt"].to_f   - org["amt_src"].to_f  
+								when /act$/
+										  line_data[(screentblnamechop+"_cash").to_sym] =  org["srctbl_amt"].to_f   - org["amt_src"].to_f
 							end
 						end	
 						# if screentblnamechop != viewtblnamechop ### omit self table
@@ -377,15 +435,15 @@ module CtlFields
 						case screentblnamechop ###masterの規定値をset
 						when /^custsch|^custord/
 							case  fetchview
-							when /custs$/
-								if line_data[:crr_code].nil? or line_data[:crr_code] == ""
-									line_data[:crr_code] = rec["crr_code_bill_cust"]
-									line_data[:crr_name] = rec["crr_name_bill_cust"]
-									line_data[:custord_crr_id] = rec["bill_crr_id_bill_cust"]
-								end
-								if line_data[:custord_contractprice].nil? or line_data[:custord_contractprice] == ""
-									line_data[:custord_contractprice] = rec["cust_contractprice"]
-								end
+							# when /custs$/
+							# 	if line_data[:crr_code].nil? or line_data[:crr_code] == ""
+							# 		line_data[:crr_code] = rec["crr_code_bill_cust"]
+							# 		line_data[:crr_name] = rec["crr_name_bill_cust"]
+							# 		line_data[:custord_crr_id] = rec["bill_crr_id_bill_cust"]
+							# 	end
+							# 	if line_data[:custord_contractprice].nil? or line_data[:custord_contractprice] == ""
+							# 		line_data[:custord_contractprice] = rec["cust_contractprice"]
+							# 	end
 							when  /opeitms$/ 
 								if line_data[:shelfno_code_fm] == "" or line_data[:shelfno_code_fm].nil? 
 								   line_data[:loca_code_shelfno_fm] = rec["loca_code_shelfno_to_opeitm"]  ###opeitm.shelfno_code_to_opeitm 完成後の置き場所゜
@@ -395,28 +453,28 @@ module CtlFields
 								   line_data["#{screentblnamechop}_shelfno_id_fm".to_sym] = rec["opeitm_shelfno_id_to_opeitm"]  ###opeitm.shelfno_code_to_opeitm 完成後の置き場所゜
 									###custord.shelfno_code_fm 客先への出荷のための梱包場所
 								end
-							end
-						when /^custacthead/
-							case  fetchview
-							  when /custs$/
-								  if line_data[:loca_code_bill].nil? or line_data[:loca_code_bill] == ""
-									  line_data[:loca_code_bill] = rec["loca_code_bill_cust"]
-									  line_data[:loca_name_bill] = rec["loca_name_bill_cust"]
-									  line_data[:custacthead_bill_id] = rec["cust_bill_id_cust"]
-								  end
-								  if line_data[:crr_code_bill].nil? or line_data[:crr_code_bill] == ""
-									  line_data[:crr_code_bill] = rec["crr_code_bill_cust"]
-									  line_data[:crr_name_bill] = rec["crr_name_bill_cust"]
-								  end
-							  when /bills$/
-									line_data[:loca_code_bill] = rec["loca_code_bill"]
-									line_data[:loca_name_bill] = rec["loca_name_bill"]
-									line_data[:custacthead_bill_id] = rec["bill_id"]
-                  
-									line_data[:crr_code_bill] = rec["crr_code_bill"]
-									line_data[:crr_name_bill] = rec["crr_name_bill"]
               end
-						end
+            end
+						# when /^custacthead/
+						# 	case  fetchview
+						# 	  when /custs$/
+						# 		  if line_data[:loca_code_bill].nil? or line_data[:loca_code_bill] == ""
+						# 			  line_data[:loca_code_bill] = rec["loca_code_bill_cust"]
+						# 			  line_data[:loca_name_bill] = rec["loca_name_bill_cust"]
+						# 			  line_data[:custacthead_bill_id] = rec["cust_bill_id_cust"]
+						# 		  end
+						# 		  if line_data[:crr_code_bill].nil? or line_data[:crr_code_bill] == ""
+						# 			  line_data[:crr_code_bill] = rec["crr_code_bill_cust"]
+						# 			  line_data[:crr_name_bill] = rec["crr_name_bill_cust"]
+						# 		  end
+						# 	  when /bills$/
+						# 			line_data[:loca_code_bill] = rec["loca_code_bill"]
+						# 			line_data[:loca_name_bill] = rec["loca_name_bill"]
+						# 			line_data[:custacthead_bill_id] = rec["bill_id"]
+                  
+						# 			line_data[:crr_code_bill] = rec["crr_code_bill"]
+						# 			line_data[:crr_name_bill] = rec["crr_name_bill"]
+            #   end
 					else
 						findstatus = false
 						##再入力時のNgに対応	
@@ -430,7 +488,7 @@ module CtlFields
 						else
 						end
 					end
-        end
+      end
 			return line_data,keys,findstatus,mainviewflg,missing
 	end		
 
@@ -823,9 +881,9 @@ module CtlFields
 		tblnamechop = screenCode.split("_")[1].chop
 		parent = {"starttime" => line_data[(tblnamechop+"_starttime").to_sym],"duedate" => line_data[(tblnamechop+"_duedate").to_sym]}
 		nd = {"duration" => line_data["opeitm_duration".to_sym],"unitofduration" => line_data[:opeitm_unitofduration],"locas_id_shelfno" => 0 }
-		line_data = proc_field_starttime(tblnamechop,line_data.stringify_keys,parent,nd)
+		line_data,message =  proc_field_starttime(tblnamechop,line_data.stringify_keys,parent,nd)
 		###return line_data.symbolize_keys,err
-		return line_data,err
+		return line_data,message
 	end
 	
 	def proc_judge_check_supplierprice line_data,item,index,screenCode  ###M
@@ -1551,6 +1609,7 @@ module CtlFields
 	def proc_schs_fields_making nd,parent,command_x  ###xxxschsの作成のみ
 		err = false
 		qty_require = 0
+    message = ""
 		nd["packqty"] =  if nd["packqty"].to_f == 0
 									1
 								else
@@ -1580,16 +1639,17 @@ module CtlFields
 				end
 			when "opeitms_id"
 				command_x = field_opeitms_id(tblnamechop,command_x,nd)
-			# when "shelfnos_id"  ###payments_idを含む
-			# 	command_x = field_shelfnos_id(tblnamechop,command_x,nd)
-			when "starttime"  ###稼働日計算  seqno.starttime > seqno.duedate
-				command_x = proc_field_starttime(tblnamechop,command_x,parent,nd)  ###qty_schで計算でする為
+			when "starttime"  ###稼働日計算  seqno.starttime > seqno.duedate > seqno.opeitms_id
+				command_x,message = proc_field_starttime(tblnamechop,command_x,parent,nd)  ###qty_schで計算でする為
+        Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x}\n parent:#{parent}  " if (nd["opeitms_id"]||="0") == "10007"
 			when "depdate"  ###稼働日計算  seqno.starttime > seqno.duedate   ##shpxxxはmold,ITool以外は作成しない
 				case tblnamechop
 				when "shpest"
-					command_x = proc_field_starttime(tblnamechop,command_x,parent,nd)  ###qty_schで計算でする為
+					command_x,message = proc_field_starttime(tblnamechop,command_x,parent,nd)  ###qty_schで計算でする為
 				else
 				end
+			when "shelfnos_id" 
+				command_x = field_shelfnos_id(tblnamechop,command_x,nd)
 			when "shelfnos_id_to"
 				command_x = field_shelfnos_id_to(tblnamechop,command_x,nd)
 			when "chrgs_id"
@@ -1597,7 +1657,9 @@ module CtlFields
 			when "fcoperators_id"
 				command_x = proc_field_fcoperators_id(tblnamechop,command_x,parent,nd) 
 			when "duedate"  ###稼働日計算
-				command_x = proc_field_duedate(tblnamechop,command_x,parent,nd)
+        Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x}\n parent:#{parent} " if (nd["opeitms_id"]||="0") == "10007"
+				command_x,message = proc_field_duedate(tblnamechop,command_x,parent,nd)
+        Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x}\n parent:#{parent}  " if (nd["opeitms_id"]||="0") == "10007"
 			when "endtime"  
 				###command_x = field_endtime(tblnamechop,command_x,nd,parent)
 			when "toduedate"  ###稼働日計算
@@ -1646,35 +1708,19 @@ module CtlFields
 	def field_opeitms_id tblnamechop,command_x,nd
 		key = tblnamechop + "_opeitm_id" 
 		command_x[key] = nd["opeitms_id"]  ###  
-		nd.each do |fld,val|
-			case fld
-			when /processseq/
-				command_x["opeitm_processseq"] = val
-			when /priority/
-				command_x["opeitm_priority"] = val
-			when /shelfnos_id_opeitm/
-				locas_id = ActiveRecord::Base.connection.select_value(%Q&select locas_id_shelfno from shelfnos where id = #{val}&)				
-				case  tblnamechop 
-				when /^pur/
-					supplier = ActiveRecord::Base.connection.select_one(%Q&select * from suppliers where locas_id_supplier = #{locas_id}&)
-					command_x["#{tblnamechop}_supplier_id"] = supplier["id"]
-					command_x["#{tblnamechop}_contractprice"] = supplier["contractprice"]
-					command_x["supplier_amtround"] = supplier["amtround"]
-					command_x["#{tblnamechop}_crr_id"] = supplier["crrs_id_supplier"]
-				when /^prd/
-					command_x["shelfno_loca_id_shelfno"] = locas_id
-					command_x["#{tblnamechop}_shelfno_id"] = nd["shelfnos_id_opeitm"] ##
-				else
-					command_x["#{tblnamechop}_shelfno_id"] = nd["shelfnos_id_opeitm"] ##
-				end
-			when /itms_id/
-				command_x["opeitm_itm_id"] = val
-			when /taxflg/		
-				case  tblnamechop 
-				when /^pur/
-					command_x["itm_taxflg"] = nd["taxflg"]
-				end
-			end
+    
+		command_x["opeitm_processseq"] = nd["processseq"]
+    command_x["opeitm_priority"] = nd["priority"]   
+    command_x["opeitm_itm_id"] = nd["itms_id"]
+    command_x["opeitm_unitofduration"] = nd["unitofduration"]
+
+		case  tblnamechop 
+		 		when /^pur/
+		 			command_x["itm_taxflg"] = nd["taxflg"]
+          strsql = %Q&select id from suppliers where  locas_id_supplier = #{nd["locas_id"]}&
+		 			command_x["pursch_supplier_id"] =  ActiveRecord::Base.connection.select_value(strsql)
+        when /^prd/
+          ### prdschsにはworkplaces_idはない
 		end
 		return command_x
 	end
@@ -1684,31 +1730,15 @@ module CtlFields
 		return command_x
 	end 
 
-	# def field_shelfnos_id tblnamechop,command_x,nd
-	# 	command_x["#{tblnamechop}_shelfno_id"] = nd["shelfnos_id_opeitm"] ##
-	# 	shelfno_loca_id_shelfno =  ActiveRecord::Base.connection.select_value(%Q%
-	# 		select locas_id_shelfno from shelfnos where id = #{nd["shelfnos_id_opeitm"]} 
-	# 		%)
-		
-	# 	command_x["shelfno_loca_id_shelfno"] = shelfno_loca_id_shelfno ##
-	# 	# case nd["prdpur"]
-	# 	# when "pur"
-	# 	# 	strsql = %Q%select  * from payments where locas_id_payment = #{command_x["shelfno_loca_id_shelfno"]}%
-	# 	# 	rec = ActiveRecord::Base.connection.select_one(strsql)
-	# 	# 	###supplier_code = dummy は必須 id = 0
-	# 	# 	if rec
-	# 	# 		command_x["#{tblnamechop}_payment_id"] = rec["id"] ##
-	# 	# 		command_x["#{tblnamechop}_crr_id"] = rec["crrs_id_payment"] ##
-	# 	# 	else
-	# 	# 		command_x["#{tblnamechop}_payment_id"] = 0
-	# 	# 		command_x["#{tblnamechop}_crr_id"] = 0
-	# 	# 	end
-	# 	# end
-	# 	return command_x
-	# end
+	def field_shelfnos_id tblnamechop,command_x,nd
+	 	command_x["#{tblnamechop}_shelfno_id"] = nd["shelfnos_id"] ##
+    command_x["shelfno_loca_id_shelfno"] = nd["locas_id"] ##
+    return command_x
+	end
 
 	def field_shelfnos_id_to tblnamechop,command_x,nd
-		command_x["#{tblnamechop}_shelfno_id_to"] = nd["shelfnos_id_to_opeitm"] ##
+		command_x["#{tblnamechop}_shelfno_id_to"] = nd["shelfnos_id_to"] ##
+		command_x["shelfno_loca_id_shelfno_to"] = nd["locas_id_to"] ##
 		return command_x
 	end 
 
@@ -1733,64 +1763,151 @@ module CtlFields
           if parent["unitofduration"] == nd["unitofduration"]
             if parent["unitofduration"] == "Day "
               pstarttime = parent["starttime"].to_date
-              duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_shelfno_id_to"])
+              case tblnamechop
+                when /^prd|^shp|^dym/
+                    duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["shelfno_loca_id_shelfno_to"])
+                when /^cust/
+                    duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_cust_id"])
+                when /^pur/
+                    duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_supplier_id"])
+              end
             else
               pstarttime = parent["starttime"].to_time  ###3600:1時間
-              duedate,message = calculate_working_time(tblnamechop,pstarttime,3600,"-",command_x["#{tblnamechop}_shelfno_id_to"])
+              case tblnamechop
+                when /^prd|^shp|^dym/
+                  duedate,message = calculate_working_time(tblnamechop,pstarttime,3600,"-",command_x["shelfno_loca_id_shelfno_to"])
+                when /^cust/
+                  duedate,message = calculate_working_time(tblnamechop,pstarttime,3600,"-",command_x["#{tblnamechop}_cust_id"])
+                when /^pur/
+                  duedate,message = calculate_working_time(tblnamechop,pstarttime,3600,"-",command_x["#{tblnamechop}_supplier_id"])
+              end
             end
           else
             pstarttime = parent["starttime"].to_date
-            duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_shelfno_id_to"])
+            case tblnamechop
+              when /^prd|^shp|^dym/
+                  duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["shelfno_loca_id_shelfno_to"])
+              when /^cust/
+                    duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_cust_id"])
+              when /^pur/
+                  duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_supplier_id"])
+            end
             if  nd["unitofduration"] == "Hour"
-                strsql = %Q&select effectivetime from hcalendats where locas_id = 
-                            (select locas_id_shelfno from shelfnos where id = #{command_x["#{tblnamechop}_shelfno_id_to"]})&
-                effectivetime = ActiveRecord::Base.connection.select_value(strsql)
-                hhmm = effectivetime.split(",")[-1].split("-")[0] + ":" + effectivetime.split(",")[-1].split("-")[1]
-                duedate = (duedate.strftime("%Y-%m-%d") + " " + effectivetime.split(",")[-1].split("-")).to_date
+                case tblnamechop
+                  when /^dym|^shp/
+                    strsql = %Q&select effectivetime from hcalendars where locas_id = #{command_x["shelfno_loca_id_shelfno_to"]}&
+                    effectivetime = ActiveRecord::Base.connection.select_value(strsql)
+                  when /^prd/
+                    strsql = %Q&select effectivetime from hcalendars where locas_id =(
+                                        select locas_id_calendar from workplaces where locas_id_workplace = #{command_x["shelfno_loca_id_shelfno"]})&
+                    effectivetime = ActiveRecord::Base.connection.select_value(strsql)
+                  when /^cust/
+                    strsql = %Q&select effectivetime from hcalendars where locas_id = (
+                                        select locas_id_cust from custs where id = #{command_x["#{tblnamechop}_cust_id"]})&
+                    effectivetime = ActiveRecord::Base.connection.select_value(strsql)
+                  when /^pur/
+                    strsql = %Q&select effectivetime from hcalendars where locas_id = (
+                                        select locas_id_calendar from suppliers where id = #{command_x["#{tblnamechop}_supplier_id"]})&
+                    effectivetime = ActiveRecord::Base.connection.select_value(strsql)
+                end
+                if effectivetime.nil?
+                   effectivetime = ActiveRecord::Base.connection.select_value(%Q&select effectivetime from hcalendars where locas_id = 0&)
+                end
+                hhmm = effectivetime.split(",")[-1].split(/-|~/)[0] + ":" + effectivetime.split(",")[-1].split(/-|~/)[1]
+                duedate = (duedate.strftime("%Y-%m-%d") + " " + hhmm).to_time
             end
           end
         else
-          strsql = %Q&select locas_id_shelfno from shelfnos where id = #{parent["shelfnos_id"]}&
-          pare_locas_id = ActiveRecord::Base.connection.select_value(strsql)
-          if pare_locas_id == command_x["shelfno_locas_id_to"]
+          pare_locas_id = nd["locas_id_pare"]
+          if pare_locas_id == command_x["shelfno_loca_id_shelfno_to"]
             if parent["unitofduration"] == nd["unitofduration"]
               if parent["unitofduration"] == "Day "
                 pstarttime = parent["starttime"].to_date
-                duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_shelfno_id_to"])
+                case tblnamechop
+                  when /^prd|^shp|^dym/
+                    duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["shelfno_loca_id_shelfno_to"])
+                  when /^cust/
+                    duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_cust_id"])
+                  when /^pur/
+                    duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_supplier_id"])
+                end
               else
                 pstarttime = parent["starttime"].to_time
-                duedate,message = calculate_working_time(tblnamechop,pstarttime,3600,"-",command_x["#{tblnamechop}_shelfno_id_to"])
+                case tblnamechop
+                  when /^prd|^shp|^dym/
+                    duedate,message = calculate_working_time(tblnamechop,pstarttime,3600,"-",command_x["shelfno_loca_id_shelfno_to"])
+                  when /^cust/
+                    duedate,message = calculate_working_time(tblnamechop,pstarttime,3600,"-",command_x["#{tblnamechop}_cust_id"])
+                  when /^pur/
+                    duedate,message = calculate_working_time(tblnamechop,pstarttime,3600,"-",command_x["#{tblnamechop}_supplier_id"])
+                end     
               end
             else
               pstarttime = parent["starttime"].to_date
-              duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_shelfno_id_to"])
               if  nd["unitofduration"] == "Hour"
-                strsql = %Q&select effectivetime from hcalendats where locas_id = 
-                              (select locas_id_shelfno from shelfnos where id = #{command_x["#{tblnamechop}_shelfno_id_to"]})
-                              and expiredate > current_date &
-                effectivetime = ActiveRecord::Base.connection.select_value(strsql)
-                hhmm = effectivetime.split(",")[-1].split("-")[0] + ":" + effectivetime.split(",")[-1].split("-")[1]
-                duedate = (duedate.strftime("%Y-%m-%d") + " " + effectivetime.split(",")[-1].split("-")).to_time
-              end
+                  case tblnamechop
+                  when /^dym/
+                    strsql = %Q&select effectivetime from hcalendars where locas_id = #{command_x["shelfno_loca_id_shelfno_to"]}&
+                    effectivetime = ActiveRecord::Base.connection.select_value(strsql)
+                  when /^prd/
+                    strsql = %Q&select effectivetime from hcalendars where locas_id =(
+                                        select locas_id_calendar from workplaces where locas_id_workplace = #{command_x["shelfno_loca_id_shelfno"]})&
+                    effectivetime = ActiveRecord::Base.connection.select_value(strsql)
+                  when /^cust/
+                    strsql = %Q&select effectivetime from hcalendars where locas_id = (
+                                        select locas_id_cust from custs where id = #{command_x["#{tblnamechop}_cust_id"]})&
+                    effectivetime = ActiveRecord::Base.connection.select_value(strsql)
+                  when /^pur/
+                    strsql = %Q&select effectivetime from hcalendars where locas_id = (
+                                        select locas_id_calendar from suppliers where id = #{command_x["#{tblnamechop}_supplier_id"]})&
+                    effectivetime = ActiveRecord::Base.connection.select_value(strsql)
+                  end
+                  if effectivetime.nil?
+                     effectivetime = ActiveRecord::Base.connection.select_value(%Q&select effectivetime from hcalendars where locas_id = 0&)
+                  end
+                  hhmm = effectivetime.split(",")[-1].split(/-|~/)[0] + ":" + effectivetime.split(",")[-1].split(/~|-/)[1]
+                  duedate = (pstarttime.strftime("%Y-%m-%d") + " " + hhmm).to_time
+               end
             end
           else
-            strsql = %Q&select * from transports where locas_id_fm = #{command_x["shelfno_locas_id_to"]} 
-                                            and  locas_id_to = #{pare_locas_id }  
+            strsql = %Q&select * from transports where locas_id_fm_transport = #{command_x["shelfno_loca_id_shelfno_to"]} 
+                                            and  locas_id_to_transport = #{pare_locas_id}  
                                             and expiredate > current_date
                                             order by priority desc &
             duration = ActiveRecord::Base.connection.select_one(strsql)
             if duration
               if duration["unitofduration"] == "Day " and duration["duration"].to_f == duration["duration"].to_i
                 pstarttime = parent["starttime"].to_date
-                duedate,message = calculate_working_day(tblnamechop,pstarttime,duration["duration"].to_i,"-",command_x["#{tblnamechop}_shelfno_id"])
+                case tblnamechop
+                  when /^prd|^shp|^dym/
+                    duedate,message = calculate_working_day(tblnamechop,pstarttime,duration["duration"].to_i,"-",command_x["shelfno_loca_id_shelfno"])
+                  when /^cust/
+                    duedate,message = calculate_working_day(tblnamechop,pstarttime,duration["duration"].to_i,"-",command_x["#{tblnamechop}_cust_id"])
+                  when /^pur/
+                    duedate,message = calculate_working_day(tblnamechop,pstarttime,duration["duration"].to_i,"-",command_x["#{tblnamechop}_supplier_id"])
+                end
               else
                 pstarttime = parent["starttime"].to_time
                 duration = duration["duration"].to_f * Constants::Whr * 3600
-                duedate,message = calculate_working_time(tblnamechop,pstarttime,duration,"-",command_x["#{tblnamechop}_shelfno_id"])
+                case tblnamechop
+                  when /^prd|^shp|^dym/
+                    duedate,message = calculate_working_time(tblnamechop,pstarttime,duration,"-",command_x["shelfno_loca_id_shelfno"])
+                  when /^cust/
+                    duedate,message = calculate_working_time(tblnamechop,pstarttime,duration,"-",command_x["#{tblnamechop}_cust_id"])
+                  when /^pur/
+                    duedate,message = calculate_working_time(tblnamechop,pstarttime,duration,"-",command_x["#{tblnamechop}_supplier_id"]) 
+                end
               end
             else  ###場所違いでtransportsが設定されていない時
               pstarttime = parent["starttime"].to_date
-              duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_shelfno_id"])
+              case tblnamechop
+                when /^prd|^shp|^dym/
+                    duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["shelfno_loca_id_shelfno"])
+                when /^cust/
+                      duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_cust_id"])
+                when /^pur/
+                    duedate,message = calculate_working_day(tblnamechop,pstarttime,1,"-",command_x["#{tblnamechop}_supplier_id"])
+              end
             end
           end
         end
@@ -1798,7 +1915,12 @@ module CtlFields
         if nd["postprocessinglt"].to_f  > 0
           if nd["unitofduration"] == "Day " and nd["postprocessinglt"].to_f == nd["postprocessinglt"].to_i
               pduedate = parent["duedate"].to_date
-              duedate,message = calculate_working_day(tblnamechop,pduedate,(nd["postprocessinglt"]).to_i,"+",command_x["#{tblnamechop}_shelfno_id_to"])
+              case tblnamechop
+                when /^shp/
+                  duedate,message = calculate_working_day(tblnamechop,pduedate,tduration,"+",command_x["shelfno_loca_id_shelfno_to"])
+                when /^dvs/
+                  duedate,message = calculate_working_day(tblnamechop,pduedate,tduration,"+",command_x["#{tblnamechop}_facilitie_id"]) 
+              end
           else
             pduedate = parent["duedate"].to_time
             if nd["unitofduration"] == "Day "
@@ -1806,7 +1928,12 @@ module CtlFields
             else  
               tduration = (nd["postprocessinglt"]).to_f * 3600
             end
-            duedate,message = calculate_working_time(tblnamechop,pduedate,tduration,"+",command_x["#{tblnamechop}_shelfno_id_to"])
+            case tblnamechop
+              when /^shp/
+                duedate,message = calculate_working_time(tblnamechop,pduedate,tduration,"+",command_x["shelfno_loca_id_shelfno_to"])
+              when /^dvs/
+                duedate,message = calculate_working_time(tblnamechop,pduedate,tduration,"+",command_x["#{tblnamechop}_facilitie_id"]) 
+            end
           end
         else 
           if nd["unitofduration"] == "Day "
@@ -1820,7 +1947,7 @@ module CtlFields
 			    when "postprocess"
             if nd["unitofduration"] == "Day " and nd["postprocessinglt"].to_f == nd["postprocessinglt"].to_i
               pstarttime = parent["duedate"].to_date
-              duedate,message = calculate_working_day(tblnamechop,pstarttime,(nd["postprocessinglt"]).to_i,"-",command_x["#{tblnamechop}_shelfno_id"])
+              duedate,message = calculate_working_day(tblnamechop,pstarttime,(nd["postprocessinglt"]).to_i,"+",command_x["#{tblnamechop}_fcoperators_id"])
             else
               pstarttime = parent["duedate"].to_time
               if nd["unitofduration"] == "Day "
@@ -1828,7 +1955,7 @@ module CtlFields
               else  
                 tduration = (nd["postprocessinglt"]).to_f * 3600
               end
-              duedate,message = calculate_working_time(tblnamechop,pstarttime,tduration,"-",command_x["#{tblnamechop}_person_id_chrg"])
+              duedate,message = calculate_working_time(tblnamechop,pstarttime,tduration,"+",command_x["#{tblnamechop}_fcoperator_id"])
             end
 			    when "require"
             if nd["unitofduration"] == "Day " and nd["postprocessinglt"].to_f == nd["postprocessinglt"].to_i
@@ -1847,7 +1974,7 @@ module CtlFields
 			  raise" class:#{self} ,line:#{__LINE__},tblname error:#{tblnamechop}s,command_x:#{command_x},nd:#{nd} "
 		end
 		command_x[(tblnamechop+"_duedate")]  = duedate.strftime("%Y-%m-%d %H:%M:%S")
-		command_x[(tblnamechop+"_message")]  = message
+		command_x[(tblnamechop+"_remark")]  = message
 		return command_x
 	end
 
@@ -1881,7 +2008,7 @@ module CtlFields
       duration = (nd["duration"]||=1).to_i * 3600
       hourFlg = true 
     else
-      if (nd["duration"]||=1).to_i != (nd["duration"]||=1).to_f
+      if (nd["duration"]||=1).to_i != (nd["duration"]||=1).to_f  ###小数点がある場合は時間である。
         hourFlg = true 
         duration = (nd["duration"]||=1).to_f * Constants::Whr * 3600  ###Whr 壱日の労働時間
       else
@@ -1894,10 +2021,12 @@ module CtlFields
 		    pduedate =  parent["duedate"].to_time  ###dvsxxxs,ercxxxs,shpxxxsで使用。
 		    cduedate = command_x["#{tblnamechop}_duedate"].to_time
 		    case tblnamechop   ###insts ,reply,dlvs,actsではstarttimeはない
-	    	  when /pur|dym/
+	    	  when /pur/
             starttime,message = calculate_working_time(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_supplier_id"])
+	    	  when /dym/
+            starttime,message = calculate_working_time(tblnamechop,cduedate,duration,"-",command_x["shelfno_loca_id_shelfno"])
 		      when /cust/  ###前日準備
-            starttime,message  = calculate_working_time(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_shelfno_id_fm"])
+            starttime,message  = calculate_working_time("shpsch",cduedate,duration,"-",command_x["#{tblnamechop}_shelfno_id_fm"])
 		      when /prd/
             if tblnamechop== "prdsch"
 		 	        str_qty = command_x["prdsch_qty_sch"].to_f
@@ -1934,7 +2063,7 @@ module CtlFields
                 duration = tduration
               end
             end  
-            starttime,message = calculate_working_time(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_shelfno_id"])
+            starttime,message = calculate_working_time(tblnamechop,cduedate,duration,"-",command_x["shelfno_loca_id_shelfno"])
 		      when /^dvs/  ###親はprdschs
             # strsql = %Q&
 				    #           select f.shelfnos_id from facilities f 
@@ -1946,7 +2075,11 @@ module CtlFields
             else
               duration = (nd["changeoverlt"]||=0).to_f * Constants::Whr * 3600
             end
-            starttime,message = calculate_working_time(tblnamechop,pstarttime,duration,"-",command_x["#{tblnamechop}_facilitie_id"])
+            if (nd["changeoverlt"]||=0).to_f == 0
+              starttime = pstarttime
+            else
+              starttime,message = calculate_working_time(tblnamechop,pstarttime,duration,"-",command_x["#{tblnamechop}_facilitie_id"])
+            end
 		      when /^shp/ ###親はprdschs 工具・金型
             if nd["unitofduration"] ==  "Hour"
               duration = (nd["changeoverlt"]||=0).to_f * 3600
@@ -1957,26 +2090,28 @@ module CtlFields
 		      when "ercsch","ercord" ###親はdvsschs
 			      case command_x["#{tblnamechop}_processname"]   ###親はdvsschs
 			        when "changeover"
-                starttime,message = calculate_working_time(tblnamechop,pstarttime,(nd["changeoverlt"]||=0).to_f*3600,"-",command_x["#{tblnamechop}_person_id_chrg"])
+                starttime,message = calculate_working_time(tblnamechop,pstarttime,(nd["changeoverlt"]||=0).to_f*3600,"-",command_x["#{tblnamechop}_fcoperators_id"])
 			        when "require"
 				        starttime =  pstarttime 
 			        when "postprocess"
 				        starttime = pduedate 
               else
-                raise" class:#{self} ,line:#{__LINE__},tblnamechop error command_x:#{command_x} "
+                raise" class:#{self} ,line:#{__LINE__},processname error command_x:#{command_x} "
 			      end
+        else
+            raise" class:#{self} ,line:#{__LINE__},  tblnamechop error command_x:#{command_x} "
         end
-      else
+    else
 		    pstarttime =  parent["starttime"].to_date  ###ercschsの親はdvsschs
 		    pduedate =  parent["duedate"].to_date
 		    cduedate = command_x["#{tblnamechop}_duedate"].to_date
 		    case tblnamechop   ###insts ,reply,dlvs,actsではstarttimeはない
 	    	  when /pur/
             starttime,message = calculate_working_day(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_supplier_id"])
-		      when /dym/
-            starttime,message = calculate_working_day(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_shelfno_id"])
+		      when /dym|mnf/
+            starttime,message = calculate_working_day(tblnamechop,cduedate,duration,"-",command_x["shelfno_loca_id_shelfno"])
 		      when /cust/
-            starttime,message = calculate_working_day(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_shelfno_id_fm"])
+            starttime,message = calculate_working_day(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_cust_id"])
 		      when /prd/
             if tblnamechop== "prdsch"
 		 	        str_qty = command_x["prdsch_qty_sch"].to_f
@@ -2009,28 +2144,25 @@ module CtlFields
 				        duration = tduration
 			        end
 			      end
-            starttime,message = calculate_working_day(tblnamechop,cduedate,duration,"-",command_x["#{tblnamechop}_shelfno_id"])
+            starttime,message = calculate_working_day(tblnamechop,cduedate,duration,"-",command_x["shelfno_loca_id_shelfno"])
 		      when /^dvs/  ###親はprdschs
-            strsql = %Q&
-				              select f.shelfnos_id from facilities f 
-                            inner join #{tblnamechop}s d on d.facilities_id = f.id
-                            where d.id = #{command_x["id"]} &
-			      shelfnos_id = ActiveRecord::Base.connection.select_value(strsql)
-            starttime,message = calculate_working_day(tblnamechop,pstarttime,(nd["changeoverlt"]).to_f.ceil,"-",shelfnos_id)
+            starttime,message = calculate_working_day(tblnamechop,pstarttime,(nd["changeoverlt"]).to_f.ceil,"-",command_x["#{tblnamechop}_facilitie_id"])
 		      when /^shp/ ###親はprdschs 工具・金型
             starttime,message = calculate_working_day(tblnamechop,pstarttime,(nd["changeoverlt"]).to_f.ceil,"-",command_x["#{tblnamechop}_shelfno_id_fm"])
 		      when "ercsch","ercord" ###親はdvsschs
 			      case command_x["#{tblnamechop}_processname"]   ###親はdvsschs
 			        when "changeover"
-                starttime,message = calculate_working_day(tblnamechop,pstarttime,(nd["changeoverlt"]).to_f.ceil,"-",command_x["#{tblnamechop}_shelfno_id_fm"])
+                starttime,message = calculate_working_day(tblnamechop,pstarttime,(nd["changeoverlt"]).to_f.ceil,"-",command_x["#{tblnamechop}_fcoperator_id"])
 			        when "require"
 				        starttime =  pstarttime 
 			        when "postprocess"
 				        starttime = pduedate 
               else
-                raise" class:#{self} ,line:#{__LINE__},tblnamechop error command_x:#{command_x} "
+                raise "class:#{self} ,line:#{__LINE__},processname error:#{command_x["#{tblnamechop}_processname"]},command_x:#{command_x} "
 			      end
-		  end
+          else
+              raise" class:#{self} ,line:#{__LINE__},  tblnamechop error:#{tblnamechop} command_x:#{command_x} "
+		    end
     end
 		case tblnamechop
 		 	when /^shp/
@@ -2039,7 +2171,7 @@ module CtlFields
 		  		command_x[(tblnamechop+"_starttime")] =  (starttime.strftime("%Y-%m-%d %H:%M:%S") )
 		end
 		# end
-    command_x[:message] = message 
+    command_x[(tblnamechop+"_remark")] = message 
 		return command_x
 	end
 
@@ -2053,12 +2185,12 @@ module CtlFields
 				when /^pur/
 				 	strsql = %Q&
 				 			select chrgs_id_supplier chrgs_id ,locas_id_calendar from suppliers 
-									where locas_id_supplier = #{nd["locas_id_shelfno"]}
+									where locas_id_supplier = #{nd["locas_id"]}
 				 	&
 				 when /^prd|^dvs/
 				 	strsql = %Q&
 				 			select chrgs_id_workplace chrgs_id from workplaces 
-							 		where locas_id_workplace = #{nd["locas_id_shelfno"]}
+							 		where locas_id_workplace = #{nd["locas_id"]}
 				 	&
 				when /^erc/
 				 	strsql = %Q&
@@ -2126,9 +2258,7 @@ module CtlFields
 		  if fcoperator
 			  command_x["#{tblnamechop}_fcoperator_id"] = fcoperator["id"]
 		  else
-			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
-			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
-			  raise " class:#{self} ,line:#{__LINE__}, can not get fcoperators_id"
+			  raise " class:#{self} ,line:#{__LINE__}, can not get fcoperators_id \n nd:#{nd} \n command_x:#{command_x} "
 		  end
     when "ercord"
 			strsql = %Q&
@@ -2139,13 +2269,10 @@ module CtlFields
 		  if fcoperator
 			  command_x["#{tblnamechop}_fcoperator_id"] = fcoperator["id"]
 		  else
-			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},nd:#{nd} "
-			  Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x} "
-			  raise " class:#{self} ,line:#{__LINE__}, can not get fcoperators_id"
+        raise " class:#{self} ,line:#{__LINE__},tblnamechop:#{tblnamechop},\n command_x:#{command_x},\n nd:#{nd} "
 		  end
     else
-      Rails.logger.debug " class:#{self} ,line:#{__LINE__},tblnamechop:#{tblnamechop} "
-      raise " class:#{self} ,line:#{__LINE__}, tblnamechop error"
+      raise " class:#{self} ,line:#{__LINE__},tblnamechop:#{tblnamechop} error\n command_x:#{command_x},\n nd:#{nd} "
     end
 		return command_x
 	end
@@ -2226,13 +2353,14 @@ module CtlFields
     ###dayofweek = "0":日曜日,"1":月曜日,"2":火曜日,"3":水曜日,"4":木曜日,"5":金曜日,"6":土曜日　休日がarrayで渡される
     ###holidays = "mmdd"でarray 型で休日を渡す
     ###workingday = "yyyymmdd"でarray 型で稼働日を渡す
+    ###calendars_id prd,shp:locas_id, pur:suppliers_id, cust: 客先:custs_id , 出荷:shelfnos_id_fm
     message = ""
     case tblnamechop
       when /^pur/
             strsql = %Q&
                     select dayofweek,holidays,workingday from hcalendars 
                         where locas_id = (select locas_id_calendar from suppliers 
-                                                where id = #{calendars_id}    ---calendars_id = suppliers_is
+                                                where id = #{calendars_id}    ---calendars_id = suppliers_id
                                                 and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date))
                         order by expiredate limit 1
               &
@@ -2251,12 +2379,13 @@ module CtlFields
             end
       when /^prd/
             strsql = %Q&
-                    select dayofweek,holidays,workingday from hcalendars 
-                        where locas_id = (select locas_id_calendar from workplaces w
-                                      inner join shelfnos s on w.locas_id_workplace = s.locas_id_shelfno
-                                      where s.id = #{calendars_id})   --- calendars_id = shelfnos_id
-                        and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
-                        order by expiredate limit 1
+                select h.dayofweek,h.holidays,workingday from hcalendars h
+                    where h.locas_id = (select locas_id_calendar from workplaces w
+                                         --- inner join shelfnos s on w.locas_id_workplace = s.locas_id_shelfno
+                                       ---   where s.id = #{calendars_id})   --- calendars_id = shelfnos_id
+                                          where w.locas_id_workplace = #{calendars_id})   --- calendars_id = shelfnos_id
+                                          and h.expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
+                        order by h.expiredate limit 1
             &
             calendar = ActiveRecord::Base.connection.select_one(strsql)
             if calendar.nil?
@@ -2268,13 +2397,13 @@ module CtlFields
                 &
               calendar = ActiveRecord::Base.connection.select_one(strsql)
               if calendar.nil?
-                raise"error calendar missing \n workplaces shelfnos_id:#{calendars_id}  calendar missing"
+                raise"error calendar missing \n workplaces locas_id:#{calendars_id}  calendar missing"
               end
             end
       when /^cust/
                 strsql = %Q&
                         select dayofweek,holidays,workingday from hcalendars 
-                            where locas_id = (select locas_id_shelfno from shelfnos s 
+                            where locas_id = (select locas_id_cust from custs s 
                                                where s.id = #{calendars_id})  
                             and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
                             order by expiredate limit 1
@@ -2293,17 +2422,17 @@ module CtlFields
                   end
                 end
       when /^dvs/
-            strsql = %Q&  ---休日を求める　facilitycalendars:日別カレンダー
+            strsql = %Q&  ---休日を求める　facilitycalendars:日別カレンダーから年次カレンダーを求める
                     select * from facilitycalendars f 
-                          where f.facilities_id = #{calendars_id}) 
+                          where f.facilities_id = #{calendars_id}
                            and f.targetdate > current_date
 										        and f.expiredate > current_date and f.effectivestarttime = ''
 										        and not exists(select 1 from facilitycalendars f2  where f.facilities_id = f2.facilities_id 
 														                and f.targetdate  = f2.targetdate  and f2.effectivestarttime != '')										
 									          order by f.targetdate 
             &
-            timeCalendar = ActiveRecord::Base.connection.select_one(strsql)
-            if timeCalendar.nil?
+            timeCalendars = ActiveRecord::Base.connection.select_all(strsql)
+            if timeCalendars.length == 0
               message = "facilities_id:#{calendars_id}  facilities calendar missing"
               strsql = %Q&
                       select dayofweek,holidays,workingday from hcalendars 
@@ -2313,8 +2442,8 @@ module CtlFields
               calendar = ActiveRecord::Base.connection.select_one(strsql)
             else
               calendar = {"workingday" => [],"dayofweek" => [],"holidays" => []}
-              timeCalendar.each do |calendar|
-                calendar["holidays"] << calendar["targetdate"].to_date.strftime("%m%d")
+              timeCalendars.each do |clndr|
+                calendar["holidays"] << clndr["targetdate"].to_date.strftime("%m%d")
               end              
             end
       when /^erc/
@@ -2333,7 +2462,17 @@ module CtlFields
                 &
               calendar = ActiveRecord::Base.connection.select_one(strsql)
             end
-      else
+      when /^shp/ 
+        strsql = %Q&
+            select h.dayofweek,h.holidays,workingday from hcalendars h
+                ---where h.locas_id = (select locas_id_shelfno from shelfnos s
+                ---                     where s.id = #{calendars_id})   --- calendars_id = shelfnos_id
+                where h.locas_id =  #{calendars_id}
+                and h.expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date))
+                    order by h.expiredate limit 1
+        &
+        calendar = ActiveRecord::Base.connection.select_one(strsql)
+        if calendar.nil?
             strsql = %Q&
              select dayofweek,holidays,workingday from hcalendars 
                where locas_id = 0
@@ -2344,11 +2483,31 @@ module CtlFields
               if calendar.nil?
                 raise"error calendar missing "
               end
+        end
+      else
+        strsql = %Q&
+         select dayofweek,holidays,workingday from hcalendars 
+           where locas_id = 0
+           and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
+           order by expiredate limit 1
+          &
+        calendar = ActiveRecord::Base.connection.select_one(strsql)
+          if calendar.nil?
+            raise"error calendar missing "
+          end
     end
     workingday = calendar["workingday"]
     dayofweek = calendar["dayofweek"]
     holidays = calendar["holidays"]
     degcnt = 0
+    if calculate_day < 0
+      if plusminus == "+"
+        plusminus = "-"
+      else
+        plusminus = "+"
+      end
+      calculate_day = calculate_day * -1
+    end  
     until calculate_day < 0
         if !workingday.include?(base_date.strftime("%Y%m%d"))&&(dayofweek.include?(base_date.wday.to_s)||holidays.include?(base_date.strftime("%m%d")))
           degcnt += 1
@@ -2366,7 +2525,7 @@ module CtlFields
     return base_date,message
   end
 
-  def calculate_working_time(tblnamechop,base_date,calculate_time,plusminus,calendars_id)
+  def calculate_working_time(tblnamechop,base_date,calculate_time,plusminus,calendars_id)  ###custsには対応しない
     ###base_date (型:Time)からcalculate_time時間後の稼働時間を考慮して計算する 
     ###calculate_time (型:numeric) 移動時間 秒数
     ###plusminus "+" or "-" で加算または減算する
@@ -2377,15 +2536,18 @@ module CtlFields
     message = ""
     calendars = []
     calendar = {}
+    ###
+    # 日別カレンダーか年次カレンダーの判断
     case tblnamechop
       when /^pur/
         strsql = %Q&
-                 select dayofweek,holidays,workingdaytargetdate from calendars 
+                 select * from calendars 
                         where locas_id = (select locas_id_calendar from suppliers 
-                                                where id = #{calendars_id}    ---calendars_id = suppliers_is
+                                                where id = #{calendars_id}    ---calendars_id = suppliers_id
                                                 and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
-                        and targetdate = '#{base_date.strftime("%Y-%m-%d")}'
-                        order by targetdate,effectivestarttime #{if plusminus == "-" then "desc" else "asc" end}  
+                        and targetdate  #{if plusminus == "-" then "<=" else ">=" end} cast('#{base_date.strftime("%Y-%m-%d")}' as date))
+                        order by targetdate #{if plusminus == "-" then "desc" else "asc" end},
+                                  effectivestarttime #{if plusminus == "-" then "desc" else "asc" end}  
                     &
           calendars = ActiveRecord::Base.connection.select_all(strsql)
           if calendars.length == 0          
@@ -2393,7 +2555,7 @@ module CtlFields
                     select dayofweek,holidays,workingday,effectivetime  from hcalendars 
                         where locas_id = (select locas_id_calendar from suppliers 
                                       where id = #{calendars_id}    ---calendars_id = suppliers_is
-                        and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
+                        and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date))
                         order by expiredate limit 1
               &
               calendar = ActiveRecord::Base.connection.select_one(strsql)
@@ -2409,31 +2571,32 @@ module CtlFields
                   raise"error calendar missing \n supplier:#{calendars_id}  calendar missing"
                 end
               end
-          else
           end
       when /^prd/
         strsql = %Q&
-                 select dayofweek,holidays,workingdaytargetdate from calendars 
-                        where locas_id = (select locas_id_calendar from workplaces w
-                                                  inner join shelfnos s on w.locas_id_workplace = s.locas_id_shelfno
-                                                  where s.id = #{calendars_id}    --- calendars_id = shelfnos_id
-                                                  and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
-                        and targetdate = '#{base_date.strftime("%Y-%m-%d")}'
-                        order by targetdate,effectivestarttime #{if plusminus == "-" then "desc" else "asc" end}  
+                 select * from calendars c
+                        where c.locas_id = (select locas_id_calendar from workplaces w
+                                                ---  inner join shelfnos s on w.locas_id_workplace = s.locas_id_shelfno
+                                                 --- where s.id = #{calendars_id}    --- calendars_id = shelfnos_id
+                                                  where w.locas_id_workplace = #{calendars_id}    --- 
+                                                  and w.expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date))
+                        and c.targetdate #{if plusminus == "-" then "<=" else ">=" end} cast('#{base_date.strftime("%Y-%m-%d")}' as date)
+                        order by targetdate #{if plusminus == "-" then "desc" else "asc" end},
+                                  effectivestarttime #{if plusminus == "-" then "desc" else "asc" end}  
                     &
           calendars = ActiveRecord::Base.connection.select_all(strsql)
           if calendars.length == 0          
               strsql = %Q&
                     select dayofweek,holidays,workingday,effectivetime  from hcalendars 
                         where locas_id = (select locas_id_calendar from workplaces w
-                                      inner join shelfnos s on w.locas_id_workplace = s.locas_id_shelfno
-                                      where s.id = #{calendars_id})   --- calendars_id = shelfnos_id
-                        and expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date)
+                                           --- inner join shelfnos s on w.locas_id_workplace = s.locas_id_shelfno
+                                            where w.locas_id_workplace = #{calendars_id})   ---
+                                            and w.expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date))
                         order by expiredate limit 1
             &
             calendar = ActiveRecord::Base.connection.select_one(strsql)
             if calendar.nil?
-              message = "workplaces shelfnos_id:#{calendars_id}  calendar missing"
+              message = "workplaces locas_id:#{calendars_id}  calendar missing"
               strsql = %Q&
                       select dayofweek,holidays,workingday,effectivetime  from hcalendars 
                           where locas_id = 0
@@ -2449,8 +2612,10 @@ module CtlFields
             strsql = %Q&  
                     select * from facilitycalendars f 
                           where f.facilities_id = #{calendars_id}
-                           and f.targetdate > current_date   and f.expiredate > current_date 								
-									         order by targetdate,effectivestarttime #{if plusminus == "-" then "desc" else "asc" end}
+                           and f.targetdate #{if plusminus == "-" then "<=" else ">=" end} cast('#{base_date.strftime("%Y-%m-%d")}' as date)
+                           and f.expiredate > current_date 								
+									         order by targetdate #{if plusminus == "-" then "desc" else "asc" end},
+                                    effectivestarttime #{if plusminus == "-" then "desc" else "asc" end}
             &
             calendars = ActiveRecord::Base.connection.select_all(strsql)
             if calendars.length == 0
@@ -2479,6 +2644,41 @@ module CtlFields
                 &
               calendar = ActiveRecord::Base.connection.select_one(strsql)
             end
+      when /^shp/
+              strsql = %Q&
+                     select * from calendars c
+                            where c.locas_id = #{calendars_id}  
+                                ---(select locas_id_shelfno from shelfnod s
+                                ---                      where s.id = #{calendars_id}    --- calendars_id = shelfnos_id
+                                ---                      and w.expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date))
+                            and c.targetdate #{if plusminus == "-" then "<=" else ">=" end} cast('#{base_date.strftime("%Y-%m-%d")}' as date)
+                            order by targetdate #{if plusminus == "-" then "desc" else "asc" end},
+                                      effectivestarttime #{if plusminus == "-" then "desc" else "asc" end}  
+                        &
+              calendars = ActiveRecord::Base.connection.select_all(strsql)
+              if calendars.length == 0          
+                  strsql = %Q&
+                        select dayofweek,holidays,workingday,effectivetime  from hcalendars 
+                            where locas_id = (select locas_id_shelfno from shelfnod s
+                                                      where s.id = #{calendars_id}    --- calendars_id = shelfnos_id
+                                                      and w.expiredate > cast('#{Date.today.strftime("%Y-%m-%d")}' as date))
+                            and c.targetdate = cast('#{base_date.strftime("%Y-%m-%d")}' as date)
+                            order by expiredate limit 1
+                &
+                calendar = ActiveRecord::Base.connection.select_one(strsql)
+                if calendar.nil?
+                  message = "workplaces locas_id:#{calendars_id}  calendar missing"
+                  strsql = %Q&
+                          select dayofweek,holidays,workingday,effectivetime  from hcalendars 
+                              where locas_id = 0
+                              order by expiredate limit 1
+                    &
+                  calendar = ActiveRecord::Base.connection.select_one(strsql)
+                  if calendar.nil?
+                    raise"error calendar missing \n workplaces shelfnos_id:#{calendars_id}  calendar missing"
+                  end
+                end
+              end
       else
             strsql = %Q&
              select dayofweek,holidays,workingday,effectivetime  from hcalendars 
@@ -2492,7 +2692,7 @@ module CtlFields
               end
     end
     degcnt = 0
-    if calendars.length == 0
+    if calendars.length == 0  ###日別カレンダーがない場合は年次カレンダーを使用する
       workingday = calendar["workingday"]
       dayofweek = calendar["dayofweek"]
       holidays = calendar["holidays"]
@@ -2533,41 +2733,75 @@ module CtlFields
           end
         end
         if  plusminus == "-"
-          base_date = base_date - 86400
+          base_date = base_date - 86400  ###1日分の秒数を引く
         else
           base_date = base_date + 86400
         end
       end
-    else
+    else ###日別カレンダーがある場合は日別カレンダーを使用する
       if plusminus == "-"
-        calendars.reverse_each do |calendar|
-          if calendar["effectivestarttime"].nil? or calendar["effectivestarttime"].to_time.nil?
+        calendars.each do |calendar|
+        Rails.logger.debug " class:#{self} ,line:#{__LINE__},base_date:#{base_date},calculate_time:#{calculate_time}\n calendar:#{calendar}"  
+          if calendar["effectivestarttime"].to_time.nil? or calendar["effectivestarttime"].to_time.nil?
             degcnt += 1
             raise"LINE:#{__LINE__},degcnt:#{degcnt},base_date:#{base_date},calendar:#{calendar}"  if degcnt > 1000
             next
           else
-            wkHour = calendar["effectiveendtime"].to_time - calendar["effectivestarttime"].to_time
-            if calculate_time < wkHour
-              base_date = (base_date.strftime("%Y-%m-%d") + " " + calendar["effectiveendtime"] + ":00").to_time.ago(calculate_time) 
+            if  base_date.to_date == calendar["targetdate"].to_date
+                if base_date.strftime("%H:%M") < calendar["effectivestarttime"] or base_date.strftime("%H:%M") > calendar["effectiveendtime"]
+                  next
+                else
+                  wkHour =  calendar["effectivestarttime"].to_time - base_date.strftime("%H:%M").to_time
+                  if calculate_time < wkHour
+                    base_date = (calendar["targetdate"].to_time.strftime("%Y-%m-%d") + " " + calendar["effectivestarttime"] + ":00").to_time.since(calculate_time) 
+                    break
+                  else
+                    calculate_time -= wkHour
+                    next
+                  end
+                end
             else
-              calculate_time -= wkHour
-              next
+              wkHour = calendar["effectiveendtime"].to_time - calendar["effectivestarttime"].to_time
+              if calculate_time < wkHour
+                base_date = (calendar["targetdate"].to_time.strftime("%Y-%m-%d") + " " + calendar["effectivestarttime"] + ":00").to_time.since(calculate_time) 
+                break
+              else
+                calculate_time -= wkHour
+                next
+              end
             end
           end
         end
       else
         calendars.each do |calendar|
-          if calendar["effectivestarttime"].nil? or calendar["effectivestarttime"].to_time.nil?
+          Rails.logger.debug " class:#{self} ,line:#{__LINE__},base_date:#{base_date},calculate_time:#{calculate_time}\n calendar:#{calendar}"  
+          if calendar["effectivestarttime"].to_time.nil? or calendar["effectivestarttime"].to_time.nil?
             degcnt += 1
             raise"LINE:#{__LINE__},degcnt:#{degcnt},base_date:#{base_date},calendar:#{calendar}"  if degcnt > 1000
             next
           else
-            wkHour = calendar["effectiveendtime"].to_time - calendar["effectivestarttime"].to_time
-            if calculate_time < wkHour
-              base_date = (base_date.strftime("%Y-%m-%d") + " " + calendar["effectivestarttime"] + ":00").to_time.since(calculate_time) 
+            if  base_date.to_date == calendar["targetdate"].to_date
+                if base_date.strftime("%H:%M") < calendar["effectivestarttime"] or base_date.strftime("%H:%M") > calendar["effectiveendtime"]
+                  next
+                else
+                  wkHour = base_date.strftime("%H:%M").to_time - calendar["effectivestarttime"].to_time
+                  if calculate_time < wkHour
+                    base_date = (calendar["targetdate"].to_time.strftime("%Y-%m-%d") + " " + calendar["effectivestarttime"] + ":00").to_time.since(calculate_time) 
+                    break
+                  else
+                    calculate_time -= wkHour
+                    next
+                  end
+                end
             else
-              calculate_time -= wkHour
-              next
+              wkHour = calendar["effectiveendtime"].to_time - calendar["effectivestarttime"].to_time
+              if calculate_time < wkHour
+                base_date = (calendar["targetdate"].to_time.strftime("%Y-%m-%d") + " " + calendar["effectivestarttime"] + ":00").to_time.since(calculate_time) 
+                break
+              else
+                calculate_time -= wkHour
+                next
+              end
             end
           end
         end

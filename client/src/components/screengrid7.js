@@ -83,9 +83,10 @@ const AutoCell = ({
             if(lineData[msg_id]==="ok"){
                 lineData,autoAddFields = onBlurFunc7(params.screenCode, lineData, id)
             }
-            updateData(index, lineData) 
+            //updateData(index, lineData) 
             //handleDataSetRequest(data,params)
-            if ( (lineData[msg_id] === "ok"&baseData[index][id]!==data[index][id]) ||lineData[msg_id] === "error not detected" ) { // 変更項目のみ対象error not detected
+            //if ( (lineData[msg_id] === "ok"&baseData[index][id]!==data[index][id]) ||lineData[msg_id] === "error not detected" ) { // 変更項目のみ対象error not detected
+            if ( (lineData[msg_id] === "ok"||lineData[msg_id] === "error not detected" )) {  
               const {fetchCheckFlg,idKeys} = fetchCheck( lineData,id,fetch_check)
               params = {...params,fetchCode: JSON.stringify(idKeys),
                                       checkCode: JSON.stringify({ [id]: fetch_check.checkCode[id] }),

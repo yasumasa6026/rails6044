@@ -29,4 +29,6 @@ module Constants
 
     Whr = 8  ###壱日の労働時間
 
+    MaxOpeitmsCnt = "99999999"  ###最大オペレーション数
+
 end
