@@ -77,13 +77,13 @@ module RorBlkCtl
 		def screenCode
 			@screenCode
 		end
-		def proc_grp_code
-			@proc_grp_code
-		end
+		# def proc_grp_code
+		# 	@proc_grp_code
+		# end
     def command_init
         @command_init
     end
-		def proc_tbldata
+		def tbldata
 			  @tbldata
 		end
 
@@ -280,7 +280,6 @@ module RorBlkCtl
             last_lotstks = ope.proc_trngantts_update(@last_rec,@chng_flg)
           end
           setParams = ope.proc_opeParams.dup
-          Rails.logger.debug " calss:#{self},line:#{__LINE__},last_lotstks:#{@last_lotstks}"   
 			  when /^prdschs$/
 				  setParams = setGantt(setParams)				###作業場所の稼働日考慮要
 				  setParams["tbldata"] = @tbldata.dup	###変更されているため再セット
@@ -925,9 +924,13 @@ module RorBlkCtl
 					gantt["qty_handover"] = @tbldata["qty"] ###下位部品所要量計算用
 				  gantt["remark"] = " class:#{self},line:#{__LINE__} "
 				end
-				gantt["consumunitqty"] = 1 ###消費単位
-				gantt["consumminqty"]  = 0 ###最小消費数
-				gantt["consumchgoverqty"] = 0  ###段取り消費数
+				gantt["consumunitqty"] = (opeitm["consumunitqty"].to_f == 0 ? 1 : opeitm["consumunitqty"].to_f) ###消費単位
+				gantt["consumminqty"]  =  (opeitm["consumminqty"]||=0) ###最小消費数
+				gantt["consumchgoverqty"] =  (opeitm["consumchgoverqty"]||=0)  ###段取り消費数
+				gantt["optfixoterm"] =  (opeitm["optfixoterm"].to_f == 0 ? 365 : opeitm["optfixoterm"].to_f)  ###段取り消費数
+				gantt["packqty"] =  (opeitm["packqty"].to_f == 0 ? 1 : opeitm["maxqty"].to_f)
+        gantt["duration"] =  (opeitm["duration"].to_f == 0 ? 1 : opeitm["duration"].to_f)
+        gantt["unitofduration"] =  (opeitm["unitofduration"].to_s == "" ? "Day " : opeitm["unitofduration"].to_s)
 				gantt["qty_require"] = 0
 				gantt["persons_id_upd"]   =  setParams["person_id_upd"]
 		 	else ### !setParams["gantt"].nil? はxxxschsの時
@@ -1746,45 +1749,6 @@ module RorBlkCtl
 		  if @tbldata["prjnos_id"] != @last_rec["prjnos_id"]
 			  @chng_flg << "prjnos_id"
 		  end
-		  # case @tblname
-		  #   when /^pur/
-			#     if @tbldata["suppliers_id"] != @last_rec[@str_suppliers_id]
-			# 	    @chng_flg << "shelfno"
-			# 	    strsql = %Q&
-			# 				select s.id from shelfnos s 
-			# 							inner join  suppliers supplier on supplier.locas_id_supplier = s.locas_id_shelfno
-			# 																				and supplier.id = #{@tbldata["suppliers_id"]}
-			# 							where s.code = '000'												
-			# 	      &
-			# 	    crr_shelfnos_id = ActiveRecord::Base.connection.select_value(strsql)
-			# 	    update_sql = %Q&
-			# 				update trngantts set shelfnos_id_trn = #{crr_shelfnos_id},shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}
-			# 					where tblname = '#{@tblname}' and tblid = #{@tbldata["id"]}
-			# 		    &
-			# 	    ActiveRecord::Base.connection.update(update_sql)
-			#     else
-			# 	    if @tbldata["shelfnos_id_to"] != @last_rec[@str_shelfnos_id]
-			# 		    @chng_flg << "shelfno"
-			# 		    update_sql = %Q&
-			# 					update trngantts set shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}
-			# 						where tblname = '#{@tblname}' and tblid = #{@tbldata["id"]}
-			# 			  &
-			# 		    ActiveRecord::Base.connection.update(update_sql)
-			# 	    end
-			#     end
-		  #   when /^prd/
-			#     if @tbldata["shelfnos_id_to"] != @last_rec[@str_shelfnos_id] or  @tbldata["shelfnos_id"] != @last_rec[@str_shelfnos_id]
-			# 	    @chng_flg << "shelfno"
-			# 	    ###locas_id = ActiveRecord::Base.connection.select_value("select locas_id_shelfno from shelfnos where id = #{@last_rec["#{@tblname.chop}_shelfno_id"]}")
-			# 	    update_sql = %Q&
-			# 				update trngantts set shelfnos_id_trn = #{@tbldata["shelfnos_id"]},shelfnos_id_to_trn = #{@tbldata["shelfnos_id_to"]}
-			# 					where tblname = '#{@tblname}' and tblid = #{@tbldata["id"]}
-			# 		    &
-			# 	    ActiveRecord::Base.connection.update(update_sql)
-			#     end
-		  # end
-		  ###
-		  #数量・納期の変更がないときは何もしない。
 		  return 
 	  end
 	end  ###class

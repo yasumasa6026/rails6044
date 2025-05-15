@@ -28,10 +28,6 @@ truncate table inspschs cascade;
 truncate table inspords cascade;
 truncate table inspinsts cascade;
 truncate table inspacts cascade;
-truncate table payschs cascade;
-truncate table payords cascade;
-truncate table payinsts cascade;
-----truncate table payacts;
 
 truncate table processreqs cascade;
 
@@ -71,12 +67,14 @@ truncate  table billests cascade;
 truncate  table billschs cascade;
 truncate  table billords cascade;
 truncate  table billinsts cascade;
+truncate  table mkbillinsts cascade;
 truncate  table billacts cascade;
 
 
 truncate  table payschs cascade;
 truncate  table payords cascade;
 truncate  table payinsts cascade;
+truncate  table mkpayinsts cascade;
 truncate  table payacts cascade;
 truncate  table dymschs cascade;
 
@@ -159,14 +157,6 @@ truncate table sio.sio_fmcustord_custinsts;
 truncate table sio.sio_r_custacts;
 
 truncate table sio.sio_r_trngantts cascade;
-truncate table sio.sio_r_inspschs cascade;
-truncate table sio.sio_r_inspords cascade;
-truncate table sio.sio_r_inspinsts cascade;
-truncate table sio.sio_r_inspacts cascade;
-truncate table sio.sio_r_payschs cascade;
-truncate table sio.sio_r_payords cascade;
-truncate table sio.sio_r_payinsts cascade;
-----truncate table sio.sio_r_payacts;
 
 truncate table sio.sio_r_processreqs cascade;
 
@@ -186,13 +176,15 @@ truncate table sio.sio_r_mkordorgs cascade;
 truncate  table sio.sio_r_billests cascade;
 truncate  table sio.sio_r_billschs cascade;
 truncate  table sio.sio_r_billords cascade;
-truncate  table sio.sio_r_billinsts cascade;
+truncate  table sio.sio_r_billinsts cascade
+truncate  table sio.sio_r_mkbillinsts cascade;
 truncate  table sio.sio_r_billacts cascade;
 
 
 truncate  table sio.sio_r_payschs cascade;
 truncate  table sio.sio_r_payords cascade;
 truncate  table sio.sio_r_payinsts cascade;
+truncate  table sio.sio_r_mkpayinsts cascade;
 truncate  table sio.sio_r_payacts cascade;
 
  truncate table  sio.sio_r_dvsacts cascade;

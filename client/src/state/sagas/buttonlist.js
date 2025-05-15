@@ -5,10 +5,11 @@ import { BUTTONLIST_SUCCESS, MENU_FAILURE, LOGIN_FAILURE} from '../../actions'
 import history from '../../histrory'
 
 function ButtonListGetApi({auth}) {
-  let url = 'http://localhost:3001/api/menus7'
+  //let url = 'http://localhost:3001/api/menus7'
+  const url = `${process.env.REACT_APP_API_URL}/menus7`
 
   const headers =  { 'access-token':auth["access-token"] ,
-                    client:auth.client,uid:auth.uid}
+                    client:auth.client,uid:auth.uid,}
   const params =  {uid:auth.uid,buttonflg:'bottunlistreq'}
 
   const options ={method:'POST',
@@ -32,14 +33,14 @@ export function* ButtonListSaga({ payload: {auth} }) {
     let message
      switch (true) {
          case /code.*500/.test(error): message = 'Internal Server Error'
-         yield put({ type: MENU_FAILURE, errors: message })
+         yield put({ type: MENU_FAILURE, payload:{hostError: message}})
           break
          case /code.*401/.test(error): message = 'Invalid credentials or Login TimeOut'
-              yield put({ type: LOGIN_FAILURE, errors: message })
+              yield put({ type: LOGIN_FAILURE,  payload:{hostError: message}})
               yield call(history.push,'/login')
           break
          default: message = `buttonList Something went wrong ${error}`}
-         yield put({ type: MENU_FAILURE, errors: message })
+         yield put({ type: MENU_FAILURE, payload:{hostError: message} })
       }  
 }
       

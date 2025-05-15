@@ -18,8 +18,10 @@
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
     allow do
-      origins 'localhost:3000', '127.0.0.1:3000',
-      /\Ahttp:\/\/192\.168\.1\.\d{1,3}(:\d+)?\z/
+      ##origins 'localhost:3000', '127.0.0.1:3000',
+      origins 'mycomputer:3000','127.0.0.1:3000', ## 追加  MyComputerはng 
+      /\Ahttp:\/\/192\.168\.1\.\d{1,3}(:\d+)?\z/,
+      /\Ahttp:\/\/192\.168\.10\.\d{1,3}(:\d+)?\z/
       # regular expressions can be used here
  
       resource '*',

@@ -45,8 +45,8 @@ const cellFontSize = (column,para) =>{
       else{length = 1}
   }
   let checkFontSize = Math.ceil( width / length ) 
-  if(checkFontSize>10){fontSize = 15}
-      else{fontSize = Math.ceil( width / length * 1.5) }
+  if(checkFontSize>10){fontSize = 18}
+      else{fontSize = Math.ceil( width / length * 1.8) }
   return `${fontSize}px`
 }
 
@@ -66,9 +66,6 @@ const AutoCell = ({
             if(e.target){
                  values[id] =  e.target.value
                  updateMyData(index, id, values[id] ) //dataの内容が更新されない。但しとると、画面に入力内容が表示されない。
-                 //updateChangeData(data,index,id,values[id])
-                let msg_id = `${id}_gridmessage`
-                // updateMyData(index, msg_id, "ok" )
                 handleDataSetRequest(data,params)
                }   
         } 
@@ -79,27 +76,32 @@ const AutoCell = ({
             lineData[msg_id] = "ok"
             let autoAddFields = {}
             lineData = onFieldValite(lineData, id, params.screenCode)  //clientでのチェック
-            updateMyData(index, {[id]:lineData[id],[msg_id]:lineData[msg_id]})
             if(lineData[msg_id]==="ok"){
                 lineData,autoAddFields = onBlurFunc7(params.screenCode, lineData, id)
             }
-            //updateData(index, lineData) 
-            //handleDataSetRequest(data,params)
+            //updateMyData(index, msg_id, lineData[msg_id])
             //if ( (lineData[msg_id] === "ok"&baseData[index][id]!==data[index][id]) ||lineData[msg_id] === "error not detected" ) { // 変更項目のみ対象error not detected
             if ( (lineData[msg_id] === "ok"||lineData[msg_id] === "error not detected" )) {  
               const {fetchCheckFlg,idKeys} = fetchCheck( lineData,id,fetch_check)
-              params = {...params,fetchCode: JSON.stringify(idKeys),
-                                      checkCode: JSON.stringify({ [id]: fetch_check.checkCode[id] }),
-                                      lineData: JSON.stringify(lineData),
-                                      fetchview: fetchCheckFlg==="fetch_request"?fetch_check.fetchCode[id]:"",
-                                      index: index,buttonflg: fetchCheckFlg}
-              if(fetchCheckFlg){handleFetchRequest(params,buttonflg)}
-                  else{if(Object.keys(autoAddFields).length)
-                        {handleDataSetRequest(data,params)}} //onBlurFunc7でセットされた項目を画面に反映
-            }else{if ( lineData[msg_id] !== "ok")
-                        {updateMyData(index, msg_id, " error " + lineData[msg_id])
-                        handleDataSetRequest(data,params)}
+              //updateMyData(index, {[id]:lineData[id],[msg_id]:lineData[msg_id]})
+              if(fetchCheckFlg){
+                                params = {...params,fetchCode: JSON.stringify(idKeys),
+                                        checkCode: JSON.stringify({ [id]: fetch_check.checkCode[id] }),
+                                        lineData: JSON.stringify(lineData),
+                                        fetchview: fetchCheckFlg==="fetch_request"?fetch_check.fetchCode[id]:"",
+                                        index: index,buttonflg: fetchCheckFlg}
+                                handleFetchRequest(params,buttonflg)}
+                  // else{if(Object.keys(autoAddFields).length)
+                  //       {updateData(index, lineData) 
+                  //         handleDataSetRequest(data,params)}} //onBlurFunc7でセットされた項目を画面に反映
             }
+              // else{if ( lineData[msg_id] !== "ok")
+              //           {updateMyData(index, msg_id, " error " + lineData[msg_id])
+              //           handleDataSetRequest(data,params)}
+              // }
+             updateData(index, lineData) 
+             console.log(` data[index] ${data[index][msg_id]},msg_id ${msg_id}`)
+             handleDataSetRequest(data,params)
         }    
   
 
@@ -113,7 +115,7 @@ const AutoCell = ({
             })  
             checkFields = yupErrCheck(screenSchema,"confirm",checkFields)
             Object.keys(checkFields).map((field)=>lineData[field] = checkFields[field])
-            if (lineData["confirm_gridmessage"] === "doing") {
+            if (lineData["confirm_gridmessage"] === "ok") {
                 params = {...params, lineData:lineData,lineData: JSON.stringify(lineData),  index: index , buttonflg: "confirm7" }
                 handleScreenRequest(params,data)
             }else{
@@ -144,18 +146,7 @@ const AutoCell = ({
               })
         }
 
-        
-        // const updateChangeData = (data,rowIndex, columnId, value) => {
-        //   setChangeData(changeData=>
-        //     changeData =   data.map((row, index) => {
-        //       if (index === rowIndex) {
-        //           row =  {...changeData[index],[columnId]:value}
-        //           }
-        //     return row
-        //     })
-        //   )
-        // }
-       
+             
 
         switch (true){   
         case /^Editable/.test(className):
@@ -174,7 +165,7 @@ const AutoCell = ({
                       // readOnly={row.values.fieldcode_ftype?setProtectFunc(id,row.values.fieldcode_ftype ):
                       //           row.values.screenfield_type?setProtectFunc(id,row.values.screenfield_type):false}
                       onBlur={(e) => setFieldsByonBlur(e)}
-                      className={setClassFunc(id,row.values,className,params.aud)}
+                      className={setClassFunc(id,data[index],className,params.aud)}
                       onKeyUp={(e) => {  
                            if (e.key === "Enter"&&!toggleSubForm ) 
                                  {

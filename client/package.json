@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@babel/core": "^7.16.12",
+    "@babel/core": "^7.27.1",
     "@babel/plugin-syntax-flow": "^7.14.9",
     "@babel/plugin-transform-react-jsx": "^7.14.9",
     "@emotion/react": "^11.11.4",
@@ -35,7 +35,7 @@
     "fstream": "^1.0.12",
     "gantt-task-react": "^0.3.9",
     "handlebars": "^4.1.2",
-    "history": "^4.7.2",
+    "history": "^5.3.0",
     "level-filesystem": "^1.2.0",
     "level-js": "^5.0.1",
     "lodash": "^4.17.15",
@@ -55,7 +55,6 @@
     "react-json-to-csv": "^1.0.4",
     "react-redux": "^9.1.2",
     "react-router-dom": "^6.2.1",
-    "react-router-redux": "^4.0.8",
     "react-scripts": "5.0.0",
     "react-select": "^5.8.0",
     "react-side-effect": "^2.1.2",
@@ -82,12 +81,15 @@
     "yup": "^0.32.11"
   },
   "devDependencies": {
-    "@babel/preset-react": "^7.16.7",
+    "@babel/preset-env": "^7.27.2",
+    "@babel/preset-react": "^7.27.1",
+    "@babel/preset-typescript": "^7.27.1",
+    "@types/history": "^5.0.0",
+    "babel-loader": "^10.0.0",
     "react-scripts": "5.0.0",
-    "redux-devtools-extension": "^2.13.2",
     "serve": "^11.2.0",
     "standard": "16.0.4",
-    "webpack": "5.67.0",
+    "webpack": "^5.99.8",
     "webpack-cli": "^4.9.2"
   },
   "scripts": {

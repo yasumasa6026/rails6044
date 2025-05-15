@@ -59,7 +59,8 @@ function batchcheck(sheet,nameToCode,screenCode) {
   }
 
 function sendExcelData({params,uploadexcel,auth}){      // ポイント2！
-    const url = 'http://localhost:3001/api/uploadexcel'
+    //const url = 'http://localhost:3001/api/uploadexcel'
+    const url = `${process.env.REACT_APP_API_URL}/uploadexcel`
     const token = auth.token       
     const client = auth.client         
     const uid = auth.uid 

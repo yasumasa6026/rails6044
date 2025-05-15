@@ -1,18 +1,27 @@
 import React from 'react'
 import { connect } from 'react-redux'
+import {Routes, Route,useNavigate,} from 'react-router-dom'
 import AppBar from '@mui/material/AppBar'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
-import { createStyles, makeStyles ,withStyles } from '@mui/styles'
-//import {Button} from './styles/button'
-import { LogoutRequest, SignUpFormRequest,LoginRequest,} from './actions'
+import { withStyles } from '@mui/styles'
+import { LogoutRequest,SignupFormRequest} from './actions'
+import Login from './components/login'
+import Signup from './components/signup'
+import ChangePassword from './components/changepassword'
 
-class GlobalNav extends React.Component {
-  render() {
-    const { isAuthenticated, isSubmitting,token,client,uid,
-              isSignUp,LogoutClick,SignUpClick, LoginClick,} = this.props
+const GlobalNav = ( { isAuthenticated, isSubmitting,isSignUp,isLogin,
+                    token,client,uid,
+                    LogoutClick,SignupFormClick,}) => {
+  
+              
+               const navigate = useNavigate()
+                const changepasswordform = () => {navigate('/changepassword')}
+                const loginform = () => {navigate('/login')}
+                const signupform = () => {navigate('/signup')}
+              
     return (
       <div>
       <ThemeProvider theme={theme}>
@@ -22,26 +31,40 @@ class GlobalNav extends React.Component {
             RRRP...
           </Typography>
           <Typography variant="h5"  gutterBottom = {true}  >
-          { isAuthenticated ? <Button variant="contained" color='success'
+            { isAuthenticated && <Button variant="contained" color='success'
               type='submit' disabled={false}
-              onClick ={() => LogoutClick(token,client,uid)}>
-              Logout{isSubmitting && <i className='fa fa-spinner fa-spin' />}</Button>
-            :isSignUp?<Button variant="contained" color='success' 
+              onClick ={() => {loginform(),LogoutClick(token,client,uid)}}>
+              Logout{isSubmitting && <i className='fa fa-spinner fa-spin' />}</Button>}
+          </Typography>
+          <Typography variant="h5"  gutterBottom = {true}  >
+            { isAuthenticated && <Button variant="contained" color='success'
+              type='submit' disabled={false} style={{position: 'absolute',right: 0}}
+              onClick ={() =>changepasswordform()}>
+              ChangePassword{isSubmitting && <i className='fa fa-spinner fa-spin' />}</Button>}
+          </Typography>
+          <Typography variant="h5"  gutterBottom = {true}  >
+            {!isAuthenticated && !isLogin && <Button variant="contained" color='success' 
               type='submit' disabled={false}
-              onClick ={() => LoginClick()}>
-              {isSubmitting && <i className='fa fa-spinner fa-spin' />}Login</Button>
-            :<Button variant="contained" color='success'
+              onClick ={loginform}>
+              {isSubmitting && <i className='fa fa-spinner fa-spin' />}Login</Button>}
+           </Typography>
+           <Typography variant="h5"  gutterBottom = {true}  >
+            {!isAuthenticated && !isSignUp && <Button variant="contained" color='success'
               type='submit' disabled={false}
-              onClick ={( isSignUp) => SignUpClick( isSignUp)}>SignUp</Button>}
+              onClick ={() =>{SignupFormClick(),signupform()}}>SignUp</Button>}
           </Typography>
           </Toolbar>
       </StyledAppBar>
       </ThemeProvider>
+            <Routes>
+              <Route exact path="/" element={<Login/>} /> 
+              <Route path="/signup" element={<Signup/>} />
+              <Route path="/login" element={<Login/>} />
+              <Route path="/changepassword" element={<ChangePassword/>} /> 
+            </Routes>
       </div>
     )
   }
-}
-
 
 const theme = createTheme( {palette: {
   ochre: {
@@ -57,33 +80,16 @@ const StyledAppBar = withStyles({
     height: 45,
   },
 })(AppBar)
-// const StyledAppBar = withTheme(({ theme }) => {
-//        theme.GlobalNav
-//      })
-//this.ownProps.history.replace(`/login`),
 const mapDispatchToProps = (dispatch,ownProps ) => {
   return{
         LogoutClick: (token,client,uid) => dispatch(LogoutRequest(token,client,uid),
                           ),
-        LoginClick: ( isSignUp) => dispatch(LoginRequest( isSignUp),
-                          ),
-        SignUpClick: ( isSignUp) => dispatch(SignUpFormRequest( isSignUp),
-                          ),
+        SignupFormClick: () => {dispatch(SignupFormRequest())},
         }
 }
 const  mapStateToProps = (state) => {
-  const { isSubmitting ,isAuthenticated,client,uid,isSignUp,token} = state.auth
-  return { isSubmitting ,isAuthenticated, token,client,uid,isSignUp}
+  const { isSubmitting ,isAuthenticated,client,uid,token,isSignUp,isLogin} = state.auth
+  return { isSubmitting ,isAuthenticated, token,client,uid,isSignUp,isLogin}
 }
-
-
-// const MyAnchorStyled = withStyles("a", (theme, { href }) => ({
-//   root: {
-//       border: "1px solid black",
-//       backgroundColor: href?.startsWith("https")
-//           ? theme.palette.primary.main
-//           : "red"
-//   }
-// }))
 
 export default connect(mapStateToProps, mapDispatchToProps )(GlobalNav)

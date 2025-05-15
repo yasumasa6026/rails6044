@@ -1,5 +1,4 @@
 ##https://github.com/lynndylanhurley/devise_token_auth
-##http://sainu.hatenablog.jp/entry/2018/08/11/194319
 module Api
   module Auth
     class ConfirmationsController < DeviseTokenAuth::ApplicationController

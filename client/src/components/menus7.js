@@ -7,7 +7,6 @@ import "react-tabs/style/react-tabs.css"
 import {Button} from '../styles/button'
 import "../index.css"
 
-import  SignUp  from './signup'
 import  Login  from './login'
 import {ScreenInitRequest,} from '../actions'
 import ScreenGrid7 from './screengrid7'
@@ -20,8 +19,7 @@ const titleNameSet = (screenName) =>{ return (
 
 const Menus7 = ({ isAuthenticated ,menuListData,getScreen,loadingOrg,loadingOrgSecond,
           toggleSubForm,toggleSubFormSecond,screenNameSecond,
-          hostError,message,
-            isSignUp,firstView,secondView,auth}) =>{
+          hostError,message,firstView,secondView,auth}) =>{
     const [tabIndex, setTabIndex] = useState(0)
     const [subTabIndex, setSubTabIndex] = useState(0)
     const loading = useMemo(()=>loadingOrg,[loadingOrg])
@@ -118,23 +116,16 @@ const Menus7 = ({ isAuthenticated ,menuListData,getScreen,loadingOrg,loadingOrgS
               {loading?<p> doing{hostError?hostError:""} </p>:<p> please logout because no data </p>}
             </div>)}
     }else{
-      if(isSignUp){
-        return (
-          <SignUp/>
-        )
-      }else{  
-        return (
-          <div>
-          <p> {hostError?hostError:""} </p>
-          <Login/>
-          </div>
-        )
-        }  
+      return (
+        <div>
+        <p> {hostError?hostError:""} </p>
+        <Login/>
+        </div>
+      )
     }  
   }
 
 const  mapStateToProps = (state,ownProps) =>({
-  isSignUp:state.auth.isSignUp ,
   isAuthenticated:state.auth.isAuthenticated ,
   auth:state.auth ,
   menuListData:state.menu.menuListData ,

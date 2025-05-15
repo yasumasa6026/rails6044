@@ -240,7 +240,6 @@ case GANTTCHART_SUCCESS:
   
     case  LOGOUT_SUCCESS:
       return {
-        isAuthenticated:false,
       }
       
 

@@ -1,7 +1,6 @@
 //api_user_session POST /api/auth/sign_in(.:format) api/auth/sessions#create
 import { call, put } from 'redux-saga/effects'
 import axios         from 'axios'
-//import qs            from 'qs'
 import {LOGIN_FAILURE,
         //MENU_REQUEST,
         LOGIN_SUCCESS,MenuRequest,
@@ -9,13 +8,17 @@ import {LOGIN_FAILURE,
                   } from '../../actions'
 
 function loginApi({ email, password}) {
-  const url = 'http://localhost:3001/api/auth/sign_in'
+  //const url = 'http://localhost:3001/api/auth/sign_in'
+  //axios.defaults.headers.post['Content-Type'] = 'application/json'
+  //axios.defaults.headers.post[ 'Access-Control-Allow-Origin'] = process.env.REACT_APP_RAILS_URL
+  const url = `${process.env.REACT_APP_API_URL}/auth/sign_in`
   const data =  {'email':email, 'password':password  }
-  axios.defaults.headers.post['Content-Type'] = 'application/json'
-  //headers:{ 'Content-Type': 'application/json'},
+  const headers = { 'Content-Type': 'application/json'} //,
+                  //  'Access-Control-Allow-Origin': process.env.REACT_APP_RAILS_URL}
   const options ={method:'POST',
                 //  data: qs.stringify(data),
                   data: data,
+                  headers:headers,
                   url,}
     return (axios(options)
     .then((response ) => {

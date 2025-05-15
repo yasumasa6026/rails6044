@@ -31,11 +31,16 @@ extend self
                 #end    
             when "varchar", "textarea","char"
                 str<< %Q%string()%
-                if rec["screenfield_edoptmaxlength"].to_i > 0
+                if rec["screenfield_edoptmaxlength"].to_i > 0  ###入力最大バイト数
                     str<< %Q%.max(#{rec["screenfield_edoptmaxlength"].to_i})%
                 end   
-                if rec["screenfield_indisp"] == '0'
-                    str << %Q%.nullable()% 
+                case rec["pobject_code_sfd"]
+                  when "loca_zip"
+                    str<< %Q%.matches(/[0-9]{3}\-[0-9]{4}/, { message: 'post code error --> xxx-xxxx' })%
+                  else 
+                    if rec["screenfield_indisp"] == '0'
+                      str << %Q%.nullable()% 
+                    end
                 end   
             when "select"
                 str<< %Q%string()%

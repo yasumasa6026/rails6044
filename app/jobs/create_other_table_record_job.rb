@@ -58,13 +58,10 @@ class CreateOtherTableRecordJob < ApplicationJob
                         when "mkprdpurords"  ###  xxxschsからxxxordsを作成。
                             ### 　parent 未使用
                             mkordparams = {}
-                            mkordparams[:incnt] = 0
-                            mkordparams[:inqty] = 0
-                            mkordparams[:inamt] = 0
-                            mkordparams[:outcnt] = 0
-                            mkordparams[:outqty] = 0
+                            mkordparams[:incnt] =  mkordparams[:inqty] = mkordparams[:inamt] = mkordparams[:outcnt] = mkordparams[:outqty] = 0
                             mkordparams[:outamt] = 0
-                            mkordparams,last_lotstks = MkordinstLib.proc_mkprdpurords params,mkordparams
+                            ###mkordparams,last_lotstks = MkordinstLib.proc_mkprdpurords params,mkordparams
+                            mkordparams,last_lotstks = MkordinstLib.proc_mkprdpurordv1 params,mkordparams
                             mkordparams[:message_code] = ""
                             mkordparams[:remark] = "  #{self} line:#{__LINE__} "
                             strsql = %Q%update mkprdpurords set incnt = #{mkordparams[:incnt]},inqty = #{mkordparams[:inqty]},
@@ -745,16 +742,14 @@ class CreateOtherTableRecordJob < ApplicationJob
         rescue
             ActiveRecord::Base.connection.rollback_db_transaction()
             ActiveRecord::Base.connection.begin_db_transaction()
-            if processreq 
-                strsql = %Q%update processreqs set result_f = '5'  where seqno = #{pid} and id < #{processreq["id"]}
-                %
-                ActiveRecord::Base.connection.update(strsql)
-            end
             remark =  %Q% $@: #{$@[0..200]} :class #{self} : LINE #{__LINE__} $!: #{$!} %  ###evar not defined
             Rails.logger.debug"error class #{self} : #{Time.now}: #{$@} "
             Rails.logger.debug"error class #{self} : $!: #{$!} "
             Rails.logger.debug"error class #{self} : params: #{params} "
             if processreq
+                strsql = %Q%update processreqs set result_f = '5'  where seqno = #{pid} and id < #{processreq["id"]}
+                        %
+                ActiveRecord::Base.connection.update(strsql)
                 strsql = %Q%update processreqs set result_f = '9'  where seqno = #{pid} and id = #{processreq["id"]}
                 %
                 ActiveRecord::Base.connection.update(strsql)
@@ -763,25 +758,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                 %
                 ActiveRecord::Base.connection.update(strsql)
             end
-            if params
-                if params["mkprdpurords"]
-                    strsql = %Q%update mkprdpurords set incnt = #{mkordparams[:incnt]},inqty = #{mkordparams[:inqty]},
-                            inamt = #{mkordparams[:inamt]},outcnt = #{mkordparams[:outcnt]},
-                            outqty = #{mkordparams[:outqty]},outamt = #{mkordparams[:outamt]} ,
-                            message_code = '#{mkordparams[:message_code]}',remark = ' error ===>rollback'
-                            where id = #{params["mkprdpurords_id"]}
-                        %
-                    ActiveRecord::Base.connection.update(strsql)
-                end
-                if params["mkbillinsts"]
-                    strsql = %Q%update mkbillinsts set incnt = #{mkordparams[:incnt]},outcnt = #{mkordparams[:outcnt]},
-                            inamt = #{mkordparams[:inamt]},outamt = #{mkordparams[:outamt]} ,
-                            message_code = '#{mkordparams[:message_code]}',remark = ' error ===>rollback'
-                            where id = #{params["mkbillinsts_id"]}
-                        %
-                    ActiveRecord::Base.connection.update(strsql)
-                end
-            end
+           
             ActiveRecord::Base.connection.commit_db_transaction()
         else
             ActiveRecord::Base.connection.commit_db_transaction()
@@ -832,7 +809,7 @@ class CreateOtherTableRecordJob < ApplicationJob
         command_c["#{paybillsch}_person_id_upd"] = sch["persons_id_upd"]
         command_c["#{paybillsch}_duedate"] = sch["duedate"]
         command_c["#{paybillsch}_isudate"] = sch["isudate"]
-        command_c["#{paybillsch}_expiredate"] =  Constants::End_date 
+        command_c["#{paybillsch}_expiredate"] =  Constants::EndDate 
         command_c["#{paybillsch}_chrg_id"] = billpay["chrgs_id_#{mst}"]
         command_c["#{paybillsch}_tax"] = 0 
         command_c["#{paybillsch}_updated_at"] = Time.now

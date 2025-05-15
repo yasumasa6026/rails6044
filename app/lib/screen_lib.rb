@@ -258,9 +258,8 @@ module ScreenLib
 							select_row_fields << %Q%  #{i["pobject_code_sfd"]} ,% 
 							strGroupBy << %Q% #{i["pobject_code_sfd"]} % 
 						else
-							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, aggregations:#{aggregations[i["pobject_code_sfd"]]} not support"
 							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, field:#{i["pobject_code_sfd"]} "
-							raise " class:#{self} ,line:#{__LINE__},  support by  YY:,MM:,WW:.DD:"
+							raise " class:#{self} ,line:#{__LINE__}, aggregations:#{aggregations[i["pobject_code_sfd"]]} not support"
 						end
 					else											
 						select_row_fields << i["pobject_code_sfd"]  + " ,"
@@ -278,9 +277,7 @@ module ScreenLib
 						when "",nil
 							select_row_fields << %Q% null  #{i["pobject_code_sfd"]}  ,%
 						else
-							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, aggregations:#{aggregations[i["pobject_code_sfd"]]} not support"
-							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, field:#{i["pobject_code_sfd"]} "
-							raise " class:#{self} ,line:#{__LINE__},  support by  SUM:,MIN:,MAX:"
+							raise " class:#{self} ,line:#{__LINE__},aggregations:#{aggregations[i["pobject_code_sfd"]]} not support"
 						end
 					else
 						if i["pobject_code_sfd"] =~ /_qty|_amt|_cash/
@@ -691,7 +688,7 @@ module ScreenLib
 						end
 						case cell[:accessor]   ###初期表示
 						when /_expiredate/
-							temp[cell[:accessor]] =  Constants::End_date 
+							temp[cell[:accessor]] =  Constants::EndDate 
 						when /_isudate|_rcptdate|_cmpldate|payact_paymentdate|_acpdate/
 							temp[cell[:accessor]] = Time.now.strftime("%Y/%m/%d")
 						when /pobject_objecttype_tbl/
@@ -717,9 +714,9 @@ module ScreenLib
 						when /loca_code_|shelfno_code_|itm_code_|person_code_chrg/	
 							temp[cell[:accessor]] = "dummy"
 						when /mkprdpurord_duedate_/
-							temp[cell[:accessor]] =  Constants::End_date 
+							temp[cell[:accessor]] =  Constants::EndDate 
 						when /mkprdpurord_starttime_/
-							temp[cell[:accessor]] = Constants::Beginnig_date  
+							temp[cell[:accessor]] = Constants::BeginnigDate  
 						end
 						if cell[:className] =~ /Numeric/
 							temp[cell[:accessor]] = "0" ###初期表示
@@ -1021,6 +1018,8 @@ module ScreenLib
 				 	end  
 				 	setParams[:fetchview] = yup_fetch_code[field]
 				 	setParams = CtlFields.proc_fetch_rec setParams  
+					Rails.logger.debug " class:#{self} ,line:#{__LINE__}, fetchview:#{setParams[:fetchview]} "
+					Rails.logger.debug " class:#{self} ,line:#{__LINE__}, parse_linedata:#{setParams[:parse_linedata]} "
 				 	if setParams[:err] 
 						command_c[:confirm_gridmessage] = setParams[:err] 
 						command_c[:confirm] = false 
@@ -1614,14 +1613,14 @@ module ScreenLib
 
     def proc_create_calendars  str_hcalendars_id
       prev_locas_id = "-1"
-      prev_expiredate = Constants::Beginnig_date
+      prev_expiredate = Constants::BeginnigDate
       a_locas_ids = []
       strsql = %Q&select * from hcalendars where expiredate > current_date
                                 and id in(#{str_hcalendars_id}) 
                                 order by locas_id,expiredate,effectivetime &    
       ActiveRecord::Base.connection.select_all(strsql).each do |head|
         if prev_locas_id != head["locas_id"] 
-           prev_expiredate = Constants::Beginnig_date
+           prev_expiredate = Constants::BeginnigDate
            a_locas_ids << head["locas_id"]
         end
         holidayweekdays =  head["dayofweek"].split(",")

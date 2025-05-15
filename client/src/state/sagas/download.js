@@ -10,7 +10,8 @@ function screenApi({params,auth}) {
   let token = auth.token       
   let client = auth.client         
   let uid = auth.uid 
-  let url = 'http://localhost:3001/api/menus7'
+  //let url = 'http://localhost:3001/api/menus7'
+  const url = `${process.env.REACT_APP_API_URL}/menus7`
   const headers = {'access-token':token,'client':client,'uid':uid }
 
   const options ={method:'POST',

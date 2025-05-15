@@ -5,7 +5,8 @@ import { MENU_SUCCESS, MENU_FAILURE, } from '../../actions'
 import history from '../../histrory'
 
 function MenuGetApi({auth}) {
-  const url = 'http://localhost:3001/api/menus7'
+  //const url = 'http://localhost:3001/api/menus7'
+  const url = `${process.env.REACT_APP_API_URL}/menus7`
   const headers =  { 'access-token':auth["access-token"], 
                     client:auth.client,
                     uid:auth.uid,}

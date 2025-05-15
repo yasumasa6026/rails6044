@@ -6,7 +6,8 @@ import {getAuthState} from '../reducers/auth'
 
 
 function GanttApi({params,token,client,uid}) {
-  const url = 'http://localhost:3001/api/ganttcharts'
+  //const url = 'http://localhost:3001/api/ganttcharts'
+  const url = `${process.env.REACT_APP_API_URL}/ganttcharts`
   const headers = {'access-token':token,'client':client,'uid':uid }
   axios.defaults.headers.post['Content-Type'] = 'application/json'
 

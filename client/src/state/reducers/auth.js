@@ -1,7 +1,6 @@
 //sigin_in(login) & sign_up
 
-import { SIGNUPFORM_REQUEST,SIGNUPFORM_SUCCESS,          
-          SIGNUP_REQUEST,SIGNUP_SUCCESS,SIGNUP_FAILURE,
+import {  SIGNUPFORM_REQUEST,SIGNUP_REQUEST,SIGNUP_SUCCESS,SIGNUP_FAILURE,
           LOGIN_REQUEST,LOGIN_SUCCESS,LOGIN_FAILURE,
           LOGOUT_REQUEST, LOGOUT_SUCCESS, } from '../../actions'
 
@@ -18,25 +17,24 @@ const initialValues = {
 
 const authreducer =  (state= initialValues , actions) =>{
   switch (actions.type) {
-
+      
     case SIGNUPFORM_REQUEST:
-      return {...state,
-        isSubmitting:false,
+      return {
         isSignUp:true,
+        isLogin:false,
+        isChangePassword:false,
+        isResetPassword:false,
+        isDeleteUser:false,
       }
 
-    case SIGNUPFORM_SUCCESS:
-        return {...state,
-          isSubmitting:false,
-          isSignUp:true,
-        }
-  
+    
     case SIGNUP_REQUEST:
-      return {
-        isSubmitting:true,
-        isSignUp:true,
-        message: "signining in...",
-      }
+        return {
+          isSubmitting:true,
+          isSignUp:true,
+          message: "signining in...",
+        }
+    
 
     // Successful?  Reset the signup state.
     case SIGNUP_SUCCESS:
@@ -88,11 +86,24 @@ const authreducer =  (state= initialValues , actions) =>{
     return {
       token:actions.payload.token, 
       client:actions.payload.client, 
-      uid:actions.payload.uid, }
+      uid:actions.payload.uid, 
+      isAuthenticated:false,
+      isSignUp:false,
+      isLogin:true,
+      isSubmitting:true,
+      isChangePassword:false,
+      isResetPassword:false,
+      isDeleteUser:false,}
 
     case LOGOUT_SUCCESS:
       return {
+        ...state,
         isSignUp:false,
+        isLogin:true,
+        isSubmitting:false,
+        isChangePassword:false,
+        isResetPassword:false,
+        isDeleteUser:false,  
         isAuthenticated:false,
       }
  

@@ -397,8 +397,8 @@ module Shipment
 		return pagedata,params 
 	end	
 	
-	###shp用 shpordsは対象外
-	def proc_create_shpxxxs(params)  ### shpordsは対象外
+	###shp用 shpordsはprdordsの完成後の移動に使用
+	def proc_create_shpxxxs(params)  ### shpordsprdordsの完成後の移動に使用
 		setParams = params.dup
 			###自分自身のshpschs を作成   
 		###
@@ -484,7 +484,7 @@ module Shipment
 					else
 						command_c["#{tblnamechop}_shelfno_id_to"] = parent["shelfnos_id"] 
 					end
-				when /shpord/   ###	未使用
+				when /shpord/  ###shp用 shpordsはprdordsの完成後の移動に使用
 					command_c["#{tblnamechop}_shelfno_id_fm"] = child["shelfnos_id_fm"] ###自身の保管先から出庫
 					command_c["#{tblnamechop}_qty_sch"] = qty_src =  child["qty_sch"].to_f * -1
 					command_c["#{tblnamechop}_gno"] = child["gno"]
@@ -525,7 +525,7 @@ module Shipment
         last_lotstks = []
         last_lotstks << {"tblname" => yield + "s" ,"tblid" => command_c["id"],"qty_src" => qty_src }
 				return last_lotstks if yield == "shpest"
-				last_lotstks_parts = update_mold_IToll_shp_link(blk.proc_tbldata,"add") do
+				last_lotstks_parts = update_mold_IToll_shp_link(blk.tbldata,"add") do
 						yield
 				end
         last_lotstks.concat last_lotstks_parts
@@ -650,11 +650,11 @@ module Shipment
 		blk.proc_private_aud_rec({},command_c)
 
 		last_lotstks << {"tblname" => nextshpchop + "s","tblid" => command_c["id"],"qty_src" => command_c["#{nextshpchop}_qty_stk"] ,
-                    "set_f" => true ,"rec" => blk.proc_tbldata}
+                    "set_f" => true ,"rec" => blk.tbldata}
 		###
 		#  mold,ITollのshpxxxxのlinktbls
 		###
-		last_lotstks_parts = update_mold_IToll_shp_link(blk.proc_tbldata,"add") do
+		last_lotstks_parts = update_mold_IToll_shp_link(blk.tbldata,"add") do
 			nextshpchop
 		end
 		###
@@ -834,7 +834,7 @@ module Shipment
     #                 select itms_id_nditm itms_id,processseq_nditm processseq,chilnum,parenum,consumunitqty,consumminqty,consumchgoverqty
     #                       from nditms nd 
     #                       where nd.opeitms_id = #{params["tbldata"]["opeitms_id"]}  ---親
-    #                       and nd.itms_id_nditm = #{prev.proc_tbldata["itms_id"]}  and nd.processseq_nditm = #{prev.proc_tbldata["processseq"]}
+    #                       and nd.itms_id_nditm = #{prev.tbldata["itms_id"]}  and nd.processseq_nditm = #{prev.tbldata["processseq"]}
     #               %
     #     nd = ActiveRecord::Base.connection.select_one(ndsql)
     #     prev_tblnamechop = link["srctblname"].sub(/prd|pur/,"con").chop
@@ -915,11 +915,11 @@ module Shipment
 			blk.proc_create_tbldata(command_c) ##
 			setParams = blk.proc_private_aud_rec(setParams,command_c)
       last_lotstks = {"tblname" => tblnamechop + "s","tblid" => command_c["id"],"qty_src" => qty_src ,
-                      "set_f" => true ,"rec" => blk.proc_tbldata}
+                      "set_f" => true ,"rec" => blk.tbldata}
 			###
 			#  mold,ITollのshpxxxxのlinktbls
 			###
-			last_lotstks_parts = update_mold_IToll_shp_link(blk.proc_tbldata,"update") do
+			last_lotstks_parts = update_mold_IToll_shp_link(blk.tbldata,"update") do
 				tblnamechop
 			end
 			###
@@ -1296,11 +1296,11 @@ module Shipment
 		blk.proc_private_aud_rec({},command_c)
     
 		last_lotstks << {"tblname" => "shpords","tblid" => command_c["id"],"qty_src" => command_c["shpord_qty"] ,
-                    "set_f" => true ,"rec" => blk.proc_tbldata}
+                    "set_f" => true ,"rec" => blk.tbldata}
 		###
 		#  mold,ITollのshpxxxxのlinktbls
 		###
-		last_lotstks_parts = update_mold_IToll_shp_link(blk.proc_tbldata,"add") do
+		last_lotstks_parts = update_mold_IToll_shp_link(blk.tbldata,"add") do
 			"shpord"
 		end
     last_lotstks.concat last_lotstks_parts
@@ -1409,7 +1409,6 @@ module Shipment
 				linktbl_id = ArelCtl.proc_insert_linktbls(src,base)
 			end
 		end
-					 Rails.logger.debug " calss:#{self},line:#{__LINE__},last_lotstks:#{last_lotstks}"
     return last_lotstks
 	end 
   def proc_delete_shpxxxsby_parent(paretblname,paretblid)

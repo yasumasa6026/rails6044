@@ -84,8 +84,8 @@ ${'' /* These styles are required for a horizontaly scrollable table overflow */
     .resizer {
       right: 0;
       background: steelblue;
-      width: 2px;
-      height: 50px;
+      width: 1px;
+      height: 50px; ${''/* 30px以下resizeが有効にならない */}
       position: absolute;
       top: 0;
       z-index: 1;

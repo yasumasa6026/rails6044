@@ -4,7 +4,7 @@ import { Tab, Tabs, TabList,TabPanel , } from 'react-tabs'
 //import ScreenGrid7 from './screengrid7.js'
 import UploadExcel from './uploadexcel.js'
 import Download from './download'
-import GanttTask from './gantttask'
+import GanttTask from './gantttask.tsx'
 import "react-tabs/style/react-tabs.css"
 import {Button} from '../styles/button'
 import "../index.css"

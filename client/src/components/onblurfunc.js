@@ -171,17 +171,18 @@ function isValidMMDD(mmdd) {
 
 export function   onFieldValite (lineData, field, screenCode) {  // yupでは　2019/12/32等がエラーにならない
     let Yup = require('yup')    
-    let fieldSchema = (field, screenCode) => {
-      let tmp = {}
-      tmp[field] = yupschema[screenCode][field]
-      return (
-        Yup.object(
-          tmp
-        ))
-    }
+     let fieldSchema = (field, screenCode) => {
+       let tmp = {}
+       tmp[field] = yupschema[screenCode][field]
+       return (
+         Yup.object(
+           tmp
+         ))
+     }
     
-    let schema = fieldSchema(field, screenCode)
-    lineData = yupErrCheck(schema,field,lineData)
+      let schema = fieldSchema(field, screenCode)
+      lineData = yupErrCheck(schema,field,lineData)
+    //lineData = yupErrCheck(yupschema[screenCode][field],field,lineData)
     return lineData
 }
 

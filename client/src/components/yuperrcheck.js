@@ -5,7 +5,6 @@ export  function yupErrCheck (schema,field,linedata) {
       if(field==="confirm"){schema.validateSync(linedata)
             linedata.confirm_gridmessage = "doing"}
       else{schema.validateSync({[field]:linedata[field]})
-            linedata[mfield] = "ok"
             linedata.confirm_gridmessage = "ok"}  
       if(linedata.confirm_gridmessage === "ok"){
                       dataCheck7(schema,field,linedata) 
@@ -15,6 +14,7 @@ export  function yupErrCheck (schema,field,linedata) {
                         dataCheck7(schema,fd,{[fd]:linedata[fd]})             }
                       ) 
             }    
+      linedata[mfield] = "ok"
       return linedata
   }      
   catch(err){

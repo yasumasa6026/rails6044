@@ -86,16 +86,26 @@ module Operation
         return last_lotstks
     end
     def proc_trngantts_update(last_rec,chng_flg)  ###schs,ords専用
+      ### qty,qty_stkはqty_linkto_alloctbl以下にはできない。
+      ###出庫指示数以下にはできない。
+      ###locas_idの変更は不可(オンライン、入り口でチェック) 
+      ###前の在庫　をzeroに
+      ###  xxxschsはtop以外修正できない trnganttsの値を修正
+
+      ###新shelfnos_id_fmで出庫・消費を作成(数量増の変更で対応)
+      ###数量又は納期の変更があった時   xxxsxhs,xxxordsの時のみ
+      ###
+      ### 
 		   ###変更　(削除 qty_sch=qty=qty_stk=0 　を含む) purschs,purords,prdschs,prdords
         last_lotstks = []
 			  return  last_lotstks if @gantt.nil? ###  last_lotstks = []
 			  ###check_shelfnos_duedate_qty()  ###
 			  return  last_lotstks if chng_flg == ""  ###  last_lotstks = []
 			  ###数量・納期・場所の変更があった時
-			  case @tblname
-			  when /schs$|ords$/  ###schs,ordsの変更
+			 
+			  if @tblname =~ /schs$|ords$/  ###schs,ordsの変更
 				  strsql = %Q% 
-						select t.* from trngantts t 
+						select t.* from trngantts t  ---有効なtrnganttsを取得する。
                   inner join alloctbls a on t.tblname = a.srctblname and t.tblid = a.srctblid
                                         and a.qty_linkto_alloctbl > 0
                   where t.tblname = '#{@tblname}' and t.tblid = #{@tblid}
@@ -106,38 +116,29 @@ module Operation
 			  target_trngantt = ActiveRecord::Base.connection.select_one(strsql)
 			  return last_lotstks   if target_trngantt.nil? ###  last_lotstks = []
 			  @trngantts_id =  @gantt["trngantts_id"]  = last_rec["trngantts_id"] = target_trngantt["id"]
-			  ### qty,qty_stkはqty_linkto_alloctbl以下にはできない。
-			  ###出庫指示数以下にはできない。
-			  ###locas_idの変更は不可(オンライン、入り口でチェック) 
-			  ###前の在庫　をzeroに
-			  ###  xxxschsはtop以外修正できない trnganttsの値を修正
-
-			  ###新shelfnos_id_fmで出庫・消費を作成(数量増の変更で対応)
-			  ###数量又は納期の変更があった時   xxxsxhs,xxxordsの時のみ
-			  ###
-			  ### 
         update_strsql = %Q&
-        update trngantts set   --- xxschs,xxxordsが変更された時のみ
-          updated_at = cast('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}' as timestamp),
-          remark = '#{self}  line:#{__LINE__}'||left(remark,3000),
-          #{@str_qty.to_s} = #{case @tblname
+                        update trngantts set   --- xxschs,xxxordsが変更された時のみ
+                              updated_at = cast('#{Time.now.strftime("%Y/%m/%d %H:%M:%S")}' as timestamp),
+                              remark = '#{self}  line:#{__LINE__}'||left(remark,3000),
+                              #{@str_qty.to_s} = #{case @tblname
                                 when /^erc|^dvs/
                                   1
                                 else
                                   @tbldata[@str_qty]
                                 end},
-          prjnos_id = #{@tbldata["prjnos_id"]},
-          duedate_trn = '#{@tbldata[@str_duedate]}',starttime_trn = '#{@tbldata[@str_starttime]}',
-          shelfnos_id_to_trn = #{case @tblname
+                              prjnos_id = #{@tbldata["prjnos_id"]},
+                              duedate_trn = '#{@tbldata[@str_duedate]}',starttime_trn = '#{@tbldata[@str_starttime]}',
+                              shelfnos_id_to_trn = #{case @tblname
                                   when /^cust|^erc|^dvs/
                                     0
                                   else
                                     @tbldata["shelfnos_id_to"]
                                   end}
-          where  id = #{@trngantts_id} &
+                            where  id = #{@trngantts_id} &
         ActiveRecord::Base.connection.update(update_strsql) 
-				  ###数量の変更があるときはalloctblsも修正する。
-          if chng_flg =~ /qty/ 
+				###数量の変更があるときはalloctblsも修正する。
+        case chng_flg 
+          when  /qty/ 
 				      ###schsが減されfreeのordsが発生。xxxschsがtopの時のみ変更可能
               ###lotstkhistsの変更本体のみ
 					    alloc_sql = %Q&  ---alloctblsはrorblkvtlで更新済
@@ -148,27 +149,25 @@ module Operation
 					    base_alloc = ActiveRecord::Base.connection.select_one(alloc_sql)
 					    alloctbls_id ,last_lotstk = base_sch_alloc_update(base_alloc)  
               last_lotstks << last_lotstk
-          else
-            if chng_flg =~ /due|shelfno/
+          when /due|shelfno/
 				        ###shp,conの変更 callされるのはschs,ordsの時のみ
-                last_lotstks << {"tblname" => @tblname,"tblid" => @tblid,"qty_src" => - last_rec[@str_qty],"set_f" => true,"rec" => last_rec}
-                last_lotstks << {"tblname" => @tblname,"tblid" => @tblid,"qty_src" =>  @tbldata[@str_qty]}
-            end
-          end
+                last_lotstks << {"tblname" => @tblname,"tblid" => @tblid,"qty_src" => - last_rec[@str_qty],"set_f" => false}
+        end
 					  ###schsが減された時:ords,insts,actsをfreeに　qty_schが増、減されたときshp,conの変更、###在庫の処理を含む
 					  ###trnganttsは修正済  alloctblsは一件のみ
-          if @tblname =~ /^prd/ 
-              if (@tbldata["qty_sch"].to_f  == 0 or chng_flg =~ /due/)   
+        if @tblname =~ /^prd/ 
+            if (@tbldata["qty_sch"].to_f  == 0 or chng_flg =~ /due/)   ###数量が減っても装置の変更はない。
                 ActiveRecord::Base.connection.select_all(ArelCtl.proc_apparatus_sql(@tbldata["opeitms_id"])).each do |apparatus|
                   @reqparams["apparatus"] = apparatus
                   ope = Operation::OpeClass.new(@reqparams)  ###prdinsts,prdacts
                   ope.proc_delete_dvs_data
                   ope.proc_delete_erc_data
                 end
-              end
-          end
-          if @tblname =~ /^prd/ 
-              if (@tbldata["qty_sch"].to_f  > 0 and  chng_flg =~ /due/)   
+            end
+        end
+        case @tblname 
+          when  /^prd/ 
+              if (@tbldata["qty_sch"].to_f  > 0 or @tbldata["qty_sch"].to_f  > 0)  and  chng_flg =~ /due/ 
                 ActiveRecord::Base.connection.select_all(ArelCtl.proc_apparatus_sql(@tbldata["opeitms_id"])).each_with_index do |apparatus,idx|
                   if idx == 0
                     schsParams = @reqparams.dup
@@ -197,42 +196,13 @@ module Operation
                   ope.proc_add_erc_data apparatus
                 end
               end
-          end
-				  if @tblname =~ /purords$|prdords$/ and  chng_flg != ""
-            ###既に引き当てられている数以下にはできない。画面でチェック済
-            if chng_flg =~ /qty/
-					    last_lotstks_parts = change_alloc_last(last_rec) 			  ###linktblsとlink先のalloctblの変更
-              last_lotstks.concat last_lotstks_parts
-            else
-              if chng_flg =~ /due|shelfno/
-                  ###shp,conの変更 callされるのはschs,ordsの時のみ
-                  last_lotstks << {"tblname" => @tblname,"tblid" => @tblid,"qty_src" => - last_rec[@str_qty],"set_f" => true,"rec" => last_rec}
-                  last_lotstks << {"tblname" => @tblname,"tblid" => @tblid,"qty_src" =>  @tbldata[@str_qty]}
+              if @tblname =~ /^prdords$/ and  chng_flg != ""
+                update_prdourord(chng_flg,last_lotstks,last_rec)
               end
-            end
-            ### 消費、出庫の取り消し
-            last_lotstks_parts = Shipment.proc_update_consume(@tblname,@tbldata,last_rec,true)
-            last_lotstks.concat last_lotstks_parts
-            last_lotstks_parts = Shipment.proc_delete_shpxxxsby_parent @tblname,@tblid
-            last_lotstks.concat last_lotstks_parts
-            if @tbldata[@str_qty].to_f > 0
-              ActiveRecord::Base.connection.select_all(ArelCtl.proc_ChildConSql(@tbldata)).each do |conord|
-                dupParams = @reqparams.dup
-                dupParams["child"] = conord.dup
-                dupParams["parent"] = @tbldata.dup
-                dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
-                dupParams["screenCode"] = "r_conords"
-                last_lotstks <<  Shipment.proc_create_consume(dupParams)
-                ###
-                last_lotstks_parts = Shipment.proc_create_shpxxxs(dupParams) do
-                  "shpsch"
-                end
-                last_lotstks.concat last_lotstks_parts
-              end 
-            end
-          end
-          if @tblname =~ /^dvs|^erc/
-            if @reqparams["classname"] =~ /_purge_|_delete_/
+          when /purords$/ 
+              update_prdourord(chng_flg,last_lotstks,last_rec)
+          when  /^dvs|^erc/
+              if @reqparams["classname"] =~ /_purge_|_delete_/
                 strsql = %Q&
                             select * from linktbls where tblname = '#{@tblname}' and tblid = #{@tblid}
                 &
@@ -250,38 +220,39 @@ module Operation
                   &
                   ActiveRecord::Base.connection.delete(strdelsql)
                 end
-            end
-          end
-				  if @tblname =~ /^custords/
-				 	  qty =  @tbldata[@str_qty].to_f
-				 	  strsql = %Q&
+              end
+          when    /^custords/
+				 	    qty =  @tbldata[@str_qty].to_f
+				 	    strsql = %Q&
 				 			        select * from linkcusts where tblname = 'custords' and tblid = #{@tblid}
 													                    and srctblname = 'custschs' 
-				 	    &
-				 	  links = ActiveRecord::Base.connection.select_all(strsql)
-					  if links.to_ary.size > 0    ###custschs引当
-				 		  if qty < link["qty_src"].to_f
-				 			  update_sql = %Q&
-				 				  update linkcusts 
-				 					set qty_src = #{qty},remark = ' #{self} line:#{__LINE__} '||remark
-				 					where id = #{link["id"]}
-				 			    &
-				 			  ActiveRecord::Base.connection.update(update_sql)
-							  rcv_qty = qty
-							  qty = 0
-				 		  else
-							  rcv_qty = link["qty_src"]
-				 			  qty -= link["qty_src"].to_f
-				 		  end
-						  custschs_rcv_sql = %Q&
-							  update linkcusts 
-								  set qty_src = qty_src + #{rcv_qty},remark = ' #{self} line:#{__LINE__} '||remark
-								    where tblname = 'custschs' and srctblname = 'custschs'
-								    and tblid = #{link["srctblid"]} and srctblid = #{link["srctblid"]}
+				 	      &
+				 	    links = ActiveRecord::Base.connection.select_all(strsql)
+					    if links.to_ary.size > 0    ###custschs引当
+				 		    if qty < link["qty_src"].to_f
+				 			    update_sql = %Q&
+				 				                update linkcusts 
+				 					                    set qty_src = #{qty},remark = ' #{self} line:#{__LINE__} '||remark
+				 					                  where id = #{link["id"]}
+				 			                &
+				 			    ActiveRecord::Base.connection.update(update_sql)
+							    rcv_qty = qty
+							    qty = 0
+				 		    else
+							    rcv_qty = link["qty_src"]
+				 			    qty -= link["qty_src"].to_f
+				 		    end
+						    custschs_rcv_sql = %Q&
+							    update linkcusts  set qty_src = qty_src + #{rcv_qty},remark = ' #{self} line:#{__LINE__} '||remark
+								          where tblname = 'custschs' and srctblname = 'custschs'
+								        and tblid = #{link["srctblid"]} and srctblid = #{link["srctblid"]}
 						 	    &
-						  ActiveRecord::Base.connection.update(custschs_rcv_sql)
-						  return 
-					  else  ###paretblname=custords,tblname=prd,pur
+						    ActiveRecord::Base.connection.update(custschs_rcv_sql)
+              end
+              #
+						  ###return 
+              #
+					else  ###paretblname=custords,tblname=prd,pur
 						  # strsql = %Q% 
 							# 		select * from trngantts where paretblname = '#{@tblname}' and paretblid = #{@tblid}
 					  	# 						and orgtblname = paretblname and paretblname != tblname
@@ -304,8 +275,7 @@ module Operation
 							# 	"itms_id" => target_trngantt["itms_id_trn"],"processseq" => target_trngantt["processseq_trn"],
 							# 	"duration" => 0,"durationfacility" => 0,"packqtyfacility" => 0}
 						  # update_prdpur_child(trn)
-				 	  end
-				  end
+        end
 			  ###下位の構成変更  
 			  if target_trngantt["mlevel"].to_i  == 0
 				  lowlevel_gantts = []
@@ -323,10 +293,6 @@ module Operation
 	  end
 	  ###--------------------------------------------------------------------------------------------
   	###linktblsの追加はRorBlkctlで完了済のこと。
-	  def proc_link_lotstkhists_update()  ###
-	
-	  end
-    ###
     # consume schs,ords,insts,acts
     #### 
 	  def proc_consume_by_parent()  ### target ==> all children 
@@ -438,6 +404,40 @@ module Operation
 
 		  return 	last_lotstks
 	  end
+
+    def update_prdourord(chng_flg,last_lotstks,last_rec)  ###schs,ords専用
+      case chng_flg 
+          ###既に引き当てられている数以下にはできない。画面でチェック済
+        when  /qty/
+              last_lotstks_parts = change_alloc_last(last_rec) 			  ###linktblsとlink先のalloctblの変更
+              last_lotstks.concat last_lotstks_parts
+        when  /due|shelfno/
+          ###shp,conの変更 callされるのはschs,ordsの時のみ
+          last_lotstks << {"tblname" => @tblname,"tblid" => @tblid,"qty_src" => - last_rec[@str_qty],"set_f" => true,"rec" => last_rec}
+          last_lotstks << {"tblname" => @tblname,"tblid" => @tblid,"qty_src" =>  @tbldata[@str_qty]}
+      end
+      ### 消費、出庫の取り消し
+      last_lotstks_parts = Shipment.proc_update_consume(@tblname,@tbldata,last_rec,true)
+      last_lotstks.concat last_lotstks_parts
+      last_lotstks_parts = Shipment.proc_delete_shpxxxsby_parent @tblname,@tblid
+      last_lotstks.concat last_lotstks_parts
+      if @tbldata[@str_qty].to_f > 0
+        ActiveRecord::Base.connection.select_all(ArelCtl.proc_ChildConSql(@tbldata)).each do |conord|
+          dupParams = @reqparams.dup
+          dupParams["child"] = conord.dup
+          dupParams["parent"] = @tbldata.dup
+          dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
+          dupParams["screenCode"] = "r_conords"
+          last_lotstks <<  Shipment.proc_create_consume(dupParams)
+          ###
+          last_lotstks_parts = Shipment.proc_create_shpxxxs(dupParams) do
+            "shpsch"
+          end
+          last_lotstks.concat last_lotstks_parts
+        end 
+      end
+      return last_lotstks
+    end
       
 	  def update_prdpur_child(trn)
 		  cParams = @reqparams.dup
@@ -759,7 +759,7 @@ module Operation
 		  dvs = RorBlkCtl::BlkClass.new("r_#{currdvstbl}")
 		  command_dvs = dvs.command_init
       command_dvs["#{currdvstbl.chop}_prjno_id"] = @tbldata["prjnos_id"]
-      command_dvs["#{currdvstbl.chop}_expiredate"] =  Constants::End_date 
+      command_dvs["#{currdvstbl.chop}_expiredate"] =  Constants::EndDate 
       command_dvs["sio_classname"] = "_add_dvs_data"
 			command_dvs["id"]  = command_dvs["#{currdvstbl.chop}_id"]  = ArelCtl.proc_get_nextval("#{currdvstbl}_seq")
       @reqparams["mkprdpurords_id"] = 0
@@ -850,7 +850,7 @@ module Operation
       erc = RorBlkCtl::BlkClass.new("r_#{currerctbl}")
       command_erc = erc.command_init
       command_erc["#{currerctbl.chop}_prjno_id"] = @tbldata["prjnos_id"]
-      command_erc["#{currerctbl.chop}_expiredate"] =  Constants::End_date 
+      command_erc["#{currerctbl.chop}_expiredate"] =  Constants::EndDate 
       command_erc["sio_classname"] = "_add_erc_data"
 			command_erc["id"]  = command_erc["#{currerctbl.chop}_id"]  = ArelCtl.proc_get_nextval("#{currerctbl}_seq")
       @reqparams["mkprdpurords_id"] = 0

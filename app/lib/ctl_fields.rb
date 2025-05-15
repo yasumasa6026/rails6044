@@ -241,12 +241,13 @@ module CtlFields
                 when "id" 
                    	line_data[:id] = line_data[(screentblnamechop+"_id").to_sym] = "" if params[:parse_linedata][:aud] =~ /add|insert/
                    	next
-                when /#{screentblnamechop}_#{viewtblnamechop}_id/
+                when /^#{screentblnamechop}_#{viewtblnamechop}_id/
 							 		  other_tbl_key_grid = (key.to_s+"_gridmessage").to_sym
                      			line_data[key] = rec[viewtblnamechop+"_id"] ###主キイの取得
                      			line_data[other_tbl_key_grid] = "deteted"
                     next
                 when /^#{screentblnamechop}.*_id/
+                      next if key.to_s.split("_")[0] == key.to_s.split("_")[-1]   ###cust_loca_id_cust と bill_loca_id_billを区別
 							 				if rec[field.sub(screentblnamechop,viewtblnamechop)]  ###r_opeitms ==>opeitm_id
 							  					line_data[key]  = rec[field.sub(screentblnamechop,viewtblnamechop)] 
                           next
@@ -258,14 +259,14 @@ module CtlFields
                           next
                       end
                       next
-                when  /_sno$|_cno$|_gno$|_isudate|_created_at|_updated_at|_remark|_contents|_seqno/
+                when  /_sno$|_cno$|_gno$|_isudate|_created_at|_updated_at|_remark|_contents|_seqno|_id/
                   next
                 else
                   if rec[field]  ###id,sno,cnoから求められた同一項目を画面にセットする。
                     line_data[key] =  rec[field]  
                   else ###項目の引継ぎ  purord_opeitm_xxx => puract_opeitm_xxx
                     	if (val == ""  or val.nil? or val.to_s == "0" ) 
-                        if (screentblnamechop =~ /cust/ and viewtblnamechop =~ /cust/)  or
+                        if (screentblnamechop =~ /cust/ and viewtblnamechop =~ /cust/ and screentblnamechop !~ /cust$/)  or
                             (screentblnamechop =~ /pur/ and viewtblnamechop =~ /pur/)   or
                              (screentblnamechop =~ /prd/ and viewtblnamechop =~ /prd/)  or
                               (screentblnamechop =~ /itm/ and viewtblnamechop =~ /itm/)      
@@ -409,14 +410,16 @@ module CtlFields
 									  end
 								  end
 							  when /pay|bill/
-								  if org["amt_src"].to_f >= org["srctbl_amt"].to_f 
-									  params[:err] =  "error 4 1--->over cash  line:#{params[:index]} "
-									  case screentblnamechop
-									    when /inst$/
-										    line_data[(screentblnamechop+"_amt_gridmessage").to_sym] =  "error 4 3 --->over cash"
-									    when /act$/
-										    line_data[(screentblnamechop+"_cash_gridmessage").to_sym] =  "error 4 3 --->over cash"
-									  end
+                  if screentblnamechop !~ /payment|bill$/
+								    if org["amt_src"].to_f >= org["srctbl_amt"].to_f 
+									    params[:err] =  "error 4 1--->over cash  line:#{params[:index]} "
+									    case screentblnamechop
+									      when /inst$/
+										      line_data[(screentblnamechop+"_amt_gridmessage").to_sym] =  "error 4 3 --->over cash"
+									      when /act$/
+										      line_data[(screentblnamechop+"_cash_gridmessage").to_sym] =  "error 4 3 --->over cash"
+									    end
+                    end
                   end
               end
 						else
@@ -677,14 +680,14 @@ module CtlFields
 	###社内用　loca_codeは社外で使用できない。
 	def proc_judge_check_workplace_loca_code_not_used_suppliers_custwhs line_data,item,index,screenCode
 		if line_data[item.to_sym] 
-			case params[:screenCode]
+			case screenCode
 			when /workplaces/
 				strsql = %Q%
 					select id from r_suppliers where loca_code_supplier = '#{line_data[item.to_sym]}'
 												and supplier_expiredate > current_date
 						union
 					select id from r_custrcvplcs where loca_code_custrcvplc = '#{line_data[item.to_sym]}'
-													and custwh_expiredate > current_date
+													and custrcvplc_expiredate > current_date
 				%
 			when /suppliers|custwhs|custrcvplcs/
 				strsql = %Q%
@@ -881,7 +884,7 @@ module CtlFields
 		tblnamechop = screenCode.split("_")[1].chop
 		parent = {"starttime" => line_data[(tblnamechop+"_starttime").to_sym],"duedate" => line_data[(tblnamechop+"_duedate").to_sym]}
 		nd = {"duration" => line_data["opeitm_duration".to_sym],"unitofduration" => line_data[:opeitm_unitofduration],"locas_id_shelfno" => 0 }
-		line_data,message =  proc_field_starttime(tblnamechop,line_data.stringify_keys,parent,nd)
+		line_data =  proc_field_starttime(tblnamechop,line_data.stringify_keys,parent,nd)
 		###return line_data.symbolize_keys,err
 		return line_data,message
 	end
@@ -1640,12 +1643,12 @@ module CtlFields
 			when "opeitms_id"
 				command_x = field_opeitms_id(tblnamechop,command_x,nd)
 			when "starttime"  ###稼働日計算  seqno.starttime > seqno.duedate > seqno.opeitms_id
-				command_x,message = proc_field_starttime(tblnamechop,command_x,parent,nd)  ###qty_schで計算でする為
+				command_x = proc_field_starttime(tblnamechop,command_x,parent,nd)  ###qty_schで計算でする為
         Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x}\n parent:#{parent}  " if (nd["opeitms_id"]||="0") == "10007"
 			when "depdate"  ###稼働日計算  seqno.starttime > seqno.duedate   ##shpxxxはmold,ITool以外は作成しない
 				case tblnamechop
 				when "shpest"
-					command_x,message = proc_field_starttime(tblnamechop,command_x,parent,nd)  ###qty_schで計算でする為
+					command_x = proc_field_starttime(tblnamechop,command_x,parent,nd)  ###qty_schで計算でする為
 				else
 				end
 			when "shelfnos_id" 
@@ -1658,7 +1661,7 @@ module CtlFields
 				command_x = proc_field_fcoperators_id(tblnamechop,command_x,parent,nd) 
 			when "duedate"  ###稼働日計算
         Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x}\n parent:#{parent} " if (nd["opeitms_id"]||="0") == "10007"
-				command_x,message = proc_field_duedate(tblnamechop,command_x,parent,nd)
+				command_x = proc_field_duedate(tblnamechop,command_x,parent,nd)
         Rails.logger.debug " class:#{self} ,line:#{__LINE__},command_x:#{command_x}\n parent:#{parent}  " if (nd["opeitms_id"]||="0") == "10007"
 			when "endtime"  
 				###command_x = field_endtime(tblnamechop,command_x,nd,parent)
@@ -2288,6 +2291,7 @@ module CtlFields
 	end	
 
 	def proc_cal_qty_sch(parent_qty,chilnum,parenum,consumunitqty,consumminqty,consumchgoverqty)
+    parenum.to_f == 0 ? parenum = 1 : parenum = parenum.to_f
 		qty_require = parent_qty.to_f * chilnum.to_f / parenum.to_f
 		#consumunitqty等については親に合わせて計算する。
 		if consumunitqty.to_f > 0
@@ -2339,7 +2343,7 @@ module CtlFields
 	
 	def field_expiredate tblnamechop,command_x,parent,nd
 		if command_x["#{tblnamechop}_expiredate"].nil? or command_x["#{tblnamechop}_expiredate"] == ""
-			command_x["#{tblnamechop}_expiredate"] =  Constants::End_date  
+			command_x["#{tblnamechop}_expiredate"] =  Constants::EndDate  
 		end
 		return command_x
 	end

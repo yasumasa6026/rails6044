@@ -24,12 +24,12 @@ function screenApi({params ,url,headers} ) {
  // const delay = (ms) => new Promise(res => setTimeout(res, ms)) 
 export function* ScreenSaga({ payload: {params}  }) {
   const auth = yield select(getAuthState) //
-  let url = ""
   let tmp 
   // let sagaCallTime = new Date()
   // let callTime =  sagaCallTime.getHours() + ":" + sagaCallTime.getMinutes() + ":" + 
   //             
-  url = 'http://localhost:3001/api/menus7'
+  //url = 'http://localhost:3001/api/menus7'
+  const url = `${process.env.REACT_APP_API_URL}/menus7`
 
   const headers = {'access-token':auth.token,'client':auth.client,'uid':auth.uid }
     let message

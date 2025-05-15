@@ -19,12 +19,12 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
     )    
     }
   else{
-  if(isSignUp){
-    document.title ="SginUp"
-    return (
-        <SignUp/>
-    )}
-  else{
+  // if(isSignUp){
+  //   document.title ="SginUp"
+  //   return (
+  //       <SignUp/>
+  //   )}
+  // else{
     document.title = "LogIn"
     return(
     <div>
@@ -93,7 +93,7 @@ const Login = ({isAuthenticated ,onSubmit,isSignUp,error,}) => {
     
     </div>  
     )
-    }
+  //  }
   }
 }
 

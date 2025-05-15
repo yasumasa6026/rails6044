@@ -10,8 +10,9 @@ module Constants
              Ftype[rec["pobject_code_fld"]] = rec["fieldcode_ftype"]
       end
 
-    Beginnig_date = "2000-01-01"
-    End_date = "2099-12-31"
+    BeginnigDate = "2000-01-01"
+    EndDate = "2099-12-31"
+    MinDuedate = "2099-12-31 23:59:59"  ###最小納期
        
           ###マテリアライズドビュー
     Materiallized = {"scrlvs"=>["r_screens","r_screenfields"],
@@ -29,6 +30,7 @@ module Constants
 
     Whr = 8  ###壱日の労働時間
 
-    MaxOpeitmsCnt = "99999999"  ###最大オペレーション数
+    NilOpeitmsId = "99999999"  ###opeitms.idがなっかった場合の値
+    MaxSplitCnt = 10  ###最大分割数
 
 end

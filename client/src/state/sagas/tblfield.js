@@ -4,7 +4,8 @@ import {TBLFIELD_SUCCESS, SECONDTBLFIELD_SUCCESS, SCREEN_FAILURE,SECOND_FAILURE,
         }     from '../../actions'
 
 function screenApi({params,auth}) {
-  const url = 'http://localhost:3001/api/tblfields'
+  //const url = 'http://localhost:3001/api/tblfields'
+  const url = `${process.env.REACT_APP_API_URL}/tblfields`
   const headers = {'access-token':auth.token,'client':auth.client,'uid':auth.uid }
 
     return axios({

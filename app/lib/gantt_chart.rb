@@ -146,7 +146,7 @@ module GanttChart
 					  until @ngantts.size == 0
 						  cnt += 1
 						  n0 = @ngantts.shift
-						  @level = n0[:id] and n0[:opeitms_id] != "0" and n0[:opeitms_id] != Constants::MaxOpeitmsCnt 
+						  @level = n0[:id] and n0[:opeitms_id] != "0" and n0[:opeitms_id] != Constants::NilOpeitmsId 
               if n0.size > 0  ###子部品がいなかったとき{}になる。
 							    get_ganttchart_rec(n0)
 						  end
@@ -168,7 +168,7 @@ module GanttChart
 				end
 			when /prd|pur|cust/
 				@bgantts[@base] = {:itm_code=>"",:itm_name=>"全行程",:loca_code=>"",:loca_name=>"",:opeitms_id=>"0",
-												:start =>  Constants::End_date,:duedate => Constants::Beginnig_date,
+												:start =>  Constants::EndDate,:duedate => Constants::BeginnigDate,
 												:type=>"project",:depend => [""],:id=>@level}
 				trget = ActiveRecord::Base.connection.select_one(%Q&select * from #{mst_code} where id = #{id}&)
 				@bgantts[@base][:tblname] = mst_code
@@ -771,9 +771,11 @@ module GanttChart
 				###ope = get_opeitms_id_from_itm_by_processseq(rec["itms_id"],rec["processseq"])
         ###new_start = (duedate.to_time - (rec["opeitm_duration"].to_i) * 24 * 60 * 60).strftime("%Y-%m-%d %H:%M:%S") 
       if  @buttonflg =~ /reverse/  
+        rec["chilnum"].to_f == 0 ? rec["chilnum"] = 1 : rec["chilnum"] = rec["chilnum"].to_f
         new_qty = n0[:qty].to_f / rec["chilnum"].to_f * rec["parenum"].to_f
       else
-        new_qty = n0[:qty].to_f * rec["chilnum"].to_f / rec["parenum"].to_f
+        rec["parenum"].to_f == 0 ? rec["parenum"] = 1 : rec["parenum"] = rec["parenum"].to_f
+        new_qty = n0[:qty].to_f * rec["chilnum"].to_f / rec["parenum"]
       end
       nlevel = @level +  format('%03d',idx)
       contents = {:opeitms_id=>rec["opeitms_id"],:processseq=>rec["processseq"],
@@ -841,7 +843,7 @@ module GanttChart
                 @ngantts << contents
               end
       else
-        rec["opeitms_id"] ||= Constants::MaxOpeitmsCnt
+        rec["opeitms_id"] ||= Constants::NilOpeitmsId
         rec["processseq"] ||= ""
         case rec["classlist_code"]
         when "ITool","mold" ###工具、金型
@@ -1078,7 +1080,7 @@ module GanttChart
       command_r["opeitm_chilnum"] = value[:chilnum]
       command_r["opeitm_duration"] = value[:duration]
       ### command_r["opeitm_person_id_upd"] = command_r["sio_user_code"]
-      command_r["opeitm_expiredate"] = Time.parse( Constants::End_date )
+      command_r["opeitm_expiredate"] = Time.parse( Constants::EndDate )
       yield
       proc_simple_sio_insert command_r  ###重複チェックは　params[:tasks][@tree[key]][:processseq] > value[:processseq]　が確定済なので不要
     end
@@ -1117,11 +1119,11 @@ module GanttChart
 			if value[:loca_id]
 				command_r["nditm_loca_id_nditm"] = value[:loca_id]
 				command_r["nditm_processseq_nditm"] = value[:processseq]
-				command_r["nditm_expiredate"] = Constants::End_date
+				command_r["nditm_expiredate"] = Constants::EndDate
 				command_r["nditm_parenum"] = value[:parenum]
 				command_r["nditm_chilnum"] = value[:chilnum]
 				command_r["nditm_duration"] = value[:duration]
-				command_r["nditm_expiredate"] = Time.parse( Constants::End_date )
+				command_r["nditm_expiredate"] = Time.parse( Constants::EndDate )
 				chk_alreadt_exists_nditm(command_r) if command_r["sio_classname"] =~ /_add_/
 				proc_simple_sio_insert command_r  if @err == false
 			else

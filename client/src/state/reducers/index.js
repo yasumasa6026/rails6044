@@ -1,5 +1,4 @@
 import { combineReducers } from 'redux'
-import { routerReducer } from 'react-router-redux'
 
 import  authreducer  from './auth'
 import  menureducer  from './menu'
@@ -17,7 +16,6 @@ const reducer = combineReducers({
   button:buttonreducer,
   gantt:ganttreducer,
   second:secondreducer,
-  routing: routerReducer,
 })
 
 export default reducer

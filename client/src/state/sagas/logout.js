@@ -3,10 +3,11 @@ import axios         from 'axios'
 import {persistor} from '../../state/store.js'
 
 import history from '../../histrory'
-import {  LOGOUT_SUCCESS , MENU_FAILURE} from '../../actions'
+import {MENU_FAILURE,LOGOUT_SUCCESS,} from '../../actions'
 
 function logoutApi(token,client,uid) {
-  const url = 'http://localhost:3001/api/auth/sign_out'
+  //const url = 'http://localhost:3001/api/auth/sign_out'
+  const url = `${process.env.REACT_APP_API_URL}/auth/sign_out`
   const headers =  { 'access-token':token, 'client':client,'uid':uid}
   const params =  { 'uid':uid}
 
@@ -29,7 +30,7 @@ function logoutApi(token,client,uid) {
 export function* LogoutSaga({ payload: {token,client,uid} }) {
   let {response,error} = yield call(logoutApi, token,client,uid )
     if(response || !error){
-      //yield put({ type: LOGOUT_SUCCESS})
+      yield put({ type: LOGOUT_SUCCESS, })      
       yield call(history.push,'/login')  //
       // persistor.purge() これを実行すると、Storageに保存された情報がクリアされる
     }else{  
@@ -43,8 +44,8 @@ export function* LogoutSaga({ payload: {token,client,uid} }) {
                break
                case 404: message = "User was not found or was not logged in."
                 break
-              default: message = error.status}
-      yield put({ type: MENU_FAILURE, error: message })
+              default: message = error}
+      yield put({ type: MENU_FAILURE, payload:{hostError: message }})
     } 
   } 
 //  送信されてない。

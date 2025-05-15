@@ -1,7 +1,7 @@
 
 import {takeEvery} from 'redux-saga/effects'
 
-import {LOGIN_REQUEST,SIGNUP_REQUEST,LOGOUT_REQUEST,
+import {LOGIN_REQUEST,SIGNUP_REQUEST,LOGOUT_REQUEST,CHANGEPASSWORD_REQUEST,
         MENU_REQUEST,FETCH_REQUEST,SECONDFETCH_REQUEST,
         SCREENINIT_REQUEST,SCREEN_REQUEST,UPLOADEXCEL_REQUEST,
         SCREEN_CONFIRM7,SECOND_CONFIRM7,SECOND_CONFIRMALL_REQUEST,SECOND_REQUEST,
@@ -12,6 +12,7 @@ import {LOGIN_REQUEST,SIGNUP_REQUEST,LOGOUT_REQUEST,
 
 // Route Sagas
 import {LoginSaga} from './login'
+import {ChangePasswordSaga} from './changepassword'
 import {LogoutSaga} from './logout'
 import {SignupSaga} from './signup'
 import {MenuSaga} from './menus'
@@ -25,6 +26,7 @@ import {ProtectSaga} from './protect'
 
 export function * sagas () {
   yield takeEvery(LOGIN_REQUEST,LoginSaga)
+  yield takeEvery(CHANGEPASSWORD_REQUEST,ChangePasswordSaga)
   yield takeEvery(LOGOUT_REQUEST,LogoutSaga)
   yield takeEvery(SIGNUP_REQUEST,SignupSaga)
   yield takeEvery(MENU_REQUEST,MenuSaga)

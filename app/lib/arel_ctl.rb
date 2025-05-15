@@ -187,7 +187,7 @@ module ArelCtl
 		if params[:classname] =~ /_add_|_insert_/
 				command_c["sio_classname"] ="_add_proc_createtable_data"
 				command_c["#{totbl.chop}_created_at"] = Time.now
-				command_c["#{totbl.chop}_expiredate"] =  Constants::End_date 
+				command_c["#{totbl.chop}_expiredate"] =  Constants::EndDate 
 				command_c["#{totbl.chop}_remark"] = " auto add  by table #{fmtbl} "
 		else
 				command_c["sio_classname"] ="_update_proc_createtable_data"
@@ -532,6 +532,8 @@ module ArelCtl
 						itms_id_org,processseq_org,shelfnos_id_org,
 						consumunitqty,
 						consumminqty,consumchgoverqty,
+					  optfixoterm,maxqty,
+					  packqty,
 						starttime_trn,
 						starttime_pare,
 						starttime_org,
@@ -562,6 +564,8 @@ module ArelCtl
 					#{gantt["itms_id_org"]},#{gantt["processseq_org"]},#{gantt["shelfnos_id_org"]},
 					#{case gantt["consumunitqty"].to_i when 0 then 1 else gantt["consumunitqty"] end},
 					#{gantt["consumminqty"]},#{gantt["consumchgoverqty"]},
+					#{gantt["optfixoterm"]},#{gantt["maxqty"]},
+					#{gantt["packqty"]},
 					cast('#{gantt["starttime_trn"]}' as timestamp),
 					cast('#{gantt["starttime_pare"]}' as timestamp),
 					cast('#{gantt["starttime_org"]}' as timestamp),

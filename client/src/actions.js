@@ -2,12 +2,14 @@ export const LOGIN_REQUEST = 'LOGIN_REQUEST'
 export const LOGIN_SUCCESS = 'LOGIN_SUCCESS'
 export const LOGIN_FAILURE = 'LOGIN_FAILURE'
 
+export const CHANGEPASSWORD_REQUEST = 'CHANGEPASSWORD_REQUEST'
+export const CHANGEPASSWORD_SUCCESS = 'CHANGEPASSWORD_SUCCESS'
+export const CHANGEPASSWORD_FAILURE = 'CHANGEPASSWORD_FAILURE'
+
 export const LOGOUT_REQUEST = 'LOGOUT_REQUEST'
 export const LOGOUT_SUCCESS = 'LOGOUT_SUCCESS'
-
-export const SIGNUPFORM_REQUEST = 'SIGNUPFORM_REQUEST'
-export const SIGNUPFORM_SUCCESS = 'SIGNUPFORM_SUCCESS'
 export const SIGNUP_REQUEST = 'SIGNUP_REQUEST'
+export const SIGNUPFORM_REQUEST = 'SIGNUPFORM_REQUEST'
 export const SIGNUP_SUCCESS = 'SIGNUP_SUCCESS'
 export const SIGNUP_FAILURE = 'SIGNUP_FAILURE'
 
@@ -92,23 +94,15 @@ export const SECOND_DATASET = 'SECOND_DATASET'
 
 export const RESET_REQUEST = 'RESET_REQUEST'
 
-// LOGIN
-// Attach our Formik actions as meta-data to our action.
-
-export const SignUpFormRequest =  ( isSignUp) => ({
-  type:SIGNUPFORM_REQUEST,
-  payload: { isSignUp }
-})
-
-export const SignUpFormSuccess =  ( isSignUp) => ({
-  type:SIGNUPFORM_SUCCESS,
-  payload: { isSignUp }
-})
-
 export const SignUpRequest =  (email, password,password_confirmation) => ({
   type:SIGNUP_REQUEST,
   payload: { email, password ,password_confirmation}
 })
+
+export const SignupFormRequest =  () => ({
+  type:SIGNUPFORM_REQUEST,
+})
+
 
 export const LoginRequest  = (email, password) => ({
   type: LOGIN_REQUEST,
@@ -124,6 +118,17 @@ export const LogoutSuccess = () => ({
   type: LOGOUT_SUCCESS,
  // payload: {token,client,uid }
 })
+
+export const ChangePasswordRequest =  (token,client,uid) => ({
+  type: CHANGEPASSWORD_REQUEST,
+  payload: { token,client,uid,email,current_password,password,confirm_password }
+})
+
+export const ChangePasswordSuccess = () => ({
+  type: CHANGEPASSWORD_SUCCESS,
+ // payload: {token,client,uid }
+})
+
 
 export const MenuRequest = (auth) => ({
   type:  MENU_REQUEST,

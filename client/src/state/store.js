@@ -1,9 +1,6 @@
 
 import {applyMiddleware,  createStore} from 'redux'
 import createSagaMiddleware from 'redux-saga'
-//import {composeWithDevTools} from 'redux-devtools-extension'
-import { routerMiddleware } from 'react-router-redux'
-import history from '../histrory'
 import { persistStore, persistReducer } from 'redux-persist'
 import storage from 'redux-persist/lib/storage' // defaults to localStorage for web and AsyncStorage for react-native
  
@@ -17,14 +14,7 @@ const persistConfig = {
  
 const sagasMiddleware = createSagaMiddleware()
 const persistedReducer = persistReducer(persistConfig, reducer)
-// Use Redux DevTools Extension in development.
-//const composeEnhancers = (middlewares) =>(
-//  typeof window !== 'undefined'
-//    ? composeWithDevTools(middlewares)
-//    : compose(middlewares)
-//)  
 const middleware = applyMiddleware(
-  routerMiddleware(history),
   sagasMiddleware
 )
 
