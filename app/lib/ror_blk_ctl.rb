@@ -802,10 +802,10 @@ module RorBlkCtl
 				gantt["shelfnos_id_to_trn"] =  gantt["shelfnos_id_to_pare"] =  @tbldata["shelfnos_id_to"]
 				gantt["chrgs_id_trn"] =  gantt["chrgs_id_pare"] =  gantt["chrgs_id_org"] =  @tbldata["chrgs_id"]
 				gantt["prjnos_id"] = @tbldata["prjnos_id"]
-				gantt["shuffle_flg"] = (opeitm["shuffle_flg"]||= "0")
+				gantt["huffle_flg"] = (opeitm["shuffleflg"]||= "0")
 				gantt["itms_id_trn"] = gantt["itms_id_pare"]  = gantt["itms_id_org"]  = opeitm["itms_id"]
 				gantt["processseq_trn"] = gantt["processseq_pare"]  = gantt["processseq_org"]  = opeitm["processseq"]
-				gantt["stktaking_proc"] =  opeitm["stktaking_proc"]
+				gantt["stktakingproc"] =  opeitm["stktakingproc"]
 				gantt["qty_sch"] = gantt["qty"] = gantt["qty_stk"] = 0  ### xxxschs,xxxords,・・・で対応
 				if @tblname =~ /^pur/  ###purxxxs 
 					suppliers = ActiveRecord::Base.connection.select_one("select * from suppliers where id = #{@tbldata["suppliers_id"]}")
@@ -942,7 +942,7 @@ module RorBlkCtl
 				gantt["remark"] = " class:#{self},line:#{__LINE__} "
 				case @tblname
 				when "dymschs"
-					gantt["shuffle_flg"] = "0"
+					gantt["shuffleflg"] = "0"
 					gantt["shelfnos_id_to_trn"] =  "0"
 					gantt["shelfnos_id_trn"] =  "0"
 					gantt["locas_id_trn"] =  "0"
@@ -953,7 +953,7 @@ module RorBlkCtl
 					gantt["toduedate_trn"] = @tbldata["duedate"]
 					gantt["starttime_trn"] = @tbldata["duedate"]
 				when /^dvsschs|^dvsords/
-					gantt["shuffle_flg"] = "0"
+					gantt["shuffleflg"] = "0"
 					gantt["shelfnos_id_to_trn"] =  "0"
 					strsql = %Q&
 								select s.id shelfnos_id,l.id locas_id,f.itms_id,f.chrgs_id_facilitie
@@ -974,7 +974,7 @@ module RorBlkCtl
 					gantt["qty_handover"] =  0
           gantt["qty_require"] =  gantt["qty_sch"]  = 1
 				when /^ercschs|^ercords/
-					gantt["shuffle_flg"] = "0"
+					gantt["shuffleflg"] = "0"
 					gantt["shelfnos_id_to_trn"] =  "0"
 					gantt["shelfnos_id_trn"] =  "0"
 					gantt["locas_id_trn"] =  "0"
@@ -992,7 +992,7 @@ module RorBlkCtl
 					gantt["qty_handover"] = 0
           gantt["qty_require"] = gantt["qty_sch"]  = 1
 				when "shpests"
-					gantt["shuffle_flg"] = "0"
+					gantt["shuffleflg"] = "0"
 					gantt["shelfnos_id_to_trn"] =  @tbldata["shelfnos_id_to"]
 					gantt["shelfnos_id_trn"] =  @tbldata["shelfnos_id_fm"]
 					strsql = %Q&
@@ -1010,7 +1010,7 @@ module RorBlkCtl
 					gantt["starttime_trn"] = @tbldata["duedate"]
 					gantt["qty_handover"] = 0
 				else
-			 		gantt["shuffle_flg"] = (opeitm["shuffle_flg"]||= "0")
+			 		gantt["shuffleflg"] = (opeitm["shuffleflg"]||= "0")
 					####
 			 		gantt["shelfnos_id_to_trn"] =  @tbldata["shelfnos_id_to"]
 					 if @tblname =~ /^pur/  ###purxxxs 

@@ -497,6 +497,12 @@ class CreateOtherTableRecordJob < ApplicationJob
                                       setParams["screenCode"] = "r_conschs"
                                       last_lotstks <<  Shipment.proc_create_consume(setParams)   ###自身の消費を作成
                                     end
+                                when "run"
+                                    if gantt["consumtype"] == "CON"  ###出庫 消費と金型・設備の使用
+                                      setParams["child"] =  nd.dup
+                                      setParams["screenCode"] = "r_conschs"
+                                      last_lotstks <<  Shipment.proc_create_consume(setParams)   ###自身の消費を作成
+                                    end
                                 else  ###
                                     nd["opeitms_id"] = 0
                                     nd["shelfnos_id"] = 0
@@ -510,7 +516,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                          dvsParams["child"] = nd.dup
                                          dvsParams["gantt"] = gantt.dup
                                          dvsParams["screenCode"] = "r_prdschs"
-                                         dvs = Operation::OpeClass.new(dvsParams)  ###prdinsts,prdacts
+                                         dvs = Operation::OpeClass.new(dvsParams)  ###
                                          dvs.proc_add_dvs_data(nd)
                                          dvs.proc_add_erc_data(nd)
                                     when "mold","ITool"       ###金型 ###工具
@@ -533,7 +539,13 @@ class CreateOtherTableRecordJob < ApplicationJob
                                         end
                                         last_lotstks.concat last_lotstks_parts
                                     when "installationCharge"   ###設置
-                                        next
+                                         ercParams = setParams.dup
+                                         ercParams["gantt"] = gantt.dup
+                                         ercParams["child"] = nd.dup
+                                         ercParams["gantt"] = gantt.dup
+                                         ercParams["screenCode"] = "r_prdschs"
+                                         erc = Operation::OpeClass.new(ercParams)  ###
+                                         erc.proc_add_erc_data(nd)
                                     else
                                         blk = RorBlkCtl::BlkClass.new("r_dymschs")
                                         command_c = blk.command_init
@@ -626,6 +638,7 @@ class CreateOtherTableRecordJob < ApplicationJob
                                     end    
                                 when "BYP"   ###副産物
                                     ###
+                                when "apparatus"  ###設備の使用
                                 else
                                     next
                                 end
@@ -991,7 +1004,7 @@ class CreateOtherTableRecordJob < ApplicationJob
             3.times{Rails.logger.debug"  erctbl not suppurt:#{erctblname},class: #{self} , line:#{__LINE__} "}
             raise 
         end
-        gantt["consumtype"] = "apparatus"
+        gantt["consumtype"] = "apparatus"  ###parenum,chilnumは1
         gantt_key = gantt["key"]
         trnganttkey = 0
         if nd["changeoverlt"].to_f > 0 and nd["changeoverop"].to_i > 0

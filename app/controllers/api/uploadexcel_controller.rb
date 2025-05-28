@@ -55,6 +55,7 @@ class UploadexcelController < ApplicationController
         rows = []
         uploadError = false
         idx = 0
+        idAll = 0
 
   		fetchCode = YupSchema.proc_create_fetchCode screen.screenCode ##
         checkCode  = YupSchema.proc_create_checkCode screen.screenCode   
@@ -177,6 +178,7 @@ class UploadexcelController < ApplicationController
                 else
                     ActiveRecord::Base.connection.rollback_db_transaction()
                 end
+                idAll += 1
                 results[:rows] << parse_linedata 
             end
         rescue
@@ -186,17 +188,21 @@ class UploadexcelController < ApplicationController
             command_c["sio_errline"] =  "class #{self} : LINE #{__LINE__} $@: #{$@} "[0..3999]
             Rails.logger.debug"error class #{self} : #{Time.now}: #{$@}\n "
             Rails.logger.debug"error class #{self} : $!: #{$!} \n"
-            Rails.logger.debug"  idx = #{idx} command_init: #{command_c} "
+            Rails.logger.debug"  idAll = #{idAll} command_init: #{command_c} "
             if rows.empty?
               ###redults excelへの返し
             else
-              rows[idx+1]["#{tblname.chop}_confirm_gridmessage"] = command_c["sio_message_contents"].to_s[0..1000]
+              tmprow = rows[idAll] 
+              tmprow["confirm"] = false 
+              tmprow["#{tblname.chop}_confirm_gridmessage"] = command_c["sio_message_contents"].to_s[0..1000]
+              results[:rows][idAll]  = tmprow
             end
             idx = 0
+            uploadError = true
         else
             ActiveRecord::Base.connection.commit_db_transaction()
             performSeqNos.each do |seq|
-				CreateOtherTableRecordJob.perform_later(seq)
+				        CreateOtherTableRecordJob.perform_later(seq)
             end
             ArelCtl.proc_materiallized tblname
         end

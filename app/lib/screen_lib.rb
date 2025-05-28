@@ -76,8 +76,8 @@ module ScreenLib
 												%Q% to_char(#{i["pobject_code_sfd"]},'yyyy/mm/dd ') #{i["pobject_code_sfd"]}% + " ,"
 											when "numeric"
                         if i["pobject_code_sfd"] != "id" and i["pobject_code_sfd"] !~ /_id/
-												  if i["screenfield_datascale"].to_i > 0
-													  %Q% to_char(#{i["pobject_code_sfd"]}, 'FM999999999999.#{i["screenfield_datascale"]}') #{i["pobject_code_sfd"]}% + ","
+								          if i["screenfield_datascale"].to_i > 0
+									            %Q% to_char(#{i["pobject_code_sfd"]}, 'FM999,999,999,999.#{"9".*i["screenfield_datascale"].to_i}') #{i["pobject_code_sfd"]}% + ","
 												  else
 													  %Q% to_char(#{i["pobject_code_sfd"]}, 'FM999999999999') #{i["pobject_code_sfd"]}% + ","
 												  end
@@ -265,7 +265,6 @@ module ScreenLib
 						select_row_fields << i["pobject_code_sfd"]  + " ,"
 						strGroupBy << %Q% #{i["pobject_code_sfd"]} % 
 					end
-				else
 					if aggregations[i["pobject_code_sfd"]]
 						case aggregations[i["pobject_code_sfd"]]
 						when "SUM:"
@@ -284,7 +283,7 @@ module ScreenLib
 							case i["screenfield_type"]
 							when "numeric"
 								if i["screenfield_datascale"].to_i > 0
-									select_row_fields << %Q% to_char(sum(#{i["pobject_code_sfd"]}), 'FM999,999,999,999.#{i["screenfield_datascale"]}') #{i["pobject_code_sfd"]}% + ","
+									select_row_fields << %Q% to_char(sum(#{i["pobject_code_sfd"]}), 'FM999,999,999,999.#{"9".*i["screenfield_datascale"].to_i}') #{i["pobject_code_sfd"]}% + ","
 								else
 									select_row_fields << %Q% to_char(sum(#{i["pobject_code_sfd"]}), 'FM999,999,999,999') #{i["pobject_code_sfd"]}% + ","
 								end
@@ -705,6 +704,8 @@ module ScreenLib
 							temp[cell[:accessor]] = Time.now.strftime("%Y/%m/%d")
 						when /price_maxqty|opeitm_maxqty/
 							temp[cell[:accessor]] = "999999999"
+            when /nditm_utilization/  ###オペレーターの関わり時間　100%:掛かり切り
+							temp[cell[:accessor]] = "100"
 						else
 						end
 					end
@@ -740,7 +741,7 @@ module ScreenLib
 						end
 					when /opeitms/
 						case cell[:accessor]
-						when /opeitm_stktaking_proc_/	
+						when /opeitm_stktakingproc/	###opeitm_stktakingproc
 							temp[cell[:accessor]] = "1"  ###棚卸有 opeitmsの規定値
 						end
 					when /gantt_nditms/
@@ -1046,6 +1047,7 @@ module ScreenLib
 			  end 
 				###setParams[:parse_linedata][field] = val    
 			end	
+					Rails.logger.debug " class:#{self} ,line:#{__LINE__}, setParams[:err]:#{setParams[:err]} "
 			### cannot use parse_linedata
 			if  setParams[:err].nil? or setParams[:err] == "" 
 				  setParams[:parse_linedata].each do |key,val|
@@ -1083,6 +1085,8 @@ module ScreenLib
 					end	
 				end
 			end	
+							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, 
+                      setParams[:err]:#{setParams[:err]}  "
 			if  setParams[:err].nil?  or setParams[:err] == ""
 				if command_c["id"] == "" or  command_c["id"].nil?   ### add画面で同一lineで二度"enter"を押されたとき errorにしない
 					###  追加後エラーに気づいたときエラーしないほうが，操作性がよい
@@ -1321,7 +1325,10 @@ module ScreenLib
         command_c["sio_result_f"] = "9"  ##9:error
 				setParams[:parse_linedata][:confirm] = false  
 			end
-			return setParams
+			Rails.logger.debug " class:#{self} ,line:#{__LINE__},setParams[:err]:#{setParams[:err]}  " if setParams[:err]
+                      
+      ##setParams[:parse_linedata] = {} 
+      return setParams
 		end
 
 		def ok_confirm(setParams,command_c,tblnamechop)

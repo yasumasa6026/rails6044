@@ -955,7 +955,8 @@ module GanttChart
                       parent = {"duedate" => n0[:start],"starttime" => n0[:start]}
                       tmp_com = {"ercsch_duedate" =>  n0[:start],"ercsch_shelfno_id_fm" => rec["shelfnos_id"],
                                   "shelfno_loca_id_shelfno_to" => n0[:locas_id],
-                                "ercsch_processname" => processname,"ercsch_person_id_chrg" => op["persons_id_chrg"]}
+                                "ercsch_processname" => processname,
+                                "ercsch_person_id_chrg" => op["persons_id_chrg"],"ercsch_fcoperator_id" => op["persons_id_chrg"]}
                       tmp_com,message = CtlFields.proc_field_starttime("ercsch",tmp_com,parent,nd)
                       contents[:start] = tmp_com["ercsch_starttime"]
                       contents[:duedate] = n0[:start]
@@ -992,7 +993,7 @@ module GanttChart
                     nd =  {"duration"=>(rec["postprocessinglt"].to_f),"unitofduration"=>rec["unitofdvs"]}
                     parent = {"duedate" => n0[:duedate],"starttime" => n0[:duedate],"shelfnos_id" =>n0[:shelfnos_id_pare]}
                     tmp_com = {"ercsch_starttime" => n0[:duedate],"ercsch_duedate" => n0[:duedate],
-                                "ercsch_person_id_chrg" => op["persons_id_chrg"],
+                                "ercsch_person_id_chrg" => op["persons_id_chrg"],"ercsch_fcoperator_id" => op["persons_id_chrg"],
                                 "ercsch_processname" => processname,"ercsch_shelfno_id_fm" => rec["shelfnos_id"],
                                 "ercsch_shelfno_id_to" => n0[:shelfnos_id],"shelfno_loca_id_shelfno_to" => n0[:locas_id]}  ###動かないので、親のlocas_idを使用
                     tmp_com ,message= CtlFields.proc_field_duedate("ercsch",tmp_com,parent,nd)
@@ -1392,9 +1393,9 @@ module GanttChart
 							@bgantts[key][:duedate]  =   @bgantts[key][:start] + value[:duration]*24*60*60    ###稼働日考慮今なし
 						end
 					end
-					 logger.debug  "### "
-					 logger.debug  "### #{Time.now} #{__LINE__} :#{@ganttdata} "
-					 logger.debug  "###"
+					 Rails.logger.debug  "### "
+					 Rails.logger.debug  "### #{Time.now} #{__LINE__} :#{@ganttdata} "
+					 Rails.logger.debug  "###"
 					raise if @bgantts[key][:duedate].nil? or @bgantts[key[0..-4]][:start].nil?
 					if  (@bgantts[key[0..-4]][:start] ) < @bgantts[key][:duedate]
 						@bgantts[key[0..-4]][:start]  =   @bgantts[key][:duedate]   ###稼働日考慮今なし

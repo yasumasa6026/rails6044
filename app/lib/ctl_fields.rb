@@ -171,10 +171,12 @@ module CtlFields
 						rec = nil
 						findstatus = false
 					end
+                Rails.logger.debug "#{Time.now} line:#{__LINE__}  \n params[:parse_linedata]:#{params[:parse_linedata]}" if fetchview == "r_opeitms"
 					if !rec.nil?  ###viewレコードあり
 						### line_data = params[:parse_linedata].dup loop 中に内容の変更はできない。 
             fields = rec.keys
 						params[:parse_linedata].each do |key,val|  ###結果をセット
+                Rails.logger.debug "#{Time.now} line:#{__LINE__} \n rec:#{rec}" if key.to_s == "shelfno_loca_id_shelfno_opeitm"
 							# if key.to_s == "id"
 							# 	line_data[:id] = line_data[(screentblnamechop+"_id").to_sym] = "" if params[:parse_linedata][:aud] =~ /add|insert/
 							# 	next
@@ -259,7 +261,28 @@ module CtlFields
                           next
                       end
                       next
-                when  /_sno$|_cno$|_gno$|_isudate|_created_at|_updated_at|_remark|_contents|_seqno|_id/
+                when /^#{viewtblnamechop}.*_id/
+                      tar_tblchop = field.split("_")[1]   ###field[0]:screentblnamechop,field[1]:target_tblchop,field[2]:id
+                      fieldkey = fields.find{|i|  i =~ /^#{viewtblnamechop}_#{tar_tblchop}_id/} ###fields(recのkey配列）の中にtarget_tblchop_idがあるか？
+                      if fieldkey 
+                        tar_tblchop_sym = (screentblnamechop + "_" + tar_tblchop + "_id").to_sym
+                        viewfkey = fields.find{|i|  i =~ /#{tar_tblchop_sym}/}
+                        if viewfkey 
+                          if key.to_s =~ /#{delm}$/
+                              line_data[key] =  rec[fieldkey]
+                          else
+                            next
+                          end
+                        else
+                          line_data[key] =  rec[fieldkey]
+                        end
+                        next
+                      end
+                when  /_id/
+                  if rec[field]  ###id,sno,cnoから求められた同一項目を画面にセットする。
+                    line_data[key] =  rec[field] 
+                  end
+                when  /_sno$|_cno$|_gno$|_isudate|_created_at|_updated_at|_remark|_contents|_seqno/
                   next
                 else
                   if rec[field]  ###id,sno,cnoから求められた同一項目を画面にセットする。
@@ -275,8 +298,8 @@ module CtlFields
                               next
                           end
                     		end
-                        fieldkey = fields.find{|i|  i =~ /^#{key.to_s}/} 
-                        if fieldkey
+                        fieldkey = fields.find{|i|  i =~ /^#{field}/} 
+                        if fieldkey and (delm == "" or key.to_s =~ /#{delm}$/)
                           line_data[key] =  rec[fieldkey]  ### r_custords の　r_custrcvplcsのtransport_code対応
                           next
                         end
@@ -765,6 +788,14 @@ module CtlFields
     else
       err = nil
 		end
+    ###
+    # classlist_code == "ITool","installationCharge","mold","apparatus" のときは opeitmsは作成できない
+    ###
+    if line_data[:classlist_code] =~ /ITool|installationCharge|mold|apparatus/ and err.nil?
+      err =  " #{line_data[:classlist_code]} not allow to create opeitms"
+    else
+      err = nil
+    end
 		return line_data,err
 	end
 
@@ -1314,7 +1345,7 @@ module CtlFields
 						strsql = %Q&
 							select isudate from purords ord
 										inner join linktbls link on link.srctblid = ord.idc
-								where link.srctblname = 'purords' and link.tblname = 'puroinsts' and tblid = #{src["tblid"]}
+								where link.srctblname = 'purords' and link.tblname = 'purinsts' and tblid = #{src["tblid"]}
 						&
 						base_date =  ActiveRecord::Base.connection.select_value(strsql)
 					when "purreplyinputs"
@@ -1332,7 +1363,7 @@ module CtlFields
 							strsql = %Q&
 								select isudate from purords ord
 											inner join linktbls link on link.srctblid = ord.id
-									where link.srctblname = 'purords' and link.tblname = 'puroinsts' and tblid = #{reply["tblid"]}
+									where link.srctblname = 'purords' and link.tblname = 'purinsts' and tblid = #{reply["tblid"]}
 							&
 							base_date =  ActiveRecord::Base.connection.select_value(strsql)
 						end
@@ -1351,7 +1382,7 @@ module CtlFields
 							strsql = %Q&
 								select isudate from purords ord
 											inner join linktbls link on link.srctblid = ord.id
-									where link.srctblname = 'purords' and link.tblname = 'puroinsts' and tblid = #{dlv["tblid"]}
+									where link.srctblname = 'purords' and link.tblname = 'purinsts' and tblid = #{dlv["tblid"]}
 							&
 							base_date =  ActiveRecord::Base.connection.select_value(strsql)
 						when "purreplyinputs"
@@ -1369,7 +1400,7 @@ module CtlFields
 								strsql = %Q&
 									select isudate from purords ord
 												inner join linktbls link on link.srctblid = ord.id
-										where link.srctblname = 'purords' and link.tblname = 'puroinsts' and tblid = #{reply["tblid"]}
+										where link.srctblname = 'purords' and link.tblname = 'purinsts' and tblid = #{reply["tblid"]}
 								&
 								base_date =  ActiveRecord::Base.connection.select_value(strsql)
 							end
@@ -1449,7 +1480,7 @@ module CtlFields
 							strsql = %Q&
 								select isudate from custords ord
 											inner join linktbls link on link.srctblid = ord.id
-									where link.srctblname = 'purords' and link.tblname = 'puroinsts' and tblid = #{dlv["tblid"]}
+									where link.srctblname = 'purords' and link.tblname = 'purinsts' and tblid = #{dlv["tblid"]}
 							&
 							base_date =  ActiveRecord::Base.connection.select_value(strsql)
 						end
@@ -2093,7 +2124,7 @@ module CtlFields
 		      when "ercsch","ercord" ###親はdvsschs
 			      case command_x["#{tblnamechop}_processname"]   ###親はdvsschs
 			        when "changeover"
-                starttime,message = calculate_working_time(tblnamechop,pstarttime,(nd["changeoverlt"]||=0).to_f*3600,"-",command_x["#{tblnamechop}_fcoperators_id"])
+                starttime,message = calculate_working_time(tblnamechop,pstarttime,(nd["changeoverlt"]||=0).to_f*3600,"-",command_x["#{tblnamechop}_fcoperator_id"])
 			        when "require"
 				        starttime =  pstarttime 
 			        when "postprocess"

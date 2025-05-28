@@ -1,69 +1,93 @@
 export  function yupErrCheck (schema,field,linedata) {
   let mfield 
-  mfield = field+"_gridmessage"
   try{
       if(field==="confirm"){schema.validateSync(linedata)
-            linedata.confirm_gridmessage = "doing"}
+            linedata["confirm_gridmessage"] = "doing"
+            let dclinedata = {}
+            Object.keys(linedata).map((fd)=>{
+                mfield = fd+"_gridmessage"
+                if(fd!=="confirm_gridmessage"){
+                    dclinedata = dataCheck7(schema,fd,{[fd]:linedata[fd]})
+                    linedata["confirm_gridmessage"] = (linedata["confirm_gridmessage"] === "doing" ? dclinedata[mfield]:
+                            linedata["confirm_gridmessage"] === "ok" ?  dclinedata[mfield] : linedata["confirm_gridmessage"] + dclinedata[mfield]) 
+                    linedata[mfield] = dclinedata[mfield]
+                }
+             })
+      }
       else{schema.validateSync({[field]:linedata[field]})
-            linedata.confirm_gridmessage = "ok"}  
-      if(linedata.confirm_gridmessage === "ok"){
-                      dataCheck7(schema,field,linedata) 
-            }
-      if(linedata.confirm_gridmessage === "doing"){
-                      Object.keys(linedata).map((fd)=>{
-                        dataCheck7(schema,fd,{[fd]:linedata[fd]})             }
-                      ) 
-            }    
-      linedata[mfield] = "ok"
+            if(linedata.confirm_gridmessage === "ok"){
+                       dataCheck7(schema,field,linedata) 
+                }
+         }  
+      // if(linedata.confirm_gridmessage === "doing"){
+      //                 Object.keys(linedata).map((fd)=>{
+      //                  dataCheck7(schema,fd,{[fd]:linedata[fd]})             }
+      //                 ) 
+      //       }    
       return linedata
-  }      
-  catch(err){
-    linedata.confirm = false
-              linedata[mfield] = err.errors.join(",")
-              linedata["confirm_gridmessage"] = " error " + err.errors.join(",")
-              return linedata
-  }
+   }      
+    catch(err){
+      linedata.confirm = false
+                linedata[`${field}_gridmessage`] =  err.errors?" error " + err.errors.join(","):" error yupErrCheck"
+                linedata["confirm_gridmessage"] = err.errors?" error " + err.errors.join(","):" error yupErrCheck"
+                linedata["errPath"] = field
+                return linedata
+    }
 } 
 
 //未実施　yupでは数値項目で　"スペース999" がエラーにならない。
 
 // yupでは　2019/12/32等がエラーにならない。　2020/01/01になってしまう
 export function dataCheck7(schema,field,linedata){ 
+    let  mfield = field+"_gridmessage"
+    let yyyymmdd = []
     if(schema.fields[field]){
-      linedata[`${field}_gridmessage`] = "ok"
+      linedata[mfield] = "ok"
       if(schema.fields[field]["_type"]==="date"){
-          let yyyymmdd = []
-          let stryyyymmdd = linedata[field]
-          try{yyyymmdd = stryyyymmdd?.split(/\/|-|\s|T|:|\./)
-          }catch(e) //tryを使用しないとTypeError: Cannot read properties of undefined (reading 'map')が発生する。
-            {console.log(" dataCheck7 " &&e)}
-          [3,4,5].map((val,idx)=>{if(yyyymmdd[val]===undefined){yyyymmdd[val] = "0"}})  //[3,4,5] 時間:分:秒
-          if(checkDate(Number(yyyymmdd[0]), Number(yyyymmdd[1]), Number(yyyymmdd[2]))){
-            if(Number(yyyymmdd[3])>=0&&Number(yyyymmdd[3])<=24){
-              if(Number(yyyymmdd[4])>=0&&Number(yyyymmdd[4])<=59&&yyyymmdd[5]>=0&&Number(yyyymmdd[5])<=59){
-                    linedata[`${field}_gridmessage`] = "ok"
-                    linedata[field] = yyyymmdd[0]+"/"+yyyymmdd[1]+"/"+yyyymmdd[2]+" "+yyyymmdd[3]+":"+yyyymmdd[4]+":"+yyyymmdd[5]
-                }else{
-                      linedata[`${field}_gridmessage`] = "  mi:ss: 0:0<= mi:ss <= 59:59"
-                      }
-            }else{
-                  linedata[`${field}_gridmessage`] = " hour:  0<= hh24 <= 24"
-                } 
-          }else{
-                linedata[`${field}_gridmessage`] = " not date type yyyy/mm/dd  or yyyy-mm-dd"
-          }       
+          let nval
+          yyyymmdd =  linedata[field].split(/\/|-|\s|T|:|\./)
+          yyyymmdd = [0,1,2,3,4,5].map((val,idx)=>{  //[3,4,5] 時間:分:秒
+          nval =  (yyyymmdd[idx]   === undefined ? 0 : Number(yyyymmdd[idx] ) )
+            switch(idx){
+              case 0:  ///yyyy
+                  linedata[field]=String(nval)+"-"
+                  linedata[mfield] = "ok"
+                  linedata[mfield] =  (isNaN(nval) ? "1 error yyyy:20xx":nval>2099||nval< 2000 ? "2 error yyyy:20xx" : linedata[mfield] )
+                  break
+              case 1:  ///mm
+                  linedata[field]= linedata[field]+String(nval)+"-"
+                  linedata[mfield] = (isNaN(nval) ?  " error MM:1-12":nval>12||nval<1 ? " error MM:1-12":linedata[mfield])
+                  break
+              case 2:   ///Day
+                 let daysInMonth = [31, isLeapYear(Number(yyyymmdd[0])) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+                 linedata[field]=linedata[field]+String(nval)+" "
+                 linedata[mfield] = (isNaN(nval) ? " error DD:1-31":nval>daysInMonth[yyyymmdd[1] - 1]||nval<1 ? ` error DD:1-${daysInMonth[yyyymmdd[1] - 1]}`: linedata[mfield])
+                 break
+              case 3:  ///Hour
+                  linedata[field]=linedata[field]+String(nval)+":"
+                  linedata[mfield] = (isNaN(nval)?" error hour:  0-24":nval>24||nval<0?" error hour: 0-24":linedata[mfield])
+                  break
+              case 4:  ///minitus
+                  linedata[field]=linedata[field]+String(nval)+":"
+                  linedata[mfield] = (isNaN(nval)? " error min:  0-59":nval>59||nval<0?" error min: 0-59":linedata[mfield] )
+                  break
+              case 5:  ///second
+                  linedata[field]=linedata[field]+String(nval)
+                  linedata[mfield] = (isNaN(nval)? " error second:  0-59":nval>59||nval<0?" error second: 0-59":linedata[mfield] )
+                  break}})
+              linedata[field] = linedata[field].replace(" 0:0:0","")
       }else{
           switch(field){
             case "screen_rowlist":  //一画面に表示できる行数をセットする項目の指定が正しくできているか？
                 linedata[field].split(',').map((rowcnt)=>{
                     if(isNaN(rowcnt)){ 
-                        linedata[`${field}_gridmessage`] = " must be xxx,yyy,zzz :xxx-->numeric"
+                        linedata[mfield] = " must be xxx,yyy,zzz :xxx-->numeric"
                       }else{
-                        if(linedata[`${field}_gridmessage`]){
-                            if(/error/.test(linedata[`${field}_gridmessage`])){}
-                            else{linedata[`${field}_gridmessage`] = "ok"}
+                        if(linedata[mfield]){
+                            if(/error/.test(linedata[mfield])){linedata[mfield] = " not numeric"}
+                            else{linedata[mfield] = "ok"}
                              }
-                        else{linedata[`${field}_gridmessage`] = "ok"}
+                        else{linedata[mfield] = "ok"}
                       } //エラーセット
                     return linedata
                 })
@@ -71,31 +95,37 @@ export function dataCheck7(schema,field,linedata){
             case "screenfield_indisp":  //変更可能な　/_code/は必須項目。tipが機能しない。
                 if(/_code/.test(linedata["pobject_code_sfd"])&&String(linedata["screenfield_editable"])==="1")
                     {if(String(linedata["screenfield_indisp"])==="1") //excelが数字を自動変換してしまう
-                            {linedata[`${field}_gridmessage`] = "ok"}
-                      else{linedata["screenfield_indisp_gridmessage"] = ` must be Required(indisp===1) `
+                            {linedata[mfield] = "ok"}
+                      else{linedata[mfield] = ` must be Required(indisp===1) `
                             }
                 }else{
-                            linedata[`${field}_gridmessage`] = "ok"}
+                            linedata[mfield] = "ok"}
               break
             default:
+              linedata[mfield] = "ok"
               break
           }
          }
-       return linedata
     }else{  //yupに登録されてないとき
-      linedata[`${field}_gridmessage`] = ` field:${field} not exists in yupschema. please creat 'yupschema' by yup button `
+      linedata[mfield] = ` field:${field} not exists in yupschema. please creat 'yupschema' by yup button `
     }
+    return linedata
 }
 
-function checkDate(year, month, day) {
-	if (!year || !month || !day) return false
-	if (!String(year).match(/^[0-9]{4}$/) || !String(month).match(/^[0-9]{1,2}$/) || !String(day).match(/^[0-9]{1,2}$/)) return false
+// function checkDate(year, month, day) {// 月ごとの最大日数
+// 	if (!year || !month || !day){return false}
+//   const daysInMonth = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+//   if (year < 2000 || year > 2099 || day < 0 || day >  daysInMonth[month - 1] ){return false} 
+// 	//if (!String(year).match(/^[0-9]{4}$/) || !String(month).match(/^[0-9]{1,2}$/) || !String(day).match(/^[0-9]{1,2}$/)) return false
 
-	let dateObj      = new Date(year, month - 1, day),
-	    dateObjStr   = dateObj.getFullYear() + '' + (dateObj.getMonth() + 1) + '' + dateObj.getDate(),
-	    checkDateStr = year + '' + month + '' + day
+// 	let dateObj      = new Date(year, month - 1, day),
+// 	    dateObjStr   = dateObj.getFullYear() + '' + (dateObj.getMonth() + 1) + '' + dateObj.getDate(),
+// 	    checkDateStr = year + '' + month + '' + day
 
-	if (dateObjStr === checkDateStr) return true
+// 	if (dateObjStr === checkDateStr){return true}else{return false}
+// }
 
-	return false
+// うるう年の判定
+function isLeapYear(year) {
+  return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0)
 }

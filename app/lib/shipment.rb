@@ -164,7 +164,7 @@ module Shipment
                             and stk.prjnos_id = lot.prjnos_id and stk.lotno = lot.lotno and stk.packno = lot.packno and stk.starttime = lot.starttime
                         where stk.qty_stk > 0
                       $
-									if shp["shuffle_flg"] == "S"   ###他に在庫があれば引当るケース
+									if shp["shuffleflg"] == "S"   ###他に在庫があれば引当るケース
                     ActiveRecord::Base.connection.select_all(shuffle_sql).each do |stk|
                       if save_lotno == stk["lotno"]  and save_packno == stk["packno"]
                           stk["qty_stk"] =  stk["qty_stk"].to_f - save_qty_stk
@@ -1093,7 +1093,7 @@ module Shipment
 		 %Q&insert into lotstkhists(id,
 								starttime,
 								itms_id,processseq,
-								shelfnos_id,stktaking_proc,
+								shelfnos_id,stktakingproc,
 								qty_sch,qty_stk,qty,qty_real,
                 qty_rejection,
 								lotno,packno,
@@ -1103,7 +1103,7 @@ module Shipment
 						values(#{stkinout["lotstkhists_id"]},
 								'#{stkinout["starttime"]}',
 								#{stkinout["itms_id"]} ,#{stkinout["processseq"]},
-								#{stkinout["shelfnos_id"]},'#{stkinout["stktaking_proc"]}',
+								#{stkinout["shelfnos_id"]},'#{stkinout["stktakingproc"]}',
 								#{stkinout["qty_sch"]} ,#{stkinout["qty_stk"]},#{stkinout["qty"]},#{stkinout["qty_real"]||=stkinout["qty_stk"]},
                 #{stkinout["qty_rejection"]},
 								'#{stkinout["lotno"]}' ,'#{stkinout["packno"]}',

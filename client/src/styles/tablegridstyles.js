@@ -123,6 +123,7 @@ td.subformtdlabel {text-align: right}
   background-color: red;
 }
 
+
 input[type="checkbox"] { width:100%;
   height:60%; 
  }

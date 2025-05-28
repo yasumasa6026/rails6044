@@ -156,8 +156,8 @@ module ArelCtl
 					 raise " calss:#{self},line:#{__LINE__},create table not support table:#{totbl}"
 				end
 				packqty = fmcommand_c["opeitm_packqty"].to_f
-				fmcommand_c["opeitm_packno_proc"] = 0 if packqty <= 0  ###保険　画面でチェック済
-				case parent["opeitm_packno_proc"]
+				fmcommand_c["opeitm_packnoproc"] = 0 if packqty <= 0  ###保険　画面でチェック済
+				case parent["opeitm_packnoproc"]
 				when "1"
 						idx = 0
 						 packqty = fmcommand_c["opeitm_packqty"].to_f
@@ -519,7 +519,7 @@ module ArelCtl
 						orgtblname,orgtblid,paretblname,paretblid,
 						tblname,tblid,
 						mlevel,
-						shuffle_flg,
+						shuffleflg,
 						parenum,chilnum,
 						qty_sch,qty,qty_stk,
 						qty_require,
@@ -551,7 +551,7 @@ module ArelCtl
 					'#{gantt["orgtblname"]}',#{gantt["orgtblid"]},'#{gantt["paretblname"]}',#{gantt["paretblid"]},
 					'#{gantt["tblname"]}',#{gantt["tblid"]},
 					'#{gantt["mlevel"]}',
-					'#{gantt["shuffle_flg"]}',
+					'#{gantt["shuffleflg"]}',
 					#{gantt["parenum"]},#{gantt["chilnum"]},
 					#{gantt["qty_sch"]},#{gantt["qty"]},#{gantt["qty_stk"]},
 					#{gantt["qty_require"]},
@@ -716,7 +716,7 @@ module ArelCtl
                 pare.packqty packqty_pare,pare.id opeitms_id_pare,pare.locas_id_pare locas_id_pare,
                 pare.shelfnos_id_opeitm shelfnos_id_pare,pare.shelfnos_id_to_opeitm shelfnos_id_to_pare,
 				        ope.duration ,ope.unitofduration ,ope.consumauto,
-               		COALESCE(ope.id,'0') opeitms_id,ope.packno_proc,
+               		COALESCE(ope.id,'0') opeitms_id,ope.packnoproc,
                	COALESCE(ope.prdpur,'xxx') prdpur,ope.units_id_case_shp,itm.units_id,
                	ope.locas_id ,ope.locas_code,ope.loca_name,ope.shelfnos_id,  ---子部品作業場所
                	ope.locas_id_to ,ope.locas_code_to,ope.loca_name_to,ope.shelfnos_id_to,   ---子部品保管場所
@@ -759,7 +759,7 @@ module ArelCtl
              select ope.itms_id itms_id_pare,ope.processseq processseq_pare,ope.packqty packqty_pare,ope.id opeitms_id_pare,
                 ope.shelfnos_id_opeitm shelfnos_id_pare,ope.shelfnos_id_to_opeitm shelfnos_id_to_pare,
 				        ope.duration ,ope.unitofduration ,ope.consumauto,
-               	ope.id opeitms_id,ope.packno_proc,
+               	ope.id opeitms_id,ope.packnoproc,
                	COALESCE(ope.prdpur,'xxx') prdpur,ope.units_id_case_shp,itm.units_id,
                	ope.locas_id ,ope.locas_code,ope.locas_name,ope.shelfnos_id,  ---子部品作業場所
                	ope.locas_id_to ,ope.locas_code_to,ope.locas_name_to,ope.shelfnos_id_to,   ---子部品保管場所

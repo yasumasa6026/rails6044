@@ -7,7 +7,7 @@ extend self
         yupschema = "let Yup = require('yup')\n"
         yupschema << "export const yupschema = {\n"
         screenCode = ""
-        ActiveRecord::Base.connection.select_all(strsql(nil)).each do |rec|   
+        ActiveRecord::Base.connection.select_all(strsql_atr(nil)).each do |rec|   
             if screenCode != rec["pobject_code_scr"]
                 if screenCode != ""
                     yupschema <<"           },\n"
@@ -47,7 +47,15 @@ extend self
             when "check"
                 str<< %Q%string()%
             when "numeric"
-                str<< %Q%number()%
+                if rec["screenfield_dataprecision"].to_i > 0 or  rec["screenfield_datascale"].to_i > 0 
+                  if rec["screenfield_dataprecision"].to_i >  rec["screenfield_datascale"].to_i 
+                      str<< %Q%number(#{rec["screenfield_dataprecision"].to_i - rec["screenfield_datascale"].to_i},#{rec["screenfield_datascale"]})%
+                  else
+                      str<< %Q%number(0,#{rec["screenfield_datascale"]})%
+                  end
+                else
+                  str<< %Q%number()%
+                end
                 if rec["screenfield_minvalue"].to_f > 0 
                     str<< %Q%.min(#{rec["screenfield_minvalue"]})%
                 end         
@@ -93,7 +101,7 @@ extend self
         return checkCode           
     end 
     private
-    def strsql screenCode
+    def strsql_atr screenCode
          %Q%select pobject_code_sfd,screenfield_type,screenfield_indisp,screenfield_maxvalue,
                     screenfield_minvalue,screenfield_formatter,	pobject_code_scr ,screenfield_edoptmaxlength,
                     max(screenfield_updated_at) screenfield_updated_at,screenfield_paragraph,

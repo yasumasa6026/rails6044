@@ -16,7 +16,7 @@ function screenApi({params ,url,headers} ) {
         method: "POST",
         url: url,
         contentType: "application/json",
-        params:{...params,data:[],parse_linedata:{}},  //railsではscreen全ての情報を送れない。send lenggth max errorになる。(1024*・・・
+        params:params,  //railsではscreen全ての情報を送れない。send lenggth max errorになる。(1024*・・・
         headers:headers,
     })
   }
@@ -35,6 +35,7 @@ export function* ScreenSaga({ payload: {params}  }) {
     let message
     let hostError
     let lineData
+    params = {...params,data:[],parse_linedata:{}} 
     // while (loading===true) {
     //   console.log("delay")
     //   yield delay(100)

@@ -6,6 +6,7 @@ module Api
         def create
             ###JSON.parseのエラー対応　要
             params["email"] = current_api_user[:email]
+					Rails.logger.debug " class:#{self} ,line:#{__LINE__}\n params:#{params} "
             strsql = "select code,id,name from persons where email = '#{params["email"]}'"
             person = ActiveRecord::Base.connection.select_one(strsql)
             if person.nil?

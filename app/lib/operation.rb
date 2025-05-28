@@ -174,7 +174,7 @@ module Operation
                     schsParams["gantt"] =  ActiveRecord::Base.connection.select_one(%Q&
                                             select key ,
 						                                      orgtblname,orgtblid,tblname paretblname,tblid paretblid,
-						                                      tblname,tblid,mlevel,shuffle_flg,parenum,chilnum,qty_sch,qty,qty_stk,
+						                                      tblname,tblid,mlevel,shuffleflg,parenum,chilnum,qty_sch,qty,qty_stk,
                                                   qty_require,qty_pare,qty_sch_pare,qty_handover,prjnos_id,shelfnos_id_to_trn,
                                                   shelfnos_id_to_pare,itms_id_trn,processseq_trn,shelfnos_id_trn,
                                                   itms_id_pare,processseq_pare,shelfnos_id_pare,
@@ -296,7 +296,7 @@ module Operation
     # consume schs,ords,insts,acts
     #### 
 	  def proc_consume_by_parent()  ### target ==> all children 
-		  return if @gantt["stktaking_proc"] != "1"
+		  return if @gantt["stktakingproc"] != "1"
       last_lotstks = []
 		  ###if @reqparams["classname"] =~ /_insert_|_add_/  ###trngantts 追加
 			  base = {}
@@ -605,7 +605,7 @@ module Operation
                     schsParams["gantt"] =  ActiveRecord::Base.connection.select_one(%Q&
                                             select key ,
 						                                      orgtblname,orgtblid,tblname paretblname,tblid paretblid,
-						                                      tblname,tblid,mlevel,shuffle_flg,parenum,chilnum,qty_sch,qty,qty_stk,
+						                                      tblname,tblid,mlevel,shuffleflg,parenum,chilnum,qty_sch,qty,qty_stk,
                                                   qty_require,qty_pare,qty_sch_pare,qty_handover,prjnos_id,shelfnos_id_to_trn,
                                                   shelfnos_id_to_pare,itms_id_trn,processseq_trn,shelfnos_id_trn,
                                                   itms_id_pare,processseq_pare,shelfnos_id_pare,

@@ -116,7 +116,7 @@ const AutoCell = ({
             checkFields = yupErrCheck(screenSchema,"confirm",checkFields)
             Object.keys(checkFields).map((field)=>lineData[field] = checkFields[field])
             if (lineData["confirm_gridmessage"] === "ok") {
-                params = {...params, lineData:lineData,lineData: JSON.stringify(lineData),  index: index , buttonflg: "confirm7" }
+                params = {...params, lineData: JSON.stringify(lineData),  index: index , buttonflg: "confirm7" }
                 handleScreenRequest(params,data)
             }else{
                 let msg_id = "confirm_gridmessage"
@@ -187,11 +187,15 @@ const AutoCell = ({
                 </sp>
               )
         case /SelectEditable/.test(className):
-            return (<select
+            return (
+              <sp>
+              <select
                 value={initialValue ||""}
                     onChange={e => {
                     setFieldsByonChange(e)
                     }}
+                 onBlur={(e) => setFieldsByonBlur(e)}
+                 className={setClassFunc(id,data[index],className,params.aud)}   
                 > 
           {typeof(dropDownList[id])!=="undefined"&&JSON.parse(dropDownList[id]).map((option, i) => (
             <option key={i} value={option.value}>
@@ -199,6 +203,7 @@ const AutoCell = ({
             </option>
           ))}
         </select>
+        </sp>
         )
 
         case /CheckEditable/.test(className):
