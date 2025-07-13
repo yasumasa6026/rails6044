@@ -9,7 +9,7 @@ module ScreenLib
 		
 		def initialize(params)
 			@screenCode = params[:screenCode]
-			@proc_grp_code =  ActiveRecord::Base.connection.select_value("select usrgrp_code from r_persons where person_email = '#{params["email"]}'")
+			@proc_grp_code =  ActiveRecord::Base.connection.select_value("select usrgrp_code from r_persons where person_email = '#{params[:email]}'")
 			if @proc_grp_code.nil?
 				p "add person to his or her email "
 				raise   ### 別画面に移動する　後で対応
@@ -18,7 +18,9 @@ module ScreenLib
 			if params[:groupBy]
 				proc_create_grid_groupBy_columns_info(params)
 			else
-				if params[:screenCode] and (params[:buttonflg] != "import" or params[:buttonflg] !~ /confirm/)
+				###if params[:screenCode] and (params[:buttonflg] != "import" or params[:buttonflg] !~ /confirm/)
+        ### confirmの時checkされてない項目がある
+				if params[:screenCode] and params[:buttonflg] != "import" 
 					proc_create_grid_editable_columns_info(params)
 				end
 			end
@@ -38,7 +40,7 @@ module ScreenLib
 			@grid_columns_info = Rails.cache.fetch('screenfield'+@proc_grp_code+screenCode+buttonflg) do
 				@grid_columns_info = {}
 				###  ダブルコーティション　「"」は使用できない。 ####groupBy
-				strsql = "select * from  func_get_screenfield_grpname('#{params["email"]}','#{screenCode}')"
+				strsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{screenCode}')"
 				screenwidth = 0
 				select_fields = ""
 				select_row_fields = ""
@@ -232,7 +234,7 @@ module ScreenLib
 			if params[:aggregations].size > 0
 				aggregations = JSON.parse(params[:aggregations])
 			end
-			strsql = "select * from  func_get_screenfield_grpname('#{params["email"]}','#{screenCode}')	"
+			strsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{screenCode}')	"
 			ActiveRecord::Base.connection.select_all(strsql).each_with_index do |i,cnt|	
 				if params[:groupBy].include?(i["pobject_code_sfd"])
 					if 	strGroupBy == ""
@@ -554,7 +556,7 @@ module ScreenLib
 
 		def proc_search_blk(params) 
 			setParams = create_filteredstr(params) 
-			str_func = %Q&select * from func_get_name('screen','#{params[:screenCode]}','#{params["email"]}')&
+			str_func = %Q&select * from func_get_name('screen','#{params[:screenCode]}','#{params[:email]}')&
 			setParams[:screenName] = ActiveRecord::Base.connection.select_value(str_func)
 			if setParams[:screenName].nil?
 				setParams[:screenName] = params[:screenCode]
@@ -646,15 +648,12 @@ module ScreenLib
 			totalCount = ActiveRecord::Base.connection.select_value(strsql)
 			setParams[:pageCount] = (totalCount.to_f/setParams[:pageSize]).ceil
 			setParams[:totalCount] = totalCount.to_f
-			if params[:parse_linedata]
-				setParams[:parse_linedata] = params[:parse_linedata].dup
-			end
       setParams[:message] = ""
 			return pagedata,setParams 
 		end	
 
 
-		def proc_add_empty_data(params) ###新規追加画面の画面の初期値
+		def proc_add_empty_data(params,parse_linedata) ###新規追加画面の画面の初期値
 			num = params[:pageSize].to_f
 			setParams = params.dup
 			pagedata = []
@@ -670,7 +669,7 @@ module ScreenLib
 				temp ={}
 				grid_columns_info[:columns_info].each do |cell|
 					temp[cell[:accessor]] = ""
-					next if cell[:accessor] == "id" 
+					next if cell[:accessor] == "id" or cell[:accessor] == "#{screenCode.split("_")[1].chop}_id"
 					case cell[:accessor]
 					when /_id/
 						temp[cell[:accessor]] = "0"   ###nullだと端末から該当項目が返らないため
@@ -679,7 +678,7 @@ module ScreenLib
 					when /prjno_priority/	  ### prjnosはid=0,code=0,name="common"で初期設定済
 						temp[cell[:accessor]] = "0"
 					when /person_name_chrg/	
-						temp[cell[:accessor]] = params["person_name_upd"]
+						temp[cell[:accessor]] = params[:person_name_upd]
 					end
 					if cell[:className] =~ /^Editable/
 						if cell[:className] =~ /Numeric/
@@ -697,7 +696,7 @@ module ScreenLib
 						when /mkprdpurord_priority|mkprdpurord_processseq/	
 							temp[cell[:accessor]] = "0"
 						when /person_code_chrg/	
-							temp[cell[:accessor]] = params["person_code_upd"]
+							temp[cell[:accessor]] = params[:person_code_upd]
 						when /prjno_code/	### prjnosはid=0,code=0,name="common"で初期設定済
 							temp[cell[:accessor]] = "0"
 						when /custinst_starttime/
@@ -744,10 +743,10 @@ module ScreenLib
 						when /opeitm_stktakingproc/	###opeitm_stktakingproc
 							temp[cell[:accessor]] = "1"  ###棚卸有 opeitmsの規定値
 						end
-					when /gantt_nditms/
+					when /gantt_nditms/  ###parse_linedata  
 						case cell[:accessor]
 						when /itm_code$|itm_name$|processseq$|priority$/	
-                            temp[cell[:accessor]] = params[:parse_linedata][cell[:accessor].to_sym]
+                            temp[cell[:accessor]] = parse_linedata[cell[:accessor]]
 						end
 					when /insert_trngantts/
 						case cell[:accessor]
@@ -832,7 +831,7 @@ module ScreenLib
 			download_columns_info = {}
 			###download_columns_info = Rails.cache.fetch('download'+@proc_grp_code+screenCode) do
 				###  ダブルコーティション　「"」は使用できない。 
-				strsql = "select * from  func_get_screenfield_grpname('#{params["email"]}','#{screenCode}')"
+				strsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{screenCode}')"
 				ActiveRecord::Base.connection.select_all(strsql).each do |i|
 					contents = []  ###[field_id,color,position,type]
 					if i["screenfield_hideflg"] == "0"
@@ -901,7 +900,7 @@ module ScreenLib
 		def proc_create_upload_editable_columns_info params,buttonflg
 			upload_columns_info = Rails.cache.fetch('uploadscreenfield'+@proc_grp_code+screenCode) do
 				###  ダブルコーティション　「"」は使用できない。 
-				strsql = "select * from  func_get_screenfield_grpname('#{params["email"]}','#{screenCode}')"
+				strsql = "select * from  func_get_screenfield_grpname('#{params[:email]}','#{screenCode}')"
 				columns_info = []
 				page_info = {}
 				init_where_info = {}
@@ -999,7 +998,7 @@ module ScreenLib
 
 		def proc_confirm_screen(params)
 			setParams = params.dup
-      setParams[:parse_linedata] = JSON.parse(params[:lineData])
+      parse_linedata = JSON.parse(params[:lineData])
       setParams[:head] = JSON.parse(params[:head]||="{}")
 			tblnamechop = screenCode.split("_")[1].chop
 			yup_fetch_code = grid_columns_info[:fetch_check][:fetchCode]
@@ -1008,19 +1007,20 @@ module ScreenLib
 			setParams[:err] = nil
       setParams[:outqty] = 0
       setParams[:outamt] = 0
-			parse_linedata = setParams[:parse_linedata].dup  ###(can't add a new key into hash during iteration)	
 			blk =  RorBlkCtl::BlkClass.new(screenCode)
 			command_c = blk.command_init
 			parse_linedata.each do |field,val|
+        if setParams[:aud] == "add" ###
+				 	  if (parse_linedata["id"] != "" and  !parse_linedata["id"].nil?)  or ###tableのユニークid
+               (parse_linedata["#{tblnamechop}_id"] != "" and  !parse_linedata["#{tblnamechop}_id"].nil?)
+                setParams[:err] = command_c[:confirm_gridmessage] = "duplicated enter?  id is not empty"   
+						    command_c[:confirm] = false
+                break
+            end                     
+				end  
 			  if yup_fetch_code[field] 
-				 	##setParams["fetchCode"] = %Q%{"#{field}":"#{val}"}%  ###clientのreq='fetch_request'で利用
-				 	if setParams[:parse_linedata][:id] == "" or setParams[:parse_linedata][:id].nil? ###tableのユニークid
-				 		setParams[:parse_linedata][:aud] = "add" ###
-				 	end  
 				 	setParams[:fetchview] = yup_fetch_code[field]
-				 	setParams = CtlFields.proc_fetch_rec setParams  
-					Rails.logger.debug " class:#{self} ,line:#{__LINE__}, fetchview:#{setParams[:fetchview]} "
-					Rails.logger.debug " class:#{self} ,line:#{__LINE__}, parse_linedata:#{setParams[:parse_linedata]} "
+				 	setParams = CtlFields.proc_fetch_rec setParams,parse_linedata  
 				 	if setParams[:err] 
 						command_c[:confirm_gridmessage] = setParams[:err] 
 						command_c[:confirm] = false 
@@ -1033,7 +1033,7 @@ module ScreenLib
 				end
 			 	if setParams[:err].nil? or setParams[:err] == "" 
 					if yup_check_code[field] 
-				  		setParams = CtlFields.proc_judge_check_code setParams,field,yup_check_code[field]  
+				  		setParams = CtlFields.proc_judge_check_code setParams,field,yup_check_code[field] ,parse_linedata 
 				  		if setParams[:err]
 							  command_c[:confirm_gridmessage] = setParams[:err] 
 							  command_c[:confirm] = false 
@@ -1044,13 +1044,14 @@ module ScreenLib
 							  break
 				  		end
 					end
-			  end 
-				###setParams[:parse_linedata][field] = val    
-			end	
+        else
 					Rails.logger.debug " class:#{self} ,line:#{__LINE__}, setParams[:err]:#{setParams[:err]} "
+			  end 
+				###parse_linedata[field] = val    
+			end	
 			### cannot use parse_linedata
 			if  setParams[:err].nil? or setParams[:err] == "" 
-				  setParams[:parse_linedata].each do |key,val|
+				  parse_linedata.each do |key,val|
 				 	  if key.to_s =~ /_id/ and val == ""   and tblnamechop == key.to_s.split("_")[0] and
 					    key.to_s !~ /_gridmessage$/ and  key.to_s !~ /_person_id_upd$/ and  key.to_s != "#{tblnamechop}_id"
 					  		command_c[:confirm_gridmessage] = " error key #{key.to_s} missing"
@@ -1085,8 +1086,6 @@ module ScreenLib
 					end	
 				end
 			end	
-							Rails.logger.debug " class:#{self} ,line:#{__LINE__}, 
-                      setParams[:err]:#{setParams[:err]}  "
 			if  setParams[:err].nil?  or setParams[:err] == ""
 				if command_c["id"] == "" or  command_c["id"].nil?   ### add画面で同一lineで二度"enter"を押されたとき errorにしない
 					###  追加後エラーに気づいたときエラーしないほうが，操作性がよい
@@ -1096,8 +1095,7 @@ module ScreenLib
 				else         
 				  command_c["sio_classname"] = "_edit_update_grid_linedata"
 				end
-				command_c["#{tblnamechop}_person_id_upd"] = setParams["person_id_upd"]
-				command_c = blk.proc_create_tbldata(command_c) ##:
+				command_c["#{tblnamechop}_person_id_upd"] = setParams[:person_id_upd]
 				case screenCode 
 				when /tblfields/  ###前処理 　 　
 					if  setParams[:err].nil?    or setParams[:err] == ""
@@ -1110,7 +1108,7 @@ module ScreenLib
 			  			ActiveRecord::Base.connection.select_all(strsql).each do |rec|
 							seqchkfields[rec["pobject_code_sfd"]] = rec["screenfield_seqno"]
 			  			end  
-			  			seqchkfields[setParams[:parse_linedata][:pobject_code_sfd]] = setParams[:parse_linedata][:screenfield_seqno]
+			  			seqchkfields[parse_linedata["pobject_code_sfd"]] = parse_linedata["screenfield_seqno"]
 			  			if (seqchkfields["screenfield_starttime"]||="99999") <  (seqchkfields["screenfield_duedate"]||="0")
 							setParams[:err] =  " error starttime seqno > duedate seqno  line:#{setParams[:index]} "
 							command_c[:confirm_gridmessage] = setParams[:err] 
@@ -1125,7 +1123,7 @@ module ScreenLib
 					end
 					if setParams[:err].nil?    or setParams[:err] == "" ###一画面分纏めてcommit
 						setParams,command_c = blk.proc_add_update_table(setParams,command_c)
-						setParams = ok_confirm(setParams,command_c,tblnamechop)
+						setParams[:parse_linedata] = ok_confirm(parse_linedata,command_c,tblnamechop)
 						ArelCtl.proc_materiallized tblnamechop+"s"
 					else
 			  		end 
@@ -1138,23 +1136,23 @@ module ScreenLib
 							if command_c["sio_result_f"]  == "9"
 								command_c[:confirm] = false  
 							else
-								setParams = ok_confirm(setParams,command_c,tblnamechop)
+								setParams[:parse_linedata] = ok_confirm(parse_linedata,command_c,tblnamechop)
 							end
 						when  /freetoalloc_alloctbls/
 							begin
 								ActiveRecord::Base.connection.begin_db_transaction()
-								src["trngantts_id"] = params[:parse_linedata][:alloctbl_trngantt_id_src]
+								src["trngantts_id"] = parse_linedata["alloctbl_trngantt_id_src"]
 								src["srctblname"] = "lotstkhists"
-								src["tblname"] = params[:parse_linedata][:alloctbl_srctblname_src]
-								src["tblid"]  = params[:parse_linedata][:alloctbl_srctblid_src]
-								src["alloctbls_id"]  = params[:parse_linedata][:alloctbl_id_src]
-								####src["qty_linkto_alloctbl"]  = parse_linedata[:trngantt_qty_sch]
-								base["trngantts_id"] = params[:parse_linedata][:alloctbl_trngantt_id_free]
-								base["tblname"] = params[:parse_linedata][:alloctbl_srctblname_free]
-								base["tblid"] = params[:parse_linedata][:alloctbl_srctblid_free]
-								base["qty_src"] = params[:parse_linedata][:dummy_qty_alloc]
+								src["tblname"] = parse_linedata["alloctbl_srctblname_src"]
+								src["tblid"]  = parse_linedata["alloctbl_srctblid_src"]
+								src["alloctbls_id"]  = parse_linedata["alloctbl_id_src"]
+								####src["qty_linkto_alloctbl"]  = parse_linedata["trngantt_qty_sch"]
+								base["trngantts_id"] = parse_linedata["alloctbl_trngantt_id_free"]
+								base["tblname"] = parse_linedata["alloctbl_srctblname_free"]
+								base["tblid"] = parse_linedata["alloctbl_srctblid_free"]
+								base["qty_src"] = parse_linedata["dummy_qty_alloc"]
 								base["amt_src"] = 0
-								base["alloctbls_id"]  = params[:parse_linedata][:alloctbl_id_free]
+								base["alloctbls_id"]  = parse_linedata["alloctbl_id_free"]
 								strsql = %Q&select srctblid from inoutlotstks 
 											where tblname = '#{base["tblname"]}' and tblid = #{base["tblid"]}
 											and trngantts_id = #{base["trngantts_id"]} and srctblname = 'lotstkhists'  &
@@ -1167,17 +1165,17 @@ module ScreenLib
 								command_c[:confirm] = false
 								command_c["sio_result_f"] = "9"  ##9:error
 								params[:err] = " state 500"
-								params[:parse_linedata][:confirm] = false  
+								parse_linedata["confirm"] = false  
 								ActiveRecord::Base.connection.rollback_db_transaction()
 							else
-								setParams = ok_confirm(setParams,command_c,tblnamechop)
+								setParams[:parse_linedata] = ok_confirm(parse_linedata,command_c,tblnamechop)
 								ActiveRecord::Base.connection.commit_db_transaction()
 							end
 						when  /insert_trngantts/
 							begin
 								ActiveRecord::Base.connection.begin_db_transaction()
 								gantt = {}
-								params[:parse_linedata].each do |symkey,v|
+								parse_linedata.each do |symkey,v|
 									strkey = symkey.to_s
 									ganttkey = strkey.sub("trngantt_","")
 									if strkey =~ /^trngantt_/
@@ -1187,61 +1185,59 @@ module ScreenLib
 								gantt["trngantts_id"] = ArelCtl.proc_get_nextval("trngantts_seq")
 								strsql = %Q&
 											select count(key) from trngantts t 	
-												where t.key like '%#{params[:parse_linedata][:trngantt_key]}'
-														and orgtblid = #{params[:parse_linedata][:trngantt_orgtblid]} 
-														and orgtblname = '#{params[:parse_linedata][:trngantt_orgtblname]}' 
+												where t.key like '%#{parse_linedata["trngantt_key"]}'
+														and orgtblid = #{parse_linedata["trngantt_orgtblid"]} 
+														and orgtblname = '#{parse_linedata["trngantt_orgtblname"]}' 
 								&
 								trnganttkey = ActiveRecord::Base.connection.select_value(strsql)
-								gantt["key"] = params[:parse_linedata][:trngantt_key] + format('%05d', trnganttkey.to_i + 1)
-								gantt["mlevel"] = params[:parse_linedata][:trngantt_mlevel].to_i + 1
-								###gantt["qty_sch"] = params[:parse_linedata][:trngantt_qty_sch]
+								gantt["key"] = parse_linedata["trngantt_key"] + format('%05d', trnganttkey.to_i + 1)
+								gantt["mlevel"] = parse_linedata["trngantt_mlevel"].to_i + 1
+								###gantt["qty_sch"] = parse_linedata["trngantt_qty_sch"]
 								gantt["qty"] = 0
 								gantt["qty_stk"] = 0
 								gantt["qty_require"] = 0
 								gantt["qty_handover"] = 0
-								gantt["consumunitqty"]	=	case  params[:parse_linedata][:trngantt_consumunitqty].to_i 
-															when 0 then 1 
-															else gantt["consumunitqty"].to_i 
-															end
+								gantt["packqty"]	= 1
 								gantt["qty_sch"] = CtlFields.proc_cal_qty_sch(gantt["qty_sch_pare"].to_f,gantt["chilnum"].to_f,gantt["parenum"].to_f,
-															gantt["consumunitqty"],gantt["consumminqty"].to_f,gantt["consumchgoverqty"].to_f)
-								gantt["persons_id_upd"] = params["person_id_upd"]
+															gantt["packqty"],gantt["consumminqty"].to_f,gantt["consumchgoverqty"].to_f)
+								gantt["persons_id_upd"] = params[:person_id_upd]
 								last_lotstks = ArelCtl.proc_insert_trngantts(gantt,{})   ###子。孫への展開はない
 							rescue
 								command_c[:confirm] = false
 								command_c["sio_result_f"] = "9"  ##9:error
 								params[:err] = " state 500"
-								params[:parse_linedata][:confirm] = false  
+								parse_linedata["confirm"] = false
 								ActiveRecord::Base.connection.rollback_db_transaction()
 							else
-								setParams = ok_confirm(setParams,command_c,tblnamechop)
+								setParams[:parse_linedata] = ok_confirm(parse_linedata,command_c,tblnamechop)
 								ActiveRecord::Base.connection.commit_db_transaction()
-                setParams["last_lotstks"] = last_lotstks.dup
+                setParams[:last_lotstks] = last_lotstks.dup
 							end
 						end			
-            if setParams["last_lotstks"] 
-              setParams["segment"]  = "link_lotstkhists_update"
-              setParams["tbldata"] = {}
-              setParams["gantt"] = {}
+            if setParams[:last_lotstks] 
+              setParams[:segment]  = "link_lotstkhists_update"
+              setParams[:tbldata] = {}
+              setParams[:gantt] = {}
+              setParams[:tblname] = ""
+              setParams[:tblid] = ""
               processreqs_id,setParams = ArelCtl.proc_processreqs_add(setParams)
             end
 				when /custactheads/
           command_c["custacthead_amt"] = 0
           command_c["custacthead_tax"] = 0
-          command_c = blk.proc_create_tbldata(command_c) ##設定のし直し
 					###setParams = blk.proc_private_aud_rec(setParams,command_c)
 					setParams,command_c = blk.proc_add_update_table(setParams,command_c) 
 					if command_c["sio_result_f"]  == "9"
 						command_c[:confirm] = false  
 					else
-						setParams = ok_confirm(setParams,command_c,tblnamechop)
+						setParams[:parse_linedata] = ok_confirm(parse_linedata,command_c,tblnamechop)
 					end
 					# case setParams[:buttonflg]
 					# when /confirmAll|MkInvoiceNo/   ###一画面分纏めてcommit
 					# 	setParams = blk.proc_private_aud_rec(params,command_c)
 					# 	if setParams[:buttonflg] =~ /confirmAll/  
 					# 		strsql = nil
-					# 		setParams[:parse_linedata].each do |field,val|
+					# 		parse_linedata.each do |field,val|
 					# 			if val and val != ""
 					# 				case field
 					# 				when /_sno_/
@@ -1250,11 +1246,11 @@ module ScreenLib
 					# 				when /_cno_/
 					# 					tblnamechop = val.split("_cno_")[1]
 					# 					strsql = %Q&select * from r_#{tblnamechop}s where #{tblnamechop}_cno = '#{val}'
-					# 							and #{tblnamechop}_cust_id  = #{setParams[:parse_linedata]["custacthead_cust_id"]} &
+					# 							and #{tblnamechop}_cust_id  = #{parse_linedata["custacthead_cust_id"]} &
 					# 				when /_packinglistnos/
 					# 					tblnamechop = "custdlv" 
 					# 					strsql = %Q&select * from r_#{tblnamechop}s where #{tblnamechop}_packinglistno = '#{val}'
-					# 							and #{tblnamechop}_cust_id  = #{setParams[:parse_linedata]["custacthead_cust_id"]} &
+					# 							and #{tblnamechop}_cust_id  = #{parse_linedata["custacthead_cust_id"]} &
 					# 				else
 					# 					next
 					# 				end
@@ -1277,7 +1273,7 @@ module ScreenLib
 					# 							custacthead = ArelCtl.proc_createDetailTableFmHead  "custactheads",tblnamechop+"s",command_c,fmView,setParams = [:classname] 
 					# 						end
 					# 					end
-					# 					setParams["custactheads"] << custacthead
+					# 					setParams[:custactheads] << custacthead
 					# 					break
 					# 				end
 					# 			end
@@ -1288,7 +1284,7 @@ module ScreenLib
 					# 	if command_c["sio_result_f"]  == "9"
 					# 		command_c[:confirm] = false  
 					# 	else
-					# 		setParams = ok_confirm(setParams,command_c,tblnamechop)
+					# 		setParams[:parse_linedata] = ok_confirm(parse_linedata,command_c,tblnamechop)
 					# 	end
 					# end
 				#when /cust1_custords/
@@ -1296,7 +1292,7 @@ module ScreenLib
 					# if command_c["sio_result_f"]  == "9"
 					# 	command_c[:confirm] = false  
 					# else
-					# 	setParams = ok_confirm(setParams,command_c,tblnamechop)
+					# 	setParams[:parse_linedata] = ok_confirm(parse_linedata,command_c,tblnamechop)
 					# end
 
 				#when /dlvs$/
@@ -1308,7 +1304,7 @@ module ScreenLib
 					# 	if command_c["sio_result_f"]  == "9"
 					# 		command_c[:confirm] = false  
 					# 	else
-					# 		setParams = ok_confirm(setParams,command_c,tblnamechop)
+					# 		setParams[:parse_linedata] = ok_confirm(parse_linedata,command_c,tblnamechop)
 					# 	end
 					# end
 				else
@@ -1316,27 +1312,27 @@ module ScreenLib
 					if command_c["sio_result_f"]  == "9"
 						command_c[:confirm] = false  
 					else
-						setParams = ok_confirm(setParams,command_c,tblnamechop)
+						setParams[:parse_linedata] = ok_confirm(parse_linedata,command_c,tblnamechop)
 					  	ArelCtl.proc_materiallized tblnamechop+"s"
 					end
 				end
 			else
 				command_c[:confirm] = false
         command_c["sio_result_f"] = "9"  ##9:error
-				setParams[:parse_linedata][:confirm] = false  
+				parse_linedata["confirm"] = false  
 			end
 			Rails.logger.debug " class:#{self} ,line:#{__LINE__},setParams[:err]:#{setParams[:err]}  " if setParams[:err]
                       
-      ##setParams[:parse_linedata] = {} 
+      ##parse_linedata = {} 
       return setParams
 		end
 
-		def ok_confirm(setParams,command_c,tblnamechop)
-			setParams[:parse_linedata][:id] = command_c["id"]
-			setParams[:parse_linedata][(tblnamechop+"_id").to_sym] = command_c[tblnamechop+"_id"]
-			setParams[:parse_linedata][:confirm] = true  
-			setParams[:parse_linedata][:confirm_gridmessage] = "done"
-			return setParams
+		def ok_confirm(parse_linedata,command_c,tblnamechop)
+			parse_linedata["id"] = command_c["id"]
+			parse_linedata[tblnamechop+"_id"] = command_c[tblnamechop+"_id"]
+			parse_linedata["confirm"] = true  
+			parse_linedata["confirm_gridmessage"] = "done"
+			return parse_linedata
 		end
 
 		def proc_second_shpview params
@@ -1344,9 +1340,9 @@ module ScreenLib
 			err = ""
 			innerjoinTblName = ""
 			strselects = "("
-			mainTblName = params["screenCode"].split("_",2)[1] 
+			mainTblName = params[:screenCode].split("_",2)[1] 
 
-			(params["clickIndex"]).each_with_index  do |selected,idx|  ###-次のフェーズに進んでないこと。
+			(params[:clickIndex]).each_with_index  do |selected,idx|  ###-次のフェーズに進んでないこと。
 				selected = JSON.parse(selected)
 				if idx == 0
 					innerjoinTblName = selected["screenCode"].split("_",2)[1]
@@ -1380,7 +1376,6 @@ module ScreenLib
 			totalCount = ActiveRecord::Base.connection.select_value(strsql)
 			params[:pageCount] = (totalCount.to_f/params[:pageSize].to_f).ceil
 			params[:totalCount] = totalCount.to_f
-			params[:parse_linedata] = {}
 			return pagedata,params 
 		end
     ###
@@ -1393,7 +1388,7 @@ module ScreenLib
       mainTblName = screenCode.split("_")[1]
 			strselects = "("
 
-			(params["clickIndex"]).each_with_index  do |selected,idx|  ###-次のフェーズに進んでないこと。
+			(params[:clickIndex]).each_with_index  do |selected,idx|  ###-次のフェーズに進んでないこと。
 				selected = JSON.parse(selected)
 				if idx == 0
 					innerjoinTblName = selected["screenCode"].split("_",2)[1]
@@ -1427,7 +1422,6 @@ module ScreenLib
 			totalCount = ActiveRecord::Base.connection.select_value(strsql)
 			params[:pageCount] = (totalCount.to_f/params[:pageSize].to_f).ceil
 			params[:totalCount] = totalCount.to_f
-			params[:parse_linedata] = {}
 			return pagedata,params 
 		end	
 		
@@ -1470,23 +1464,22 @@ module ScreenLib
 			totalCount = ActiveRecord::Base.connection.select_value(strsql)
 			setParams[:pageCount] = (totalCount.to_f/params[:pageSize].to_f).ceil
 			setParams[:totalCount] = totalCount.to_f
-			setParams[:parse_linedata] = {}
+			parse_linedata = {}
 			return pagedata,setParams 
 		end	
 
-		def proc_add_custact_details(params)  ###  from custactheads to custacts
+		def proc_add_custact_details(params, parse_linedata)  ###  from custactheads to custacts
 			prevs = []
 			err = nil
 			pareview,paretblname = screenCode.split("_")
-			parse_linedata = params[:parse_linedata].dup
-			tbldata = params["tbldata"].dup
-			if parse_linedata[:custacthead_packinglistnos].size > 0   ###cust3_custactheads packinglistnoでの纒
+			tbldata = params[:tbldata].dup
+			if parse_linedata["custacthead_packinglistnos"].size > 0   ###cust3_custactheads packinglistnoでの纒
 				strsql = %Q&
 						select 'custdlvs' tblname,dlv.*,link.id link_id,link.trngantts_id,dlv.id tblid,dlv.custdlv_packinglistno 
                         from r_custdlvs dlv
 												inner join linkcusts link on link.tblname = 'custdlvs' and link.tblid = dlv.id 
-												where dlv.custdlv_packinglistno in('#{parse_linedata[:custacthead_packinglistnos].split(",").join("','")}')
-												and dlv.custdlv_cust_id = #{parse_linedata[:custacthead_cust_id]} and link.qty_src > 0
+												where dlv.custdlv_packinglistno in('#{parse_linedata["custacthead_packinglistnos"].split(",").join("','")}')
+												and dlv.custdlv_cust_id = #{parse_linedata["custacthead_cust_id"]} and link.qty_src > 0
 					&
 				prevs = 	ActiveRecord::Base.connection.select_all(strsql)
 			else
@@ -1494,9 +1487,9 @@ module ScreenLib
 					strsql = %Q&
 								select 'custords' tblname,head.srctblid tblid,alloc.id link_id,alloc.trngantts_id from linkcusts alloc
 									inner join (select head.* from custordheads head 
-													inner join linkheads link link.paretblid = head.id 
-														where head.sno = '#{parse_linedata[:custacthead_sno_custordhead]}' and link.paretblname = 'custordheads' 
-															and custs_id = #{parse_linedata[:custacthead_cust_id]}) head
+													inner join linkheads link on link.paretblid = head.id 
+														where head.sno = '#{parse_linedata["custacthead_sno_custordhead"]}' and link.paretblname = 'custordheads' 
+															and custs_id = #{parse_linedata["custacthead_cust_id"]}) head
 									on head.tblid = alloc.tblid and alloc.srctblname = 'custords'
 									where	alloc.qty_src > 0 		 		
 					&
@@ -1512,9 +1505,9 @@ module ScreenLib
 						strsql = %Q&
 							select   'custords'  tblname,head.srctblid tblid,alloc.id link_id,alloc.trngantts_id  from linkcusts alloc
 								inner join (select head.* from custordheads head 
-												inner join linkheads link link.paretblid = head.id 
-												where head.cno = '#{parse_linedata[:custacthead_cno_custordhead]}' and link.paretblname = 'custordheads' 
-												and custs_id = #{parse_linedata[:custacthead_cust_id]}) head
+												inner join linkheads link on link.paretblid = head.id 
+												where head.cno = '#{parse_linedata["custacthead_cno_custordhead"]}' and link.paretblname = 'custordheads' 
+												and custs_id = #{parse_linedata["custacthead_cust_id"]}) head
 									on head.tblid = alloc.tblid and alloc.srctblname = 'custords'
 								where	alloc.qty_src > 0 		
 							&
@@ -1530,8 +1523,8 @@ module ScreenLib
               strsql = %Q&
                 select alloc.id link_id,alloc.trngantts_id,'custords' tblname,head.id tblid  from linkcusts alloc
                   inner join custords head on alloc.tblid = head.id 
-                  where head.gno = '#{parse_linedata[:custacthead_gno_custordhead]}' 
-                          and custs_id = #{parse_linedata[:custacthead_cust_id]}
+                  where head.gno = '#{parse_linedata["custacthead_gno_custordhead"]}' 
+                          and custs_id = #{parse_linedata["custacthead_cust_id"]}
                           and	alloc.qty_src > 0 		
                 &
               ActiveRecord::Base.connection.select_all(strsql).each do |rec|
@@ -1546,7 +1539,7 @@ module ScreenLib
 				end
 			end
 			fields =  ActiveRecord::Base.connection.select_values(%Q&
-							select pobject_code_sfd from func_get_screenfield_grpname('#{params["email"]}','#{pareview}_custacts')&)
+							select pobject_code_sfd from func_get_screenfield_grpname('#{params[:email]}','#{pareview}_custacts')&)
 			custact =  RorBlkCtl::BlkClass.new("#{pareview}_custacts")
 			linktbl_ids = []
 			amtTaxRate = {}
@@ -1570,7 +1563,7 @@ module ScreenLib
         command_custact["sio_viewname"] = "r_custacts"
 				command_custact["custact_created_at"] = Time.now
 				command_custact["id"] = ArelCtl.proc_get_nextval("custacts_seq")
-			  command_custact["custact_person_id_upd"] = params["person_id_upd"]
+			  command_custact["custact_person_id_upd"] = params[:person_id_upd]
 			  command_custact["custact_saledate"] = tbldata["saledate"]
         case prev["tblname"]
            when "custdlvs"
@@ -1598,7 +1591,7 @@ module ScreenLib
 				# base = {"tblname" => "custacts" ,	"tblid" => command_custact["id"],
 				# 					"qty_src" => command_custact["custact_qty_stk"] ,
 				# 					"amt_src" => command_custact["custact_amt"]  ,
-				# 					"trngantts_id" => prev["trngantts_id"],"persons_id_upd" => params["person_id_upd"]}
+				# 					"trngantts_id" => prev["trngantts_id"],"persons_id_upd" => params[:person_id_upd]}
 				# linktbl_ids  << ArelCtl.proc_insert_linkcusts(prev,base)
 				# 			update_strsql = %Q&
 				# 				update  linkcusts link set qty_src = qty_src - #{command_custact["custact_qty_stk"]}
@@ -1610,7 +1603,7 @@ module ScreenLib
 				###
 				# 親子関係作成
 				###
-					ArelCtl.proc_insert_linkheads(params[:head],{"tblname" => "custacts","tblid" => command_custact["id"],"persons_id_upd" => params["person_id_upd"]})
+					ArelCtl.proc_insert_linkheads(params[:head],{"tblname" => "custacts","tblid" => command_custact["id"],"persons_id_upd" => params[:person_id_upd]})
 				###
 				#
 				###

@@ -15,7 +15,7 @@ class TblClass
 	def proc_blktbs params  ### r_blktbs又はr_tblfieldsから呼ばれることを想定
 		skip_tblnames = ["persons","prjnos","scrlvs","locas","usrgrps","chrgs","pobjgrps","reports","pobjects"]
 		if params["data"]   ###画面でのチェックができなかった。
-			@tblsfields["persons_id_upd"] = params["person_id_upd"]
+			@tblsfields["persons_id_upd"] = params[:person_id_upd]
 		else
 			@messages << " no data"
 			@modifysql = ""
@@ -544,7 +544,6 @@ class TblClass
 		command_r["pobject_person_id_upd"] = @tblsfields["persons_id_upd"]
 		command_r["id"] = ArelCtl.proc_get_nextval("pobjects_seq")
 		command_r["pobject_created_at"] = Time.now
-		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r["sio_result_f"] ==   "9"
 		 	@messages <<  "error  add_pobject_record #{screenfield}\n"
@@ -565,7 +564,6 @@ class TblClass
 		command_r["pobject_objecttype"] = "view_field"
 		command_r["pobject_expiredate"] = '2099/12/31'
 		command_r["pobject_person_id_upd"] = @tblsfields["persons_id_upd"]
-		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r["sio_result_f"] ==   "9"
 		 	@messages <<  "error  update_pobject_record #{screenfield}\n"
@@ -714,7 +712,6 @@ class TblClass
 		
 		command_r["id"] = ArelCtl.proc_get_nextval("screenfields_seq")	
 		command_r["screenfield_created_at"] = Time.now	
-		blk.proc_create_tbldata(command_r) ##
 		setParams = blk.proc_private_aud_rec({},command_r)
 		if command_r["sio_result_f"] ==   "9"
 				@messages  << command_r["sio_message_contents"][0..200] + "\n"

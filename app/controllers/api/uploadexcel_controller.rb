@@ -17,16 +17,16 @@ class UploadexcelController < ApplicationController
         ##skip_before_action :verify_authenticity_token
         jparams = params.dup
         tblname = params[:screenCode].split("_")[1]
-        strsql = "select code,id from persons where email = '#{params["email"]}'"
+        strsql = "select code,id from persons where email = '#{params[:email]}'"
         person = ActiveRecord::Base.connection.select_one(strsql)
         if person.nil?
-            reqparams["status"] = 403
+            reqparams[:status] = 403
             reqparams[:err] = "Forbidden paerson code not detect"
             render json: {:params => reqparams}
             return   
         end
-        jparams["person_code_upd"] = person["code"]
-        jparams["person_id_upd"] = person["id"]
+        jparams[:person_code_upd] = person["code"]
+        jparams[:person_id_upd] = person["id"]
         jparams[:uploadData] = jparams[:uploadexcel] = {}  ###jparamsではuploaddataは使用しない。processreqへの保存対象外
         jparams[:buttonflg] = "import"
         command_c = {}
@@ -62,46 +62,44 @@ class UploadexcelController < ApplicationController
         tblid = screen.screenCode.split("_")[1].chop + "_id"
         lines = params[:uploadData][:uploadexcel]
         lines.each do |linevalues|
-            jparams[:parse_linedata] = linevalues.dup
+            parse_linedata = linevalues.dup
             select_fields.split(",").each do |idkey|   ### select_fields.split(","):元keyidsから変更--->view項目
-                    if jparams[:parse_linedata][idkey].nil?
-                        jparams[:parse_linedata][idkey] = ""
-                    end    
+                    parse_linedata[idkey] ||= ""
             end  
             jparams[:screenCode] = screen.screenCode
             jparams[:err] = nil
-            jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] ||= ""
+            parse_linedata["#{tblname.chop}_confirm_gridmessage"] ||= ""
             if linevalues["confirm"] == true
                 linevalues.each do |field,val| ###confirmはfunction batchcheckで項目追加している。
                         ##エラーと最初のレコード(confirm="confirm")のname項目行を除く
-                    jparams[:parse_linedata]["confirm"] = true
+                    parse_linedata["confirm"] = true
                     if fetchCode[field] 
                         jparams[:fetchCode] = %Q%{"#{field}":"#{val}"}%
                         jparams[:fetchview] = fetchCode[field]
-                        jparams = CtlFields.proc_fetch_rec jparams  
+                        jparams = CtlFields.proc_fetch_rec jparams, parse_linedata  
                         if jparams[:err] 
-                            jparams[:parse_linedata][:confirm_gridmessage] = jparams[:err] 
-                            jparams[:parse_linedata][:confirm] = false 
-                            jparams[:parse_linedata][(field+"_gridmessage").to_sym] = jparams[:err] 
+                            parse_linedata["confirm_gridmessage"] = jparams[:err] 
+                            parse_linedata["confirm"] = false 
+                            parse_linedata[(field+"_gridmessage")] = jparams[:err] 
                             break
                         end    
                     end
                 end
             else
                 uploadError = true  
-                jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
+                parse_linedata["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
             end 
-            if jparams[:parse_linedata]["confirm"]  == true 
-                jparams[:parse_linedata].each do |field,val| ###confirmはfunction batchcheckで項目追加している。
+            if parse_linedata["confirm"]  == true 
+                parse_linedata.each do |field,val| ###confirmはfunction batchcheckで項目追加している。
                     if checkCode[field] 
-                        jparams = CtlFields.proc_judge_check_code jparams,field,checkCode[field]
+                        jparams = CtlFields.proc_judge_check_code jparams,field,checkCode[field],parsae_linedata
                     end
                 end
             else
                 proc_create_upload_editable_columns_infoError = true
-                jparams[:parse_linedata]["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
+                parse_linedata["#{tblname.chop}_confirm_gridmessage"] << jparams[:err]
             end
-            rows << jparams[:parse_linedata]
+            rows << parse_linedata
         end
         begin
             ActiveRecord::Base.connection.begin_db_transaction()
@@ -169,11 +167,10 @@ class UploadexcelController < ApplicationController
                 else
                 end
                 if uploadError == false and parse_linedata["confirm"] == true 
-                    blk.proc_create_tbldata(command_c) ### @src_tbl作成
                     setParams = blk.proc_private_aud_rec(jparams,command_c)
                     idx += 1
-                    if setParams["seqno"][0]
-                        performSeqNos << setParams["seqno"][0]
+                    if setParams[:seqno][0]
+                        performSeqNos << setParams[:seqno][0]
                     end
                 else
                     ActiveRecord::Base.connection.rollback_db_transaction()

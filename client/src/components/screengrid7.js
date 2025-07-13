@@ -115,7 +115,7 @@ const AutoCell = ({
             })  
             checkFields = yupErrCheck(screenSchema,"confirm",checkFields)
             Object.keys(checkFields).map((field)=>lineData[field] = checkFields[field])
-            if (lineData["confirm_gridmessage"] === "ok") {
+            if (lineData.confirm_gridmessage === "ok") {
                 params = {...params, lineData: JSON.stringify(lineData),  index: index , buttonflg: "confirm7" }
                 handleScreenRequest(params,data)
             }else{
@@ -352,19 +352,19 @@ const ScreenGrid7 = ({
         // }
     
         const nextPage = () => {
-            params["pageIndex"] = params.pageIndex + 1
+            params.pageIndex = params.pageIndex + 1
             handleScreenRequest(params,data) 
         } 
 
       const previousPage = () => {
-        params["pageIndex"] = params.pageIndex - 1
+        params.pageIndex = params.pageIndex - 1
         handleScreenRequest(params,data) 
       }
 
       const gotoPage = ((page) => {
-          if(Number(page)>=0&&Number(page)<(Number(params["pageCount"]) + 1))
+          if(Number(page)>=0&&Number(page)<(Number(params.pageCount) + 1))
               {
-                params["pageIndex"] = (Number(page) - 1)
+                params.pageIndex = (Number(page) - 1)
                 //setControlledPageIndex(page)
                 handleScreenRequest(params,data) 
               }
@@ -373,7 +373,7 @@ const ScreenGrid7 = ({
       ) 
 
       const canPreviousPage = (() => { return params.pageIndex < 1 ? 0 : 1 })
-      const canNextPage = (() => { return (params.pageIndex + 1) < (Number(params["pageCount"])) ? 1 : 0 })
+      const canNextPage = (() => { return (params.pageIndex + 1) < (Number(params.pageCount)) ? 1 : 0 })
 
      // useEffect(()=>handleSubForm(params,toggleSubForm),[toggleSubForm]) //
       const toDelete = (params) => {if(params.index===null||params.index===undefined){alert("please select target record")}
@@ -493,13 +493,13 @@ const ScreenGrid7 = ({
           />
         </TableGridStyles>
            {params.aud !==  'add'&&<div colSpan="10000" className="td" >
-               {screenCode===""?"":Number(params["totalCount"])===0?"No Record":
-                `Showing ${params.pageIndex * params["pageSize"] + 1} of ~
-                 ${Number(params["totalCount"]) < ((params.pageIndex + 1) * params["pageSize"])? 
-                  Number(params["totalCount"]) : ((params.pageIndex + 1) * params["pageSize"])} 
-                  results of  total ${Number(params["totalCount"])} records`}
+               {screenCode===""?"":Number(params.totalCount)===0?"No Record":
+                `Showing ${params.pageIndex * params.pageSize + 1} of ~
+                 ${Number(params.totalCount) < ((params.pageIndex + 1) * params.pageSize)? 
+                  Number(params.totalCount) : ((params.pageIndex + 1) * params.pageSize)} 
+                  results of  total ${Number(params.totalCount)} records`}
           </div>}
-      {(Number(params["totalCount"])>0&&!toggleSubForm)&& 
+      {(Number(params.totalCount)>0&&!toggleSubForm)&& 
       <span className="pagination">
           <button onClick={() => {
             gotoPage(1)
@@ -515,13 +515,13 @@ const ScreenGrid7 = ({
             nextPage() }} disabled={canNextPage() === 0 ? true : false}>
               {'>'}
           </button>{''}
-          <button onClick={() => { gotoPage(Number(params["pageCount"])) }} disabled={canNextPage() === 0 ? true : false}>
+          <button onClick={() => { gotoPage(Number(params.pageCount)) }} disabled={canNextPage() === 0 ? true : false}>
             {'>>'}
           </button>{' '}
           <span>
             Page{' '}
             <strong>
-              {params.pageIndex + 1} of {(Number(params["pageCount"]))}
+              {params.pageIndex + 1} of {(Number(params.pageCount))}
             </strong>{''}
           </span>
           <span>
@@ -547,11 +547,11 @@ const ScreenGrid7 = ({
             />
           </span>{' '}
           <select
-            value={Number(params["pageSize"]||0)}
+            value={Number(params.pageSize||0)}
             onChange={e => {
-              //params["pageIndex"]= 1
+              //params.pageIndex = 1
               params = {...params,pageSize:(Number(e.target.value)),
-                          pageIndex:(Math.floor(Number(params["totalCount"])/params["pageSize"]*params.pageIndex))}
+                          pageIndex:(Math.floor(Number(params.totalCount)/params.pageSize*params.pageIndex))}
               handleScreenRequest(params,data) 
             }}
           >
@@ -559,7 +559,7 @@ const ScreenGrid7 = ({
             <option key={pageSize} value={pageSize}>
               Show {pageSize}
             </option>
-            ))  /*menuから呼ばれたときはparams["pageSizeList"]==null　*/}
+            ))  /*menuから呼ばれたときはparams.pageSizeList==null　*/}
           </select>
           <span> {" "}</span>
           </span>  /*nextPage等終わり*/}  
@@ -780,10 +780,10 @@ const GridTable = ({
                       if(e.ctrlKey){  //複数行選択
                           if(Object.keys(selectedRowIds).length===0){
                             toggleAllRowsSelected(true)
-                            data.map((line,idx) => params["clickIndex"].push({lineId:idx,id:line["id"],
+                            data.map((line,idx) => params.clickIndex.push({lineId:idx,id:line.id,
                                                     screenCode:params.screenCode,sNo:line[sNo]})
                             )  
-                            params["index"] = -1
+                            params.index = -1
                           }else{
                             toggleAllRowsSelected(false)
                             params = {...params,clickIndex:[],index:-1}
@@ -791,15 +791,15 @@ const GridTable = ({
                       }else{
                         if(row.isSelected){
                           row.toggleRowSelected(false)
-                            params["clickIndex"].map((click,idx)=>{if(click["lineId"]===row.index){return params["clickIndex"][idx]={}}})
-                            params["clickIndex"].map((click,idx)=>{if(click["lineId"]){return params["index"]=click["lineId"]}}
+                            params.clickIndex.map((click,idx)=>{if(click.lineId===row.index){return params.clickIndex.idx={}}})
+                            params.clickIndex.map((click,idx)=>{if(click.lineId){return params.index=click.lineId}}
                             )                       
                           }
                         else{
                           row.toggleRowSelected(true)
-                          params["clickIndex"].push({lineId:row.index,id:data[row.index]["id"],
+                          params.clickIndex.push({lineId:row.index,id:data[row.index]["id"],
                                                             screenCode:params.screenCode,sNo:data[row.index][sNo]})
-                          params["index"] = row.index
+                          params.index = row.index
                         }
                       }
                      // params = {...params,changeData:changeData}

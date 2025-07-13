@@ -4,18 +4,18 @@ module Api
           def index
           end
           def create
-            params["email"] = current_api_user[:email]
-            strsql = "select code,id from persons where email = '#{params["email"]}'"
+            params[:email] = current_api_user[:email]
+            strsql = "select code,id from persons where email = '#{params[:email]}'"
             person = ActiveRecord::Base.connection.select_one(strsql)
             if person.nil?
-                params["status"] = 403
+                params[:status] = 403
                 params[:err] = "Forbidden paerson code not detect"
                 render json: {:params => params}
                 return   
                 
             end
-            params["person_code_upd"] = person["code"]
-            params["person_id_upd"] = person["id"]
+            params[:person_code_upd] = person["code"]
+            params[:person_id_upd] = person["id"]
             case params[:buttonflg] 
               when 'yup'
                 yup = YupSchema.proc_create_schema 	

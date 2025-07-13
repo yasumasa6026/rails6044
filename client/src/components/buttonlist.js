@@ -121,8 +121,8 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
 
           case "showdetail":
           //case "adddetail":
-                params["clickIndex"]&&params["clickIndex"].map((click)=>{if(click.id){clickcnt = clickcnt + 1
-                                                                params["head"] = {lineId:click["lineId"],id:click["id"],pareScreenCode:click["screenCode"]}}
+                params.clickIndex&&params.clickIndex.map((click)=>{if(click.id){clickcnt = clickcnt + 1
+                                                                params.head = {lineId:click["lineId"],id:click["id"],pareScreenCode:click["screenCode"]}}
                                                   }
                                         )
                 if(clickcnt === 1){
@@ -132,7 +132,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                   //break
       
           case "confirmAll"://
-              params["clickIndex"]&&params["clickIndex"].map((click)=>{if(click.id){clickcnt = clickcnt + 1}
+              params.clickIndex&&params.clickIndex.map((click)=>{if(click.id){clickcnt = clickcnt + 1}
                                             }
                                   )
               if(clickcnt>0){
@@ -175,7 +175,7 @@ const mapDispatchToProps = (dispatch,ownProps ) => ({
                     else{alert("please select")}
                     
           case "MkPackingListNo"://
-                  params["clickIndex"]&&params["clickIndex"].map((click)=>{if(click.sNo){clickcnt = clickcnt + 1}
+                  params.clickIndex&&params.clickIndex.map((click)=>{if(click.sNo){clickcnt = clickcnt + 1}
                                                   }
                                         )
                     if(clickcnt>0){

@@ -43,15 +43,15 @@ module ArelCtl
 	
 	def proc_processreqs_add params
 		processreqs_id = proc_get_nextval("processreqs_seq")
-		if params["seqno"].nil?
-			params["seqno"] = []
+		if params[:seqno].nil?
+			params[:seqno] = []
 		end	
-		params["seqno"] << processreqs_id  ###
+		params[:seqno] << processreqs_id  ###
 		setParams = params.dup
 		setParams.delete(:parse_linedata)  ###size 8192対策
 		setParams.delete(:lineData)
-		if setParams["where_str"]
-			setParams["where_str"] = setParams["where_str"].gsub("'","#!")
+		if setParams[:where_str]
+			setParams[:where_str] = setParams[:where_str].gsub("'","#!")
 		end
 		strsql = %Q&
 			insert into processreqs(
@@ -60,17 +60,17 @@ module ArelCtl
 						update_ip,persons_id_upd,reqparams,
 						seqno,id,result_f)
 					values(
-						'','#{setParams["remark"]}',
+						'','#{setParams[:remark]}',
 						current_timestamp,current_timestamp,
-						'',#{setParams["person_id_upd"]},'#{setParams.to_json}',
-						#{setParams["seqno"][0]},#{processreqs_id},'0')
+						'',#{setParams[:person_id_upd]},'#{setParams.to_json}',
+						#{setParams[:seqno][0]},#{processreqs_id},'0')
 		&
 		ActiveRecord::Base.connection.insert(strsql) 
 		return processreqs_id,params
 	end
 
 	def proc_createtable fmtbl,totbl,fmcommand_c,params  ### fmtbl:元のテーブル totbl:fmtblから自動作成するテーブル
-		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{params["email"]}','r_#{totbl}')
+		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{params[:email]}','r_#{totbl}')
 		%
 		toFields = ActiveRecord::Base.connection.select_values(strsql) 
 		blk = RorBlkCtl::BlkClass.new("r_#{totbl}")
@@ -164,13 +164,13 @@ module ArelCtl
 						 until qty_stk <= 0 do
 							fmcommand_c[sym_packno] = format('%03d', idx)
 							fmcommand_c[sym_qty_stk] = packqty
-						   proc_createtable fmtbl,totbl,fmcommand_c,params["classname"] 
+						   proc_createtable fmtbl,totbl,fmcommand_c,params[:classname] 
 						   qty_stk -=  packqty 
 						   idx += 1
 						 end
 				else
 					fmcommand_c[sym_qty_stk] = qty_stk
-					proc_createtable fmtbl,totbl,fmcommand_c,params["cassname"]
+					proc_createtable fmtbl,totbl,fmcommand_c,params[:classname]
 				end
       when /facilities/
         case totbl
@@ -192,15 +192,14 @@ module ArelCtl
 		else
 				command_c["sio_classname"] ="_update_proc_createtable_data"
 		end
-		command_c["#{totbl.chop}_person_id_upd"] = params["person_id_upd"]
+		command_c["#{totbl.chop}_person_id_upd"] = params[:person_id_upd]
 		command_c["id"] = ArelCtl.proc_get_nextval("#{totbl}_seq")
-		blk.proc_create_tbldata(command_c)
 		blk.proc_private_aud_rec({},command_c)
 	end	
 
 	def proc_createDetailTableFmHead  headTbl,baseTbl,headCommand,fmcommand_c,params
 		detailTbl = headTbl.sub(/heads$/,"s") 
-		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{params["email"]}','r_#{detailTbl}')
+		strsql = %Q% select pobject_code_sfd from  func_get_screenfield_grpname('#{params[:email]}','r_#{detailTbl}')
 		%
 		toFields = ActiveRecord::Base.connection.select_values(strsql) 
 		blk = RorBlkCtl::BlkClass.new("r_#{detailTbl}")
@@ -248,9 +247,8 @@ module ArelCtl
 			else
 				"_update_proc_createtable_data"
 			end
-		command_c["#{headTbl.chop}_person_id_upd"] = params["person_id_upd"]
+		command_c["#{headTbl.chop}_person_id_upd"] = params[:person_id_upd]
 		command_c["id"] = ArelCtl.proc_get_nextval("#{headTbl}_seq")
-		blk.proc_create_tbldata(command_c)
 		blk.proc_private_aud_rec({},command_c)
 		head = {"amt" => amt,"taxrate" => taxrate,"#{headTbl.chop}_id" => command_c["id"]}
 		return head
@@ -597,11 +595,28 @@ module ArelCtl
 									end}
       last_lotstks = []
 			case gantt["tblname"] 
-			when /^prd|^pur/   ### shp itmclass,code=mold,ITollの時
+			when /^pur/   ### shp itmclass,code=mold,ITollの時
 				linktbl_id = proc_insert_linktbls(src,base)
 				alloctbl_id,last_lotstk = proc_aud_alloctbls(alloc,"insert")
         last_lotstks << last_lotstk
-        setParams = {"tbldata" => tbldata,"gantt" => gantt,"opeitm" => {}}
+        ###setParams = {:tbldata => tbldata,:gantt => gantt,:opeitm => {}}
+			when /^prd/   ### shp itmclass,code=mold,ITollの時
+				linktbl_id = proc_insert_linktbls(src,base)
+				alloctbl_id,last_lotstk = proc_aud_alloctbls(alloc,"insert")
+        ###
+        # gate runner check
+        ###
+				###Rails.logger.debug" class:#{self},line:#{__LINE__} \n tbldata:#{tbldata}"
+        strsql = %Q&select 1 from nditms where opeitms_id = #{tbldata["opeitms_id"]} 
+                                          and consumtype = 'run' &
+		    gate = ActiveRecord::Base.connection.select_one(strsql)
+        if gate.nil? 
+          last_lotstks << last_lotstk
+        else
+          ### runnerのpartsが作成物
+        end
+        #
+        ###setParams = {:tbldata => tbldata,:gantt => gantt,:opeitm => {}}
 			when /^dymschs|^shp/   ### shp itmclass,code=mold,ITollの時
 				linktbl_id = proc_insert_linktbls(src,base)
 				alloctbl_id,last_lotstk = proc_aud_alloctbls(alloc,"insert")
@@ -610,11 +625,13 @@ module ArelCtl
 				linktbl_id = proc_insert_linktbls(src,base)
 				alloctbl_id,last_lotstk_tmp = proc_aud_alloctbls(alloc,"insert")
         ###在庫移動無
+			when /^con/   ### runnerの時のみtrnganttsを作成
+				linktbl_id = proc_insert_linktbls(src,base)
+				alloctbl_id,last_lotstk_tmp = proc_aud_alloctbls(alloc,"insert")
 			when /^cust/
 				linktbl_id = proc_insert_linkcusts(src,base)
 				alloctbl_id,last_lotstk = proc_aud_alloctbls(alloc,"insert")
         last_lotstks << last_lotstk
-      Rails.logger.debug("class:#{self},line:#{__LINE__},\n last_lotstks:#{last_lotstks}")
 			end
 			return last_lotstks
 	end
@@ -718,8 +735,8 @@ module ArelCtl
 				        ope.duration ,ope.unitofduration ,ope.consumauto,
                		COALESCE(ope.id,'0') opeitms_id,ope.packnoproc,
                	COALESCE(ope.prdpur,'xxx') prdpur,ope.units_id_case_shp,itm.units_id,
-               	ope.locas_id ,ope.locas_code,ope.loca_name,ope.shelfnos_id,  ---子部品作業場所
-               	ope.locas_id_to ,ope.locas_code_to,ope.loca_name_to,ope.shelfnos_id_to,   ---子部品保管場所
+               	ope.locas_id ,ope.locas_code,ope.locas_name,ope.shelfnos_id,  ---子部品作業場所
+               	ope.locas_id_to ,ope.locas_code_to,ope.locas_name_to,ope.shelfnos_id_to,   ---子部品保管場所
                 nditm.unitofdvs, nditm.itms_id_nditm itms_id,  ---itms_id = itms_id_nditm
                	nditm.processseq_nditm processseq,ope.packqty,
                 ope.priority,    ---代替がある場合は、複数個発生
@@ -733,23 +750,23 @@ module ArelCtl
 				    inner join (select p.*,s.locas_id_shelfno locas_id_pare from  opeitms p
                               inner join shelfnos s on p.shelfnos_id_opeitm = s.id) pare  on pare.id = nditm.opeitms_id
             inner join (select i.id,i.taxflg,i.units_id,c.code classlist_code,i.code itm_code_nditm,i.name itm_name_nditm,
-								i.units_id itm_unit_id
-			   					from itms i 
-				          inner join classlists c on i.classlists_id = c.id ) itm on itm.id = nditm.itms_id_nditm 
+								                i.units_id itm_unit_id
+			   					          from itms i 
+				                    inner join classlists c on i.classlists_id = c.id ) itm on itm.id = nditm.itms_id_nditm 
             left join (select o.*,
-                            s.locas_id,s.locas_code,s.loca_name,s.shelfnos_id,
-                            xto.locas_id_to,xto.locas_code_to,xto.loca_name_to,xto.shelfnos_id_to
+                            s.locas_id,s.locas_code,s.locas_name,s.shelfnos_id,
+                            xto.locas_id_to,xto.locas_code_to,xto.locas_name_to,xto.shelfnos_id_to
                            from opeitms o 
-                           inner join (select l1.id locas_id,l1.code locas_code,l1.name loca_name,s1.id shelfnos_id
+                           inner join (select l1.id locas_id,l1.code locas_code,l1.name locas_name,s1.id shelfnos_id
                                           from shelfnos s1
                                           inner join locas l1  on s1.locas_id_shelfno = l1.id)s on o.shelfnos_id_opeitm = s.shelfnos_id
-                           inner join  (select l2.id locas_id_to,l2.code locas_code_to,l2.name loca_name_to,s2.id shelfnos_id_to
+                           inner join  (select l2.id locas_id_to,l2.code locas_code_to,l2.name locas_name_to,s2.id shelfnos_id_to
                                           from shelfnos s2
                                           inner join locas l2  on s2.locas_id_shelfno = l2.id)xto on o.shelfnos_id_to_opeitm = xto.shelfnos_id_to
 						                            ---where  o.priority = 999　　 ---代替がある場合は、複数個発生
                   ) ope ---完成後の移動場所から親の場所に
                    on  ope.itms_id = nditm.itms_id_nditm  and ope.processseq = nditm.processseq_nditm
-                   where nditm.expiredate > current_date and nditm.opeitms_id = #{opeitms_id} 
+              where nditm.expiredate > current_date and nditm.opeitms_id = #{opeitms_id} and nditm.consumtype != 'run'
 			        order by itm.classlist_code,itm.itm_code_nditm 
         %  
 	end
@@ -805,21 +822,21 @@ module ArelCtl
                 max(trn.consumunitqty) consumunitqty,max(trn.consumminqty) consumminqty,max(trn.consumchgoverqty) consumchgoverqty,
                 pare.shelfnos_id_trn pare_shelfnos_id,   ---親作業場所
                 trn.shelfnos_id_to_trn shelfnos_id_to,   ---子の保管先
-	 		   max(ope.units_id_case_shp) units_id_case_shp,max(trn.qty) qty,max(trn.qty_stk) qty_stk,
-	 		   sum(pare.qty_linkto_alloctbl) qty_sch,macx(ope.consumauto) consumauto,max(ope.shpordauto) shpordauto
+	 		          max(ope.units_id_case_shp) units_id_case_shp,max(trn.qty) qty,max(trn.qty_stk) qty_stk,
+	 		          sum(pare.qty_linkto_alloctbl) qty_sch,max(ope.consumauto) consumauto,max(ope.shpordauto) shpordauto
              from trngantts trn
-                inner join (select p.id, p.shelfnos_id_trn,alloc.qty_linkto_alloctbl, 
+                inner join (select p.id, p.shelfnos_id_trn,alloc.qty_linkto_alloctbl,p.mlevel, 
                                     p.orgtblname,p.orgtblid,p.tblname,p.tblid                                
                             from trngantts p 
                             inner join alloctbls alloc on alloc.trngantts_id = p.id
-	 					   			where alloc.srctblname = '#{parent["tblname"]}' and alloc.srctblid = #{parent["tblid"]} 
-	 								and alloc.qty_linkto_alloctbl > 0) pare 
+	 					   			          where alloc.srctblname = '#{parent["tblname"]}' and alloc.srctblid = #{parent["tblid"]} 
+	 								            and alloc.qty_linkto_alloctbl > 0) pare 
                     on  trn.orgtblname = pare.orgtblname and   trn.orgtblid = pare.orgtblid  
                     and trn.paretblname = pare.tblname and   trn.paretblid = pare.tblid 
-	 			inner join opeitms ope on trn.itms_id_trn = ope.itms_id and trn.processseq_trn = ope.processseq
+	 			      inner join opeitms ope on trn.itms_id_trn = ope.itms_id and trn.processseq_trn = ope.processseq
 	 							and trn.shelfnos_id_trn = ope.shelfnos_id_opeitm
-	 		where (trn.paretblname != trn.tblname or trn.paretblid != trn.tblid) and pare.mlevel < trn.mlevel
-	 		group by trn.itms_id_trn ,trn.processseq_trn ,pare.shelfnos_id_trn,trn.shelfnos_id_to_trn,trn.consumtype
+	 		        where (trn.paretblname != trn.tblname or trn.paretblid != trn.tblid) and pare.mlevel < trn.mlevel
+	 		        group by trn.itms_id_trn ,trn.processseq_trn ,pare.shelfnos_id_trn,trn.shelfnos_id_to_trn,trn.consumtype
          %  
   end
 	
@@ -897,6 +914,7 @@ module ArelCtl
 				inner join opeitms ope on ope.itms_id = trn.itms_id_trn and ope.processseq = trn.processseq_trn
 									and ope.shelfnos_id_opeitm = trn.shelfnos_id_trn     
 			where  (trn.tblname != trn.paretblname or trn.tblid != trn.paretblid)   
+           and trn.consumtype = 'con'  ---金型、装置,runnerは除外
 			group by trn.itms_id_trn , trn.processseq_trn 
 		&
   end

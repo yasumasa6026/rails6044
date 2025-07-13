@@ -176,7 +176,7 @@ truncate table sio.sio_r_mkordorgs cascade;
 truncate  table sio.sio_r_billests cascade;
 truncate  table sio.sio_r_billschs cascade;
 truncate  table sio.sio_r_billords cascade;
-truncate  table sio.sio_r_billinsts cascade
+truncate  table sio.sio_r_billinsts cascade;
 truncate  table sio.sio_r_mkbillinsts cascade;
 truncate  table sio.sio_r_billacts cascade;
 

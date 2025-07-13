@@ -149,7 +149,7 @@ RETURN QUERY
 			t.parenum trngantt_parenum,
 			t.chilnum trngantt_chilnum,
 			t.remark trngantt_remark,
-			t.shuffle_flg trngantt_shuffle_flg,
+			t.shuffleflg trngantt_shuffleflg,
 			t.consumtype trngantt_consumtype
 		from trngantts t 
 		inner join (select a.srctblname,ord.sno,a.trngantts_id from alloctbls a 

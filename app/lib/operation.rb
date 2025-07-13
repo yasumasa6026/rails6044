@@ -7,7 +7,7 @@ module Operation
   class OpeClass
 	  def initialize(params)
 		  @reqparams = params.dup
-		  @gantt = params["gantt"].dup ###reqparamsのtblの情報もここでセットしている。
+		  @gantt = params[:gantt].dup ###reqparamsのtblの情報もここでセットしている。
 		  @tblname = @gantt["tblname"] ###
 		  @tblid = @gantt["tblid"]
 		  @paretblname = @gantt["paretblname"]
@@ -15,15 +15,13 @@ module Operation
 		  @orgtblname = @gantt["orgtblname"]
 		  @orgtblid = @gantt["orgtblid"]
 
-		  @tbldata = params["tbldata"].dup
-		  @tbldata["tblname"] = @tblname
-		  @tbldata["tblid"] = @tblid
+		  @tbldata = params[:tbldata].dup
 		  @tbldata["trngantts_id"] = @gantt["trngantts_id"]
 		  @tbldata["itms_id"] = @gantt["itms_id_trn"]
 		  @tbldata["processseq"] = @gantt["processseq_trn"]  
-		  @mkprdpurords_id = (params["mkprdpurords_id"]||=0)
+		  @mkprdpurords_id = (params[:mkprdpurords_id]||=0)
 		
-		  @opeitm = params["opeitm"]  ###tbldataのopeitmsの情報
+		  @opeitm = params[:opeitm]  ###tbldataのopeitmsの情報
 		  @str_qty = case @tblname
 			  when /acts$|rets$|purdlvs$|custdlvs$|custinsts$/
 				  "qty_stk"
@@ -32,7 +30,6 @@ module Operation
 			  else
 				  "qty"
 			  end
-
       
 		  @str_duedate = case @tblname
       when /purdlvs|custdlvs/
@@ -82,7 +79,7 @@ module Operation
 			  else ###構成の一部になっているとき(本体を作成後確認)
 				  last_lotstks =  child_trngantts()  
 			  end
-        Rails.logger.debug("class:#{self},line:#{__LINE__},\n last_lotstks:#{last_lotstks}")
+        ###Rails.logger.debug("class:#{self},line:#{__LINE__},\n last_lotstks:#{last_lotstks}")
         return last_lotstks
     end
     def proc_trngantts_update(last_rec,chng_flg)  ###schs,ords専用
@@ -171,7 +168,7 @@ module Operation
                 ActiveRecord::Base.connection.select_all(ArelCtl.proc_apparatus_sql(@tbldata["opeitms_id"])).each_with_index do |apparatus,idx|
                   if idx == 0
                     schsParams = @reqparams.dup
-                    schsParams["gantt"] =  ActiveRecord::Base.connection.select_one(%Q&
+                    schsParams[:gantt] =  ActiveRecord::Base.connection.select_one(%Q&
                                             select key ,
 						                                      orgtblname,orgtblid,tblname paretblname,tblid paretblid,
 						                                      tblname,tblid,mlevel,shuffleflg,parenum,chilnum,qty_sch,qty,qty_stk,
@@ -185,11 +182,11 @@ module Operation
                                                   from trngantts 
                                                   where tblname = '#{@tblname}' and tblid = #{@tbldata["id"]}
                                           &)
-                    schsParams["tbldata"] =  ActiveRecord::Base.connection.select_one(%Q&
+                    schsParams[:tbldata] =  ActiveRecord::Base.connection.select_one(%Q&
                                     select * from #{@tblname} where id = #{@tbldata["id"]}
                                 &)
                   end
-                  schsParams["gantt"]["key"] = schsParams["gantt"]["key"] + format('%05d', idx)
+                  schsParams[:gantt]["key"] = schsParams[:gantt]["key"] + format('%05d', idx)
                   schsParams["apparatus"] = apparatus
                   ope = Operation::OpeClass.new(schsParams)  ###prdinsts,prdacts
                   ope.proc_add_dvs_data apparatus  ###target:current table
@@ -202,7 +199,7 @@ module Operation
           when /purords$/ 
               update_prdourord(chng_flg,last_lotstks,last_rec)
           when  /^dvs|^erc/
-              if @reqparams["classname"] =~ /_purge_|_delete_/
+              if @reqparams[:classname] =~ /_purge_|_delete_/
                 strsql = %Q&
                             select * from linktbls where tblname = '#{@tblname}' and tblid = #{@tblid}
                 &
@@ -298,7 +295,7 @@ module Operation
 	  def proc_consume_by_parent()  ### target ==> all children 
 		  return if @gantt["stktakingproc"] != "1"
       last_lotstks = []
-		  ###if @reqparams["classname"] =~ /_insert_|_add_/  ###trngantts 追加
+		  ###if @reqparams[:classname] =~ /_insert_|_add_/  ###trngantts 追加
 			  base = {}
         base["shelfnos_id"] =  @tbldata["shelfnos_id"]
         case @tblname
@@ -338,10 +335,10 @@ module Operation
 					  ActiveRecord::Base.connection.select_all(ArelCtl.proc_ChildConSql(@tbldata)).each do |conact|
 						  next if conact["consumauto"] == "M"  ### qty_stk確定時の消費手動は除く
 						  dupParams = @reqparams.dup
-						  dupParams["child"] = conact.dup
-						  dupParams["parent"] = @tbldata.dup
-						  dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
-              dupParams["screenCode"] = "r_conacts"
+						  dupParams[:child] = conact.dup
+						  dupParams[:parent] = @tbldata.dup
+						  dupParams[:parent]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
+              dupParams[:screenCode] = "r_conacts"
 						  last_lotstks << Shipment.proc_create_consume(dupParams)
 					  end
 				when /^puracts/
@@ -353,20 +350,20 @@ module Operation
 						  ActiveRecord::Base.connection.select_all(ArelCtl.proc_ChildConSql(@tbldata)).each do |conord|
 							  next if conord["consumauto"] == "M"  ### qty_stk確定時の消費手動は除く
 							  dupParams = @reqparams.dup
-							  dupParams["child"] = conord.dup
-							  dupParams["parent"] = @tbldata.dup
-							  dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
-                dupParams["screenCode"] = "r_conacts"
+							  dupParams[:child] = conord.dup
+							  dupParams[:parent] = @tbldata.dup
+							  dupParams[:parent]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
+                dupParams[:screenCode] = "r_conacts"
 							  last_lotstks << Shipment.proc_create_consume(dupParams)  ###one child
 						  end
 					  end
 				when /purinsts$|purreplyinputs$|prdinsts$/
 					  ActiveRecord::Base.connection.select_all(ArelCtl.proc_ChildConSql(@tbldata)).each do |conord|
 						  dupParams = @reqparams.dup
-						  dupParams["child"] = conord.dup
-						  dupParams["parent"] = @tbldata.dup
-						  dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
-              dupParams["screenCode"] = "r_conords"
+						  dupParams[:child] = conord.dup
+						  dupParams[:parent] = @tbldata.dup
+						  dupParams[:parent]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
+              dupParams[:screenCode] = "r_conords"
 						  last_lotstks << Shipment.proc_create_consume(dupParams)
 					  end
 					  strsql = %Q%
@@ -384,20 +381,20 @@ module Operation
                 %
 						  ActiveRecord::Base.connection.select_all(prevchildsql).each do |prevchildtbl|
 							  prevParams = @reqparams.dup
-							  prevParams["parent"] = prevparetbl.dup
-							  prevParams["child"] = prevchildtbl.dup
-							  dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
-                dupParams["screenCode"] = "r_conords"
+							  prevParams[:parent] = prevparetbl.dup
+							  prevParams[:child] = prevchildtbl.dup
+							  dupParams[:parent]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
+                dupParams[:screenCode] = "r_conords"
 							  last_lotstks << Shipment.proc_create_consume(prevParams)
 						  end
 					  end
 				when /purords$|prdords$/
 					  ActiveRecord::Base.connection.select_all(ArelCtl.proc_ChildConSql(@tbldata)).each do |conord|
 						  dupParams = @reqparams.dup
-						  dupParams["child"] = conord.dup
-						  dupParams["parent"] = @tbldata.dup
-						  dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
-              dupParams["screenCode"] = "r_conords"
+						  dupParams[:child] = conord.dup
+						  dupParams[:parent] = @tbldata.dup
+						  dupParams[:parent]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
+              dupParams[:screenCode] = "r_conords"
 						  last_lotstks <<  Shipment.proc_create_consume(dupParams)
 					  end
         end
@@ -424,10 +421,10 @@ module Operation
       if @tbldata[@str_qty].to_f > 0
         ActiveRecord::Base.connection.select_all(ArelCtl.proc_ChildConSql(@tbldata)).each do |conord|
           dupParams = @reqparams.dup
-          dupParams["child"] = conord.dup
-          dupParams["parent"] = @tbldata.dup
-          dupParams["parent"]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
-          dupParams["screenCode"] = "r_conords"
+          dupParams[:child] = conord.dup
+          dupParams[:parent] = @tbldata.dup
+          dupParams[:parent]["trngantts_id"] = @gantt["trngantts_id"]  ### shpxxxs,conxxxsのtrngantts_idは親のtrngantts_id
+          dupParams[:screenCode] = "r_conords"
           last_lotstks <<  Shipment.proc_create_consume(dupParams)
           ###
           last_lotstks_parts = Shipment.proc_create_shpxxxs(dupParams) do
@@ -440,13 +437,13 @@ module Operation
     end
       
 	  def update_prdpur_child(trn)
-		  cParams = @reqparams.dup
-		  cParams[:screenCode] = "r_" + trn["tblname"]
+		  setParams = @reqparams.dup
+		  setParams[:screenCode] = "r_" + trn["tblname"]
 		  strsql = %Q&
 				select * from r_#{trn["tblname"]} where id = #{trn["tblid"]}
 		    &
 		  rec = ActiveRecord::Base.connection.select_one(strsql)
-		  child_blk = RorBlkCtl::BlkClass.new(cParams[:screenCode])
+		  child_blk = RorBlkCtl::BlkClass.new(setParams[:screenCode])
 		  command_c = child_blk.command_init
 		  command_c.merge!rec 
 		  command_c["sio_classname"] = "_update_#{trn["tblname"]}_update_prdpur_child"
@@ -454,8 +451,8 @@ module Operation
 		  if trn["pare_qty_alloc"].to_f == 0   ###qty,qty_schの合計
 			  command_c["#{trn["tblname"].chop}_qty_sch"] = 0  ###update_prdpur_childではqty_schのみ
 		  else
-			  qty_require = CtlFields.proc_cal_qty_sch(trn["pare_qty_alloc"].to_f ,trn["chilnum"],trn["parenum"],
-                                                trn["consumunitqty"],trn["consumminqty"],trn["consumchgoverqty"])
+			  qty_require = CtlFields.proc_cal_qty_sch(trn["pare_qty_alloc"].to_f ,trn["chilnum"].to_f,trn["parenum"].to_f,
+                                                trn["consumunitqty"].to_f,trn["consumminqty"].to_f,trn["consumchgoverqty"].to_f)
 			  if qty_require > (trn["qty"].to_f + trn["qty_stk"].to_f)
 				  command_c["#{trn["tblname"].chop}_qty_sch"]  = qty_require - (trn["qty"].to_f + trn["qty_stk"].to_f)
 			  else
@@ -464,16 +461,15 @@ module Operation
 		  end
       
 		  if trn["tblname"] =~ /^pur/
-			  command_c,err = CtlFields.proc_judge_check_supplierprice(command_c.symbolize_keys,"",0,"r_purschs") 
-			  command_c = command_c.stringify_keys
+			  command_c,err = CtlFields.proc_judge_check_supplierprice(command_c,"",0,"r_purschs") 
+			  command_c = command_c
 		  end
       #
       parent = {"starttime" => trn["starttime_pare"],"duedate" => trn["duedate_pare"],"shelfnos_id" => trn["shelfnos_id_pare"]}
 			command_c,err = CtlFields.proc_field_duedate(trn["tblname"].chop,command_c,parent,trn)
 			command_c,err = CtlFields.proc_field_starttime(trn["tblname"].chop,command_c,parent,trn)
       #
-		  child_blk.proc_create_tbldata(command_c)
-		  child_blk.proc_private_aud_rec(cParams,command_c)  ###trnganttsの更新も含む
+		  child_blk.proc_private_aud_rec(setParams,command_c)  ###trnganttsの更新も含む
 	  end
 	
 	  def base_sch_alloc_update(base_alloc)   ###purschs,prdschs
@@ -602,7 +598,7 @@ module Operation
                 ActiveRecord::Base.connection.select_all(ArelCtl.proc_apparatus_sql(@tbldata["opeitms_id"])).each_with_index do |apparatus,idx|
                   if idx == 0
                     schsParams = @reqparams.dup
-                    schsParams["gantt"] =  ActiveRecord::Base.connection.select_one(%Q&
+                    schsParams[:gantt] =  ActiveRecord::Base.connection.select_one(%Q&
                                             select key ,
 						                                      orgtblname,orgtblid,tblname paretblname,tblid paretblid,
 						                                      tblname,tblid,mlevel,shuffleflg,parenum,chilnum,qty_sch,qty,qty_stk,
@@ -616,11 +612,11 @@ module Operation
                                                   from trngantts 
                                                   where tblname = 'prdschs' and tblid = #{link["prev_tblid"]}
                                           &)
-                    schsParams["tbldata"] =  ActiveRecord::Base.connection.select_one(%Q&
+                    schsParams[:tbldata] =  ActiveRecord::Base.connection.select_one(%Q&
                                     select * from #{link["prev_tblname"]} where id = #{link["prev_tblid"]}
                                 &)
                   end
-                  schsParams["gantt"]["key"] = schsParams["gantt"]["key"] + format('%05d', idx)
+                  schsParams[:gantt]["key"] = schsParams[:gantt]["key"] + format('%05d', idx)
                   ope = Operation::OpeClass.new(schsParams)  ###prdinsts,prdacts
                   ope.proc_add_dvs_data(apparatus)
                   ope.proc_add_erc_data(apparatus)
@@ -675,18 +671,22 @@ module Operation
 		  last_lotstks = ArelCtl.proc_insert_trngantts(@gantt,@tbldata)  ###@ganttの内容をセット
 		  # @reqparams["linktbl_ids"] = [linktbl_id]
 		  # @reqparams["alloctbl_ids"] = [alloctbls_id]
-		  @reqparams["gantt"] = @gantt.dup
+		  @reqparams[:gantt] = @gantt.dup
 		  case @tblname	
 		  when /^purords|^prdords/  ### 単独でxxxordsを画面又はexcelで登録-->mkordinstsを利用してないとき
 			  ###free_ordtbl_alloc_to_sch(stkinout)
 			  if @mkprdpurords_id == 0 ###mkordinstsの時は子部品展開は対象外
-					@reqparams["segment"]  = "mkschs"   ###構成展開
-					@reqparams["remark"]  = "#{self}   構成展開"  ###構成展開
+					@reqparams[:segment]  = "mkschs"   ###構成展開
+					@reqparams[:remark]  = "#{self}   構成展開"  ###構成展開
+          @reqparams[:tblname] = ""
+          @reqparams[:tblid] = ""
 					processreqs_id ,@reqparams = ArelCtl.proc_processreqs_add @reqparams
 			  end
 		  when /^custschs|^custords/
-			  @reqparams["segment"]  = "mkprdpurchildFromCustxxxs"   ###構成展開		
-			  @reqparams["remark"]  = "#{self}   pur,prd by custschs,ords"  
+			  @reqparams[:segment]  = "mkprdpurchildFromCustxxxs"   ###構成展開		
+			  @reqparams[:remark]  = "#{self}   pur,prd by custschs,ords"  
+        @reqparams[:tblname] = ""
+        @reqparams[:tblid] = ""
 			  processreqs_id ,@reqparams = ArelCtl.proc_processreqs_add @reqparams
 		  end
       Rails.logger.debug("class:#{self},line:#{__LINE__},\n last_lotstks:#{last_lotstks}")
@@ -695,30 +695,24 @@ module Operation
 
 	  def child_trngantts   ###データはxxxschsのデータで追加のみ
 		  @gantt["qty"] = @gantt["qty_stk"] = 0   ###schsのみテーブルしかありえないため
-		  packqty = if @opeitm["packqty"].to_f == 0 
-					1
-				 else
-					@opeitm["packqty"].to_f
-				 end 
+		  packqty = (@opeitm["packqty"].to_f == 0 ? 1 :	@opeitm["packqty"].to_f)
 		  @gantt["qty_stk"] = 0
-		  @gantt["consumunitqty"] = 	if @gantt["consumunitqty"].to_f  == 0
-										1
-									else
-										@gantt["consumunitqty"].to_f
-									end
+		  @gantt["consumunitqty"] = ( @gantt["consumunitqty"].to_f  == 0 ? 1 : @gantt["consumunitqty"].to_f)
 		  ###@gantt["qty_require"] create_other_table_record_job.mkschで対応済
 		  ### parenum chilnum
 		  @gantt["id"] = @gantt["trngantts_id"]  = @trngantts_id = ArelCtl.proc_get_nextval("trngantts_seq")
-		  @gantt["remark"] =  " #{self}  line:#{__LINE__} "
-		  @reqparams["gantt"] = @gantt
+		  @gantt["remark"] =  "class:#{self},line:#{__LINE__} " + (@gantt["remark"]||="")
+		  @reqparams[:gantt] = @gantt
 		  last_lotstks = ArelCtl.proc_insert_trngantts(@gantt,@tbldata)  ###@ganttの内容をセット
 		  # @reqparams["linktbl_ids"] = [linktbl_id]
 		  # @reqparams["alloctbl_ids"] = [alloctbl_id]
 
 	 	  ###proc_mk_instks_rec stkinout,"add"
 		  if @gantt["qty_handover"].to_f  > 0  ### and  @gantt["itms_id_trn"] != "0"  ### dummy @gantt["tblname"] != "dymschs"
-			  @reqparams["segment"]  = "mkschs"   ###構成展開
-			  @reqparams["remark"]  = "#{self}  line:#{__LINE__}  構成展開 level > 1"  
+			  @reqparams[:segment]  = "mkschs"   ###構成展開
+			  @reqparams[:remark]  = "#{self}  line:#{__LINE__}  構成展開 level > 1" 
+        @reqparams[:tblname] = ""
+        @reqparams[:tblid] = "" 
 			  processreqs_id ,@reqparams = ArelCtl.proc_processreqs_add @reqparams
 		  end
 		  return  last_lotstks
@@ -755,17 +749,17 @@ module Operation
 			  raise 
 		  end 
 
-		  gantt = @reqparams["gantt"].dup
+		  gantt = @reqparams[:gantt].dup
 		  dvs = RorBlkCtl::BlkClass.new("r_#{currdvstbl}")
 		  command_dvs = dvs.command_init
       command_dvs["#{currdvstbl.chop}_prjno_id"] = @tbldata["prjnos_id"]
       command_dvs["#{currdvstbl.chop}_expiredate"] =  Constants::EndDate 
       command_dvs["sio_classname"] = "_add_dvs_data"
 			command_dvs["id"]  = command_dvs["#{currdvstbl.chop}_id"]  = ArelCtl.proc_get_nextval("#{currdvstbl}_seq")
-      @reqparams["mkprdpurords_id"] = 0
-      @reqparams["child"] = {}
+      @reqparams[:mkprdpurords_id] = 0
+      @reqparams[:child] = {}
       command_dvs["#{currdvstbl.chop}_#{@tblname.chop}_id_#{currdvstbl.chop}"] = @tbldata["id"] ###@tbldata=prdschs or prdords
-      command_dvs["#{currdvstbl.chop}_person_id_upd"] = @reqparams["person_id_upd"] = @tbldata["persons_id_upd"]
+      command_dvs["#{currdvstbl.chop}_person_id_upd"] = @reqparams[:person_id_upd] = @tbldata["persons_id_upd"]
 		  prevdvs = {}
 		   
       case currdvstbl 
@@ -846,16 +840,16 @@ module Operation
 			  return 
 		  end 
 
-		  gantt = @reqparams["gantt"].dup
+		  gantt = @reqparams[:gantt].dup
       erc = RorBlkCtl::BlkClass.new("r_#{currerctbl}")
       command_erc = erc.command_init
       command_erc["#{currerctbl.chop}_prjno_id"] = @tbldata["prjnos_id"]
       command_erc["#{currerctbl.chop}_expiredate"] =  Constants::EndDate 
       command_erc["sio_classname"] = "_add_erc_data"
 			command_erc["id"]  = command_erc["#{currerctbl.chop}_id"]  = ArelCtl.proc_get_nextval("#{currerctbl}_seq")
-      @reqparams["mkprdpurords_id"] = 0
-      @reqparams["child"] = {}
-      command_erc["#{currerctbl.chop}_person_id_upd"] = @reqparams["person_id_upd"] = @tbldata["persons_id_upd"]
+      @reqparams[:mkprdpurords_id] = 0
+      @reqparams[:child] = {}
+      command_erc["#{currerctbl.chop}_person_id_upd"] = @reqparams[:person_id_upd] = @tbldata["persons_id_upd"]
 		  prev_erc = {}
 		   
 	    command_erc["sio_classname"] = "_add_erc_link"
@@ -907,7 +901,7 @@ module Operation
           end
 		      command_erc = erc.proc_create_tbldata(command_erc)
           gantt["key"] = gantt_key +  format('%04d', cnt) 
-          @reqparams["gantt"] = gantt.dup
+          @reqparams[:gantt] = gantt.dup
 		      erc.proc_private_aud_rec(@reqparams,command_erc) ###create pur,prdschs
           cnt += 1
           # ###paretblname:prdxxxxs,tblname:erc,dvsxxxs paretblid paretblname.id,tblid tblname.id
@@ -939,7 +933,7 @@ module Operation
 		  dvs = RorBlkCtl::BlkClass.new("r_#{currdvstbl}")
 		  command_dvs = dvs.command_init
       command_dvs["#{currdvstbl.chop}_prjno_id"] =  @tbldata["prjnos_id"]
-      command_dvs["#{currdvstbl.chop}_person_id_upd"] = @reqparams["person_id_upd"]
+      command_dvs["#{currdvstbl.chop}_person_id_upd"] = @reqparams[:person_id_upd]
       command_dvs["sio_classname"] = "_delete_dvs_link"
 		
 			strsql = %Q&
@@ -984,7 +978,7 @@ module Operation
 		  erc = RorBlkCtl::BlkClass.new("r_#{currerctbl}")
 		  command_erc = erc.command_init
       command_erc["#{currerctbl.chop}_prjno_id"] =  @tbldata["prjnos_id"]
-      command_erc["#{currerctbl.chop}_person_id_upd"] = @reqparams["person_id_upd"]
+      command_erc["#{currerctbl.chop}_person_id_upd"] = @reqparams[:person_id_upd]
       command_erc["sio_classname"] = "_delete_erc_link"		
 			strsql = %Q&
 						select * from #{currerctbl} dvs
@@ -1036,11 +1030,11 @@ module Operation
     #           link_src = {"tblname" => link["tblname"],"tblid" => link["tblid"],"qty_src" => 1,"trngantts_id" => link["trngantts_id"]}
     #           base = {"tblname" => src["tblname"],"tblid" => src["tblid"],"qty_src" => 1,"amt_src" => 0,
     #                   "remark" => "#{self} line #{__LINE__}", 
-    #                   "persons_id_upd" => @reqparams["person_id_upd"]}
+    #                   "persons_id_upd" => @reqparams[:person_id_upd]}
     #           ArelCtl.proc_insert_linktbls(link_src,base)
     #           alloc = {"srctblname" => src["tblname"],"srctblid" => src["tblid"],"trngantts_id" => link["trngantts_id"],
     #                     "qty_linkto_alloctbl" => 1,
-    #                     "remark" => "#{self} line #{__LINE__} #{Time.now}","persons_id_upd" => @reqparams["person_id_upd"],
+    #                     "remark" => "#{self} line #{__LINE__} #{Time.now}","persons_id_upd" => @reqparams[:person_id_upd],
     #                       "allocfree" =>"alloc"}
     #           ArelCtl.proc_aud_alloctbls(alloc,"add")
     #         end                 

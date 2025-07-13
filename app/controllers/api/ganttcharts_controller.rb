@@ -48,7 +48,8 @@ module Api
                                       "progress"=>0,"dependencies"=>ganttdata[:depend]
                                     }
                             end
-                    when /pur|prd|custschs|custords/
+                            Rails.logger.debug("class:#{self},line:#{__LINE__},\n ganttData:#{ganttData}")
+                     when /pur|prd|custschs|custords/
                         case  params[:buttonflg] 
                         when "ganttchart"
                             gantt =  GanttChart::GanttClass.new(params[:buttonflg],"trns")
@@ -159,17 +160,17 @@ module Api
                     render json: {:tasks=>tasks}   
                 when "updateNditm"
                     reqparams = params.dup
-                    reqparams["email"] = current_api_user[:email]
-                    strsql = "select code,id from persons where email = '#{reqparams["email"]}'"
+                    reqparams[:email] = current_api_user[:email]
+                    strsql = "select code,id from persons where email = '#{reqparams[:email]}'"
                     person = ActiveRecord::Base.connection.select_one(strsql)
                     if person.nil?
-						            reqparams["status"] = 403
+						            reqparams[:status] = 403
 						            reqparams[:err] = "Forbidden charge_paerson not detect"
                         render json: {:params => reqparams}
                         return   
                     end
-                    reqparams["person_code_upd"] = person["code"]
-                    reqparams["person_id_upd"] = person["id"]
+                    reqparams[:person_code_upd] = person["code"]
+                    reqparams[:person_id_upd] = person["id"]
                     gantt_name = JSON.parse(params[:task])["name"]
                     if params[:screenCode] =~ /itm/
                         itm,processseq,loca, qty,numberOfItems = gantt_name.split(",")
@@ -191,13 +192,13 @@ module Api
                         end
                         case params[:aud]
                         when /add/  ###子部品を追加
-                            reqparams[:parse_linedata] = {}
-                            reqparams[:parse_linedata][:itm_code],reqparams[:parse_linedata][:itm_name] = itm.split(":")
-                            reqparams[:parse_linedata][:processseq] = processseq
-                            reqparams[:parse_linedata][:priority] = 999
+                            parse_linedata = {}
+                            parse_linedata["itm_code"],parse_linedata["itm_name"] = itm.split(":")
+                            parse_linedata["processseq"] = processseq
+                            parse_linedata["priority"] = 999
                             reqparams[:buttonflg] = "inlineedit7"
                             screen = ScreenLib::ScreenClass.new(reqparams)
-                            pagedata,reqparams = screen.proc_add_empty_data(reqparams)   ###:pageInfo  -->menu7から未使用
+                            pagedata,reqparams = screen.proc_add_empty_data(reqparams,parse_linedata)   ###:pageInfo  -->menu7から未使用
                             render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
                         when /update/
                             reqparams[:buttonflg] = "inlineedit7"
@@ -217,17 +218,17 @@ module Api
                     end   
                 when "updateTrngantt"
                     reqparams = params.dup
-                    reqparams["email"] = current_api_user[:email]
-                    strsql = "select code,id from persons  where email = '#{reqparams["email"]}'"
+                    reqparams[:email] = current_api_user[:email]
+                    strsql = "select code,id from persons  where email = '#{reqparams[:email]}'"
                     person = ActiveRecord::Base.connection.select_one(strsql)
                     if person.nil?
-						            reqparams["status"] = 403
+						            reqparams[:status] = 403
 						            reqparams[:err] = "Forbidden paerson code  not detect"
                         render json: {:params => reqparams}
                         return   
                     end
-                    reqparams["person_code_upd"] = person["code"]
-                    reqparams["person_id_upd"] = person["id"]
+                    reqparams[:person_code_upd] = person["code"]
+                    reqparams[:person_id_upd] = person["id"]
                     gantt_name = JSON.parse(params[:task])["name"]
                     tbl_sno,item,processseq,loca, qty,parent = gantt_name.split(",")
                     tblname,sno = tbl_sno.split(":")
@@ -297,7 +298,7 @@ module Api
                             else
                                 reqparams[:pageSize] = 5
                             end
-                            pagedata,reqparams = screen.proc_add_empty_data(reqparams)   ###:pageInfo  -->menu7から未使用
+                            pagedata,reqparams = screen.proc_add_empty_data(reqparams,{})   ###:pageInfo  -->menu7から未使用
                             render json:{:grid_columns_info=>screen.grid_columns_info,:data=>pagedata,:params=>reqparams}
                     else
                             raise

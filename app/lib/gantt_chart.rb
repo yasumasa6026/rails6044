@@ -10,6 +10,7 @@ module GanttChart
 			@err = false
 			@base = @level
       @buttonflg = buttonflg
+      @gateOpeitmsId = {}  ##gate,runner用
 		end
 
     def proc_get_ganttchart_data(mst_code,id)   ###opeims_idはある。
@@ -60,11 +61,11 @@ module GanttChart
               if vrec["opeitm_id"].nil?
                 @ngantts << {
                   :itms_id_pare=>vrec["itm_id"],:processseq_pare=>"999",	
-                  :itms_id=>vrec["itm_id"],:locas_id=>"",:opeitms_id=>"0",
+                  :itms_id=>vrec["itm_id"],:locas_id=>"0",:locas_id_to=>"0",:opeitms_id=>"0",
                   :itm_code=>vrec["itm_code"],:itm_name=>vrec["itm_name"],:qty=>1,:depend => [],:type=>"task",
                   :loca_code=>nil,:loca_name=>nil,:parenum=>1,:chilnum=>1,
                   :duration=>0,:unitofduration=>0,
-                  :prdpur=>"dym",:shelfnos_id =>nil,
+                  :prdpur=>"dym",:shelfnos_id =>"0",
                   :processseq=>"999",:priority=>"999",
                   :start=>@min_time,:duedate=>@max_time,:id=>@level+ format('%03d',id.to_i)}  ###:id=>ganttのkey
               else
@@ -73,6 +74,7 @@ module GanttChart
                     :itms_id=>vrec["opeitm_itm_id"],:locas_id=>vrec["shelfno_loca_id_shelfno_opeitm"],:opeitms_id=>vrec["opeitm_id"],
 										:itm_code=>vrec["itm_code"],:itm_name=>vrec["itm_name"],:qty=>1,:depend => [],:type=>"task",
 										:loca_code=>vrec["locas_code_shelfno"],:loca_name=>vrec["locas_name"],:parenum=>1,:chilnum=>1,
+                    :locas_id=>vrec["shelfno_loca_id_shelfno_opeitm"],:locas_id_to=>vrec["shelfno_loca_id_to_shelfno_opeitm"],
 										:duration=>vrec["opeitm_duration"],:unitofduration=>vrec["opeitm_unitofduration"],
 										:prdpur=>vrec["opeitm_prdpur"],:shelfnos_id =>vrec["opeitm_shelfno_id_opeitm"],
 										:processseq=>"#{if mst_code =~ /^itms/ then '999' else  vrec["opeitm_processseq"] end}",
@@ -84,7 +86,9 @@ module GanttChart
 						    when /gantt/
 								  @ngantts << {	
                     :itms_id_pare=>vrec["opeitm_itm_id"],:processseq_pare=>vrec["opeitm_processseq"],
-                    :itms_id=>vrec["opeitm_itm_id"],:locas_id=>vrec["shelfno_loca_id_shelfno_opeitm"],:type=>"task",
+                    :itms_id=>vrec["opeitm_itm_id"],
+                    :locas_id=>vrec["shelfno_loca_id_shelfno_opeitm"],:locas_id_to=>vrec["shelfno_loca_id_to_shelfno_opeitm"],
+                    :type=>"task",
 										:opeitms_id=>vrec["nditm_opeitm_id"],:itm_code=>vrec["itm_code"],:itm_name=>vrec["itm_name"],:qty=>1,
 										:loca_code=>vrec["locas_code_shelfno"],:loca_name=>vrec["locas_name_shelfno"],:depend => [],
 										:parenum=>1,:chilnum=>1,:prdpur=>vrec["opeitm_prdpur"],:shelfnos_id =>vrec["opeitm_shelfno_id_opeitm"],
@@ -138,8 +142,10 @@ module GanttChart
             else
               tmp_com = {"#{tblnamechop}_duedate" => @max_time,"#{tblnamechop}_shelfno_id" =>@ngantts[0][:shelfnos_id],
                           "shelfno_loca_id_shelfno" => @ngantts[0][:locas_id]}
-          end 
+          end
+          Rails.logger.debug("class:#{self},line:#{__LINE__},\n tmp_com:#{tmp_com}")
           tmp_com,message = CtlFields.proc_field_starttime(tblnamechop,tmp_com,parent,nd)
+          Rails.logger.debug("class:#{self},line:#{__LINE__},\n tmp_com:#{tmp_com}")
           @ngantts[0][:start] = tmp_com["#{tblnamechop}_starttime"]
           case @buttonflg
           when /gantt/
@@ -447,7 +453,7 @@ module GanttChart
 								select  max(trn.itms_id_trn) itms_id_trn,max(s.locas_id_shelfno) locas_id_trn,max(trn.orgtblname) orgtblname,
 										max(trn.orgtblid) orgtblid,max(trn.paretblname) paretblname,max(trn.paretblid) paretblid,
 										alloc.srctblname linktblname,alloc.srctblid linktblid,
-										alloc.srctblname tblname,alloc.srctblid tblid,
+										alloc.srctblname tblname,alloc.srctblid tblid,max(trn.itms_id_pare) itms_id_pare,
 										max(trn.parenum) parenum,max(trn.chilnum) chilnum,max(trn.processseq_trn) processseq_trn,
 										min(trn.starttime_trn) starttime_trn,max(trn.duedate_trn) duedate_trn,
 										sum(alloc.qty_linkto_alloctbl) qty_src,max(trn.id) trngantts_id ,max(trn.key) "key"
@@ -472,7 +478,7 @@ module GanttChart
 						  strsql = %Q&
 								select  max(trn.itms_id_pare) itms_id_trn,max(s.locas_id_shelfno) locas_id_trn,max(trn.orgtblname) orgtblname,
 										max(trn.orgtblid) orgtblid,max(trn.paretblname) paretblname,max(trn.paretblid) paretblid,
-										pare.srctblname tblname,pare.srctblid tblid,
+										pare.srctblname tblname,pare.srctblid tblid,max(trn.itms_id_pare) itms_id_pare,
 										pare.srctblname linktblname,pare.srctblid linktblid,
 										max(trn.parenum) parenum,max(trn.chilnum) chilnum,max(trn.processseq_pare) processseq_trn,
 										min(trn.starttime_pare) starttime_trn,max(trn.duedate_pare) duedate_trn,
@@ -493,7 +499,7 @@ module GanttChart
 							union	---  custords										
 								select  (trn.itms_id_pare) itms_id_trn,max(s.locas_id_shelfno) locas_id_trn,(trn.orgtblname) orgtblname,
 										(trn.orgtblid) orgtblid,(trn.paretblname) paretblname,(trn.paretblid) paretblid,
-										trn.paretblname tblname,trn.paretblid tblid,
+										trn.paretblname tblname,trn.paretblid tblid,max(trn.itms_id_pare) itms_id_pare,
 										pare.srctblname linktblname,pare.srctblid linktblid,
 										(trn.parenum) parenum,(trn.chilnum) chilnum,(trn.processseq_pare) processseq_trn,
 										min(trn.starttime_pare) starttime_trn,max(trn.duedate_pare) duedate_trn,
@@ -520,7 +526,7 @@ module GanttChart
 									--- org=pare=tblの子供org=pareの時　pare:tblは1:1
 								select trn.itms_id_trn, s.locas_id_shelfno locas_id_trn,
 										trn.orgtblname,	trn.orgtblid,trn.paretblname,trn.paretblid,
-										trn.tblname ,trn.tblid,
+										trn.tblname ,trn.tblid,max(trn.itms_id_pare) itms_id_pare,
 										'' linktblname ,0 linktblid,
 										trn.parenum,trn.chilnum,trn.processseq_trn,
 										trn.starttime_trn,trn.duedate_trn,
@@ -561,11 +567,28 @@ module GanttChart
 								:linktblname=>trn["linktblname"],:linktblid=>trn["linktblid"],
 								:trngantts_id=>trn["trngantts_id"],  ###trngantts.tblnameは変化している。
 								:parenum=>trn["parenum"],:chilnum=>trn["chilnum"],:processseq=>trn["processseq_trn"],
-								:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],:id=>ngantt[:id] + trn["key"]}  
+								:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],:id=>@level + "002" + trn["key"]}  
 						if @buttonflg =~ /gantt/
 							if trn["tblname"] =~ /^prd|^pur|^cust/
-								@bgantts[ngantt[:id]][:depend] << ngantt[:id] + trn["key"]
-							end
+								@bgantts[ngantt[:id]][:depend] << @level + "002" + trn["key"]
+              else
+              	if trn["tblname"] =~ /^con/  ###trngantts.tblname="conschs"になるのはgate runnerの時のみ
+								  @bgantts[ngantt[:id]][:depend] << @level + "002" + trn["key"]
+                   ###gateの所要量はkey= 'xxxx00000'に集約されている
+                  strsql = %Q&
+                          select t.key from trngantts t
+                                  inner join (select gate.* from trngantts gate
+							                         inner join trngantts run on run.tblname = gate.paretblname  and run.tblid = gate.paretblid   
+									 				                                        and run.orgtblname = gate.orgtblname  and run.orgtblid = gate.orgtblid   
+                                     where run.orgtblid = #{trn["orgtblid"]} and run.itms_id_trn = #{trn["itms_id_trn"]}
+                                       and run.processseq_trn = #{trn["processseq_trn"]}) g 
+                                    on  g.orgtblid = t.orgtblid and g.itms_id_trn = t.itms_id_trn
+                                       and g.processseq_trn = t.processseq_trn
+                                  where t.qty_sch > 0 or t.qty > 0 &
+                  gatekey = ActiveRecord::Base.connection.select_value(strsql)
+                  n0[:depend] << (@level + "002" + gatekey)
+                end
+              end
 						else
 							n0[:depend] << ngantt[:id]
 						end
@@ -598,6 +621,21 @@ module GanttChart
 					strsql = %Q&
 						select * from #{n0[:tblname]} tbl
 							inner join shelfnos shelf on shelf.id = tbl.shelfnos_id
+							where tbl.id = #{n0[:tblid]}
+					&
+					tbl =  ActiveRecord::Base.connection.select_one(strsql)
+					if tbl["code"] !=  "000"  ### 000-->same as locas
+						n0[:loca_code] = tbl["code"]
+						n0[:loca_name] = tbl["name"]
+					else
+						loca = ActiveRecord::Base.connection.select_one("select * from locas where id = #{tbl["locas_id_shelfno"]}")
+						n0[:loca_code] = loca["code"]
+						n0[:loca_name] = loca["name"]
+					end 
+				when /^con/  
+					strsql = %Q&
+						select * from #{n0[:tblname]} tbl
+							inner join shelfnos shelf on shelf.id = tbl.shelfnos_id_fm
 							where tbl.id = #{n0[:tblid]}
 					&
 					tbl =  ActiveRecord::Base.connection.select_one(strsql)
@@ -714,6 +752,9 @@ module GanttChart
             when /^ercords|^dvsords|^ercinsts|^dvsinsts/
 							n0[:duedate] = rec["duedate"]  ###duedate? rcptdate? cmpldate?
 							n0[:start] = (rec["commencementdate"]||=rec["starttime"])
+            when /^con/
+							n0[:duedate] = rec["duedate"]  ###duedate? rcptdate? cmpldate?
+							n0[:start] = (rec["duedate"].to_date - 1).strftime("%Y-%m-%d %H:%M:%S")  ###conは前日開始
 						else
 							n0[:duedate] = rec["duedate"]  ###duedate? rcptdate? cmpldate?
 							n0[:start] = rec["starttime"]
@@ -752,7 +793,7 @@ module GanttChart
         nditms_contents_set(n0,rec,idx,depend)
 			end
 				###depend = get_prev_process(n0,duedate,depend)  ###前工程 nditmsに含まれる。
-			@bgantts[n0[:id]][:depend] = depend.dup   ###親の依存を調べる。
+			@bgantts[n0[:id]][:depend].concat(depend.dup)   ###親の依存を調べる。
 		end
 		
 		def get_reverse_chart_rec(n0)  ###工程の始まり=前工程の終わり nditms,opeitms,itms用
@@ -788,7 +829,8 @@ module GanttChart
           :shelfnos_id_pare =>rec["shelfnos_id_pare"],:shelfnos_id_to_pare =>rec["shelfnos_id_to_pare"],
           :locas_id=>rec["locas_id"],:loca_code=>rec["locas_code"],:loca_name=>rec["locas_name"],:shelfnos_id=>rec["shelfnos_id"],:depend=>[],
           :locas_id_to=>rec["locas_id_to"],:loca_code_to=>rec["locas_code_to"],:loca_name_to=>rec["locas_name_to"],:shelfnos_id_to=>rec["shelfnos_id_to"]}
-      if rec["prdpur"] =~ /pur|prd/
+      case rec["prdpur"]
+        when /pur|prd/
               tblnamechop = rec["prdpur"] + "sch"
               nd =  {"duration"=>rec["duration"].to_f,"unitofduration"=>rec["unitofdvs"],
                       "shelfnos_id" => rec["shelfnos_id"],
@@ -842,6 +884,70 @@ module GanttChart
                 @bgantts[nlevel] = contents.dup	
                 @ngantts << contents
               end
+        when /BYP|run/  ###副産物、runner
+          ### reverse の時は考慮できない
+          contents[:start] = n0[:start]
+          contents[:duedate] = n0[:start]
+          strsql = %Q%select op.* from nditms nd 
+                                 inner join (select o.*,
+                                                      s.locas_id,s.locas_code,s.locas_name,s.shelfnos_id,
+                                                      xto.locas_id_to,xto.locas_code_to,xto.locas_name_to,xto.shelfnos_id_to,
+                                                      i.code itm_code,i.name itm_name
+                                                    from opeitms o 
+                                                    inner join (select l1.id locas_id,l1.code locas_code,l1.name locas_name,s1.id shelfnos_id
+                                                                    from shelfnos s1
+                                                                    inner join locas l1  on s1.locas_id_shelfno = l1.id)s on o.shelfnos_id_opeitm = s.shelfnos_id
+                                                    inner join  (select l2.id locas_id_to,l2.code locas_code_to,l2.name locas_name_to,s2.id shelfnos_id_to
+                                                                    from shelfnos s2
+                                                                    inner join locas l2  on s2.locas_id_shelfno = l2.id)xto on o.shelfnos_id_to_opeitm = xto.shelfnos_id_to
+                                                    inner join itms i on i.id = o.itms_id) op on op.id = nd.opeitms_id
+                                  where nd.itms_id_nditm = #{rec["itms_id"]} and nd.processseq_nditm = #{rec["processseq"]}
+                                      and nd.consumtype in('BYP','run') and op.priority = 999%
+          opeitm = ActiveRecord::Base.connection.select_one(strsql)
+          if opeitm
+              gate_contents = {:opeitms_id=>opeitm["id"],:processseq=>opeitm["processseq"],
+                          :duration=>opeitm["duration"],:unitofduration=>opeitm["unitofduration"],:type=>"task",  ###id 存在check
+                          :parenum=>"1",:chilnum=>"1",:qty=>new_qty,:cnt => 0,
+                          :itms_id=>opeitm["itms_id"],:itm_code=>opeitm["itm_code"],:itm_name=>opeitm["itm_name"],
+                          :itms_id_pare=>rec["itms_id_nditm"],:processseq_pare=>rec["processseq_nditm"],
+                          :classlist_code=>rec["classlist_code"],:prdpur=>opeitm["prdpur"],
+                          :shelfnos_id_pare =>rec["shelfnos_id_pare"],:shelfnos_id_to_pare =>rec["shelfnos_id_to_pare"],
+                          :locas_id=>opeitm["locas_id"],:loca_code=>opeitm["locas_code"],:loca_name=>opeitm["locas_name"],:shelfnos_id=>opeitm["shelfnos_id"],:depend=>[],
+                          :locas_id_to=>rec["locas_id"],:loca_code_to=>rec["locas_code"],:loca_name_to=>rec["locas_name"],:shelfnos_id_to=>rec["shelfnos_id"]}
+            if @gateOpeitmsId[opeitm["id"]]  ###gateは登録済
+              base_nlevel = @gateOpeitmsId[opeitm["id"]][:base_nlevel] ###gate用id
+              cnt = @gateOpeitmsId[opeitm["id"]][:cnt] + 1 
+              @gateOpeitmsId[opeitm["id"]][:cnt] = cnt
+              runner_nlevel =  base_nlevel + "run" + format('%03d',cnt)
+              contents.merge!({:id=>runner_nlevel})
+              depend << runner_nlevel
+              contents[:depend] <<  @gateOpeitmsId[opeitm["id"]][:id]
+              @ngantts << contents
+              @bgantts[runner_nlevel] = contents.dup
+            else
+              gate_nlevel = @level + opeitm["id"] + "run999" ###gate用id
+              gate_contents.merge!({:id=> gate_nlevel,:base_nlevel=>@level + opeitm["id"]})
+              @gateOpeitmsId[opeitm["id"]] = gate_contents
+              contents[:id] = @level  + opeitm["id"] + "run000" ###gate用id
+              contents[:depend] << gate_nlevel
+              depend << contents[:id]
+              @ngantts << contents
+              @bgantts[contents[:id]] = contents
+              nd =  {"duration"=>opeitm["duration"].to_f,"unitofduration"=>opeitm["unitofdvs"],
+                      "shelfnos_id" => opeitm["shelfnos_id"],
+                      "itms_id"=>opeitm["itms_id"],"processseq" => opeitm["processseq"]}
+              parent = {"duedate" => n0[:duedate],"starttime" => n0[:start],"shelfnos_id" =>rec["shelfnos_id"]}
+              tmp_com = {"shelfno_loca_id_shelfno" =>gate_contents[:locas_id],"prdsch_duedate" =>n0[:start],
+                                "prdsch_shelfno_id" => opeitm["shelfnos_id"],"shelfno_loca_id_shelfno_to"=> opeitm["locas_id_to"]}
+              tmp_com,message = CtlFields.proc_field_starttime("prdsch",tmp_com,parent,nd)
+              gate_contents[:start] = tmp_com["prdsch_starttime"]
+              gate_contents[:duedate] = n0[:start]
+              @ngantts << gate_contents
+              @bgantts[gate_contents[:id]] = gate_contents.dup
+            end
+          else
+						 raise" calss:#{self},line:#{__LINE__},gate runner error strsql:#{strsql}"
+          end
       else
         rec["opeitms_id"] ||= Constants::NilOpeitmsId
         rec["processseq"] ||= ""
@@ -889,11 +995,11 @@ module GanttChart
                   tmp_com ,message = CtlFields.proc_field_duedate("shpsch",tmp_com,parent,nd)
                   contents[:duedate] = tmp_com["shpsch_duedate"]
             end
-            if  @buttonflg =~ /reverse/
-              contents[:depend] << n0[:id]
-            else
-              depend << nlevel
-            end
+            # if  @buttonflg =~ /reverse/
+            #   contents[:depend] << n0[:id]
+            # else
+            #   depend << nlevel
+            # end
             @bgantts[nlevel] = contents.dup	
         when "apparatus"   ###装置
             contents[:start] = n0[:start]
@@ -918,11 +1024,11 @@ module GanttChart
                 tmp_com ,message  = CtlFields.proc_field_duedate("dvssch",tmp_com,parent,nd)
                 contents[:duedate] = tmp_com["dvssch_duedate"]
             end
-            if  @buttonflg =~ /reverse/
-              contents[:depend] << n0[:id]
-            else
-              depend << nlevel
-            end
+            # if  @buttonflg =~ /reverse/
+            #   contents[:depend] << n0[:id]
+            # else
+            #   depend << nlevel
+            # end
             @bgantts[nlevel] = contents.dup	
             ###
             # 装置処理　終わり
@@ -960,11 +1066,11 @@ module GanttChart
                       tmp_com,message = CtlFields.proc_field_starttime("ercsch",tmp_com,parent,nd)
                       contents[:start] = tmp_com["ercsch_starttime"]
                       contents[:duedate] = n0[:start]
-                      if  @buttonflg =~ /reverse/
-                        contents[:depend] << n0[:id]
-                      else
-                        depend << nlevel
-                      end
+                      # if  @buttonflg =~ /reverse/
+                      #   contents[:depend] << n0[:id]
+                      # else
+                      #   depend << nlevel
+                      # end
                     @bgantts[nlevel] = contents.dup	
                   end
                 when "require" 
@@ -975,11 +1081,11 @@ module GanttChart
                     nlevel = (save_nlevel + "b" +  format('%02d',ii))
                     contents.merge!({:id=>nlevel,:loca_code=>op["person_code_chrg_fcoperator"],:classlist_code=>"require",
                                       :locas_id=>"",:loca_name=>op["person_name_chrg_fcoperator"]})
-                    if  @buttonflg =~ /reverse/
-                      contents[:depend] << n0[:id]
-                    else
-                      depend << nlevel
-                    end
+                    # if  @buttonflg =~ /reverse/
+                    #   contents[:depend] << n0[:id]
+                    # else
+                    #   depend << nlevel
+                    # end
                     @bgantts[nlevel] = contents.dup	
                   end
                 when  "postprocess" 
@@ -999,11 +1105,11 @@ module GanttChart
                     tmp_com ,message= CtlFields.proc_field_duedate("ercsch",tmp_com,parent,nd)
                     contents[:duedate] = tmp_com["ercsch_duedate"]
                     contents[:start] = n0[:duedate]
-                    if  @buttonflg =~ /reverse/
-                      contents[:depend] << n0[:id]
-                    else
-                      depend << nlevel
-                    end
+                    # if  @buttonflg =~ /reverse/
+                    #   contents[:depend] << n0[:id]
+                    # else
+                    #   depend << nlevel
+                    # end
                     @bgantts[nlevel] = contents.dup	
                   end
                 end
@@ -1073,7 +1179,7 @@ module GanttChart
       end
       command_r["opeitm_itm_id"] = value[:itm_id]
       command_r["opeitm_loca_id_opeitm"] = value[:loca_id]
-      command_r["sio_viewname"]  = command_r["sio_code"] = @screen_code = "r_opeitms"
+      command_r["sio_viewname"]  = command_r["sio_code"] = "r_opeitms"
       command_r["opeitm_priority"] = value[:priority]
       command_r["opeitm_processseq"] = value[:processseq]
       command_r["opeitm_prdpur"] = value[:prdpur]
@@ -1113,7 +1219,7 @@ module GanttChart
 		end
 	end
 	def update_nditm_rec(pare_opeitm_id,value ,command_r)
-		command_r["sio_viewname"]  = command_r["sio_code"] = @screen_code = "r_nditms"
+		command_r["sio_viewname"]  = command_r["sio_code"] = "r_nditms"
 		if value[:itm_id]
 			command_r["nditm_itm_id_nditm"] = value[:itm_id]
 			command_r["nditm_opeitm_id"] = pare_opeitm_id
@@ -1291,7 +1397,7 @@ module GanttChart
 	###
 	def uploadgantt params  ### trnは別
 		ActiveRecord::Base.connection.begin_db_transaction()
-        params["person_id_upd"] =  ActiveRecord::Base.connection.select_value("select id from persons where email = '#{reqparams["email"]}'")   ###########   LOGIN USER
+        params[:person_id_upd] =  ActiveRecord::Base.connection.select_value("select id from persons where email = '#{reqparams[:email]}'")   ###########   LOGIN USER
 		@sio_session_counter = user_seq_nextval
 		@ganttdata = params[:tasks]
 		@err = false
