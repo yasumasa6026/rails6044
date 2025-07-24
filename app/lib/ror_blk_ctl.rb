@@ -846,8 +846,15 @@ module RorBlkCtl
 				gantt["shuffleflg"] = (opeitm["shuffleflg"]||= "0")
 				gantt["itms_id_trn"] = gantt["itms_id_pare"]  = gantt["itms_id_org"]  = opeitm["itms_id"]
 				gantt["processseq_trn"] = gantt["processseq_pare"]  = gantt["processseq_org"]  = opeitm["processseq"]
-				gantt["maxqty"] =  opeitm["maxqty"]
+				gantt["maxqty"] =  (opeitm["maxqty"]||= 999999999)
 				gantt["stktakingproc"] =  opeitm["stktakingproc"]
+				gantt["consumunitqty"] = (opeitm["consumunitqty"].to_f == 0 ? 1 : opeitm["consumunitqty"].to_f) ###消費単位
+				gantt["consumminqty"]  =  (opeitm["consumminqty"]||=0) ###最小消費数
+				gantt["consumchgoverqty"] =  (opeitm["consumchgoverqty"]||=0)  ###段取り消費数
+				gantt["optfixoterm"] =  (opeitm["optfixoterm"].to_f == 0 ? 365 : opeitm["optfixoterm"].to_f)  
+				gantt["packqty"] =  (opeitm["packqty"].to_f == 0 ? 1 : opeitm["packqty"].to_f)
+        gantt["duration"] =  (opeitm["duration"].to_f == 0 ? 1 : opeitm["duration"].to_f)
+        gantt["unitofduration"] =  (opeitm["unitofduration"].to_s == "" ? "Day " : opeitm["unitofduration"].to_s)
 				gantt["qty_sch"] = gantt["qty"] = gantt["qty_stk"] = 0  ### xxxschs,xxxords,・・・で対応
 				if @tblname =~ /^pur/  ###purxxxs 
 					suppliers = ActiveRecord::Base.connection.select_one("select * from suppliers where id = #{@tbldata["suppliers_id"]}")
@@ -858,13 +865,6 @@ module RorBlkCtl
 				else
 					gantt["shelfnos_id_trn"] = gantt["shelfnos_id_pare"] = gantt["shelfnos_id_org"] = @tbldata["shelfnos_id"]    
 				end
-				gantt["consumunitqty"] = (opeitm["consumunitqty"].to_f == 0 ? 1 : opeitm["consumunitqty"].to_f) ###消費単位
-				gantt["consumminqty"]  =  (opeitm["consumminqty"]||=0) ###最小消費数
-				gantt["consumchgoverqty"] =  (opeitm["consumchgoverqty"]||=0)  ###段取り消費数
-				gantt["optfixoterm"] =  (opeitm["optfixoterm"].to_f == 0 ? 365 : opeitm["optfixoterm"].to_f)  
-				gantt["packqty"] =  (opeitm["packqty"].to_f == 0 ? 1 : opeitm["packqty"].to_f)
-        gantt["duration"] =  (opeitm["duration"].to_f == 0 ? 1 : opeitm["duration"].to_f)
-        gantt["unitofduration"] =  (opeitm["unitofduration"].to_s == "" ? "Day " : opeitm["unitofduration"].to_s)
 				gantt["qty_require"] = 0
 				gantt["persons_id_upd"]   =  setParams[:person_id_upd]
 				case @tblname
@@ -981,6 +981,17 @@ module RorBlkCtl
 				gantt["tblid"] = @tbldata["id"]	
 				gantt["persons_id_upd"]   =  setParams[:person_id_upd]
 				gantt["prjnos_id"] = @tbldata["prjnos_id"]
+				gantt["shuffleflg"] = (opeitm["shuffleflg"]||= "0")
+				gantt["maxqty"] =  (opeitm["maxqty"]||= 999999999)
+				gantt["stktakingproc"] =  opeitm["stktakingproc"]
+				gantt["stktakingproc"] =  opeitm["stktakingproc"]
+				gantt["consumunitqty"] = (opeitm["consumunitqty"].to_f == 0 ? 1 : opeitm["consumunitqty"].to_f) ###消費単位
+				gantt["consumminqty"]  =  (opeitm["consumminqty"]||=0) ###最小消費数
+				gantt["consumchgoverqty"] =  (opeitm["consumchgoverqty"]||=0)  ###段取り消費数
+				gantt["optfixoterm"] =  (opeitm["optfixoterm"].to_f == 0 ? 365 : opeitm["optfixoterm"].to_f)  
+				gantt["packqty"] =  (opeitm["packqty"].to_f == 0 ? 1 : opeitm["packqty"].to_f)
+        gantt["duration"] =  (opeitm["duration"].to_f == 0 ? 1 : opeitm["duration"].to_f)
+        gantt["unitofduration"] =  (opeitm["unitofduration"].to_s == "" ? "Day " : opeitm["unitofduration"].to_s)
 				gantt["remark"] = " class:#{self},line:#{__LINE__} "
 				case @tblname
 				when "dymschs"

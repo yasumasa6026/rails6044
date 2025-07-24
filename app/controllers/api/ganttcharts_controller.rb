@@ -48,7 +48,7 @@ module Api
                                       "progress"=>0,"dependencies"=>ganttdata[:depend]
                                     }
                             end
-                            Rails.logger.debug("class:#{self},line:#{__LINE__},\n ganttData:#{ganttData}")
+                            ###Rails.logger.debug("class:#{self},line:#{__LINE__},\n ganttData:#{ganttData}")
                      when /pur|prd|custschs|custords/
                         case  params[:buttonflg] 
                         when "ganttchart"
@@ -156,7 +156,7 @@ module Api
                              raise
                         end
                     end 
-		                ###Rails.logger.debug " class:#{self} ,line:#{__LINE__},tasks:#{tasks} "
+		                    ###Rails.logger.debug " class:#{self} ,line:#{__LINE__},tasks:#{tasks} "
                     render json: {:tasks=>tasks}   
                 when "updateNditm"
                     reqparams = params.dup

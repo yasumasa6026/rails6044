@@ -85,6 +85,8 @@ truncate table ercinsts cascade;
 truncate table ercacts cascade;
 
 
+truncate table mkordtmpfs cascade;
+
 
 truncate table sio.sio_r_ercschs cascade;
 truncate table sio.sio_r_ercords cascade;

@@ -7,16 +7,14 @@ import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { withStyles } from '@mui/styles'
-import { LogoutRequest,SignupFormRequest} from './actions'
+import { LogoutRequest,SignupFormRequest,ChangePasswordFormRequest} from './actions'
 import Login from './components/login'
 import Signup from './components/signup'
 import ChangePassword from './components/changepassword'
 
-const GlobalNav = ( { isAuthenticated, isSubmitting,isSignUp,isLogin,
+const GlobalNav  = ( { isAuthenticated, isSubmitting,isSignUp,isLogin,
                     token,client,uid,
-                    LogoutClick,SignupFormClick,}) => {
-  
-              
+                    LogoutClick,SignupFormClick,ChangePasswordFormClick}) => {
                const navigate = useNavigate()
                 const changepasswordform = () => {navigate('/changepassword')}
                 const loginform = () => {navigate('/login')}
@@ -39,7 +37,8 @@ const GlobalNav = ( { isAuthenticated, isSubmitting,isSignUp,isLogin,
           <Typography variant="h5"  gutterBottom = {true}  >
             { isAuthenticated && <Button variant="contained" color='success'
               type='submit' disabled={false} style={{position: 'absolute',right: 0}}
-              onClick ={() =>changepasswordform()}>
+              //onClick ={() =>{ChangePasswordFormClick(),changepasswordform()}}>
+              onClick ={() =>{changepasswordform()}}>
               ChangePassword{isSubmitting && <i className='fa fa-spinner fa-spin' />}</Button>}
           </Typography>
           <Typography variant="h5"  gutterBottom = {true}  >
@@ -51,7 +50,8 @@ const GlobalNav = ( { isAuthenticated, isSubmitting,isSignUp,isLogin,
            <Typography variant="h5"  gutterBottom = {true}  >
             {!isAuthenticated && !isSignUp && <Button variant="contained" color='success'
               type='submit' disabled={false}
-              onClick ={() =>{SignupFormClick(),signupform()}}>SignUp</Button>}
+              /*onClick ={() =>{SignupFormClick(),signupform()}}>SignUp</Button>}*/
+              onClick ={() =>{signupform()}}>SignUp</Button>}
           </Typography>
           </Toolbar>
       </StyledAppBar>
@@ -84,7 +84,8 @@ const mapDispatchToProps = (dispatch,ownProps ) => {
   return{
         LogoutClick: (token,client,uid) => dispatch(LogoutRequest(token,client,uid),
                           ),
-        SignupFormClick: () => {dispatch(SignupFormRequest())},
+       // SignupFormClick: () => {dispatch(SignupFormRequest())},
+       // ChangePasswordFormClick: () => {dispatch(ChangePasswordFormRequest())},
         }
 }
 const  mapStateToProps = (state) => {

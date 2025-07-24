@@ -143,9 +143,9 @@ module GanttChart
               tmp_com = {"#{tblnamechop}_duedate" => @max_time,"#{tblnamechop}_shelfno_id" =>@ngantts[0][:shelfnos_id],
                           "shelfno_loca_id_shelfno" => @ngantts[0][:locas_id]}
           end
-          Rails.logger.debug("class:#{self},line:#{__LINE__},\n tmp_com:#{tmp_com}")
+          ###Rails.logger.debug("class:#{self},line:#{__LINE__},\n tmp_com:#{tmp_com}")
           tmp_com,message = CtlFields.proc_field_starttime(tblnamechop,tmp_com,parent,nd)
-          Rails.logger.debug("class:#{self},line:#{__LINE__},\n tmp_com:#{tmp_com}")
+          ###Rails.logger.debug("class:#{self},line:#{__LINE__},\n tmp_com:#{tmp_com}")
           @ngantts[0][:start] = tmp_com["#{tblnamechop}_starttime"]
           case @buttonflg
           when /gantt/
@@ -567,10 +567,11 @@ module GanttChart
 								:linktblname=>trn["linktblname"],:linktblid=>trn["linktblid"],
 								:trngantts_id=>trn["trngantts_id"],  ###trngantts.tblnameは変化している。
 								:parenum=>trn["parenum"],:chilnum=>trn["chilnum"],:processseq=>trn["processseq_trn"],
-								:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],:id=>@level + "002" + trn["key"]}  
+								:start=>trn["starttime_trn"],:duedate=>trn["duedate_trn"],
+                :id=>@level + "002" + trn["key"] + idx.to_s} 
 						if @buttonflg =~ /gantt/
 							if trn["tblname"] =~ /^prd|^pur|^cust/
-								@bgantts[ngantt[:id]][:depend] << @level + "002" + trn["key"]
+								@bgantts[ngantt[:id]][:depend] << n0[:id]  ###親のgantt_idを依存に追加
               else
               	if trn["tblname"] =~ /^con/  ###trngantts.tblname="conschs"になるのはgate runnerの時のみ
 								  @bgantts[ngantt[:id]][:depend] << @level + "002" + trn["key"]
@@ -586,7 +587,7 @@ module GanttChart
                                        and g.processseq_trn = t.processseq_trn
                                   where t.qty_sch > 0 or t.qty > 0 &
                   gatekey = ActiveRecord::Base.connection.select_value(strsql)
-                  n0[:depend] << (@level + "002" + gatekey)
+                  n0[:depend] << (@level + "002" + gatekey + "0")
                 end
               end
 						else
@@ -606,6 +607,7 @@ module GanttChart
       @bgantts[@base][:duedate] = @max_time
     	@bgantts[@base][:start] = @min_time
      	## opeitmのsubtblidのopeitmは子のinsert用
+				###	 Rails.logger.debug  "line,#{__LINE__} ,@bgantts:#{@bgantts} "
 			return @bgantts
     end
 

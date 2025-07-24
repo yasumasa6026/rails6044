@@ -2,6 +2,7 @@
 
 import {  SIGNUPFORM_REQUEST,SIGNUP_REQUEST,SIGNUP_SUCCESS,SIGNUP_FAILURE,
           LOGIN_REQUEST,LOGIN_SUCCESS,LOGIN_FAILURE,
+          CHANGEPASSWORD_SUCCESS, CHANGEPASSWORD_FAILURE,
           LOGOUT_REQUEST, LOGOUT_SUCCESS, } from '../../actions'
 
           
@@ -13,6 +14,7 @@ const initialValues = {
   isSignUp:false,
   email:"",
   auth:{},
+  result:"",
 }
 
 const authreducer =  (state= initialValues , actions) =>{
@@ -33,6 +35,7 @@ const authreducer =  (state= initialValues , actions) =>{
           isSubmitting:true,
           isSignUp:true,
           message: "signining in...",
+          result: "",
         }
     
 
@@ -41,7 +44,7 @@ const authreducer =  (state= initialValues , actions) =>{
       return {...state,
         isSubmitting:false,
         isSignUp:true,
-        error: "ok"
+        result: "ok"
       }
 
     // Append the error returned from our api
@@ -51,13 +54,30 @@ const authreducer =  (state= initialValues , actions) =>{
           time: new Date(),
           isSubmitting:false,
           isSignUp:true,
-          error: actions.payload.message   /// payloadに統一
+          result: actions.payload.message   /// payloadに統一
       }
+
+    case CHANGEPASSWORD_SUCCESS:
+      return {...state,
+        isSubmitting:false,
+        isSignUp:true,
+        result: "ok"
+      }
+
+    case CHANGEPASSWORD_FAILURE:
+      return {
+          isSubmitting:false,
+          isSignUp:true,
+          error: actions.payload.error   /// payloadに統一
+      }  
+
+
     // Set the requesting flag and append a message to be shown
     case LOGIN_REQUEST:
       return {
         isSubmitting:true,
         isAuthenticated:false,
+        password:actions.payload.password,
         error:"",
       }
 

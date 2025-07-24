@@ -408,6 +408,7 @@ module Shipment
 		###
 		parent = setParams[:parent]  ###親
 		child = setParams[:child]  #
+    last_lotstks = []
 		tblnamechop = yield
 		blk = RorBlkCtl::BlkClass.new("r_#{tblnamechop}s")
 		command_c = blk.command_init
@@ -525,7 +526,6 @@ module Shipment
 				###
 				#  mold,ITollのshpxxxxのlinktbls
 				###
-        last_lotstks = []
         last_lotstks << {"tblname" => yield + "s" ,"tblid" => command_c["id"],"qty_src" => qty_src }
 				return last_lotstks if yield == "shpest"
 				last_lotstks_parts = update_mold_IToll_shp_link(blk.tbldata,"add") do

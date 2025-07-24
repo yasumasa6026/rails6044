@@ -1,9 +1,8 @@
-import React from 'react'
 import {connect} from 'react-redux'
 import {ChangePasswordRequest} from '../actions'
 import { useForm} from 'react-hook-form'
 
-const ChangePassword = ({isSubmitting,onSubmit,token,client,uid,error}) => {
+const ChangePassword = ({isSubmitting,uid,password,onSubmit,result}) => {
   const { register, handleSubmit, formState: { errors }, watch, } = useForm()
   return(
   <div>
@@ -14,32 +13,30 @@ const ChangePassword = ({isSubmitting,onSubmit,token,client,uid,error}) => {
       <label htmlFor="email">
       email:
       </label>
-      <input type="email" placeholder="mail" {...register(
+      <input type="email" placeholder="email" {...register(
             "email",
-            {
-            required: 'this is required',
-            pattern: {
-              value: /^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/,
-              message: 'Invalid email address',
-            },
+            { required:true,  message:'this is required',
+           validate : (value) =>{if(value !== uid) return "email does not match."}
           })}/>
-      {errors.email && errors.email.message}
     </li>
     <li>
       <label htmlFor="password">
         current_password:
       </label>
-      <input type="password" {...register(
+      <input type="password"  name="current_password" {...register(
         "current_password",
-        { required: true })}  />
+        {
+            required:true,  message:'this is required',
+           validate : (value) => {if(value !== password) return "current password does not match."},
+          })}  />
     </li>
     <li>
       <label htmlFor="password">
-      password:
+      new-password:
       </label>
       <input type="password" {...register(
         "password",
-        { required: true })}  />
+        { required: true , minLength: { value: 8, message: 'Password must be at least 8 characters long' } })}  />
     </li>
     <li>
       <label htmlFor="password_confirmation">
@@ -48,7 +45,7 @@ const ChangePassword = ({isSubmitting,onSubmit,token,client,uid,error}) => {
       <input type="password" 
              {...register(
               "password_confirmation",
-               {validate: (value) => value === watch('password') || "Passwords don't match."})}  />
+               {validate: (value) => {if(value !== watch('password')) return "New Passwords don't match."}})}  />
     </li>
   </ul>
     <button type="submit" disabled={isSubmitting}>
@@ -56,25 +53,26 @@ const ChangePassword = ({isSubmitting,onSubmit,token,client,uid,error}) => {
     </button>
   </form>
         <div style={{ color: 'red' }}>
-          {Object.keys(errors).length > 0 &&
-            'There are errors, check your console.'}
-            {error}
+          {errors.email ? `There are errors, check your console. ${errors.email.message}` : null}
+          {errors.current_password ? `${errors.current_password.message}` : null}
+          {errors.password ? `${errors.password.message}` : null}
+          {errors.password_confirmation ? `${errors.password_confirmation.message}` : null}
+          {result === "ok" ? " ok " : null}
         </div>
   </div>
   )
 }
 
 const mapDispatchToProps = dispatch => ({
-  onSubmit: ({token,client,uid, current_passwword,password,password_confirmation}) => 
-                  dispatch(ChangePasswordRequest(token,client,uid,current_passwword, password,password_confirmation))
+  onSubmit: ({current_password,password,password_confirmation}) => 
+                  dispatch(ChangePasswordRequest(current_password, password,password_confirmation))
 })
 
 const mapStateToProps = state =>({
-  isSubmitting:state.auth.isSubmitting ,
-  token:state.auth.token, 
-  client:state.auth.client, 
-  uid:state.auth.uid, 
-  error:state.auth.error ,
+  isSubmitting:state.auth.isSubmitting,
+  uid:state.auth.uid,
+  password:state.auth.password,
+  result:state.auth.result,
 })
 
 export  default  connect(mapStateToProps,mapDispatchToProps)(ChangePassword)

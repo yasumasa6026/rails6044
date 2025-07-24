@@ -57,14 +57,15 @@ Rails.application.configure do
    config.action_mailer.delivery_method = :smtp
    config.action_mailer.raise_delivery_errors = true
    config.action_mailer.smtp_settings = {
-     address: 'localhost',
+     ###address: 'localhost',
+     address: 'MyComputer',
      ##address: '192.168.10.149',
      port: '1025',
    }
    config.action_mailer.logger = Logger.new(config.paths['log'].first)
    config.action_mailer.logger.level = Logger::INFO
  
-   ##config.action_controller.asset_host = 'http://localhost:3001'
+   ###config.action_controller.asset_host = 'http://localhost:3001'
    config.action_controller.asset_host = 'http://MyComputer:3001'
    
    config.action_controller.forgery_protection_origin_check = false

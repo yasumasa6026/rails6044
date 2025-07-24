@@ -4,8 +4,6 @@ import axios         from 'axios'
 import {SIGNUP_SUCCESS,SIGNUP_FAILURE} from '../../actions'
 
 function signupApi({email,password,password_confirmation }) {
-  //const url = 'http://localhost:3001/api/auth/sign_up'
-  //const url = 'http://localhost:3001/api/auth'
   const url = `${process.env.REACT_APP_API_URL}/auth`
   //const params = {email:email,password:password,password_confirmation:password_confirmation,provider:"email"}
   const params = {email:email,password:password,password_confirmation:password_confirmation}

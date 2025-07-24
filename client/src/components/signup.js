@@ -7,7 +7,7 @@ import { useForm} from 'react-hook-form'
 // @NOTE For forms that can be reused for both create/update you would move this form to its own
 // file and import it with different initialValues depending on the use-case. An over-optimization
 // for this simple signup form however.
-const SignUp = ({isSubmitting,onSubmit,error}) => {
+const SignUp = ({isSubmitting,onSubmit,result}) => {
   const { register, handleSubmit, formState: { errors }, watch, } = useForm()
   return(
   <div>
@@ -52,9 +52,9 @@ const SignUp = ({isSubmitting,onSubmit,error}) => {
     </button>
   </form>
         <div style={{ color: 'red' }}>
-          {Object.keys(errors).length > 0 &&
-            'There are errors, check your console.'}
-            {error}
+          {errors.password_confirmation &&
+            `There are errors, password confirmation does not match.${errors.password_confirmation.message}`}
+            {result}
         </div>
   </div>
   )
@@ -67,7 +67,7 @@ const mapDispatchToProps = dispatch => ({
 const mapStateToProps = state =>({
   isSubmitting:state.auth.isSubmitting ,
   isSignUp:state.auth.isSignUp ,
-  error:state.auth.error ,
+  result:state.auth.result ,
 })
 
 

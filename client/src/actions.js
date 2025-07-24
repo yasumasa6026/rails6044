@@ -99,10 +99,11 @@ export const SignUpRequest =  (email, password,password_confirmation) => ({
   payload: { email, password ,password_confirmation}
 })
 
+/*
 export const SignupFormRequest =  () => ({
   type:SIGNUPFORM_REQUEST,
 })
-
+*/
 
 export const LoginRequest  = (email, password) => ({
   type: LOGIN_REQUEST,
@@ -119,14 +120,24 @@ export const LogoutSuccess = () => ({
  // payload: {token,client,uid }
 })
 
-export const ChangePasswordRequest =  (token,client,uid) => ({
+/*
+export const ChangePasswordFormRequest =  () => ({
   type: CHANGEPASSWORD_REQUEST,
-  payload: { token,client,uid,email,current_password,password,confirm_password }
+  payload: {}
+})
+  */
+
+export const ChangePasswordRequest =  (current_password,password,password_confirmation) => ({
+  type: CHANGEPASSWORD_REQUEST,
+  payload: { current_password,password,password_confirmation }
 })
 
 export const ChangePasswordSuccess = () => ({
   type: CHANGEPASSWORD_SUCCESS,
- // payload: {token,client,uid }
+})
+
+export const ChangePasswordFailure = () => ({
+  type: CHANGEPASSWORD_FAILURE,
 })
 
 

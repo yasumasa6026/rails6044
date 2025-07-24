@@ -33,19 +33,6 @@ class CreateOtherTableRecordJob < ApplicationJob
                     strsql = %Q%update processreqs set result_f = '5'  where id = #{processreq["id"]}
                     %
                     ActiveRecord::Base.connection.update(strsql)
-                    # parent = {}
-                    #     ##r_xxxxの処理が遅いためテーブル処理に変更
-                    # tbldata.each do |key,val| ###依頼元
-                    #     if key =~ /s_id/ ###孫の項目まで対応
-                    #       parent[key.split("s_id")[0] + key.sub("s_id","_id")] = val   
-                    #                 strsql = %Q&
-                    #                     select * from #{key.split("_id")[0]}  where id = #{val}
-                    #                     &
-                    #                 ActiveRecord::Base.connection.select_one(strsql).each do |nextkey,value| ###依頼元
-                    #                     parent[key.split("s_id")[0] + "_" + nextkey.sub("s_id","_id")] = value
-                    #                 end       
-                    #     end
-                    # end
                     result_f = '1'
                     remark = ""
                     case params[:segment]

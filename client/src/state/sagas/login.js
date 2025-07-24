@@ -40,13 +40,6 @@ export function* LoginSaga({ payload: { email, password } }) {
       let {response,error} = yield call(loginApi, { email, password} )
       if(response){
         yield put({ type: LOGIN_SUCCESS, payload: response.headers })
-
-        
-        //  const token = {token:response.headers["access-token"]}
-        //  const client = {client:response.headers["client"]}
-        //  const uid = {uid:response.headers["uid"]}
-        //  yield put({ type: MENU_REQUEST, action: (token,client,uid) })
-
         yield put(MenuRequest(response.headers) )      
         yield put(ButtonListRequest(response.headers) )
         return }

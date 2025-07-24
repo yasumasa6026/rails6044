@@ -5,7 +5,7 @@ module Api
       ###before_action :authenticate_api_user!, except: [:create,:new]
       private
       def resource_params
-        params.permit(:email, :password, :password_confirmation, :current_password)
+        params.permit(:email, :password, :password_confirmation)
       end
     
     end  
