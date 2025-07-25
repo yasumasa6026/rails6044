@@ -33,8 +33,8 @@ Rails.application.configure do
 
   config.action_mailer.perform_caching = false
 
-  ##config.action_mailer.default_url_options = { host: 'localhost', port: 3001 }
-  config.action_mailer.default_url_options = { host: 'MyComputer', port: 3001 }
+  ###config.action_mailer.default_url_options = { host: 'localhost', port: 3001 }
+  config.action_mailer.default_url_options = { host: 'MyComputer', port: 3000 }
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
@@ -57,8 +57,8 @@ Rails.application.configure do
    config.action_mailer.delivery_method = :smtp
    config.action_mailer.raise_delivery_errors = true
    config.action_mailer.smtp_settings = {
-     ###address: 'localhost',
-     address: 'MyComputer',
+     address: 'localhost',
+     ###address: 'MyComputer',
      ##address: '192.168.10.149',
      port: '1025',
    }
@@ -78,6 +78,7 @@ end
 
 
 ###
+# MailCatcher
 # https://qiita.com/uenomoto/items/1af0626e18bde4c2e245  から引用
 ###
 

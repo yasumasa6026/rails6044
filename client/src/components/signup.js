@@ -35,7 +35,7 @@ const SignUp = ({isSubmitting,onSubmit,result}) => {
       </label>
       <input type="password" {...register(
         "password",
-        { required: true })}  />
+          { required: true , minLength: { value: 8, message: 'Password must be at least 8 characters long' } })}  />
     </li>
     <li>
       <label htmlFor="password_confirmation">
@@ -52,8 +52,10 @@ const SignUp = ({isSubmitting,onSubmit,result}) => {
     </button>
   </form>
         <div style={{ color: 'red' }}>
+          {errors.password &&
+            ` password error.${errors.password.message}`}
           {errors.password_confirmation &&
-            `There are errors, password confirmation does not match.${errors.password_confirmation.message}`}
+            ` password confirmation does not match.${errors.password_confirmation.message}`}
             {result}
         </div>
   </div>
